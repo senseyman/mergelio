@@ -1,0 +1,189 @@
+# ============================================================
+# Mergelio — Flutter (Desktop: Windows / macOS / Linux)
+# ============================================================
+
+# ---- Dart / Flutter core ----
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.metadata
+pubspec.lock            # app: usually committed; library/tooling: ignored. Uncomment if this is an app.
+# !pubspec.lock
+
+# Generated code
+*.g.dart
+*.freezed.dart
+*.mocks.dart
+*.gr.dart
+*.config.dart
+# Keep hand-written *.dart; only generated variants above are ignored.
+
+# Dart tool caches / analysis
+.dart_tool/package_config.json
+doc/api/
+
+# ---- Test / coverage ----
+coverage/
+test/.test_coverage.dart
+*.lcov
+
+# ---- FVM (Flutter Version Management) ----
+.fvm/flutter_sdk
+
+# ---- Symbols / obfuscation ----
+app.*.symbols
+app.*.map.json
+
+# ============================================================
+# Platform: Android (if mobile targets added later)
+# ============================================================
+**/android/**/gradle-wrapper.jar
+**/android/.gradle
+**/android/captures/
+**/android/gradlew
+**/android/gradlew.bat
+**/android/local.properties
+**/android/**/GeneratedPluginRegistrant.java
+**/android/key.properties
+*.jks
+*.keystore
+
+# ============================================================
+# Platform: iOS / macOS (if mobile/desktop Apple targets)
+# ============================================================
+**/ios/**/*.mode1v3
+**/ios/**/*.mode2v3
+**/ios/**/*.moved-aside
+**/ios/**/*.pbxuser
+**/ios/**/*.perspectivev3
+**/ios/**/*sync/
+**/ios/**/.sconsign.dblite
+**/ios/**/.tags*
+**/ios/**/.vagrant/
+**/ios/**/DerivedData/
+**/ios/**/Icon?
+**/ios/**/Pods/
+**/ios/**/.symlinks/
+**/ios/**/profile
+**/ios/**/xcuserdata
+**/ios/.generated/
+**/ios/Flutter/App.framework
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/ephemeral/
+**/ios/Flutter/app.flx
+**/ios/Flutter/app.zip
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/ServiceDefinitions.json
+**/ios/Runner/GeneratedPluginRegistrant.*
+
+**/macos/Flutter/GeneratedPluginRegistrant.swift
+**/macos/Flutter/ephemeral/
+**/macos/Pods/
+**/macos/**/xcuserdata/
+**/macos/**/DerivedData/
+**/macos/**/*.xcworkspace/xcuserdata/
+
+# CocoaPods
+Podfile.lock
+
+# ============================================================
+# Platform: Windows (desktop)
+# ============================================================
+**/windows/flutter/generated_plugin_registrant.cc
+**/windows/flutter/generated_plugin_registrant.h
+**/windows/flutter/generated_plugins.cmake
+**/windows/flutter/ephemeral/
+**/windows/**/x64/
+**/windows/**/Debug/
+**/windows/**/Release/
+**/windows/**/*.user
+
+# ============================================================
+# Platform: Linux (desktop)
+# ============================================================
+**/linux/flutter/generated_plugin_registrant.cc
+**/linux/flutter/generated_plugin_registrant.h
+**/linux/flutter/generated_plugins.cmake
+**/linux/flutter/ephemeral/
+
+# ============================================================
+# Native build systems
+# ============================================================
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+
+# ============================================================
+# Installers / packaging artifacts
+# ============================================================
+*.msi
+*.msix
+*.exe
+*.dmg
+*.pkg
+*.AppImage
+*.deb
+*.rpm
+*.snap
+dist/
+release/
+installers/
+
+# ============================================================
+# Secrets / local config (never commit)
+# ============================================================
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.mobileprovision
+secrets.dart
+lib/**/secrets.dart
+signing/
+
+# ============================================================
+# IDE / editor
+# ============================================================
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/*
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.swp
+*.swo
+*~
+
+# ============================================================
+# OS junk
+# ============================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ============================================================
+# Logs / temp
+# ============================================================
+*.log
+*.tmp
+*.temp
+.history/
+.docs
