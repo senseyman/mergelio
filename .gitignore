@@ -115,11 +115,12 @@ Podfile.lock
 # ============================================================
 # Native build systems
 # ============================================================
-# CMake
+# CMake (generated inside build trees; keep the repo-root Makefile)
 CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
 Makefile
+!/Makefile
 *.cmake
 !CMakeLists.txt
 
