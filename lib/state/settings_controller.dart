@@ -45,6 +45,11 @@ class SettingsController extends StateNotifier<AppSettings> {
   void toggleGraphCompact() =>
       _update(state.copyWith(graphCompact: !state.graphCompact));
 
+  void setDiffSplit(bool split) => _update(state.copyWith(diffSplit: split));
+
+  void setDiffHeight(double h) =>
+      _update(state.copyWith(diffHeight: h.clamp(0.28, 0.86)));
+
   void _update(AppSettings next) {
     state = next;
     // Persistence is best-effort per change; a failed write must not crash

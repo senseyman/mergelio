@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
 import '../../domain/git/models.dart';
+import '../../state/diff_target.dart';
 import '../../state/graph_selection.dart';
 import '../../state/repo_data.dart';
 import '../graph/commit_columns.dart';
@@ -135,7 +136,20 @@ class CommitDetails extends ConsumerWidget {
                         )
                       : Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [for (final f in list) _FileRow(file: f)],
+                          children: [
+                            for (final f in list)
+                              _FileRow(
+                                file: f,
+                                onTap: () =>
+                                    ref
+                                        .read(diffTargetProvider.notifier)
+                                        .state = DiffTarget(
+                                      repoPath: repoPath,
+                                      path: f.path,
+                                      commitSha: c.sha,
+                                    ),
+                              ),
+                          ],
                         ),
                 ),
               ],
@@ -224,7 +238,8 @@ class _MetaSha extends StatelessWidget {
 
 class _FileRow extends StatelessWidget {
   final CommitFileChange file;
-  const _FileRow({required this.file});
+  final VoidCallback onTap;
+  const _FileRow({required this.file, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -236,38 +251,42 @@ class _FileRow extends StatelessWidget {
       GitChange.copied => (t.accent, 'C'),
       _ => (t.warning, 'M'),
     };
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        children: [
-          Container(
-            width: 16,
-            height: 16,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              letter,
-              style: TextStyle(
-                color: color,
-                fontSize: 9.5,
-                fontWeight: FontWeight.w700,
+    return InkWell(
+      onTap: onTap,
+      hoverColor: t.hover,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Row(
+          children: [
+            Container(
+              width: 16,
+              height: 16,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                letter,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              file.origPath == null
-                  ? file.path
-                  : '${file.origPath} → ${file.path}',
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: t.textMuted, fontSize: 12),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                file.origPath == null
+                    ? file.path
+                    : '${file.origPath} → ${file.path}',
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: t.textMuted, fontSize: 12),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

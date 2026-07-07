@@ -19,6 +19,8 @@ class AppSettings with _$AppSettings {
     // Graph meta columns; a column absent from the map is shown.
     @Default({}) Map<String, bool> graphCols,
     @Default(false) bool graphCompact,
+    // Diff sheet: split vs inline view.
+    @Default(false) bool diffSplit,
   }) = _AppSettings;
 
   factory AppSettings.fromJson(Map<String, dynamic> json) =>

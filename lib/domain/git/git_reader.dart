@@ -189,6 +189,50 @@ class GitReader {
     return out;
   }
 
+  /// Unified diff of the unstaged changes to [path] (working tree vs index).
+  Future<String> workingDiff(String path) async {
+    final r = await _run(['diff', '--no-color', '--', path]);
+    if (!r.ok) throw GitException('git diff failed', r);
+    return r.stdout;
+  }
+
+  /// Unified diff of the staged changes to [path] (index vs HEAD).
+  Future<String> stagedDiff(String path) async {
+    final r = await _run(['diff', '--no-color', '--cached', '--', path]);
+    if (!r.ok) throw GitException('git diff --cached failed', r);
+    return r.stdout;
+  }
+
+  /// Full content of an untracked [path] rendered as an all-added diff, via
+  /// `git diff --no-index` against /dev/null. That command exits 1 when there
+  /// is a difference, which is expected here — not an error.
+  Future<String> untrackedDiff(String path) async {
+    final r = await _run([
+      'diff',
+      '--no-color',
+      '--no-index',
+      '--',
+      '/dev/null',
+      path,
+    ]);
+    return r.stdout;
+  }
+
+  /// Unified diff introduced by [sha] for [path], against its first parent.
+  Future<String> commitDiff(String sha, String path) async {
+    final r = await _run([
+      'show',
+      '--no-color',
+      '--format=',
+      '--first-parent',
+      sha,
+      '--',
+      path,
+    ]);
+    if (!r.ok) throw GitException('git show failed', r);
+    return r.stdout;
+  }
+
   /// Files changed by [sha]. Merges are diffed against their first parent, so
   /// the list shows what the merged branch brought in.
   Future<List<CommitFileChange>> commitFiles(String sha) async {

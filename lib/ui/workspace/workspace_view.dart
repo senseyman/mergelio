@@ -7,11 +7,14 @@ import '../../state/graph_selection.dart';
 import '../../state/repo_data.dart';
 import '../../state/settings_controller.dart';
 import '../../state/workspace.dart';
+import '../../state/diff_target.dart';
+import '../diff/diff_sheet.dart';
 import '../graph/graph_view.dart';
 import '../shell/resize_handle.dart';
 import 'commit_details.dart';
 import 'panel_placeholder.dart';
 import 'repo_sidebar.dart';
+import 'working_tree_panel.dart';
 
 /// The 3-panel workspace: left sidebar (refs) · centre (history/graph) · right
 /// (changes). Left and right widths are user-resizable and persisted; the left
@@ -35,10 +38,42 @@ class WorkspaceView extends ConsumerWidget {
           ),
           ResizeHandle(onDrag: (dx) => ctl.setLeftWidth(s.leftWidth + dx)),
         ],
-        const Expanded(child: GraphView()),
+        const Expanded(child: _CenterWithDiff()),
         ResizeHandle(onDrag: (dx) => ctl.setRightWidth(s.rightWidth - dx)),
         SizedBox(width: s.rightWidth, child: const _RightPanel()),
       ],
+    );
+  }
+}
+
+/// Centre column: the graph, with the diff sheet sliding up over its lower
+/// portion. Clicking the visible graph strip closes an open sheet.
+class _CenterWithDiff extends ConsumerWidget {
+  const _CenterWithDiff();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final open = ref.watch(diffTargetProvider) != null;
+    return LayoutBuilder(
+      builder: (context, box) => Stack(
+        children: [
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: open
+                  ? () => ref.read(diffTargetProvider.notifier).state = null
+                  : null,
+              child: const GraphView(),
+            ),
+          ),
+          if (open)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: DiffSheet(availableHeight: box.maxHeight),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -71,6 +106,12 @@ class _RightPanel extends ConsumerWidget {
           commit: commit,
           hasWip: data!.working.isNotEmpty,
         );
+      }
+    }
+    if (path != null) {
+      final data = ref.watch(repoDataProvider(path)).valueOrNull;
+      if (data != null) {
+        return WorkingTreePanel(repoPath: path, data: data);
       }
     }
     return PanelPlaceholder(
