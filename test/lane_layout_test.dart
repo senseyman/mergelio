@@ -49,6 +49,21 @@ void main() {
       expect(f.lane, 1);
       expect(f.branchStart, isTrue);
       expect(f.through, [0]);
+      // Its first parent m1 continues on lane 0, so the connector merges down
+      // into lane 0.
+      expect(f.branchInto, 0);
+    });
+
+    test('a non-branchStart commit has no branchInto', () {
+      expect(at('f2').branchInto, isNull);
+      expect(at('m1').branchInto, isNull);
+    });
+
+    test('only commits no child was waiting for are tips', () {
+      expect(at('merge').tip, isTrue);
+      expect(at('f2').tip, isFalse);
+      expect(at('m1').tip, isFalse);
+      expect(at('m0').tip, isFalse);
     });
 
     test('mainline commits stay on lane 0', () {

@@ -189,6 +189,97 @@ class GitReader {
     return out;
   }
 
+  /// Files changed by [sha]. Merges are diffed against their first parent, so
+  /// the list shows what the merged branch brought in.
+  Future<List<CommitFileChange>> commitFiles(String sha) async {
+    final r = await _run([
+      'diff-tree',
+      '--root',
+      '--no-commit-id',
+      '--name-status',
+      '-r',
+      '-z',
+      '-m',
+      '--first-parent',
+      sha,
+    ]);
+    if (!r.ok) throw GitException('git diff-tree failed', r);
+
+    final out = <CommitFileChange>[];
+    final toks = r.stdout.split(_rs);
+    var i = 0;
+    while (i + 1 < toks.length && toks[i].isNotEmpty) {
+      final status = toks[i];
+      final change = _code(status[0]);
+      // Renames/copies (R100 etc.) carry two paths: original, then new.
+      if (status[0] == 'R' || status[0] == 'C') {
+        if (i + 2 >= toks.length) break;
+        out.add(
+          CommitFileChange(
+            path: toks[i + 2],
+            change: change,
+            origPath: toks[i + 1],
+          ),
+        );
+        i += 3;
+      } else {
+        out.add(CommitFileChange(path: toks[i + 1], change: change));
+        i += 2;
+      }
+    }
+    return out;
+  }
+
+  /// Squash-merge links from each branch (other than [into]) to the mainline
+  /// commit that carries its squashed changes. A branch is considered squashed
+  /// onto commit C when C is the first commit after their merge-base on the
+  /// path to [into] and C has the same tree as the branch tip — i.e. C
+  /// introduces exactly the branch's net change. Tree equality keeps this
+  /// conservative: open branches and unrelated history are not linked.
+  Future<List<SquashLink>> squashLinks(
+    List<Branch> branches, {
+    required String into,
+  }) async {
+    final results = await Future.wait([
+      for (final b in branches)
+        if (b.name != into) _squashLinkFor(b.name, into),
+    ]);
+    return results.whereType<SquashLink>().toList();
+  }
+
+  Future<String?> _revParse(String rev) async {
+    final r = await _run(['rev-parse', '--verify', '--quiet', rev]);
+    return r.ok && r.out.isNotEmpty ? r.out : null;
+  }
+
+  Future<SquashLink?> _squashLinkFor(String branch, String into) async {
+    final tip = await _revParse(branch);
+    if (tip == null) return null;
+
+    final baseRes = await _run(['merge-base', into, branch]);
+    if (!baseRes.ok || baseRes.out.isEmpty) return null;
+    final base = baseRes.out;
+    if (base == tip) return null; // already an ancestor of `into`
+
+    final pathRes = await _run([
+      'rev-list',
+      '--reverse',
+      '--ancestry-path',
+      '$base..$into',
+    ]);
+    if (!pathRes.ok) return null;
+    final landing = const LineSplitter()
+        .convert(pathRes.stdout)
+        .firstWhere((l) => l.isNotEmpty, orElse: () => '');
+    if (landing.isEmpty) return null;
+
+    final tipTree = await _revParse('$tip^{tree}');
+    final landingTree = await _revParse('$landing^{tree}');
+    if (tipTree == null || tipTree != landingTree) return null;
+
+    return SquashLink(fromSha: tip, toSha: landing);
+  }
+
   static int _trackNum(String track, String key) {
     final m = RegExp('$key (\\d+)').firstMatch(track);
     return m == null ? 0 : int.parse(m.group(1)!);

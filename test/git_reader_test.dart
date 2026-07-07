@@ -93,11 +93,105 @@ void main() {
     expect(await reader().tags(), contains('v1.0'));
   });
 
+  test('lists files changed by a commit', () async {
+    final commits = await reader().commits();
+    final root = commits.firstWhere((c) => c.parents.isEmpty);
+    final merge = commits.firstWhere((c) => c.merge);
+
+    final rootFiles = await reader().commitFiles(root.sha);
+    expect(rootFiles, hasLength(1));
+    expect(rootFiles.single.path, 'a.txt');
+    expect(rootFiles.single.change, GitChange.added);
+
+    // A merge shows its first-parent diff: what the merged branch brought in.
+    final mergeFiles = await reader().commitFiles(merge.sha);
+    expect(mergeFiles.map((f) => f.path), contains('b.txt'));
+  });
+
   test('parses staged, unstaged and untracked working files', () async {
     final files = {for (final f in await reader().status()) f.path: f};
 
     expect(files['d.txt']?.isStaged, isTrue);
     expect(files['a.txt']?.isUnstaged, isTrue);
     expect(files['e.txt']?.isUntracked, isTrue);
+  });
+
+  group('squashLinks', () {
+    late Directory sdir;
+
+    Future<void> sg(List<String> args) async {
+      final r = await svc.run(args, repoPath: sdir.path);
+      if (!r.ok) throw StateError('git ${args.join(' ')} failed: ${r.err}');
+    }
+
+    Future<void> swrite(String name, String content) =>
+        File('${sdir.path}/$name').writeAsString(content);
+
+    setUp(() async {
+      sdir = await Directory.systemTemp.createTemp('mergelio_squash_');
+      await sg(['init', '-q']);
+      await sg(['symbolic-ref', 'HEAD', 'refs/heads/main']);
+      await sg(['config', 'user.email', 't@example.com']);
+      await sg(['config', 'user.name', 'Tester']);
+      await sg(['config', 'commit.gpgsign', 'false']);
+
+      await swrite('base.txt', 'base\n');
+      await sg(['add', '.']);
+      await sg(['commit', '-q', '-m', 'base']);
+
+      await sg(['checkout', '-q', '-b', 'feature']);
+      await swrite('f1.txt', '1\n');
+      await sg(['add', '.']);
+      await sg(['commit', '-q', '-m', 'feat 1']);
+      await swrite('f2.txt', '2\n');
+      await sg(['add', '.']);
+      await sg(['commit', '-q', '-m', 'feat 2']);
+
+      // Squash-merge feature onto main: one new commit, no parent edge.
+      await sg(['checkout', '-q', 'main']);
+      await sg(['merge', '--squash', 'feature']);
+      await sg(['commit', '-q', '-m', 'Squash feature (#1)']);
+
+      // An unrelated open branch that was NOT merged — must not be linked.
+      await sg(['checkout', '-q', '-b', 'open']);
+      await swrite('o.txt', 'o\n');
+      await sg(['add', '.']);
+      await sg(['commit', '-q', '-m', 'open work']);
+      await sg(['checkout', '-q', 'main']);
+    });
+
+    tearDown(() async {
+      if (await sdir.exists()) await sdir.delete(recursive: true);
+    });
+
+    test('links a squash-merged branch tip to its landing commit', () async {
+      final r = GitReader(svc, sdir.path);
+      final branches = await r.branches();
+      final links = await r.squashLinks(branches, into: 'main');
+
+      final featureTip = (await svc.run([
+        'rev-parse',
+        'feature',
+      ], repoPath: sdir.path)).out;
+      final landing = (await svc.run([
+        'rev-parse',
+        'main',
+      ], repoPath: sdir.path)).out;
+
+      expect(links, hasLength(1));
+      expect(links.single.fromSha, featureTip);
+      expect(links.single.toSha, landing);
+    });
+
+    test('does not link an open, unmerged branch', () async {
+      final r = GitReader(svc, sdir.path);
+      final branches = await r.branches();
+      final links = await r.squashLinks(branches, into: 'main');
+      final openTip = (await svc.run([
+        'rev-parse',
+        'open',
+      ], repoPath: sdir.path)).out;
+      expect(links.map((l) => l.fromSha), isNot(contains(openTip)));
+    });
   });
 }

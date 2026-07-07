@@ -49,6 +49,11 @@ class Commit with _$Commit {
     @Default([]) List<int> through,
     int? mergeFrom,
     @Default(false) bool branchStart,
+    // Lane this commit's branch merges down into (set only when branchStart).
+    int? branchInto,
+    // True when no child commit points here — the head of its strand, so the
+    // rail draws nothing above the node.
+    @Default(false) bool tip,
   }) = _Commit;
 
   bool get merge => parents.length > 1;
@@ -93,4 +98,24 @@ class WorkingFile with _$WorkingFile {
   bool get isUntracked => worktree == GitChange.untracked;
   bool get isConflicted =>
       index == GitChange.conflicted || worktree == GitChange.conflicted;
+}
+
+/// A file touched by a commit, as shown in the commit details panel.
+/// [origPath] is set for renames/copies.
+@freezed
+class CommitFileChange with _$CommitFileChange {
+  const factory CommitFileChange({
+    required String path,
+    required GitChange change,
+    String? origPath,
+  }) = _CommitFileChange;
+}
+
+/// A squash-merge link: the branch tip [fromSha] was squashed onto the mainline
+/// at [toSha]. There is no git parent edge for this — it is inferred from tree
+/// equality — so the graph draws it as a dashed connector.
+@freezed
+class SquashLink with _$SquashLink {
+  const factory SquashLink({required String fromSha, required String toSha}) =
+      _SquashLink;
 }

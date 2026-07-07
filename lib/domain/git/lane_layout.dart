@@ -62,6 +62,7 @@ List<Commit> assignLanes(List<Commit> commits) {
     }
 
     var branchStart = false;
+    int? branchInto;
     int? mergeFrom;
     if (c.parents.isEmpty) {
       lanes[lane] = null; // root commit: lane ends here
@@ -77,6 +78,7 @@ List<Commit> assignLanes(List<Commit> commits) {
       if (existing >= 0) {
         lanes[lane] = null; // parent already tracked → this branch joins it
         branchStart = true;
+        branchInto = existing;
       } else {
         lanes[lane] = p0;
       }
@@ -106,6 +108,8 @@ List<Commit> assignLanes(List<Commit> commits) {
         through: through,
         mergeFrom: mergeFrom,
         branchStart: branchStart,
+        branchInto: branchInto,
+        tip: expecting.isEmpty,
       ),
     );
   }

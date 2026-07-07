@@ -73,6 +73,40 @@ void main() {
     expect(data.branches.firstWhere((b) => b.name == 'main').ci, mainTip.ci);
   });
 
+  test('exposes squash links from the provider', () async {
+    // Squash-merge feature onto main so a link is inferred.
+    await g(['checkout', '-q', '-b', 'squashme', 'main']);
+    await write('s.txt', 's\n');
+    await g(['add', '.']);
+    await g(['commit', '-q', '-m', 'squash work']);
+    await g(['checkout', '-q', 'main']);
+    await g(['merge', '--squash', 'squashme']);
+    await g(['commit', '-q', '-m', 'Squash (#9)']);
+
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final data = await container.read(repoDataProvider(dir.path).future);
+
+    final squashTip = (await svc.run([
+      'rev-parse',
+      'squashme',
+    ], repoPath: dir.path)).out;
+    expect(data.squashLinks.map((l) => l.fromSha), contains(squashTip));
+  });
+
+  test('commitFilesProvider lists a commit\'s changed files', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    final data = await container.read(repoDataProvider(dir.path).future);
+    final root = data.commits.firstWhere((c) => c.parents.isEmpty);
+    final files = await container.read(
+      commitFilesProvider((repo: dir.path, sha: root.sha)).future,
+    );
+    expect(files.single.path, 'a.txt');
+    expect(files.single.change, GitChange.added);
+  });
+
   test('surfaces an error for a non-repository path', () async {
     final container = ProviderContainer();
     addTearDown(container.dispose);

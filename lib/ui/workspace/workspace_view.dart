@@ -2,8 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
+import '../../domain/git/models.dart';
+import '../../state/graph_selection.dart';
+import '../../state/repo_data.dart';
 import '../../state/settings_controller.dart';
+import '../../state/workspace.dart';
+import '../graph/graph_view.dart';
 import '../shell/resize_handle.dart';
+import 'commit_details.dart';
 import 'panel_placeholder.dart';
 import 'repo_sidebar.dart';
 
@@ -15,7 +21,6 @@ class WorkspaceView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final t = context.tokens;
     final s = ref.watch(settingsProvider);
     final ctl = ref.read(settingsProvider.notifier);
 
@@ -30,23 +35,48 @@ class WorkspaceView extends ConsumerWidget {
           ),
           ResizeHandle(onDrag: (dx) => ctl.setLeftWidth(s.leftWidth + dx)),
         ],
-        Expanded(
-          child: PanelPlaceholder(
-            title: 'History',
-            hint: 'Commit graph',
-            background: t.bgApp,
-          ),
-        ),
+        const Expanded(child: GraphView()),
         ResizeHandle(onDrag: (dx) => ctl.setRightWidth(s.rightWidth - dx)),
-        SizedBox(
-          width: s.rightWidth,
-          child: PanelPlaceholder(
-            title: 'Changes',
-            hint: 'Working tree · staging · commit',
-            background: t.bgPanel,
-          ),
-        ),
+        SizedBox(width: s.rightWidth, child: const _RightPanel()),
       ],
+    );
+  }
+}
+
+/// Right panel: details of the selected commit; otherwise the working-tree
+/// placeholder (staging lands in a later stage).
+class _RightPanel extends ConsumerWidget {
+  const _RightPanel();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = context.tokens;
+    final path = ref.watch(workspaceProvider).activeTab?.path;
+    final selected = ref.watch(selectedCommitProvider);
+
+    if (path != null && selected != null && selected != wipSelection) {
+      final data = ref.watch(repoDataProvider(path)).valueOrNull;
+      Commit? commit;
+      if (data != null) {
+        for (final c in data.commits) {
+          if (c.sha == selected) {
+            commit = c;
+            break;
+          }
+        }
+      }
+      if (commit != null) {
+        return CommitDetails(
+          repoPath: path,
+          commit: commit,
+          hasWip: data!.working.isNotEmpty,
+        );
+      }
+    }
+    return PanelPlaceholder(
+      title: 'Changes',
+      hint: 'Working tree · staging · commit',
+      background: t.bgPanel,
     );
   }
 }

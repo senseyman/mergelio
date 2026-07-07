@@ -35,6 +35,16 @@ class SettingsController extends StateNotifier<AppSettings> {
     _update(state.copyWith(collapsedSections: next));
   }
 
+  /// Flips a graph meta column (default shown).
+  void toggleGraphCol(String id) {
+    final next = Map<String, bool>.from(state.graphCols);
+    next[id] = !(next[id] ?? true);
+    _update(state.copyWith(graphCols: next));
+  }
+
+  void toggleGraphCompact() =>
+      _update(state.copyWith(graphCompact: !state.graphCompact));
+
   void _update(AppSettings next) {
     state = next;
     // Persistence is best-effort per change; a failed write must not crash

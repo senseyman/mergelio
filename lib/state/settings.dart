@@ -16,6 +16,9 @@ class AppSettings with _$AppSettings {
     @Default(false) bool leftCollapsed,
     // Per-section collapse state in the left panel, keyed by section id.
     @Default({}) Map<String, bool> collapsedSections,
+    // Graph meta columns; a column absent from the map is shown.
+    @Default({}) Map<String, bool> graphCols,
+    @Default(false) bool graphCompact,
   }) = _AppSettings;
 
   factory AppSettings.fromJson(Map<String, dynamic> json) =>
