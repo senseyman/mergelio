@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
+import '../../domain/git/models.dart';
+import '../../state/repo_data.dart';
 import '../../state/workspace.dart';
 
-/// Bottom status strip: active repo, current branch, ahead/behind, identity.
-/// Values are placeholders until repo status reads land in a later stage.
+/// Bottom status strip: active repo, current branch and its live ahead/behind.
+/// (The profile identity on the right is still a placeholder until Stage 10.)
 class AppStatusBar extends ConsumerWidget {
   const AppStatusBar({super.key});
 
@@ -13,6 +15,17 @@ class AppStatusBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final t = context.tokens;
     final tab = ref.watch(workspaceProvider).activeTab;
+    final branches = tab == null
+        ? const <Branch>[]
+        : (ref.watch(repoDataProvider(tab.path)).valueOrNull?.branches ??
+              const <Branch>[]);
+    Branch? current;
+    for (final b in branches) {
+      if (b.current) {
+        current = b;
+        break;
+      }
+    }
 
     return Container(
       height: 24,
@@ -32,9 +45,11 @@ class AppStatusBar extends ConsumerWidget {
               _dot(t),
               Icon(Icons.call_split, size: 12, color: t.textMuted),
               const SizedBox(width: 4),
-              const Text('main'),
-              _dot(t),
-              const Text('↑0 ↓0'),
+              Text(current?.name ?? 'detached'),
+              if (current != null) ...[
+                _dot(t),
+                Text('↑${current.ahead} ↓${current.behind}'),
+              ],
             ],
             const Spacer(),
             const Text('Maria (work)'),

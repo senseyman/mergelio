@@ -3,19 +3,43 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
 import '../../state/feedback.dart';
+import '../../state/repo_actions.dart';
+import '../../state/repo_data.dart';
+import '../../state/workspace.dart';
+import '../common/dialogs.dart';
 import 'shell_widgets.dart';
 
 /// Bottom action bar: undo/redo pinned left, git operations centred with a
-/// single divider between the network and branch-ops groups.
+/// single divider between the network and branch-ops groups. The network
+/// buttons open split menus upward and run against the active repo's remote.
 class AppBottomBar extends ConsumerWidget {
   const AppBottomBar({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = context.tokens;
+    final path = ref.watch(workspaceProvider).activeTab?.path;
+    final remotes = path == null
+        ? const <String>[]
+        : (ref.watch(repoDataProvider(path)).valueOrNull?.remotes ??
+              const <String>[]);
+    final hasRemote = path != null && remotes.isNotEmpty;
+    final busy = ref.watch(busyProvider) != null;
+    final actions = path == null ? null : ref.read(repoActionsProvider(path));
+
     void soon(String what) => ref
         .read(toastProvider.notifier)
         .show(what, description: 'Coming in a later stage');
+
+    // A disabled network op explains the actual reason it is unavailable.
+    void whyDisabled() {
+      final reason = path == null
+          ? 'Open a repository first'
+          : busy
+          ? 'An operation is already running'
+          : 'No remote configured';
+      ref.read(toastProvider.notifier).show(reason, kind: ToastKind.warning);
+    }
 
     return Container(
       height: 50,
@@ -31,7 +55,7 @@ class AppBottomBar extends ConsumerWidget {
             bottom: 0,
             child: Row(
               children: const [
-                // Wired to real history once undoable git ops land.
+                // Wired to real history once undoable git ops land (Stage 6).
                 BarIconButton(
                   icon: Icons.undo,
                   tooltip: 'Undo (⌘Z)',
@@ -45,8 +69,6 @@ class AppBottomBar extends ConsumerWidget {
               ],
             ),
           ),
-          // Network and branch-ops groups split by a divider pinned to the
-          // exact horizontal centre: each group hugs its side of the divider.
           Positioned.fill(
             child: Row(
               children: [
@@ -56,20 +78,52 @@ class AppBottomBar extends ConsumerWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        BarTextButton(
+                        _OpButton(
                           icon: Icons.download_outlined,
                           label: 'Fetch',
-                          onPressed: () => soon('Fetch'),
+                          enabled: hasRemote && !busy,
+                          onDisabledTap: whyDisabled,
+                          items: () => [
+                            _Op(
+                              'Fetch origin',
+                              () => actions!.fetch(remote: 'origin'),
+                            ),
+                            _Op('Fetch all remotes', () => actions!.fetch()),
+                          ],
                         ),
-                        BarTextButton(
+                        _OpButton(
                           icon: Icons.south_west,
                           label: 'Pull',
-                          onPressed: () => soon('Pull'),
+                          enabled: hasRemote && !busy,
+                          onDisabledTap: whyDisabled,
+                          items: () => [
+                            _Op('Pull', () => actions!.pull()),
+                            _Op(
+                              'Pull (rebase)',
+                              () => actions!.pull(rebase: true),
+                            ),
+                          ],
                         ),
-                        BarTextButton(
+                        _OpButton(
                           icon: Icons.north_east,
                           label: 'Push',
-                          onPressed: () => soon('Push'),
+                          enabled: hasRemote && !busy,
+                          onDisabledTap: whyDisabled,
+                          items: () => [
+                            _Op('Push origin', () => actions!.push()),
+                            _Op('Force-push (with lease)', () async {
+                              final ok = await showConfirmDialog(
+                                context,
+                                title: 'Force-push?',
+                                body:
+                                    'This overwrites the remote branch with your local '
+                                    'history (using --force-with-lease, which still '
+                                    'refuses if the remote moved unexpectedly).',
+                                confirmLabel: 'Force-push',
+                              );
+                              if (ok) await actions!.push(force: true);
+                            }, danger: true),
+                          ],
                         ),
                       ],
                     ),
@@ -105,6 +159,91 @@ class AppBottomBar extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A single entry in a network split menu.
+class _Op {
+  final String label;
+  final Future<void> Function() run;
+  final bool danger;
+  const _Op(this.label, this.run, {this.danger = false});
+}
+
+/// Bar button that opens its menu upward (there is no room below at the screen
+/// bottom, so showMenu flips it up). Disabled buttons still explain themselves.
+class _OpButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool enabled;
+  final VoidCallback onDisabledTap;
+  final List<_Op> Function() items;
+
+  const _OpButton({
+    required this.icon,
+    required this.label,
+    required this.enabled,
+    required this.onDisabledTap,
+    required this.items,
+  });
+
+  void _open(BuildContext context) {
+    final box = context.findRenderObject()! as RenderBox;
+    // Anchor at the button's top edge; at the screen bottom the menu flips up.
+    final topCentre = box.localToGlobal(Offset(box.size.width / 2, 0));
+    final t = context.tokens;
+    // Uses the shared themed menu helper for a consistent app look.
+    showContextMenu<_Op>(
+      context: context,
+      position: topCentre,
+      items: [
+        for (final op in items())
+          PopupMenuItem<_Op>(
+            value: op,
+            height: 38,
+            child: Text(
+              op.label,
+              style: TextStyle(
+                fontSize: 13,
+                color: op.danger ? t.danger : t.textPrimary,
+              ),
+            ),
+          ),
+      ],
+    ).then((op) => op?.run());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(t.rButton),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(t.rButton),
+        hoverColor: t.hover,
+        onTap: enabled ? () => _open(context) : onDisabledTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 16, color: enabled ? t.textMuted : t.textFaint),
+              const SizedBox(width: 7),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w500,
+                  color: enabled ? t.textPrimary : t.textFaint,
+                ),
+              ),
+              Icon(Icons.arrow_drop_up, size: 16, color: t.textFaint),
+            ],
+          ),
+        ),
       ),
     );
   }

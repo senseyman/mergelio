@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'git_service.dart';
@@ -10,12 +11,58 @@ class GitWriter {
   final String repoPath;
   const GitWriter(this.git, this.repoPath);
 
-  Future<GitResult> _run(List<String> args) =>
-      git.run(args, repoPath: repoPath);
+  // Network ops can be slow (large transfers, slow links); give them room
+  // well beyond the default read timeout so they are not killed mid-transfer.
+  static const _netTimeout = Duration(minutes: 5);
 
-  Future<void> _ok(List<String> args, String what) async {
-    final r = await _run(args);
+  Future<GitResult> _run(List<String> args, {Duration? timeout}) =>
+      git.run(args, repoPath: repoPath, timeout: timeout);
+
+  Future<void> _ok(List<String> args, String what, {Duration? timeout}) async {
+    final r = await _run(args, timeout: timeout);
     if (!r.ok) throw GitException(what, r);
+  }
+
+  /// Fetches [remote] (or every remote when null), pruning deleted refs.
+  Future<void> fetch({String? remote}) => _ok(
+    ['fetch', '--prune', if (remote != null) remote else '--all'],
+    'git fetch',
+    timeout: _netTimeout,
+  );
+
+  /// Pulls the current branch's upstream; [rebase] replays local commits on top
+  /// instead of creating a merge.
+  Future<void> pull({bool rebase = false}) =>
+      _ok(['pull', if (rebase) '--rebase'], 'git pull', timeout: _netTimeout);
+
+  /// Pushes the current branch. A branch with no upstream is published with
+  /// `--set-upstream` to origin (or the only/first remote), so a first push
+  /// works instead of failing. [force] uses `--force-with-lease`, which refuses
+  /// to overwrite remote work the local ref has not seen.
+  Future<void> push({bool force = false}) async {
+    final hasUpstream = (await _run([
+      'rev-parse',
+      '--abbrev-ref',
+      '--symbolic-full-name',
+      '@{u}',
+    ])).ok;
+    final args = <String>['push', if (force) '--force-with-lease'];
+    if (!hasUpstream) {
+      final branch = (await _run(['rev-parse', '--abbrev-ref', 'HEAD'])).out;
+      if (branch == 'HEAD') {
+        throw GitException('cannot push in detached HEAD state');
+      }
+      final remotes = const LineSplitter()
+          .convert((await _run(['remote'])).stdout)
+          .where((s) => s.isNotEmpty)
+          .toList();
+      if (remotes.isEmpty) {
+        throw GitException('no remote configured to push to');
+      }
+      final remote = remotes.contains('origin') ? 'origin' : remotes.first;
+      args.addAll(['--set-upstream', remote, branch]);
+    }
+    await _ok(args, 'git push', timeout: _netTimeout);
   }
 
   Future<void> stageFile(String path) => _ok(['add', '--', path], 'git add');
