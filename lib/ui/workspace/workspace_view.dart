@@ -5,6 +5,7 @@ import '../../core/tokens.dart';
 import '../../state/settings_controller.dart';
 import '../shell/resize_handle.dart';
 import 'panel_placeholder.dart';
+import 'repo_sidebar.dart';
 
 /// The 3-panel workspace: left sidebar (refs) · centre (history/graph) · right
 /// (changes). Left and right widths are user-resizable and persisted; the left
@@ -25,20 +26,7 @@ class WorkspaceView extends ConsumerWidget {
         else ...[
           SizedBox(
             width: s.leftWidth,
-            child: PanelPlaceholder(
-              title: 'Repository',
-              hint: 'Branches · Remotes · Tags · Stashes',
-              background: t.bgPanel,
-              trailing: [
-                IconButton(
-                  iconSize: 15,
-                  visualDensity: VisualDensity.compact,
-                  tooltip: 'Collapse',
-                  icon: const Icon(Icons.chevron_left),
-                  onPressed: ctl.toggleLeftCollapsed,
-                ),
-              ],
-            ),
+            child: RepoSidebar(onCollapse: ctl.toggleLeftCollapsed),
           ),
           ResizeHandle(onDrag: (dx) => ctl.setLeftWidth(s.leftWidth + dx)),
         ],

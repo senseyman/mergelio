@@ -14,6 +14,8 @@ class AppSettings with _$AppSettings {
     @Default(360.0) double rightWidth,
     @Default(0.64) double diffHeight,
     @Default(false) bool leftCollapsed,
+    // Per-section collapse state in the left panel, keyed by section id.
+    @Default({}) Map<String, bool> collapsedSections,
   }) = _AppSettings;
 
   factory AppSettings.fromJson(Map<String, dynamic> json) =>

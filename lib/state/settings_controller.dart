@@ -28,6 +28,13 @@ class SettingsController extends StateNotifier<AppSettings> {
   void toggleLeftCollapsed() =>
       _update(state.copyWith(leftCollapsed: !state.leftCollapsed));
 
+  /// Flips the collapse state of a left-panel section (default expanded).
+  void toggleSection(String id) {
+    final next = Map<String, bool>.from(state.collapsedSections);
+    next[id] = !(next[id] ?? false);
+    _update(state.copyWith(collapsedSections: next));
+  }
+
   void _update(AppSettings next) {
     state = next;
     // Persistence is best-effort per change; a failed write must not crash
