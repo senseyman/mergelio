@@ -102,6 +102,12 @@ class GitReader {
         .toList();
   }
 
+  /// Fetch URL configured for [remote], or empty if none.
+  Future<String> remoteUrl(String remote) async {
+    final r = await _run(['remote', 'get-url', remote]);
+    return r.ok ? r.out : '';
+  }
+
   Future<List<String>> tags() async {
     final r = await _run(['tag', '--sort=-creatordate']);
     if (!r.ok) throw GitException('git tag failed', r);

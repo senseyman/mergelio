@@ -35,6 +35,13 @@ class GitWriter {
   Future<void> pull({bool rebase = false}) =>
       _ok(['pull', if (rebase) '--rebase'], 'git pull', timeout: _netTimeout);
 
+  /// Prunes remote-tracking refs under [remote] that no longer exist upstream.
+  Future<void> pruneRemote(String remote) => _ok(
+    ['remote', 'prune', remote],
+    'git remote prune',
+    timeout: _netTimeout,
+  );
+
   /// Pushes the current branch. A branch with no upstream is published with
   /// `--set-upstream` to origin (or the only/first remote), so a first push
   /// works instead of failing. [force] uses `--force-with-lease`, which refuses
@@ -64,6 +71,91 @@ class GitWriter {
     }
     await _ok(args, 'git push', timeout: _netTimeout);
   }
+
+  // --- Branch ops -----------------------------------------------------------
+
+  /// Creates branch [name], optionally pointing at [at] (a commit/ref).
+  Future<void> createBranch(String name, {String? at}) =>
+      _ok(['branch', name, ?at], 'git branch');
+
+  /// Checks out [ref] (a branch or commit).
+  Future<void> checkout(String ref) => _ok(['checkout', ref], 'git checkout');
+
+  Future<void> renameBranch(String from, String to) =>
+      _ok(['branch', '-m', from, to], 'git branch -m');
+
+  /// Deletes branch [name]; [force] (`-D`) drops the merged-check.
+  Future<void> deleteBranch(String name, {bool force = false}) =>
+      _ok(['branch', force ? '-D' : '-d', name], 'git branch -d');
+
+  Future<void> setUpstream(String branch, String upstream) => _ok([
+    'branch',
+    '--set-upstream-to=$upstream',
+    branch,
+  ], 'git branch --set-upstream-to');
+
+  // --- Tag ops --------------------------------------------------------------
+
+  /// Creates tag [name] at [at] (default HEAD); an annotated tag when
+  /// [message] is given.
+  Future<void> createTag(String name, {String? at, String? message}) => _ok([
+    'tag',
+    if (message != null) ...['-m', message],
+    name,
+    ?at,
+  ], 'git tag');
+
+  Future<void> deleteTag(String name) => _ok(['tag', '-d', name], 'git tag -d');
+
+  Future<void> pushTag(String name, {String remote = 'origin'}) =>
+      _ok(['push', remote, name], 'git push tag', timeout: _netTimeout);
+
+  // --- Commit-context ops ---------------------------------------------------
+
+  Future<void> cherryPick(String sha) =>
+      _ok(['cherry-pick', sha], 'git cherry-pick');
+
+  /// Aborts an in-progress cherry-pick (used to back out of a conflict until
+  /// the Merge Tool lands).
+  Future<void> cherryPickAbort() =>
+      _ok(['cherry-pick', '--abort'], 'git cherry-pick --abort');
+
+  Future<void> revert(String sha) =>
+      _ok(['revert', '--no-edit', sha], 'git revert');
+
+  Future<void> revertAbort() =>
+      _ok(['revert', '--abort'], 'git revert --abort');
+
+  /// Moves the current branch to [sha], discarding working-tree and index
+  /// changes. Destructive — the caller must confirm first.
+  Future<void> resetHard(String sha) =>
+      _ok(['reset', '--hard', sha], 'git reset --hard');
+
+  // --- Stash ops ------------------------------------------------------------
+
+  Future<void> stashPush({String? message}) => _ok([
+    'stash',
+    'push',
+    if (message != null) ...['-m', message],
+  ], 'git stash push');
+
+  Future<void> stashApply(String ref) =>
+      _ok(['stash', 'apply', ref], 'git stash apply');
+
+  Future<void> stashPop(String ref) =>
+      _ok(['stash', 'pop', ref], 'git stash pop');
+
+  /// Drops stash [ref], returning the dropped commit sha so the caller can
+  /// offer an undo (re-store) toast.
+  Future<String> stashDrop(String ref) async {
+    final sha = (await _run(['rev-parse', ref])).out;
+    await _ok(['stash', 'drop', ref], 'git stash drop');
+    return sha;
+  }
+
+  /// Re-stores a previously dropped stash [sha] (undo of [stashDrop]).
+  Future<void> stashStore(String sha) =>
+      _ok(['stash', 'store', sha], 'git stash store');
 
   Future<void> stageFile(String path) => _ok(['add', '--', path], 'git add');
 

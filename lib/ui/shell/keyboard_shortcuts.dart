@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../state/feedback.dart';
+import '../../state/repo_actions.dart';
 import '../../state/settings_controller.dart';
+import '../../state/workspace.dart';
 
 /// Global shortcut dispatcher wrapping the app. Only the shortcuts meaningful
 /// at this stage are wired; the rest arrive with their features (command
@@ -21,6 +23,14 @@ class KeyboardShortcuts extends ConsumerWidget {
 
     void toggleLeft() =>
         ref.read(settingsProvider.notifier).toggleLeftCollapsed();
+
+    RepoActions? activeActions() {
+      final path = ref.read(workspaceProvider).activeTab?.path;
+      return path == null ? null : ref.read(repoActionsProvider(path));
+    }
+
+    void undo() => activeActions()?.undo();
+    void redo() => activeActions()?.redo();
 
     void dismissTopToast() {
       final toasts = ref.read(toastProvider);
@@ -42,6 +52,14 @@ class KeyboardShortcuts extends ConsumerWidget {
         ...chord(LogicalKeyboardKey.backslash, toggleLeft),
         ...chord(LogicalKeyboardKey.keyK, () => soon('Command palette')),
         ...chord(LogicalKeyboardKey.keyF, () => soon('Global search')),
+        ...chord(LogicalKeyboardKey.keyZ, undo),
+        const SingleActivator(LogicalKeyboardKey.keyZ, meta: true, shift: true):
+            redo,
+        const SingleActivator(
+          LogicalKeyboardKey.keyZ,
+          control: true,
+          shift: true,
+        ): redo,
         const SingleActivator(LogicalKeyboardKey.escape): dismissTopToast,
       },
       child: Focus(autofocus: true, child: child),

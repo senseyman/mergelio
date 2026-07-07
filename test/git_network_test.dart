@@ -91,6 +91,13 @@ void main() {
     expect(remoteBranches, contains('feature'));
   });
 
+  test('reads a remote URL and prunes without error', () async {
+    final r = GitReader(svc, local.path);
+    expect(await r.remoteUrl('origin'), bare.path);
+    // Prune is a no-op here but must succeed.
+    await writer().pruneRemote('origin');
+  });
+
   test('fetch updates behind when the remote advanced', () async {
     await writeCommit(other, 'c.txt', 'remote work');
     await run(other, ['push', '-q', 'origin', 'main']);

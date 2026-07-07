@@ -7,7 +7,9 @@ import '../../domain/git/models.dart';
 import '../../state/graph_selection.dart';
 import '../../state/repo_data.dart';
 import '../../state/settings_controller.dart';
+import '../../state/repo_actions.dart';
 import '../../state/workspace.dart';
+import '../common/dialogs.dart';
 import 'commit_columns.dart';
 import 'commit_row.dart';
 import 'rail_metrics.dart';
@@ -401,45 +403,76 @@ class _WipRailPainter extends CustomPainter {
 
 /// Right-click scaffold; every mutation lands in a later stage, Copy SHA works
 /// now.
-class _CommitContextMenu extends StatelessWidget {
+/// Per-commit right-click menu wired to real, undoable git operations.
+class _CommitContextMenu extends ConsumerWidget {
   final Commit commit;
   final Widget child;
   const _CommitContextMenu({required this.commit, required this.child});
 
-  void _open(BuildContext context, Offset at) {
-    final overlay =
-        Overlay.of(context).context.findRenderObject()! as RenderBox;
-    showMenu<void>(
-      context: context,
-      position: RelativeRect.fromRect(
-        at & const Size(1, 1),
-        Offset.zero & overlay.size,
-      ),
-      items: [
-        _item('Create branch here'),
-        _item('Create tag here'),
-        _item('Cherry-pick'),
-        _item('Revert'),
-        _item('Reset here'),
-        const PopupMenuDivider(),
-        PopupMenuItem(
-          height: 34,
-          onTap: () => Clipboard.setData(ClipboardData(text: commit.sha)),
-          child: const Text('Copy SHA', style: TextStyle(fontSize: 13)),
+  Future<void> _open(BuildContext context, WidgetRef ref, Offset at) async {
+    final path = ref.read(workspaceProvider).activeTab?.path;
+    if (path == null) return;
+    final actions = ref.read(repoActionsProvider(path));
+    final sha = commit.sha;
+
+    PopupMenuItem<void> item(
+      String label,
+      VoidCallback onTap, {
+      bool danger = false,
+    }) => PopupMenuItem(
+      height: 34,
+      onTap: onTap,
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 13,
+          color: danger ? context.tokens.danger : null,
         ),
+      ),
+    );
+
+    await showContextMenu<void>(
+      context: context,
+      position: at,
+      items: [
+        item('Create branch here', () async {
+          final name = await showInputDialog(
+            context,
+            title: 'Create branch',
+            label: 'Branch name',
+          );
+          if (name != null) await actions.createBranch(name, at: sha);
+        }),
+        item('Create tag here', () async {
+          final name = await showInputDialog(
+            context,
+            title: 'Create tag',
+            label: 'Tag name',
+          );
+          if (name != null) await actions.createTag(name, at: sha);
+        }),
+        item('Cherry-pick', () => actions.cherryPick(sha)),
+        item('Revert', () => actions.revert(sha)),
+        item('Reset here (--hard)', () async {
+          final ok = await showConfirmDialog(
+            context,
+            title: 'Reset to ${commit.shortSha}?',
+            body:
+                'Moves the current branch to this commit and discards all '
+                'uncommitted changes. This cannot be undone from disk.',
+            confirmLabel: 'Reset --hard',
+          );
+          if (ok) await actions.resetHard(sha);
+        }, danger: true),
+        const PopupMenuDivider(),
+        item('Copy SHA', () => Clipboard.setData(ClipboardData(text: sha))),
       ],
     );
   }
 
-  PopupMenuItem<void> _item(String label) => PopupMenuItem(
-    height: 34,
-    enabled: false,
-    child: Text(label, style: const TextStyle(fontSize: 13)),
-  );
-
   @override
-  Widget build(BuildContext context) => GestureDetector(
-    onSecondaryTapUp: (d) => _open(context, d.globalPosition),
+  Widget build(BuildContext context, WidgetRef ref) => GestureDetector(
+    onSecondaryTapUp: (d) => _open(context, ref, d.globalPosition),
     child: child,
   );
 }

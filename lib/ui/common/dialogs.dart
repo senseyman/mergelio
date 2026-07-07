@@ -82,6 +82,67 @@ Future<T?> showAppModal<T>({
   );
 }
 
+/// Single-line text prompt. Returns the entered value (trimmed, non-empty) or
+/// null on cancel. [initial] pre-fills and selects the field.
+Future<String?> showInputDialog(
+  BuildContext context, {
+  required String title,
+  String label = '',
+  String initial = '',
+  String confirmLabel = 'OK',
+}) {
+  final controller = TextEditingController(text: initial);
+  controller.selection = TextSelection(
+    baseOffset: 0,
+    extentOffset: initial.length,
+  );
+  final result = showAppModal<String>(
+    context: context,
+    title: title,
+    icon: Icons.edit_outlined,
+    width: 420,
+    body: Builder(
+      builder: (ctx) {
+        final t = ctx.tokens;
+        void submit() {
+          final v = controller.text.trim();
+          if (v.isNotEmpty) Navigator.of(ctx).pop(v);
+        }
+
+        return TextField(
+          controller: controller,
+          autofocus: true,
+          onSubmitted: (_) => submit(),
+          style: TextStyle(color: t.textPrimary, fontSize: 13),
+          decoration: InputDecoration(
+            labelText: label.isEmpty ? null : label,
+            isDense: true,
+            border: const OutlineInputBorder(),
+          ),
+        );
+      },
+    ),
+    actions: [
+      Builder(
+        builder: (ctx) => TextButton(
+          onPressed: () => Navigator.of(ctx).pop(),
+          child: const Text('Cancel'),
+        ),
+      ),
+      Builder(
+        builder: (ctx) => FilledButton(
+          onPressed: () {
+            final v = controller.text.trim();
+            if (v.isNotEmpty) Navigator.of(ctx).pop(v);
+          },
+          child: Text(confirmLabel),
+        ),
+      ),
+    ],
+  );
+  return result.whenComplete(controller.dispose);
+}
+
 /// Confirmation gate for destructive actions. Returns true when confirmed.
 Future<bool> showConfirmDialog(
   BuildContext context, {

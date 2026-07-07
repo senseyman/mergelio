@@ -5,6 +5,7 @@ import '../../core/tokens.dart';
 import '../../state/feedback.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
+import '../../state/undo_stack.dart';
 import '../../state/workspace.dart';
 import '../common/dialogs.dart';
 import 'shell_widgets.dart';
@@ -26,6 +27,9 @@ class AppBottomBar extends ConsumerWidget {
     final hasRemote = path != null && remotes.isNotEmpty;
     final busy = ref.watch(busyProvider) != null;
     final actions = path == null ? null : ref.read(repoActionsProvider(path));
+    final undo = path == null
+        ? const UndoState()
+        : ref.watch(undoProvider(path));
 
     void soon(String what) => ref
         .read(toastProvider.notifier)
@@ -54,17 +58,24 @@ class AppBottomBar extends ConsumerWidget {
             top: 0,
             bottom: 0,
             child: Row(
-              children: const [
-                // Wired to real history once undoable git ops land (Stage 6).
+              children: [
                 BarIconButton(
                   icon: Icons.undo,
-                  tooltip: 'Undo (⌘Z)',
-                  onPressed: null,
+                  tooltip: undo.canUndo
+                      ? 'Undo ${undo.undoLabel} (⌘Z)'
+                      : 'Undo (⌘Z)',
+                  onPressed: undo.canUndo && actions != null
+                      ? actions.undo
+                      : null,
                 ),
                 BarIconButton(
                   icon: Icons.redo,
-                  tooltip: 'Redo (⌘⇧Z)',
-                  onPressed: null,
+                  tooltip: undo.canRedo
+                      ? 'Redo ${undo.redoLabel} (⌘⇧Z)'
+                      : 'Redo (⌘⇧Z)',
+                  onPressed: undo.canRedo && actions != null
+                      ? actions.redo
+                      : null,
                 ),
               ],
             ),

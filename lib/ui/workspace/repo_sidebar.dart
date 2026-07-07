@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
 import '../../domain/git/models.dart';
+import '../../state/feedback.dart';
+import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
 import '../../state/settings_controller.dart';
 import '../../state/workspace.dart';
+import '../common/dialogs.dart';
 import 'branch_tree.dart';
 
 /// Left panel for the active repo: Branches (folder-grouped) · Remotes · Tags ·
@@ -125,6 +129,8 @@ class _Sections extends ConsumerWidget {
     );
     final ctl = ref.read(settingsProvider.notifier);
     bool isOpen(String id) => !(collapsed[id] ?? false);
+    final path = ref.watch(workspaceProvider).activeTab?.path;
+    final actions = path == null ? null : ref.read(repoActionsProvider(path));
 
     return ListView(
       padding: const EdgeInsets.only(bottom: 12),
@@ -160,7 +166,13 @@ class _Sections extends ConsumerWidget {
           onToggle: () => ctl.toggleSection('remotes'),
           children: [
             for (final r in data.remotes)
-              _LeafRow(icon: Icons.dns_outlined, label: r),
+              _LeafRow(
+                icon: Icons.dns_outlined,
+                label: r,
+                onMenu: actions == null
+                    ? null
+                    : (at) => _remoteMenu(context, actions, r, at),
+              ),
           ],
         ),
         _Section(
@@ -173,7 +185,13 @@ class _Sections extends ConsumerWidget {
           onToggle: () => ctl.toggleSection('tags'),
           children: [
             for (final tag in data.tags)
-              _LeafRow(icon: Icons.local_offer_outlined, label: tag),
+              _LeafRow(
+                icon: Icons.local_offer_outlined,
+                label: tag,
+                onMenu: actions == null
+                    ? null
+                    : (at) => _tagMenu(context, actions, tag, at),
+              ),
           ],
         ),
         _Section(
@@ -189,6 +207,22 @@ class _Sections extends ConsumerWidget {
               _LeafRow(
                 icon: Icons.archive_outlined,
                 label: s.message.isEmpty ? s.ref : s.message,
+                trailing: actions == null
+                    ? const []
+                    : [
+                        _MiniButton(
+                          'Pop',
+                          accent: true,
+                          onTap: () => actions.stashPop(s.ref),
+                        ),
+                        _MiniButton(
+                          'Apply',
+                          onTap: () => actions.stashApply(s.ref),
+                        ),
+                      ],
+                onMenu: actions == null
+                    ? null
+                    : (at) => _stashMenu(context, actions, s, at),
               ),
           ],
         ),
@@ -317,58 +351,223 @@ class _FolderRow extends StatelessWidget {
   }
 }
 
-class _BranchRow extends StatelessWidget {
+class _BranchRow extends ConsumerWidget {
   final Branch branch;
   final int depth;
   const _BranchRow({required this.branch, required this.depth});
 
+  Future<void> _menu(BuildContext context, WidgetRef ref, Offset at) async {
+    final path = ref.read(workspaceProvider).activeTab?.path;
+    if (path == null) return;
+    final actions = ref.read(repoActionsProvider(path));
+    final t = context.tokens;
+    void soon(String what) => ref
+        .read(toastProvider.notifier)
+        .show(what, description: 'Merge Tool arrives in a later stage');
+
+    PopupMenuItem<void> item(
+      String label,
+      VoidCallback onTap, {
+      bool enabled = true,
+      bool danger = false,
+    }) => PopupMenuItem(
+      height: 34,
+      enabled: enabled,
+      onTap: enabled ? onTap : null,
+      child: Text(
+        label,
+        style: TextStyle(fontSize: 13, color: danger ? t.danger : null),
+      ),
+    );
+
+    await showContextMenu<void>(
+      context: context,
+      position: at,
+      items: [
+        item(
+          'Checkout',
+          () => actions.checkout(branch.name),
+          enabled: !branch.current,
+        ),
+        item('Merge into current', () => soon('Merge')),
+        item('Rebase onto current', () => soon('Rebase')),
+        const PopupMenuDivider(),
+        item('Set upstream…', () async {
+          final up = await showInputDialog(
+            context,
+            title: 'Set upstream for ${branch.name}',
+            label: 'e.g. origin/${branch.name}',
+          );
+          if (up != null) await actions.setUpstream(branch.name, up);
+        }),
+        item('Rename…', () async {
+          final name = await showInputDialog(
+            context,
+            title: 'Rename branch',
+            initial: branch.name,
+          );
+          if (name != null && name != branch.name) {
+            await actions.renameBranch(branch.name, name);
+          }
+        }),
+        const PopupMenuDivider(),
+        item(
+          'Delete branch',
+          () async {
+            final ok = await showConfirmDialog(
+              context,
+              title: 'Delete ${branch.name}?',
+              body: 'The branch ref will be removed. This can be undone.',
+              confirmLabel: 'Delete',
+            );
+            if (ok) await actions.deleteBranch(branch.name);
+          },
+          enabled: !branch.current,
+          danger: true,
+        ),
+      ],
+    );
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final t = context.tokens;
     final leaf = branch.name.split('/').last;
-    return InkWell(
-      hoverColor: t.hover,
-      onTap: () {},
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(_indent(depth), 5, 10, 5),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 14,
-              child: Center(
-                child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: t.branchColor(branch.ci),
-                    shape: BoxShape.circle,
+    final row = GestureDetector(
+      onDoubleTap: branch.current
+          ? null
+          : () {
+              final path = ref.read(workspaceProvider).activeTab?.path;
+              if (path != null) {
+                ref.read(repoActionsProvider(path)).checkout(branch.name);
+              }
+            },
+      onSecondaryTapUp: (d) => _menu(context, ref, d.globalPosition),
+      child: InkWell(
+        hoverColor: t.hover,
+        onTap: () {},
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(_indent(depth), 5, 10, 5),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 14,
+                child: Center(
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: t.branchColor(branch.ci),
+                      shape: BoxShape.circle,
+                    ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Row(
-                children: [
-                  Flexible(
-                    child: Text(
-                      leaf,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: branch.current ? t.textPrimary : t.textMuted,
-                        fontSize: 13,
-                        fontWeight: branch.current
-                            ? FontWeight.w600
-                            : FontWeight.w400,
+              const SizedBox(width: 8),
+              Expanded(
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        leaf,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: branch.current ? t.textPrimary : t.textMuted,
+                          fontSize: 13,
+                          fontWeight: branch.current
+                              ? FontWeight.w600
+                              : FontWeight.w400,
+                        ),
                       ),
                     ),
-                  ),
-                  if (branch.current) const _HeadBadge(),
-                ],
+                    if (branch.current) const _HeadBadge(),
+                  ],
+                ),
               ),
-            ),
-            if (branch.ahead > 0) _TrackBadge(icon: '↑', n: branch.ahead),
-            if (branch.behind > 0) _TrackBadge(icon: '↓', n: branch.behind),
+              if (branch.ahead > 0) _TrackBadge(icon: '↑', n: branch.ahead),
+              if (branch.behind > 0) _TrackBadge(icon: '↓', n: branch.behind),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    // Drag this branch onto another to open a Merge/Rebase menu; highlight
+    // while a compatible branch hovers over this row.
+    return DragTarget<String>(
+      onWillAcceptWithDetails: (d) => d.data != branch.name,
+      onAcceptWithDetails: (d) =>
+          _dropMenu(context, ref, d.data, branch.name, d.offset),
+      builder: (ctx, candidate, rejected) => Draggable<String>(
+        data: branch.name,
+        dragAnchorStrategy: pointerDragAnchorStrategy,
+        feedback: _DragChip(label: leaf),
+        childWhenDragging: Opacity(opacity: 0.4, child: row),
+        child: Container(
+          color: candidate.isNotEmpty ? t.accent.withValues(alpha: 0.14) : null,
+          child: row,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _dropMenu(
+    BuildContext context,
+    WidgetRef ref,
+    String source,
+    String target,
+    Offset at,
+  ) async {
+    void soon(String op) => ref
+        .read(toastProvider.notifier)
+        .show('$op «$source» → «$target»', description: 'Arrives in Stage 7');
+    await showContextMenu<void>(
+      context: context,
+      position: at,
+      items: [
+        PopupMenuItem(
+          height: 34,
+          onTap: () => soon('Merge'),
+          child: Text(
+            'Merge «$source» into «$target»',
+            style: const TextStyle(fontSize: 13),
+          ),
+        ),
+        PopupMenuItem(
+          height: 34,
+          onTap: () => soon('Rebase'),
+          child: Text(
+            'Rebase «$source» onto «$target»',
+            style: const TextStyle(fontSize: 13),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DragChip extends StatelessWidget {
+  final String label;
+  const _DragChip({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: t.bgElevated,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: t.accent),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.call_split, size: 12, color: t.accent),
+            const SizedBox(width: 6),
+            Text(label, style: TextStyle(color: t.textPrimary, fontSize: 12)),
           ],
         ),
       ),
@@ -424,31 +623,200 @@ class _TrackBadge extends StatelessWidget {
   }
 }
 
-class _LeafRow extends StatelessWidget {
-  final IconData icon;
+Future<void> _remoteMenu(
+  BuildContext context,
+  RepoActions actions,
+  String remote,
+  Offset at,
+) async {
+  await showContextMenu<void>(
+    context: context,
+    position: at,
+    items: [
+      PopupMenuItem(
+        height: 34,
+        onTap: () => actions.fetch(remote: remote),
+        child: Text('Fetch $remote', style: const TextStyle(fontSize: 13)),
+      ),
+      PopupMenuItem(
+        height: 34,
+        onTap: () => actions.pruneRemote(remote),
+        child: const Text('Prune', style: TextStyle(fontSize: 13)),
+      ),
+      PopupMenuItem(
+        height: 34,
+        onTap: () async {
+          final url = await actions.remoteUrl(remote);
+          if (url.isNotEmpty) {
+            await Clipboard.setData(ClipboardData(text: url));
+          }
+        },
+        child: const Text('Copy URL', style: TextStyle(fontSize: 13)),
+      ),
+    ],
+  );
+}
+
+Future<void> _tagMenu(
+  BuildContext context,
+  RepoActions actions,
+  String tag,
+  Offset at,
+) async {
+  final t = context.tokens;
+  await showContextMenu<void>(
+    context: context,
+    position: at,
+    items: [
+      PopupMenuItem(
+        height: 34,
+        onTap: () => actions.checkout(tag),
+        child: const Text('Checkout', style: TextStyle(fontSize: 13)),
+      ),
+      PopupMenuItem(
+        height: 34,
+        onTap: () => actions.pushTag(tag),
+        child: const Text('Push tag', style: TextStyle(fontSize: 13)),
+      ),
+      PopupMenuItem(
+        height: 34,
+        onTap: () => Clipboard.setData(ClipboardData(text: tag)),
+        child: const Text('Copy name', style: TextStyle(fontSize: 13)),
+      ),
+      const PopupMenuDivider(),
+      PopupMenuItem(
+        height: 34,
+        onTap: () async {
+          final ok = await showConfirmDialog(
+            context,
+            title: 'Delete tag $tag?',
+            body: 'The tag will be removed locally. This can be undone.',
+            confirmLabel: 'Delete',
+          );
+          if (ok) await actions.deleteTag(tag);
+        },
+        child: Text(
+          'Delete tag',
+          style: TextStyle(fontSize: 13, color: t.danger),
+        ),
+      ),
+    ],
+  );
+}
+
+Future<void> _stashMenu(
+  BuildContext context,
+  RepoActions actions,
+  Stash stash,
+  Offset at,
+) async {
+  final t = context.tokens;
+  await showContextMenu<void>(
+    context: context,
+    position: at,
+    items: [
+      PopupMenuItem(
+        height: 34,
+        onTap: () => actions.stashPop(stash.ref),
+        child: const Text('Pop', style: TextStyle(fontSize: 13)),
+      ),
+      PopupMenuItem(
+        height: 34,
+        onTap: () => actions.stashApply(stash.ref),
+        child: const Text('Apply', style: TextStyle(fontSize: 13)),
+      ),
+      const PopupMenuDivider(),
+      PopupMenuItem(
+        height: 34,
+        onTap: () async {
+          final ok = await showConfirmDialog(
+            context,
+            title: 'Drop ${stash.ref}?',
+            body:
+                'The stash will be deleted. An Undo toast lets you restore it.',
+            confirmLabel: 'Drop',
+          );
+          if (ok) await actions.stashDrop(stash.ref);
+        },
+        child: Text('Drop', style: TextStyle(fontSize: 13, color: t.danger)),
+      ),
+    ],
+  );
+}
+
+class _MiniButton extends StatelessWidget {
   final String label;
-  const _LeafRow({required this.icon, required this.label});
+  final bool accent;
+  final VoidCallback onTap;
+  const _MiniButton(this.label, {required this.onTap, this.accent = false});
 
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
-    return InkWell(
-      hoverColor: t.hover,
-      onTap: () {},
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(_indent(0), 5, 10, 5),
-        child: Row(
-          children: [
-            Icon(icon, size: 14, color: t.textFaint),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                label,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: t.textMuted, fontSize: 13),
-              ),
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(4),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: accent ? t.accent.withValues(alpha: 0.16) : null,
+            border: Border.all(color: accent ? Colors.transparent : t.border),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              color: accent ? t.accent : t.textMuted,
             ),
-          ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LeafRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final void Function(Offset at)? onMenu;
+  final List<Widget> trailing;
+  const _LeafRow({
+    required this.icon,
+    required this.label,
+    this.onMenu,
+    this.trailing = const [],
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return GestureDetector(
+      onSecondaryTapUp: onMenu == null
+          ? null
+          : (d) => onMenu!(d.globalPosition),
+      child: InkWell(
+        hoverColor: t.hover,
+        onTap: () {},
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(_indent(0), 5, 10, 5),
+          child: Row(
+            children: [
+              Icon(icon, size: 14, color: t.textFaint),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  label,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: t.textMuted, fontSize: 13),
+                ),
+              ),
+              ...trailing,
+            ],
+          ),
         ),
       ),
     );
