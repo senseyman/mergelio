@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
 import '../../core/tokens.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../../state/recents.dart';
 import '../common/dialogs.dart';
 import 'open_repo.dart';
@@ -15,6 +16,7 @@ class WelcomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = context.tokens;
+    final l = AppLocalizations.of(context);
     final recents = ref.watch(recentsProvider);
 
     return Container(
@@ -74,7 +76,7 @@ class WelcomeScreen extends ConsumerWidget {
                     Padding(
                       padding: const EdgeInsets.only(top: 8, bottom: 12),
                       child: Text(
-                        'RECENT REPOSITORIES',
+                        l.welcomeRecents.toUpperCase(),
                         style: TextStyle(
                           color: t.textFaint,
                           fontSize: 11,
@@ -85,7 +87,7 @@ class WelcomeScreen extends ConsumerWidget {
                     ),
                     if (recents.isEmpty)
                       Text(
-                        'No recent repositories yet.',
+                        l.welcomeNoRecents,
                         style: TextStyle(color: t.textFaint, fontSize: 13),
                       )
                     else

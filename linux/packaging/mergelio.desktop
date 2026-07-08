@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Mergelio
+GenericName=Git Client
+Comment=Free, cross-platform visual Git client
+Exec=mergelio
+Icon=mergelio
+Terminal=false
+Categories=Development;RevisionControl;
+Keywords=git;version control;vcs;
+StartupWMClass=mergelio

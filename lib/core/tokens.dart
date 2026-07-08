@@ -84,7 +84,8 @@ class AppTokens extends ThemeExtension<AppTokens> {
     borderStrong: const Color(0xFFD3D8E2),
     textPrimary: const Color(0xFF0B0D14),
     textMuted: const Color(0xFF586173),
-    textFaint: const Color(0xFF98A1B3),
+    // Darkened from #98A1B3 to clear WCAG AA 3:1 on light backgrounds.
+    textFaint: const Color(0xFF798295),
     accent: accent ?? const Color(0xFF4C5BF5),
     success: const Color(0xFF0E9F6E),
     warning: const Color(0xFFB54708),

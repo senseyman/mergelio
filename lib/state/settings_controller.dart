@@ -27,6 +27,19 @@ class SettingsController extends StateNotifier<AppSettings> {
   void setPullStrategy(String s) => _update(state.copyWith(pullStrategy: s));
   void setDateFormat(String s) => _update(state.copyWith(dateFormat: s));
 
+  /// UI language: '' (system), 'en' or 'uk'.
+  void setLocaleCode(String code) => _update(state.copyWith(localeCode: code));
+
+  void setTelemetryEnabled(bool v) =>
+      _update(state.copyWith(telemetryEnabled: v));
+
+  /// UI zoom, clamped to the 100–200% accessibility range.
+  void setUiScale(double v) =>
+      _update(state.copyWith(uiScale: v.clamp(1.0, 2.0)));
+  void zoomIn() => setUiScale(state.uiScale + 0.1);
+  void zoomOut() => setUiScale(state.uiScale - 0.1);
+  void zoomReset() => setUiScale(1.0);
+
   /// Overrides one branch-palette colour (index 0–7).
   void setBranchColor(int index, Color color) {
     final next = Map<String, int>.from(state.branchColorOverrides);

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../../state/feedback.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
@@ -20,6 +21,7 @@ class AppBottomBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = context.tokens;
+    final l = AppLocalizations.of(context);
     final path = ref.watch(workspaceProvider).activeTab?.path;
     final remotes = path == null
         ? const <String>[]
@@ -92,7 +94,7 @@ class AppBottomBar extends ConsumerWidget {
                       children: [
                         _OpButton(
                           icon: Icons.download_outlined,
-                          label: 'Fetch',
+                          label: l.opFetch,
                           enabled: hasRemote && !busy,
                           onDisabledTap: whyDisabled,
                           items: () => [
@@ -105,25 +107,25 @@ class AppBottomBar extends ConsumerWidget {
                         ),
                         _OpButton(
                           icon: Icons.south_west,
-                          label: 'Pull',
+                          label: l.opPull,
                           enabled: hasRemote && !busy,
                           onDisabledTap: whyDisabled,
                           items: () => [
-                            _Op('Pull', () => actions!.pull()),
+                            _Op(l.opPull, () => actions!.pull()),
                             _Op(
-                              'Pull (rebase)',
+                              l.opPullRebase,
                               () => actions!.pull(rebase: true),
                             ),
                           ],
                         ),
                         _OpButton(
                           icon: Icons.north_east,
-                          label: 'Push',
+                          label: l.opPush,
                           enabled: hasRemote && !busy,
                           onDisabledTap: whyDisabled,
                           items: () => [
-                            _Op('Push origin', () => actions!.push()),
-                            _Op('Force-push (with lease)', () async {
+                            _Op(l.opPushOrigin, () => actions!.push()),
+                            _Op(l.opForcePush, () async {
                               final ok = await confirmDestructive(
                                 ref,
                                 context,

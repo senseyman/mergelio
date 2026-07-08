@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/tokens.dart';
 import '../../domain/git/models.dart';
+import '../../l10n/gen/app_localizations.dart';
 import 'commit_columns.dart';
 import 'graph_rail.dart';
 import 'rail_metrics.dart';
@@ -46,38 +47,46 @@ class CommitRow extends StatelessWidget {
     final compact = metrics.compact;
     final dim = searchMatch == false;
     final highlight = searchMatch == true;
+    final firstLine = c.message.split('\n').first;
 
-    return InkWell(
-      onTap: onTap,
-      hoverColor: t.hover,
-      child: Opacity(
-        opacity: dim ? 0.35 : 1,
-        child: Container(
-          height: metrics.rowHeight,
-          // Selection always wins so the flown-to match is distinguishable;
-          // other matches get a lighter tint.
-          color: selected
-              ? t.active
-              : (highlight ? t.accent.withValues(alpha: 0.12) : null),
-          child: Row(
-            children: [
-              SizedBox(
-                width: metrics.railWidth(maxLane),
-                child: CustomPaint(
-                  size: Size(metrics.railWidth(maxLane), metrics.rowHeight),
-                  painter: GraphRailPainter(
-                    c: c,
-                    m: metrics,
-                    palette: t.branchPalette,
-                    nodeFill: t.bgApp,
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: AppLocalizations.of(
+        context,
+      ).a11yCommitRow(c.shortSha, c.author, firstLine),
+      child: InkWell(
+        onTap: onTap,
+        hoverColor: t.hover,
+        child: Opacity(
+          opacity: dim ? 0.35 : 1,
+          child: Container(
+            height: metrics.rowHeight,
+            // Selection always wins so the flown-to match is distinguishable;
+            // other matches get a lighter tint.
+            color: selected
+                ? t.active
+                : (highlight ? t.accent.withValues(alpha: 0.12) : null),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: metrics.railWidth(maxLane),
+                  child: CustomPaint(
+                    size: Size(metrics.railWidth(maxLane), metrics.rowHeight),
+                    painter: GraphRailPainter(
+                      c: c,
+                      m: metrics,
+                      palette: t.branchPalette,
+                      nodeFill: t.bgApp,
+                    ),
                   ),
                 ),
-              ),
-              _Avatar(commit: c, size: compact ? 18 : 24),
-              const SizedBox(width: 10),
-              Expanded(child: compact ? _singleLine(t, c) : _twoLines(t, c)),
-              const SizedBox(width: 12),
-            ],
+                _Avatar(commit: c, size: compact ? 18 : 24),
+                const SizedBox(width: 10),
+                Expanded(child: compact ? _singleLine(t, c) : _twoLines(t, c)),
+                const SizedBox(width: 12),
+              ],
+            ),
           ),
         ),
       ),

@@ -40,6 +40,8 @@ class KeyboardShortcuts extends ConsumerWidget {
       n.state = !n.state;
     }
 
+    final settings = ref.read(settingsProvider.notifier);
+
     void openSearch() {
       if (ref.read(workspaceProvider).activeTab == null) return;
       ref.read(searchQueryProvider.notifier).state = const CommitQuery(
@@ -94,6 +96,12 @@ class KeyboardShortcuts extends ConsumerWidget {
         ...chord(LogicalKeyboardKey.keyK, openPalette),
         ...chord(LogicalKeyboardKey.keyF, openSearch),
         ...chord(LogicalKeyboardKey.backquote, toggleTerminal),
+        // Zoom: ⌘/Ctrl with = (also + on many layouts), - and 0 to reset.
+        ...chord(LogicalKeyboardKey.equal, settings.zoomIn),
+        ...chord(LogicalKeyboardKey.add, settings.zoomIn),
+        ...chord(LogicalKeyboardKey.minus, settings.zoomOut),
+        ...chord(LogicalKeyboardKey.numpadSubtract, settings.zoomOut),
+        ...chord(LogicalKeyboardKey.digit0, settings.zoomReset),
         ...chord(LogicalKeyboardKey.keyZ, undo),
         const SingleActivator(LogicalKeyboardKey.keyZ, meta: true, shift: true):
             redo,

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
 import '../../domain/theme_io.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../../state/feedback.dart';
 import '../../state/settings_controller.dart';
 import '../common/dialogs.dart';
@@ -25,6 +26,7 @@ class _PrefsBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
+    final l = AppLocalizations.of(context);
     return DefaultTabController(
       length: 4,
       child: Column(
@@ -34,11 +36,11 @@ class _PrefsBody extends StatelessWidget {
             labelColor: t.textPrimary,
             unselectedLabelColor: t.textFaint,
             indicatorColor: t.accent,
-            tabs: const [
-              Tab(text: 'General'),
-              Tab(text: 'Appearance'),
-              Tab(text: 'Shortcuts'),
-              Tab(text: 'Credentials'),
+            tabs: [
+              Tab(text: l.prefsTabGeneral),
+              Tab(text: l.prefsTabAppearance),
+              Tab(text: l.prefsTabShortcuts),
+              Tab(text: l.prefsTabCredentials),
             ],
           ),
           const Expanded(
@@ -63,35 +65,55 @@ class _GeneralTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = context.tokens;
+    final l = AppLocalizations.of(context);
     final s = ref.watch(settingsProvider);
     final c = ref.read(settingsProvider.notifier);
     return ListView(
       padding: const EdgeInsets.symmetric(vertical: 8),
       children: [
-        _SwitchRow('Auto-fetch', s.autoFetch, c.setAutoFetch),
+        _ChoiceRow(
+          l.prefsLanguage,
+          const ['', 'en', 'uk'],
+          s.localeCode,
+          c.setLocaleCode,
+          labelFor: (v) => switch (v) {
+            'en' => l.languageEnglish,
+            'uk' => l.languageUkrainian,
+            _ => l.languageSystem,
+          },
+        ),
+        _SwitchRow(l.prefsAutoFetch, s.autoFetch, c.setAutoFetch),
         _SwitchRow(
-          'Confirm destructive actions',
+          l.prefsConfirmDestructive,
           s.confirmDestructive,
           c.setConfirmDestructive,
         ),
-        _SwitchRow('Restore tabs on launch', s.restoreTabs, c.setRestoreTabs),
+        _SwitchRow(l.prefsRestoreTabs, s.restoreTabs, c.setRestoreTabs),
+        _SwitchRow(l.prefsTelemetry, s.telemetryEnabled, c.setTelemetryEnabled),
+        _ZoomRow(label: l.prefsZoom, scale: s.uiScale, controller: c),
         _ChoiceRow(
-          'Pull strategy',
+          l.prefsPullStrategy,
           const ['merge', 'rebase'],
           s.pullStrategy,
           c.setPullStrategy,
+          labelFor: (v) => v == 'rebase' ? l.strategyRebase : l.strategyMerge,
         ),
         _ChoiceRow(
-          'Date format',
+          l.prefsDateFormat,
           const ['medium', 'iso', 'short'],
           s.dateFormat,
           c.setDateFormat,
+          labelFor: (v) => switch (v) {
+            'iso' => l.dateIso,
+            'short' => l.dateShort,
+            _ => l.dateMedium,
+          },
         ),
         const Divider(height: 20),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8),
           child: Text(
-            'Graph columns',
+            l.prefsGraphColumns,
             style: TextStyle(color: t.textFaint, fontSize: 12),
           ),
         ),
@@ -102,11 +124,63 @@ class _GeneralTab extends ConsumerWidget {
             (_) => c.toggleGraphCol(e.key),
           ),
         _SwitchRow(
-          'Compact rows',
+          l.prefsCompactRows,
           s.graphCompact,
           (_) => c.toggleGraphCompact(),
         ),
       ],
+    );
+  }
+}
+
+/// UI-zoom control: −/percent/+ stepping the 100–200% scale.
+class _ZoomRow extends StatelessWidget {
+  final String label;
+  final double scale;
+  final SettingsController controller;
+  const _ZoomRow({
+    required this.label,
+    required this.scale,
+    required this.controller,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(color: t.textPrimary, fontSize: 13),
+            ),
+          ),
+          IconButton(
+            iconSize: 18,
+            visualDensity: VisualDensity.compact,
+            tooltip: '⌘−',
+            onPressed: scale > 1.0 ? controller.zoomOut : null,
+            icon: const Icon(Icons.remove),
+          ),
+          SizedBox(
+            width: 44,
+            child: Text(
+              '${(scale * 100).round()}%',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: t.textMuted, fontSize: 12),
+            ),
+          ),
+          IconButton(
+            iconSize: 18,
+            visualDensity: VisualDensity.compact,
+            tooltip: '⌘+',
+            onPressed: scale < 2.0 ? controller.zoomIn : null,
+            icon: const Icon(Icons.add),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -120,6 +194,8 @@ class _ShortcutsTab extends StatelessWidget {
     ('⌘F', 'Search commits'),
     ('⌘\\', 'Collapse left panel'),
     ('⌘`', 'Toggle terminal'),
+    ('⌘ + / −', 'Zoom in / out'),
+    ('⌘0', 'Reset zoom'),
     ('⌘Z', 'Undo last action'),
     ('⌘⇧Z', 'Redo'),
     ('⌘,', 'Preferences'),
@@ -228,15 +304,21 @@ class _AppearanceTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = context.tokens;
+    final l = AppLocalizations.of(context);
     final s = ref.watch(settingsProvider);
     final c = ref.read(settingsProvider.notifier);
     final base = AppTokens.defaultBranchPalette;
+    final themeLabels = {
+      'dark': l.themeDark,
+      'light': l.themeLight,
+      'system': l.themeSystem,
+    };
 
     return ListView(
       padding: const EdgeInsets.all(8),
       children: [
         _ChoiceRow(
-          'Theme',
+          l.prefsTheme,
           const ['dark', 'light', 'system'],
           switch (s.themeMode) {
             ThemeMode.light => 'light',
@@ -248,16 +330,17 @@ class _AppearanceTab extends ConsumerWidget {
             'system' => ThemeMode.system,
             _ => ThemeMode.dark,
           }),
+          labelFor: (v) => themeLabels[v] ?? v,
         ),
         const SizedBox(height: 8),
-        Text('Accent', style: TextStyle(color: t.textFaint, fontSize: 12)),
+        Text(l.prefsAccent, style: TextStyle(color: t.textFaint, fontSize: 12)),
         _ColorRow(
           selected: s.accentValue,
           onPick: (argb) => c.setAccent(Color(argb)),
         ),
         const SizedBox(height: 12),
         Text(
-          'Branch colours',
+          l.prefsBranchColours,
           style: TextStyle(color: t.textFaint, fontSize: 12),
         ),
         for (var i = 0; i < base.length; i++)
@@ -287,7 +370,7 @@ class _AppearanceTab extends ConsumerWidget {
           children: [
             TextButton(
               onPressed: c.resetBranchColors,
-              child: const Text('Reset colours'),
+              child: Text(l.prefsResetColours),
             ),
             const Spacer(),
             TextButton(
@@ -300,7 +383,7 @@ class _AppearanceTab extends ConsumerWidget {
                     .read(toastProvider.notifier)
                     .show('Theme JSON copied', kind: ToastKind.success);
               },
-              child: const Text('Export'),
+              child: Text(l.export),
             ),
             TextButton(
               onPressed: () async {
@@ -318,13 +401,13 @@ class _AppearanceTab extends ConsumerWidget {
                       .show('Invalid theme JSON', kind: ToastKind.error);
                 }
               },
-              child: const Text('Import'),
+              child: Text(l.import),
             ),
           ],
         ),
         const SizedBox(height: 12),
         Text(
-          'Saved themes',
+          l.prefsSavedThemes,
           style: TextStyle(color: t.textFaint, fontSize: 12),
         ),
         const SizedBox(height: 6),
@@ -345,9 +428,9 @@ class _AppearanceTab extends ConsumerWidget {
               ),
             ActionChip(
               avatar: const Icon(Icons.add, size: 15),
-              label: const Text(
-                'Save current…',
-                style: TextStyle(fontSize: 12),
+              label: Text(
+                l.prefsSaveCurrent,
+                style: const TextStyle(fontSize: 12),
               ),
               onPressed: () async {
                 final name = await showInputDialog(
@@ -394,7 +477,15 @@ class _ChoiceRow extends StatelessWidget {
   final List<String> options;
   final String value;
   final ValueChanged<String> onChanged;
-  const _ChoiceRow(this.label, this.options, this.value, this.onChanged);
+  // Maps an option code to its display label; identity by default.
+  final String Function(String)? labelFor;
+  const _ChoiceRow(
+    this.label,
+    this.options,
+    this.value,
+    this.onChanged, {
+    this.labelFor,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -413,7 +504,10 @@ class _ChoiceRow extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(left: 6),
               child: ChoiceChip(
-                label: Text(o, style: const TextStyle(fontSize: 12)),
+                label: Text(
+                  labelFor?.call(o) ?? o,
+                  style: const TextStyle(fontSize: 12),
+                ),
                 selected: value == o,
                 onSelected: (_) => onChanged(o),
               ),

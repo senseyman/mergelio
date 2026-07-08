@@ -15,7 +15,9 @@ import '../../state/workspace.dart';
 import '../common/confirm.dart';
 import '../common/dialogs.dart';
 import '../rebase/rebase_editor.dart';
+import '../../l10n/gen/app_localizations.dart';
 import 'commit_columns.dart';
+import 'graph_derived.dart';
 import 'commit_row.dart';
 import 'rail_metrics.dart';
 import 'squash_overlay.dart';
@@ -69,6 +71,36 @@ class GraphList extends ConsumerStatefulWidget {
 class _GraphListState extends ConsumerState<GraphList> {
   final _scroll = ScrollController();
   final _focus = FocusNode(debugLabel: 'graph');
+
+  // Memoized graph derivations + search matches, recomputed only when their
+  // inputs change (the RepoData object, or the query), never on every rebuild.
+  RepoData? _derivedFor;
+  GraphDerived? _derived;
+  RepoData? _matchDataFor;
+  CommitQuery? _matchQueryFor;
+  Set<String> _matchCache = const {};
+
+  GraphDerived _deriveFor(RepoData d) {
+    if (!identical(_derivedFor, d) || _derived == null) {
+      _derived = computeGraphDerived(d);
+      _derivedFor = d;
+    }
+    return _derived!;
+  }
+
+  Set<String> _matchesFor(RepoData d, CommitQuery? query) {
+    if (query == null || query.isEmpty) return const {};
+    if (identical(_matchDataFor, d) && query == _matchQueryFor) {
+      return _matchCache;
+    }
+    _matchCache = {
+      for (final c in d.commits)
+        if (matchesCommit(c, query)) c.sha,
+    };
+    _matchDataFor = d;
+    _matchQueryFor = query;
+    return _matchCache;
+  }
 
   @override
   void dispose() {
@@ -156,37 +188,15 @@ class _GraphListState extends ConsumerState<GraphList> {
     final selected = ref.watch(selectedCommitProvider);
     final metrics = RailMetrics(compact: compact);
 
-    var maxLane = 0;
-    for (final c in d.commits) {
-      if (c.lane > maxLane) maxLane = c.lane;
-      for (final l in c.through) {
-        if (l > maxLane) maxLane = l;
-      }
-    }
-    final labels = deriveBranchLabels(d.commits);
+    final derived = _deriveFor(d);
+    final maxLane = derived.maxLane;
+    final labels = derived.labels;
+    final segments = derived.segments;
 
     final wipRows = _hasWip ? 1 : 0;
 
-    final rowIndex = <String, int>{};
-    final laneOf = <String, ({int lane, int ci})>{};
-    for (var j = 0; j < d.commits.length; j++) {
-      final c = d.commits[j];
-      rowIndex[c.sha] = j;
-      laneOf[c.sha] = (lane: c.lane, ci: c.ci);
-    }
-    final segments = resolveSquashSegments(
-      d.squashLinks,
-      rowIndex,
-      laneOf: laneOf,
-    );
-
     final query = ref.watch(searchQueryProvider);
-    final matchShas = query == null || query.isEmpty
-        ? const <String>{}
-        : {
-            for (final c in d.commits)
-              if (matchesCommit(c, query)) c.sha,
-          };
+    final matchShas = _matchesFor(d, query);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -295,6 +305,7 @@ class _SearchBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
+    final l = AppLocalizations.of(context);
     return Container(
       height: 40,
       padding: const EdgeInsets.only(left: 12, right: 6),
@@ -328,7 +339,7 @@ class _SearchBar extends StatelessWidget {
             ),
           ),
           _FilterChip(
-            label: 'Hide merges',
+            label: l.filterHideMerges,
             on: query.hideMerges,
             onTap: () => onChanged(
               CommitQuery(
@@ -341,7 +352,7 @@ class _SearchBar extends StatelessWidget {
           ),
           const SizedBox(width: 6),
           _FilterChip(
-            label: 'Hide tags',
+            label: l.filterHideTags,
             on: query.hideTags,
             onTap: () => onChanged(
               CommitQuery(
@@ -394,22 +405,27 @@ class _FilterChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(4),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(
-          color: on ? t.accent.withValues(alpha: 0.16) : null,
-          border: Border.all(color: on ? Colors.transparent : t.border),
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: on ? t.accent : t.textMuted,
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
+    return Semantics(
+      button: true,
+      toggled: on,
+      label: label,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(4),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: on ? t.accent.withValues(alpha: 0.16) : null,
+            border: Border.all(color: on ? Colors.transparent : t.border),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: on ? t.accent : t.textMuted,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ),
@@ -425,6 +441,7 @@ class _GraphHeader extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = context.tokens;
+    final l = AppLocalizations.of(context);
     final ctl = ref.read(settingsProvider.notifier);
     const names = graphColumnLabels;
     return Container(
@@ -436,7 +453,7 @@ class _GraphHeader extends ConsumerWidget {
       child: Row(
         children: [
           Text(
-            'HISTORY',
+            l.graphHistory,
             style: TextStyle(
               color: t.textFaint,
               fontSize: 11,
@@ -463,7 +480,10 @@ class _GraphHeader extends ConsumerWidget {
                 value: 'compact',
                 checked: compact,
                 height: 36,
-                child: const Text('Compact', style: TextStyle(fontSize: 13)),
+                child: Text(
+                  l.graphCompact,
+                  style: const TextStyle(fontSize: 13),
+                ),
               ),
             ],
             child: Padding(
@@ -597,6 +617,7 @@ class _CommitContextMenu extends ConsumerWidget {
     if (path == null) return;
     final actions = ref.read(repoActionsProvider(path));
     final sha = commit.sha;
+    final l = AppLocalizations.of(context);
 
     PopupMenuItem<void> item(
       String label,
@@ -618,7 +639,7 @@ class _CommitContextMenu extends ConsumerWidget {
       context: context,
       position: at,
       items: [
-        item('Create branch here', () async {
+        item(l.menuCreateBranch, () async {
           final name = await showInputDialog(
             context,
             title: 'Create branch',
@@ -626,7 +647,7 @@ class _CommitContextMenu extends ConsumerWidget {
           );
           if (name != null) await actions.createBranch(name, at: sha);
         }),
-        item('Create tag here', () async {
+        item(l.menuCreateTag, () async {
           final name = await showInputDialog(
             context,
             title: 'Create tag',
@@ -634,9 +655,9 @@ class _CommitContextMenu extends ConsumerWidget {
           );
           if (name != null) await actions.createTag(name, at: sha);
         }),
-        item('Cherry-pick', () => actions.cherryPick(sha)),
-        item('Revert', () => actions.revert(sha)),
-        item('Rebase to here…', () async {
+        item(l.menuCherryPick, () => actions.cherryPick(sha)),
+        item(l.menuRevert, () => actions.revert(sha)),
+        item(l.menuRebaseHere, () async {
           final steps = await actions.rebaseStepsFrom(sha);
           if (steps.isEmpty) return;
           if (!context.mounted) return;
@@ -644,7 +665,7 @@ class _CommitContextMenu extends ConsumerWidget {
           if (plan == null || isNoOpPlan(steps, plan)) return; // unchanged
           await actions.rebase(sha, plan);
         }),
-        item('Reset here (--hard)', () async {
+        item(l.menuResetHard, () async {
           final ok = await confirmDestructive(
             ref,
             context,
@@ -657,7 +678,7 @@ class _CommitContextMenu extends ConsumerWidget {
           if (ok) await actions.resetHard(sha);
         }, danger: true),
         const PopupMenuDivider(),
-        item('Copy SHA', () => Clipboard.setData(ClipboardData(text: sha))),
+        item(l.menuCopySha, () => Clipboard.setData(ClipboardData(text: sha))),
       ],
     );
   }

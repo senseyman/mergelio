@@ -33,6 +33,12 @@ class AppSettings with _$AppSettings {
     @Default({}) Map<String, int> branchColorOverrides,
     // Saved themes by name → JSON blob.
     @Default({}) Map<String, String> savedThemes,
+    // UI language: '' follows the system locale, else 'en' / 'uk'.
+    @Default('') String localeCode,
+    // Opt-in anonymised telemetry + crash reporting. Off by default.
+    @Default(false) bool telemetryEnabled,
+    // UI zoom (text/icon scale), 1.0–2.0 per the 100–200% accessibility NFR.
+    @Default(1.0) double uiScale,
   }) = _AppSettings;
 
   factory AppSettings.fromJson(Map<String, dynamic> json) =>

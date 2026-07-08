@@ -23,22 +23,29 @@ class BarIconButton extends StatelessWidget {
     return Tooltip(
       message: tooltip,
       waitDuration: const Duration(milliseconds: 500),
-      child: Material(
-        color: active ? t.active : Colors.transparent,
-        borderRadius: BorderRadius.circular(t.rButton),
-        child: InkWell(
+      child: Semantics(
+        button: true,
+        enabled: onPressed != null,
+        label: tooltip,
+        child: Material(
+          color: active ? t.active : Colors.transparent,
           borderRadius: BorderRadius.circular(t.rButton),
-          hoverColor: t.hover,
-          onTap: onPressed,
-          child: SizedBox(
-            width: 32,
-            height: 32,
-            child: Icon(
-              icon,
-              size: 17,
-              color: onPressed == null
-                  ? t.textFaint
-                  : (active ? t.accent : t.textMuted),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(t.rButton),
+            hoverColor: t.hover,
+            // Visible keyboard-focus ring for non-pointer navigation.
+            focusColor: t.active,
+            onTap: onPressed,
+            child: SizedBox(
+              width: 32,
+              height: 32,
+              child: Icon(
+                icon,
+                size: 17,
+                color: onPressed == null
+                    ? t.textFaint
+                    : (active ? t.accent : t.textMuted),
+              ),
             ),
           ),
         ),

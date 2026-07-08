@@ -9,6 +9,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  # i18n message formatting
+  intl: ^0.20.2
 
   # State management
   flutter_riverpod: ^2.6.1
@@ -37,6 +41,20 @@ dev_dependencies:
   freezed: ^2.5.7
   json_serializable: ^6.8.0
   drift_dev: ^2.20.3
+  flutter_launcher_icons: ^0.14.1
 
 flutter:
   uses-material-design: true
+  generate: true
+
+# Per-OS app icons generated from the 1024px brand master (§4.8). Regenerate
+# with: dart run flutter_launcher_icons
+flutter_launcher_icons:
+  image_path: ".docs/brand/logo_dark/mergelio-dark-icon.png"
+  macos:
+    generate: true
+    image_path: ".docs/brand/logo_dark/mergelio-dark-icon.png"
+  windows:
+    generate: true
+    image_path: ".docs/brand/logo_dark/mergelio-dark-icon.png"
+    icon_size: 256

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
 import '../../core/tokens.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../../state/feedback.dart';
 import '../../state/terminal.dart';
 import '../../state/workspace.dart';
@@ -18,6 +19,7 @@ class AppToolbar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = context.tokens;
+    final l = AppLocalizations.of(context);
     void soon(String what) => ref
         .read(toastProvider.notifier)
         .show(what, description: 'Coming in a later stage');
@@ -44,7 +46,7 @@ class AppToolbar extends ConsumerWidget {
           const Spacer(),
           BarIconButton(
             icon: Icons.terminal_outlined,
-            tooltip: 'Terminal (⌘`)',
+            tooltip: l.tooltipTerminal,
             onPressed: () {
               if (ref.read(workspaceProvider).activeTab == null) {
                 soon('Terminal');
@@ -56,22 +58,22 @@ class AppToolbar extends ConsumerWidget {
           ),
           BarIconButton(
             icon: Icons.search,
-            tooltip: 'Search (⌘F)',
+            tooltip: l.tooltipSearch,
             onPressed: () => soon('Global search'),
           ),
           BarIconButton(
             icon: Icons.keyboard_command_key,
-            tooltip: 'Command palette (⌘K)',
+            tooltip: l.tooltipPalette,
             onPressed: () => soon('Command palette'),
           ),
           BarIconButton(
             icon: Icons.settings_outlined,
-            tooltip: 'Preferences (⌘,)',
+            tooltip: l.tooltipPreferences,
             onPressed: () => showPreferencesDialog(context),
           ),
           const SizedBox(width: 4),
           Tooltip(
-            message: 'Profiles',
+            message: l.tooltipProfiles,
             child: InkWell(
               borderRadius: BorderRadius.circular(t.rButton),
               onTap: () => soon('Profiles'),
