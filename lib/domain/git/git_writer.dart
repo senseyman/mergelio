@@ -226,6 +226,11 @@ class GitWriter {
   Future<void> resetHard(String sha) =>
       _ok(['reset', '--hard', sha], 'git reset --hard');
 
+  /// Moves HEAD to [sha] but leaves the index and working tree untouched — used
+  /// to undo a commit (the committed changes return to the staging area).
+  Future<void> resetSoft(String sha) =>
+      _ok(['reset', '--soft', sha], 'git reset --soft');
+
   // --- Stash ops ------------------------------------------------------------
 
   Future<void> stashPush({String? message}) => _ok([

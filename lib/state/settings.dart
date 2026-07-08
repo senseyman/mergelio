@@ -21,6 +21,18 @@ class AppSettings with _$AppSettings {
     @Default(false) bool graphCompact,
     // Diff sheet: split vs inline view.
     @Default(false) bool diffSplit,
+    // General preferences.
+    @Default(false) bool autoFetch,
+    @Default(true) bool confirmDestructive,
+    @Default(true) bool restoreTabs,
+    // 'merge' | 'rebase' — default strategy for Pull.
+    @Default('merge') String pullStrategy,
+    // 'medium' (Jul 2, 2026) | 'iso' (2026-07-02) | 'short' (07/02/26).
+    @Default('medium') String dateFormat,
+    // Per-index branch-palette colour overrides (ARGB); missing = default.
+    @Default({}) Map<String, int> branchColorOverrides,
+    // Saved themes by name → JSON blob.
+    @Default({}) Map<String, String> savedThemes,
   }) = _AppSettings;
 
   factory AppSettings.fromJson(Map<String, dynamic> json) =>

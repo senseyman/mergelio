@@ -3,6 +3,7 @@ import 'package:flutter/material.dart' show Color, ThemeMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/settings_repository.dart';
+import '../domain/theme_io.dart';
 import 'settings.dart';
 
 /// Owns [AppSettings], applies mutations, and persists on every change.
@@ -18,6 +19,74 @@ class SettingsController extends StateNotifier<AppSettings> {
 
   void setAccent(Color color) =>
       _update(state.copyWith(accentValue: color.toARGB32()));
+
+  void setAutoFetch(bool v) => _update(state.copyWith(autoFetch: v));
+  void setConfirmDestructive(bool v) =>
+      _update(state.copyWith(confirmDestructive: v));
+  void setRestoreTabs(bool v) => _update(state.copyWith(restoreTabs: v));
+  void setPullStrategy(String s) => _update(state.copyWith(pullStrategy: s));
+  void setDateFormat(String s) => _update(state.copyWith(dateFormat: s));
+
+  /// Overrides one branch-palette colour (index 0–7).
+  void setBranchColor(int index, Color color) {
+    final next = Map<String, int>.from(state.branchColorOverrides);
+    next['$index'] = color.toARGB32();
+    _update(state.copyWith(branchColorOverrides: next));
+  }
+
+  void resetBranchColors() =>
+      _update(state.copyWith(branchColorOverrides: const {}));
+
+  /// Applies a theme spec: mode, accent and branch colours, all live.
+  void applyTheme(ThemeSpec spec) {
+    _update(
+      state.copyWith(
+        themeMode: spec.mode == 'light' ? ThemeMode.light : ThemeMode.dark,
+        accentValue: spec.accent,
+        branchColorOverrides: {
+          for (var i = 0; i < spec.branchColors.length; i++)
+            '$i': spec.branchColors[i],
+        },
+      ),
+    );
+  }
+
+  /// Current settings as an exportable [ThemeSpec], given the base palette.
+  ThemeSpec currentTheme(String name, List<int> basePalette) => ThemeSpec(
+    name: name,
+    mode: state.themeMode == ThemeMode.light ? 'light' : 'dark',
+    accent: state.accentValue,
+    branchColors: [
+      for (var i = 0; i < basePalette.length; i++)
+        state.branchColorOverrides['$i'] ?? basePalette[i],
+    ],
+  );
+
+  /// Saves the current theme under [name] for later re-apply.
+  void saveTheme(String name, List<int> basePalette) {
+    final next = Map<String, String>.from(state.savedThemes);
+    next[name] = currentTheme(name, basePalette).encode();
+    _update(state.copyWith(savedThemes: next));
+  }
+
+  /// Applies a previously saved theme by [name]; no-op if it is unknown or
+  /// its stored blob no longer decodes.
+  void applySavedTheme(String name) {
+    final blob = state.savedThemes[name];
+    if (blob == null) return;
+    try {
+      applyTheme(ThemeSpec.decode(blob));
+    } on FormatException {
+      // Corrupt blob — leave the current theme untouched.
+    }
+  }
+
+  /// Forgets a saved theme.
+  void deleteSavedTheme(String name) {
+    if (!state.savedThemes.containsKey(name)) return;
+    final next = Map<String, String>.from(state.savedThemes)..remove(name);
+    _update(state.copyWith(savedThemes: next));
+  }
 
   void setLeftWidth(double w) =>
       _update(state.copyWith(leftWidth: w.clamp(200, 460)));

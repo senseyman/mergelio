@@ -7,6 +7,7 @@ import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
 import '../../state/undo_stack.dart';
 import '../../state/workspace.dart';
+import '../common/confirm.dart';
 import '../common/dialogs.dart';
 import 'shell_widgets.dart';
 
@@ -123,7 +124,8 @@ class AppBottomBar extends ConsumerWidget {
                           items: () => [
                             _Op('Push origin', () => actions!.push()),
                             _Op('Force-push (with lease)', () async {
-                              final ok = await showConfirmDialog(
+                              final ok = await confirmDestructive(
+                                ref,
                                 context,
                                 title: 'Force-push?',
                                 body:

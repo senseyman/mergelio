@@ -12,6 +12,7 @@ import '../../state/repo_data.dart';
 import '../../state/search.dart';
 import '../../state/settings_controller.dart';
 import '../../state/workspace.dart';
+import '../common/confirm.dart';
 import '../common/dialogs.dart';
 import '../rebase/rebase_editor.dart';
 import 'commit_columns.dart';
@@ -151,6 +152,7 @@ class _GraphListState extends ConsumerState<GraphList> {
     final d = widget.data;
     final compact = ref.watch(settingsProvider.select((s) => s.graphCompact));
     final cols = ref.watch(settingsProvider.select((s) => s.graphCols));
+    final dateFormat = ref.watch(settingsProvider.select((s) => s.dateFormat));
     final selected = ref.watch(selectedCommitProvider);
     final metrics = RailMetrics(compact: compact);
 
@@ -233,6 +235,7 @@ class _GraphListState extends ConsumerState<GraphList> {
                           metrics: metrics,
                           maxLane: maxLane,
                           cols: cols,
+                          dateFormat: dateFormat,
                           selected: selected == c.sha,
                           searchMatch: query == null || query.isEmpty
                               ? null
@@ -423,12 +426,7 @@ class _GraphHeader extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final t = context.tokens;
     final ctl = ref.read(settingsProvider.notifier);
-    const names = {
-      'branch': 'Branch',
-      'author': 'Author',
-      'date': 'Date',
-      'sha': 'SHA',
-    };
+    const names = graphColumnLabels;
     return Container(
       height: 34,
       padding: const EdgeInsets.only(left: 14, right: 8),
@@ -647,7 +645,8 @@ class _CommitContextMenu extends ConsumerWidget {
           await actions.rebase(sha, plan);
         }),
         item('Reset here (--hard)', () async {
-          final ok = await showConfirmDialog(
+          final ok = await confirmDestructive(
+            ref,
             context,
             title: 'Reset to ${commit.shortSha}?',
             body:

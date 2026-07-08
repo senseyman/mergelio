@@ -9,6 +9,7 @@ import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
 import '../../state/search.dart';
 import '../../state/settings_controller.dart';
+import '../../state/terminal.dart';
 import '../../state/workspace.dart';
 import '../palette/command_palette.dart';
 
@@ -32,6 +33,12 @@ class KeyboardShortcuts extends ConsumerWidget {
 
     void undo() => activeActions()?.undo();
     void redo() => activeActions()?.redo();
+
+    void toggleTerminal() {
+      if (ref.read(workspaceProvider).activeTab == null) return;
+      final n = ref.read(terminalVisibleProvider.notifier);
+      n.state = !n.state;
+    }
 
     void openSearch() {
       if (ref.read(workspaceProvider).activeTab == null) return;
@@ -86,6 +93,7 @@ class KeyboardShortcuts extends ConsumerWidget {
         ...chord(LogicalKeyboardKey.backslash, toggleLeft),
         ...chord(LogicalKeyboardKey.keyK, openPalette),
         ...chord(LogicalKeyboardKey.keyF, openSearch),
+        ...chord(LogicalKeyboardKey.backquote, toggleTerminal),
         ...chord(LogicalKeyboardKey.keyZ, undo),
         const SingleActivator(LogicalKeyboardKey.keyZ, meta: true, shift: true):
             redo,

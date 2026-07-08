@@ -6,6 +6,7 @@ import 'app.dart';
 import 'data/app_database.dart';
 import 'data/kv_store.dart';
 import 'data/settings_repository.dart';
+import 'state/operation_journal.dart';
 import 'state/profiles.dart';
 import 'state/recents.dart';
 import 'state/settings.dart';
@@ -39,11 +40,23 @@ Future<void> main() async {
   var recents = const <RecentRepo>[];
   var profiles = const ProfilesState();
   var restoredTabs = const <String>[];
+  var interruptedOps = const <String>[];
   try {
     settings = await settingsRepo.load();
     recents = await recentsRepo.load();
     profiles = await ProfilesController.load(kv);
     restoredTabs = await WorkspaceController.restorePaths(kv);
+    // Scan each restored repo's journal: an op still pending means the app
+    // stopped mid-operation last time, so warn the user on launch.
+    final notices = <String>[];
+    for (final path in restoredTabs) {
+      final j = OperationJournal(kv, path);
+      await j.load();
+      for (final r in j.interrupted) {
+        notices.add('${path.split('/').last}: ${r.label}');
+      }
+    }
+    interruptedOps = notices;
   } catch (e, st) {
     debugPrint('startup: state load failed, using defaults: $e\n$st');
   }
@@ -76,6 +89,8 @@ Future<void> main() async {
           }
           return c;
         }),
+        kvStoreProvider.overrideWithValue(kv),
+        interruptedOpsProvider.overrideWithValue(interruptedOps),
       ],
       child: const MergelioApp(),
     ),

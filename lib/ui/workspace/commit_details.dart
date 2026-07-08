@@ -7,7 +7,9 @@ import '../../domain/git/models.dart';
 import '../../state/diff_target.dart';
 import '../../state/graph_selection.dart';
 import '../../state/repo_data.dart';
+import '../common/dialogs.dart';
 import '../graph/commit_columns.dart';
+import '../insight/file_insight_dialog.dart';
 
 /// Right panel content for a selected commit: metadata, signature, the list of
 /// changed files (read-only), and a `‹ WIP` shortcut back to the working tree
@@ -140,6 +142,7 @@ class CommitDetails extends ConsumerWidget {
                             for (final f in list)
                               _FileRow(
                                 file: f,
+                                repoPath: repoPath,
                                 onTap: () =>
                                     ref
                                         .read(diffTargetProvider.notifier)
@@ -238,8 +241,38 @@ class _MetaSha extends StatelessWidget {
 
 class _FileRow extends StatelessWidget {
   final CommitFileChange file;
+  final String repoPath;
   final VoidCallback onTap;
-  const _FileRow({required this.file, required this.onTap});
+  const _FileRow({
+    required this.file,
+    required this.repoPath,
+    required this.onTap,
+  });
+
+  void _menu(BuildContext context, Offset at) {
+    showContextMenu<void>(
+      context: context,
+      position: at,
+      items: [
+        PopupMenuItem(
+          height: 34,
+          onTap: () =>
+              showFileInsight(context, repoPath: repoPath, path: file.path),
+          child: const Text('File history', style: TextStyle(fontSize: 13)),
+        ),
+        PopupMenuItem(
+          height: 34,
+          onTap: () => showFileInsight(
+            context,
+            repoPath: repoPath,
+            path: file.path,
+            initialTab: 1,
+          ),
+          child: const Text('Blame', style: TextStyle(fontSize: 13)),
+        ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -251,41 +284,44 @@ class _FileRow extends StatelessWidget {
       GitChange.copied => (t.accent, 'C'),
       _ => (t.warning, 'M'),
     };
-    return InkWell(
-      onTap: onTap,
-      hoverColor: t.hover,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 3),
-        child: Row(
-          children: [
-            Container(
-              width: 16,
-              height: 16,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                letter,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 9.5,
-                  fontWeight: FontWeight.w700,
+    return GestureDetector(
+      onSecondaryTapUp: (d) => _menu(context, d.globalPosition),
+      child: InkWell(
+        onTap: onTap,
+        hoverColor: t.hover,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 3),
+          child: Row(
+            children: [
+              Container(
+                width: 16,
+                height: 16,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  letter,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                file.origPath == null
-                    ? file.path
-                    : '${file.origPath} → ${file.path}',
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: t.textMuted, fontSize: 12),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  file.origPath == null
+                      ? file.path
+                      : '${file.origPath} → ${file.path}',
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: t.textMuted, fontSize: 12),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

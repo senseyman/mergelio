@@ -4,7 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/core/tokens.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
+import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/state/feedback.dart';
+import 'package:mergelio/state/settings.dart';
+import 'package:mergelio/state/settings_controller.dart';
 import 'package:mergelio/state/workspace.dart';
 import 'package:mergelio/ui/shell/app_bottom_bar.dart';
 
@@ -37,7 +40,15 @@ class _FakeGit implements GitService {
 
 Future<ProviderContainer> _pump(WidgetTester tester, _FakeGit git) async {
   final widget = ProviderScope(
-    overrides: [gitServiceProvider.overrideWithValue(git)],
+    overrides: [
+      gitServiceProvider.overrideWithValue(git),
+      settingsProvider.overrideWith(
+        (ref) => SettingsController(
+          InMemorySettingsRepository(),
+          const AppSettings(),
+        ),
+      ),
+    ],
     child: MaterialApp(
       theme: ThemeData(extensions: [AppTokens.dark()]),
       home: const Scaffold(body: Align(child: AppBottomBar())),

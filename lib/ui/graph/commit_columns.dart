@@ -1,13 +1,29 @@
 import '../../domain/git/models.dart';
 
+/// The toggleable graph meta columns, id → display label. Shared by the graph
+/// header "Columns" menu and Preferences so both stay in sync.
+const graphColumnLabels = {
+  'branch': 'Branch',
+  'author': 'Author',
+  'date': 'Date',
+  'sha': 'SHA',
+};
+
 const _months = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', //
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ];
 
-/// "Jul 2, 2026" — the graph's Date column format.
-String formatCommitDate(DateTime d) =>
-    '${_months[d.month - 1]} ${d.day}, ${d.year}';
+/// Formats [d] per [format]: 'medium' (Jul 2, 2026), 'iso' (2026-07-02) or
+/// 'short' (07/02/26).
+String formatCommitDate(DateTime d, {String format = 'medium'}) {
+  String p2(int n) => n.toString().padLeft(2, '0');
+  return switch (format) {
+    'iso' => '${d.year}-${p2(d.month)}-${p2(d.day)}',
+    'short' => '${p2(d.month)}/${p2(d.day)}/${p2(d.year % 100)}',
+    _ => '${_months[d.month - 1]} ${d.day}, ${d.year}',
+  };
+}
 
 String? _ownRef(Commit c) {
   for (final r in c.refs) {

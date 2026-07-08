@@ -8,6 +8,7 @@ import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
 import '../../state/settings_controller.dart';
 import '../../state/workspace.dart';
+import '../common/confirm.dart';
 import '../common/dialogs.dart';
 import 'branch_tree.dart';
 
@@ -189,7 +190,7 @@ class _Sections extends ConsumerWidget {
                 label: tag,
                 onMenu: actions == null
                     ? null
-                    : (at) => _tagMenu(context, actions, tag, at),
+                    : (at) => _tagMenu(context, ref, actions, tag, at),
               ),
           ],
         ),
@@ -221,7 +222,7 @@ class _Sections extends ConsumerWidget {
                       ],
                 onMenu: actions == null
                     ? null
-                    : (at) => _stashMenu(context, actions, s, at),
+                    : (at) => _stashMenu(context, ref, actions, s, at),
               ),
           ],
         ),
@@ -418,7 +419,8 @@ class _BranchRow extends ConsumerWidget {
         item(
           'Delete branch',
           () async {
-            final ok = await showConfirmDialog(
+            final ok = await confirmDestructive(
+              ref,
               context,
               title: 'Delete ${branch.name}?',
               body: 'The branch ref will be removed. This can be undone.',
@@ -663,6 +665,7 @@ Future<void> _remoteMenu(
 
 Future<void> _tagMenu(
   BuildContext context,
+  WidgetRef ref,
   RepoActions actions,
   String tag,
   Offset at,
@@ -691,7 +694,8 @@ Future<void> _tagMenu(
       PopupMenuItem(
         height: 34,
         onTap: () async {
-          final ok = await showConfirmDialog(
+          final ok = await confirmDestructive(
+            ref,
             context,
             title: 'Delete tag $tag?',
             body: 'The tag will be removed locally. This can be undone.',
@@ -710,6 +714,7 @@ Future<void> _tagMenu(
 
 Future<void> _stashMenu(
   BuildContext context,
+  WidgetRef ref,
   RepoActions actions,
   Stash stash,
   Offset at,
@@ -733,7 +738,8 @@ Future<void> _stashMenu(
       PopupMenuItem(
         height: 34,
         onTap: () async {
-          final ok = await showConfirmDialog(
+          final ok = await confirmDestructive(
+            ref,
             context,
             title: 'Drop ${stash.ref}?',
             body:

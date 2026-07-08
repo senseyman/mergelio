@@ -26,10 +26,17 @@ class AppFonts {
 
 /// Builds a [ThemeData] for the given [brightness] using Mergelio tokens.
 /// [accent] overrides the theme's default accent (user-customisable in the theme editor).
-ThemeData buildTheme(Brightness brightness, {Color? accent}) {
-  final tokens = brightness == Brightness.dark
+ThemeData buildTheme(
+  Brightness brightness, {
+  Color? accent,
+  List<Color>? branchPalette,
+}) {
+  var tokens = brightness == Brightness.dark
       ? AppTokens.dark(accent: accent)
       : AppTokens.light(accent: accent);
+  if (branchPalette != null) {
+    tokens = tokens.copyWith(branchPalette: branchPalette);
+  }
 
   final base = ThemeData(brightness: brightness, useMaterial3: true);
 

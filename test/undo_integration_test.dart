@@ -57,6 +57,46 @@ void main() {
     expect(await branchNames(), contains('feature'));
   });
 
+  test(
+    'undo of a commit uncommits it (changes stay staged); redo re-commits',
+    () async {
+      final c = container();
+      final actions = c.read(repoActionsProvider(dir.path));
+      final head0 = (await svc.run([
+        'rev-parse',
+        'HEAD',
+      ], repoPath: dir.path)).out;
+
+      await File('${dir.path}/b.txt').writeAsString('B\n');
+      await g(['add', 'b.txt']);
+      await actions.commit('add b');
+      final committed = (await svc.run([
+        'rev-parse',
+        'HEAD',
+      ], repoPath: dir.path)).out;
+      expect(committed, isNot(head0));
+
+      await actions.undo();
+      // HEAD back to the parent; the commit's change is staged again.
+      expect(
+        (await svc.run(['rev-parse', 'HEAD'], repoPath: dir.path)).out,
+        head0,
+      );
+      final staged = (await svc.run([
+        'diff',
+        '--cached',
+        '--name-only',
+      ], repoPath: dir.path)).out;
+      expect(staged, contains('b.txt'));
+
+      await actions.redo();
+      expect(
+        (await svc.run(['rev-parse', 'HEAD'], repoPath: dir.path)).out,
+        isNot(head0),
+      );
+    },
+  );
+
   test('undo of a delete recreates the branch at its old commit', () async {
     final c = container();
     final actions = c.read(repoActionsProvider(dir.path));

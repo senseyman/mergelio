@@ -4,7 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
 import '../../core/tokens.dart';
 import '../../state/feedback.dart';
+import '../../state/terminal.dart';
+import '../../state/workspace.dart';
 import '../brand/mergelio_mark.dart';
+import '../preferences/preferences_dialog.dart';
 import 'shell_widgets.dart';
 
 /// Top chrome: brand + global utilities (terminal, search, palette, settings,
@@ -42,7 +45,14 @@ class AppToolbar extends ConsumerWidget {
           BarIconButton(
             icon: Icons.terminal_outlined,
             tooltip: 'Terminal (⌘`)',
-            onPressed: () => soon('Terminal'),
+            onPressed: () {
+              if (ref.read(workspaceProvider).activeTab == null) {
+                soon('Terminal');
+                return;
+              }
+              final n = ref.read(terminalVisibleProvider.notifier);
+              n.state = !n.state;
+            },
           ),
           BarIconButton(
             icon: Icons.search,
@@ -56,8 +66,8 @@ class AppToolbar extends ConsumerWidget {
           ),
           BarIconButton(
             icon: Icons.settings_outlined,
-            tooltip: 'Settings',
-            onPressed: () => soon('Settings'),
+            tooltip: 'Preferences (⌘,)',
+            onPressed: () => showPreferencesDialog(context),
           ),
           const SizedBox(width: 4),
           Tooltip(

@@ -17,6 +17,7 @@ class CommitRow extends StatelessWidget {
   final int maxLane;
   final Map<String, bool> cols;
   final bool selected;
+  final String dateFormat;
 
   /// Search state: a matched row highlights, a non-match dims. Both null when
   /// no search is active.
@@ -31,6 +32,7 @@ class CommitRow extends StatelessWidget {
     required this.maxLane,
     required this.cols,
     required this.selected,
+    this.dateFormat = 'medium',
     this.searchMatch,
     required this.onTap,
   });
@@ -140,7 +142,8 @@ class CommitRow extends StatelessWidget {
           ],
         ),
       if (_on('author')) Text(c.author, style: style),
-      if (_on('date')) Text(formatCommitDate(c.date), style: style),
+      if (_on('date'))
+        Text(formatCommitDate(c.date, format: dateFormat), style: style),
       if (_on('sha'))
         Text(
           c.shortSha,

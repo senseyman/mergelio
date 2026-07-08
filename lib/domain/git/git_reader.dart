@@ -246,6 +246,45 @@ class GitReader {
     return r.stdout;
   }
 
+  /// Commit history for [path], following renames (`git log --follow`).
+  Future<List<Commit>> fileHistory(String path) async {
+    final r = await _run([
+      'log',
+      '--follow',
+      '--decorate=full',
+      '-z',
+      '--pretty=format:%H$_fs%P$_fs%an$_fs%ae$_fs%aI$_fs%G?$_fs%D$_fs%s$_fs%b',
+      '--',
+      path,
+    ]);
+    if (!r.ok) throw GitException('git log --follow failed', r);
+    final out = <Commit>[];
+    for (final rec in r.stdout.split(_rs)) {
+      final f = rec.split(_fs);
+      if (f.length < 9) continue;
+      out.add(
+        Commit(
+          sha: f[0],
+          parents: f[1].split(' ').where((s) => s.isNotEmpty).toList(),
+          author: f[2],
+          authorEmail: f[3],
+          date: DateTime.parse(f[4]),
+          message: f[7],
+          avatarValue: _avatarFor(f[3]),
+        ),
+      );
+    }
+    return out;
+  }
+
+  /// Raw `git blame --line-porcelain` output for [path] (parse with
+  /// [parseBlame]).
+  Future<String> blame(String path) async {
+    final r = await _run(['blame', '--line-porcelain', '--', path]);
+    if (!r.ok) throw GitException('git blame failed', r);
+    return r.stdout;
+  }
+
   /// Files changed by [sha]. Merges are diffed against their first parent, so
   /// the list shows what the merged branch brought in.
   Future<List<CommitFileChange>> commitFiles(String sha) async {

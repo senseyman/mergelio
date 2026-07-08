@@ -10,6 +10,7 @@ import '../domain/git/git_writer.dart';
 import '../domain/git/rebase_plan.dart';
 import 'feedback.dart';
 import 'merge_session.dart';
+import 'operation_journal.dart';
 import 'profiles.dart';
 import 'repo_data.dart';
 import 'undo_stack.dart';
@@ -24,15 +25,49 @@ class RepoActions {
 
   void _refresh() => _ref.invalidate(repoDataProvider(path));
 
+  // Crash-safe journal: write a durable pending marker before a mutation runs,
+  // then mark it done/failed. A marker still pending on the next launch means
+  // the process died mid-op. Best-effort — journaling must never break an op.
+  OperationJournal get _journal => _ref.read(operationJournalProvider(path));
+
+  Future<int?> _journalBegin(String label) async {
+    try {
+      return await _journal.begin(label, DateTime.now().toIso8601String());
+    } on Object {
+      return null;
+    }
+  }
+
+  Future<void> _journalDone(int? id) async {
+    if (id == null) return;
+    try {
+      await _journal.complete(id);
+    } on Object {
+      /* ignore */
+    }
+  }
+
+  Future<void> _journalFail(int? id) async {
+    if (id == null) return;
+    try {
+      await _journal.fail(id);
+    } on Object {
+      /* ignore */
+    }
+  }
+
   /// Runs a network op behind the top progress bar, refreshes on success and
   /// toasts the outcome. Errors never escape — they surface as a toast.
   Future<void> _network(String label, Future<void> Function() op) async {
     final toasts = _ref.read(toastProvider.notifier);
     _ref.read(busyProvider.notifier).state = BusyState(label);
+    final opId = await _journalBegin(label);
     try {
       await op();
+      await _journalDone(opId);
       toasts.show('$label complete', kind: ToastKind.success);
     } on GitException catch (e) {
+      await _journalFail(opId);
       // Prefer git's own stderr; fall back to the short message.
       final err = e.result?.err ?? '';
       toasts.show(
@@ -41,6 +76,7 @@ class RepoActions {
         kind: ToastKind.error,
       );
     } on Object catch (_) {
+      await _journalFail(opId);
       toasts.show(
         '$label failed',
         description: 'Unexpected error',
@@ -119,7 +155,10 @@ class RepoActions {
   }) async {
     if (_blockedByNetwork) return;
     final profile = _ref.read(profilesProvider).active;
-    await _writer.commit(
+    // HEAD before the commit — undo soft-resets here, returning the committed
+    // changes to the staging area (works for amend too: prev is the original).
+    final prev = await _headSha();
+    Future<void> doCommit() => _writer.commit(
       summary,
       description: description,
       amend: amend,
@@ -128,7 +167,13 @@ class RepoActions {
       authorName: profile?.name,
       authorEmail: profile?.email,
     );
-    _refresh();
+    await _undoable(
+      amend ? 'Amend commit' : 'Commit',
+      doCommit,
+      undo: () => _writer.resetSoft(prev),
+      // The changes are staged again after undo, so redo just re-commits.
+      redo: doCommit,
+    );
   }
 
   // --- Undoable ref operations ----------------------------------------------
@@ -168,8 +213,10 @@ class RepoActions {
     // Hold the shared busy flag so a second ref op (or network op) cannot run
     // concurrently and race on .git/index.lock.
     _ref.read(busyProvider.notifier).state = BusyState(label);
+    final opId = await _journalBegin(label);
     try {
       await run();
+      await _journalDone(opId);
       _ref
           .read(undoProvider(path).notifier)
           .record(
@@ -189,6 +236,7 @@ class RepoActions {
     } on GitException catch (e) {
       // Refresh on failure too: a conflicted cherry-pick/revert leaves the
       // repo mid-operation, which the UI must show.
+      await _journalFail(opId);
       _refresh();
       _toastErr(label, e);
     } finally {
@@ -197,7 +245,7 @@ class RepoActions {
   }
 
   /// Resets to [prev] as part of an undo, but refuses when the working tree is
-  /// dirty so an undo never silently discards uncommitted work (§9.7).
+  /// dirty so an undo never silently discards uncommitted work.
   Future<void> _undoReset(String prev) async {
     final dirty = (await _out(['status', '--porcelain'])).isNotEmpty;
     if (dirty) {
@@ -343,12 +391,38 @@ class RepoActions {
 
   Future<void> resetHard(String sha) async {
     final prev = await _headSha();
+    // Tracks the auto-stash created by the current do/redo so undo can pop it
+    // back into the working tree — making undo a true inverse of the reset.
+    String? stashRef;
     await _undoable(
       'Reset to ${_short(sha)}',
-      () => _writer.resetHard(sha),
-      undo: () => _undoReset(prev),
-      redo: () => _writer.resetHard(sha),
+      () async {
+        stashRef = await _resetPreservingWork(sha);
+      },
+      undo: () async {
+        await _undoReset(prev);
+        if (stashRef != null) {
+          await _writer.stashPop(stashRef!);
+          stashRef = null;
+        }
+      },
+      redo: () async {
+        stashRef = await _resetPreservingWork(sha);
+      },
     );
+  }
+
+  /// Resets --hard to [sha], first auto-stashing any uncommitted work so it is
+  /// never destroyed silently. Returns the created stash ref, or null when the
+  /// tree was already clean.
+  Future<String?> _resetPreservingWork(String sha) async {
+    String? ref;
+    if ((await _out(['status', '--porcelain'])).isNotEmpty) {
+      await _writer.stashPush(message: 'auto-stash before reset');
+      ref = 'stash@{0}';
+    }
+    await _writer.resetHard(sha);
+    return ref;
   }
 
   Future<void> pushTag(String name) async {
@@ -624,6 +698,9 @@ class RepoActions {
         await _writer.commitMerge(authorName: id.name, authorEmail: id.email);
       }
       final prev = session.prevSha;
+      // The merge/rebase result — redo fast-forwards back to it (it survives in
+      // the reflog after undo moves the branch back to prev).
+      final after = await _headSha();
       final label = session.isRebase ? 'Rebase' : 'Merge ${session.branch}';
       _ref
           .read(undoProvider(path).notifier)
@@ -634,7 +711,10 @@ class RepoActions {
                 await _undoReset(prev);
                 _refresh();
               },
-              redo: () async {},
+              redo: () async {
+                await _writer.resetHard(after);
+                _refresh();
+              },
             ),
           );
       _ref.read(mergeSessionProvider(path).notifier).state = null;
