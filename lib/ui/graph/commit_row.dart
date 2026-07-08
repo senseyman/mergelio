@@ -17,6 +17,10 @@ class CommitRow extends StatelessWidget {
   final int maxLane;
   final Map<String, bool> cols;
   final bool selected;
+
+  /// Search state: a matched row highlights, a non-match dims. Both null when
+  /// no search is active.
+  final bool? searchMatch;
   final VoidCallback onTap;
 
   const CommitRow({
@@ -27,6 +31,7 @@ class CommitRow extends StatelessWidget {
     required this.maxLane,
     required this.cols,
     required this.selected,
+    this.searchMatch,
     required this.onTap,
   });
 
@@ -37,32 +42,41 @@ class CommitRow extends StatelessWidget {
     final t = context.tokens;
     final c = commit;
     final compact = metrics.compact;
+    final dim = searchMatch == false;
+    final highlight = searchMatch == true;
 
     return InkWell(
       onTap: onTap,
       hoverColor: t.hover,
-      child: Container(
-        height: metrics.rowHeight,
-        color: selected ? t.active : null,
-        child: Row(
-          children: [
-            SizedBox(
-              width: metrics.railWidth(maxLane),
-              child: CustomPaint(
-                size: Size(metrics.railWidth(maxLane), metrics.rowHeight),
-                painter: GraphRailPainter(
-                  c: c,
-                  m: metrics,
-                  palette: t.branchPalette,
-                  nodeFill: t.bgApp,
+      child: Opacity(
+        opacity: dim ? 0.35 : 1,
+        child: Container(
+          height: metrics.rowHeight,
+          // Selection always wins so the flown-to match is distinguishable;
+          // other matches get a lighter tint.
+          color: selected
+              ? t.active
+              : (highlight ? t.accent.withValues(alpha: 0.12) : null),
+          child: Row(
+            children: [
+              SizedBox(
+                width: metrics.railWidth(maxLane),
+                child: CustomPaint(
+                  size: Size(metrics.railWidth(maxLane), metrics.rowHeight),
+                  painter: GraphRailPainter(
+                    c: c,
+                    m: metrics,
+                    palette: t.branchPalette,
+                    nodeFill: t.bgApp,
+                  ),
                 ),
               ),
-            ),
-            _Avatar(commit: c, size: compact ? 18 : 24),
-            const SizedBox(width: 10),
-            Expanded(child: compact ? _singleLine(t, c) : _twoLines(t, c)),
-            const SizedBox(width: 12),
-          ],
+              _Avatar(commit: c, size: compact ? 18 : 24),
+              const SizedBox(width: 10),
+              Expanded(child: compact ? _singleLine(t, c) : _twoLines(t, c)),
+              const SizedBox(width: 12),
+            ],
+          ),
         ),
       ),
     );

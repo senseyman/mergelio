@@ -13,6 +13,7 @@ class _FakeGit implements GitService {
     List<String> args, {
     String? repoPath,
     Duration? timeout,
+    Map<String, String>? environment,
   }) async {
     final out = switch (args.first) {
       // name<TAB>HEAD<TAB>upstream-track

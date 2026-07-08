@@ -4,12 +4,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
 import '../../domain/git/models.dart';
+import '../../domain/git/rebase_plan.dart';
+import '../../domain/search.dart';
 import '../../state/graph_selection.dart';
-import '../../state/repo_data.dart';
-import '../../state/settings_controller.dart';
 import '../../state/repo_actions.dart';
+import '../../state/repo_data.dart';
+import '../../state/search.dart';
+import '../../state/settings_controller.dart';
 import '../../state/workspace.dart';
 import '../common/dialogs.dart';
+import '../rebase/rebase_editor.dart';
 import 'commit_columns.dart';
 import 'commit_row.dart';
 import 'rail_metrics.dart';
@@ -102,6 +106,27 @@ class _GraphListState extends ConsumerState<GraphList> {
     }
   }
 
+  /// Selects and flies to the next/previous search match relative to the
+  /// current selection.
+  void _jumpMatch(
+    RepoData d,
+    Set<String> matches,
+    bool forward,
+    RailMetrics metrics,
+  ) {
+    if (matches.isEmpty) return;
+    final ordered = [
+      for (final c in d.commits)
+        if (matches.contains(c.sha)) c.sha,
+    ];
+    final current = ref.read(selectedCommitProvider);
+    final at = current == null ? -1 : ordered.indexOf(current);
+    final next = forward
+        ? (at + 1) % ordered.length
+        : (at - 1 + ordered.length) % ordered.length;
+    _select(ordered[next], metrics.rowHeight);
+  }
+
   KeyEventResult _onKey(FocusNode node, KeyEvent event, double rowHeight) {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
@@ -153,10 +178,27 @@ class _GraphListState extends ConsumerState<GraphList> {
       laneOf: laneOf,
     );
 
+    final query = ref.watch(searchQueryProvider);
+    final matchShas = query == null || query.isEmpty
+        ? const <String>{}
+        : {
+            for (final c in d.commits)
+              if (matchesCommit(c, query)) c.sha,
+          };
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _GraphHeader(cols: cols, compact: compact),
+        if (query != null)
+          _SearchBar(
+            query: query,
+            matchCount: matchShas.length,
+            onChanged: (q) => ref.read(searchQueryProvider.notifier).state = q,
+            onClose: () => ref.read(searchQueryProvider.notifier).state = null,
+            onJump: (forward) => _jumpMatch(d, matchShas, forward, metrics),
+          )
+        else
+          _GraphHeader(cols: cols, compact: compact),
         Expanded(
           child: Focus(
             focusNode: _focus,
@@ -192,6 +234,9 @@ class _GraphListState extends ConsumerState<GraphList> {
                           maxLane: maxLane,
                           cols: cols,
                           selected: selected == c.sha,
+                          searchMatch: query == null || query.isEmpty
+                              ? null
+                              : matchShas.contains(c.sha),
                           onTap: () {
                             _focus.requestFocus();
                             _select(c.sha, metrics.rowHeight);
@@ -225,6 +270,146 @@ class _GraphListState extends ConsumerState<GraphList> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Global-search bar shown in place of the header while a search is open.
+class _SearchBar extends StatelessWidget {
+  final CommitQuery query;
+  final int matchCount;
+  final ValueChanged<CommitQuery> onChanged;
+  final VoidCallback onClose;
+  final void Function(bool forward) onJump;
+  const _SearchBar({
+    required this.query,
+    required this.matchCount,
+    required this.onChanged,
+    required this.onClose,
+    required this.onJump,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Container(
+      height: 40,
+      padding: const EdgeInsets.only(left: 12, right: 6),
+      decoration: BoxDecoration(
+        color: t.bgPanel,
+        border: Border(bottom: BorderSide(color: t.border)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.search, size: 15, color: t.textFaint),
+          const SizedBox(width: 8),
+          Expanded(
+            child: TextField(
+              autofocus: true,
+              onChanged: (v) => onChanged(
+                CommitQuery(
+                  text: v,
+                  author: query.author,
+                  hideMerges: query.hideMerges,
+                  hideTags: query.hideTags,
+                ),
+              ),
+              onSubmitted: (_) => onJump(true),
+              style: TextStyle(color: t.textPrimary, fontSize: 13),
+              decoration: InputDecoration(
+                isDense: true,
+                border: InputBorder.none,
+                hintText: 'Search commits…',
+                hintStyle: TextStyle(color: t.textFaint, fontSize: 13),
+              ),
+            ),
+          ),
+          _FilterChip(
+            label: 'Hide merges',
+            on: query.hideMerges,
+            onTap: () => onChanged(
+              CommitQuery(
+                text: query.text,
+                author: query.author,
+                hideMerges: !query.hideMerges,
+                hideTags: query.hideTags,
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          _FilterChip(
+            label: 'Hide tags',
+            on: query.hideTags,
+            onTap: () => onChanged(
+              CommitQuery(
+                text: query.text,
+                author: query.author,
+                hideMerges: query.hideMerges,
+                hideTags: !query.hideTags,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '$matchCount',
+            style: TextStyle(color: t.textFaint, fontSize: 12),
+          ),
+          IconButton(
+            iconSize: 16,
+            tooltip: 'Previous (⇧N)',
+            icon: const Icon(Icons.keyboard_arrow_up),
+            onPressed: () => onJump(false),
+          ),
+          IconButton(
+            iconSize: 16,
+            tooltip: 'Next (N)',
+            icon: const Icon(Icons.keyboard_arrow_down),
+            onPressed: () => onJump(true),
+          ),
+          IconButton(
+            iconSize: 16,
+            tooltip: 'Close (Esc)',
+            icon: const Icon(Icons.close),
+            onPressed: onClose,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  final String label;
+  final bool on;
+  final VoidCallback onTap;
+  const _FilterChip({
+    required this.label,
+    required this.on,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(4),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: on ? t.accent.withValues(alpha: 0.16) : null,
+          border: Border.all(color: on ? Colors.transparent : t.border),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: on ? t.accent : t.textMuted,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
     );
   }
 }
@@ -453,6 +638,14 @@ class _CommitContextMenu extends ConsumerWidget {
         }),
         item('Cherry-pick', () => actions.cherryPick(sha)),
         item('Revert', () => actions.revert(sha)),
+        item('Rebase to here…', () async {
+          final steps = await actions.rebaseStepsFrom(sha);
+          if (steps.isEmpty) return;
+          if (!context.mounted) return;
+          final plan = await showRebaseEditor(context, steps: steps);
+          if (plan == null || isNoOpPlan(steps, plan)) return; // unchanged
+          await actions.rebase(sha, plan);
+        }),
         item('Reset here (--hard)', () async {
           final ok = await showConfirmDialog(
             context,

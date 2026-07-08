@@ -38,6 +38,7 @@ abstract class GitService {
     List<String> args, {
     String? repoPath,
     Duration? timeout,
+    Map<String, String>? environment,
   });
 
   /// True if [path] contains a git repository. Never throws: a missing or
@@ -61,6 +62,7 @@ class SystemGitService implements GitService {
     List<String> args, {
     String? repoPath,
     Duration? timeout,
+    Map<String, String>? environment,
   }) async {
     final Process proc;
     try {
@@ -68,6 +70,7 @@ class SystemGitService implements GitService {
         gitBinary,
         args,
         workingDirectory: repoPath,
+        environment: environment,
         runInShell: false,
       );
     } on ProcessException catch (e) {

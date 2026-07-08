@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
 import '../../domain/git/models.dart';
+import '../../state/profiles.dart';
 import '../../state/repo_data.dart';
 import '../../state/workspace.dart';
+import '../profiles/profiles_dialog.dart';
 
 /// Bottom status strip: active repo, current branch and its live ahead/behind.
 /// (The profile identity on the right is still a placeholder until Stage 10.)
@@ -26,6 +28,8 @@ class AppStatusBar extends ConsumerWidget {
         break;
       }
     }
+
+    final profile = ref.watch(profilesProvider).active;
 
     return Container(
       height: 24,
@@ -52,7 +56,25 @@ class AppStatusBar extends ConsumerWidget {
               ],
             ],
             const Spacer(),
-            const Text('Maria (work)'),
+            InkWell(
+              onTap: () => showProfilesDialog(context),
+              child: Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: profile == null
+                          ? t.textFaint
+                          : Color(profile.colorValue),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(profile?.name ?? 'No profile'),
+                ],
+              ),
+            ),
           ],
         ),
       ),

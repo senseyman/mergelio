@@ -102,6 +102,13 @@ class GitReader {
         .toList();
   }
 
+  /// Paths with unresolved merge conflicts (status filter U).
+  Future<List<String>> conflictedFiles() async {
+    final r = await _run(['diff', '--name-only', '--diff-filter=U', '-z']);
+    if (!r.ok) throw GitException('git diff --diff-filter=U failed', r);
+    return r.stdout.split(_rs).where((s) => s.isNotEmpty).toList();
+  }
+
   /// Fetch URL configured for [remote], or empty if none.
   Future<String> remoteUrl(String remote) async {
     final r = await _run(['remote', 'get-url', remote]);

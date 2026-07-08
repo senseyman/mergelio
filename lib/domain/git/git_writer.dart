@@ -15,11 +15,24 @@ class GitWriter {
   // well beyond the default read timeout so they are not killed mid-transfer.
   static const _netTimeout = Duration(minutes: 5);
 
-  Future<GitResult> _run(List<String> args, {Duration? timeout}) =>
-      git.run(args, repoPath: repoPath, timeout: timeout);
+  Future<GitResult> _run(
+    List<String> args, {
+    Duration? timeout,
+    Map<String, String>? environment,
+  }) => git.run(
+    args,
+    repoPath: repoPath,
+    timeout: timeout,
+    environment: environment,
+  );
 
-  Future<void> _ok(List<String> args, String what, {Duration? timeout}) async {
-    final r = await _run(args, timeout: timeout);
+  Future<void> _ok(
+    List<String> args,
+    String what, {
+    Duration? timeout,
+    Map<String, String>? environment,
+  }) async {
+    final r = await _run(args, timeout: timeout, environment: environment);
     if (!r.ok) throw GitException(what, r);
   }
 
@@ -71,6 +84,88 @@ class GitWriter {
     }
     await _ok(args, 'git push', timeout: _netTimeout);
   }
+
+  // --- Merge ops ------------------------------------------------------------
+
+  /// Merges [branch] into the current branch. Throws on conflict (the caller
+  /// inspects [GitReader.conflictedFiles] to open the Merge Tool) or error.
+  Future<void> merge(
+    String branch, {
+    bool noFf = false,
+    String? authorName,
+    String? authorEmail,
+  }) => _ok([
+    ..._identity(authorName, authorEmail),
+    'merge',
+    if (noFf) '--no-ff',
+    branch,
+  ], 'git merge');
+
+  Future<void> mergeAbort() => _ok(['merge', '--abort'], 'git merge --abort');
+
+  /// Per-commit identity config args, prepended before a subcommand.
+  static List<String> _identity(String? name, String? email) => [
+    if (name != null) ...['-c', 'user.name=$name'],
+    if (email != null) ...['-c', 'user.email=$email'],
+  ];
+
+  /// Completes an in-progress merge once conflicts are resolved and staged,
+  /// attributing the merge commit to the active profile identity.
+  Future<void> commitMerge({String? authorName, String? authorEmail}) => _ok([
+    ..._identity(authorName, authorEmail),
+    'commit',
+    '--no-edit',
+  ], 'git commit (merge)');
+
+  // --- Interactive rebase ---------------------------------------------------
+
+  /// Runs an interactive rebase onto [onto], driving the sequence editor with
+  /// [todo] (so no terminal editor is needed). GIT_EDITOR is a no-op so squash
+  /// messages auto-accept; reword is handled by exec lines in [todo]. Throws on
+  /// conflict (the caller inspects [GitReader.conflictedFiles]).
+  Future<void> rebase(
+    String onto,
+    String todo, {
+    String? authorName,
+    String? authorEmail,
+  }) async {
+    final tmp = await Directory.systemTemp.createTemp('mergelio_rebase_');
+    final todoFile = File('${tmp.path}/todo');
+    try {
+      await todoFile.writeAsString(todo);
+      await _ok(
+        [..._identity(authorName, authorEmail), 'rebase', '-i', onto],
+        'git rebase',
+        environment: {
+          'GIT_SEQUENCE_EDITOR': 'cp ${todoFile.path}',
+          'GIT_EDITOR': 'true',
+        },
+      );
+    } finally {
+      if (await tmp.exists()) await tmp.delete(recursive: true);
+    }
+  }
+
+  /// Straight (non-interactive) rebase of the current branch onto [onto].
+  Future<void> rebaseOnto(
+    String onto, {
+    String? authorName,
+    String? authorEmail,
+  }) => _ok(
+    [..._identity(authorName, authorEmail), 'rebase', onto],
+    'git rebase',
+    environment: {'GIT_EDITOR': 'true'},
+  );
+
+  Future<void> rebaseAbort() =>
+      _ok(['rebase', '--abort'], 'git rebase --abort');
+
+  /// Continues a paused rebase after conflicts were resolved and staged.
+  Future<void> rebaseContinue({String? authorName, String? authorEmail}) => _ok(
+    [..._identity(authorName, authorEmail), 'rebase', '--continue'],
+    'git rebase --continue',
+    environment: {'GIT_EDITOR': 'true'},
+  );
 
   // --- Branch ops -----------------------------------------------------------
 
@@ -190,13 +285,16 @@ class GitWriter {
 
   /// Creates a commit. [amend] replaces the top commit; [sign] adds an SSH/GPG
   /// signature (requires the repo to be configured for it). [description] and
-  /// [coauthors] are appended to the message body.
+  /// [coauthors] are appended to the message body. [authorName]/[authorEmail],
+  /// when given, set the commit identity for this commit (the active profile).
   Future<void> commit(
     String summary, {
     String description = '',
     bool amend = false,
     bool sign = false,
     List<String> coauthors = const [],
+    String? authorName,
+    String? authorEmail,
   }) async {
     final body = StringBuffer(summary);
     if (description.trim().isNotEmpty) {
@@ -209,6 +307,9 @@ class GitWriter {
       }
     }
     await _ok([
+      // Per-commit identity via -c, applied before the subcommand.
+      if (authorName != null) ...['-c', 'user.name=$authorName'],
+      if (authorEmail != null) ...['-c', 'user.email=$authorEmail'],
       'commit',
       if (amend) '--amend',
       if (sign) '-S',

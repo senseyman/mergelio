@@ -9,6 +9,7 @@ import '../../state/settings_controller.dart';
 import '../../state/workspace.dart';
 import '../../state/diff_target.dart';
 import '../diff/diff_sheet.dart';
+import '../merge/merge_tool.dart';
 import '../graph/graph_view.dart';
 import '../shell/resize_handle.dart';
 import 'commit_details.dart';
@@ -27,21 +28,23 @@ class WorkspaceView extends ConsumerWidget {
     final s = ref.watch(settingsProvider);
     final ctl = ref.read(settingsProvider.notifier);
 
-    return Row(
-      children: [
-        if (s.leftCollapsed)
-          _CollapsedRail(onExpand: ctl.toggleLeftCollapsed)
-        else ...[
-          SizedBox(
-            width: s.leftWidth,
-            child: RepoSidebar(onCollapse: ctl.toggleLeftCollapsed),
-          ),
-          ResizeHandle(onDrag: (dx) => ctl.setLeftWidth(s.leftWidth + dx)),
+    return MergeToolGate(
+      child: Row(
+        children: [
+          if (s.leftCollapsed)
+            _CollapsedRail(onExpand: ctl.toggleLeftCollapsed)
+          else ...[
+            SizedBox(
+              width: s.leftWidth,
+              child: RepoSidebar(onCollapse: ctl.toggleLeftCollapsed),
+            ),
+            ResizeHandle(onDrag: (dx) => ctl.setLeftWidth(s.leftWidth + dx)),
+          ],
+          const Expanded(child: _CenterWithDiff()),
+          ResizeHandle(onDrag: (dx) => ctl.setRightWidth(s.rightWidth - dx)),
+          SizedBox(width: s.rightWidth, child: const _RightPanel()),
         ],
-        const Expanded(child: _CenterWithDiff()),
-        ResizeHandle(onDrag: (dx) => ctl.setRightWidth(s.rightWidth - dx)),
-        SizedBox(width: s.rightWidth, child: const _RightPanel()),
-      ],
+      ),
     );
   }
 }

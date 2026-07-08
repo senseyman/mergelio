@@ -1,5 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
+
+import '../data/kv_store.dart';
 
 part 'workspace.freezed.dart';
 
@@ -32,9 +36,21 @@ class WorkspaceState with _$WorkspaceState {
 }
 
 class WorkspaceController extends StateNotifier<WorkspaceState> {
-  WorkspaceController() : super(const WorkspaceState());
+  final KeyValueStore? _store;
+  WorkspaceController([this._store]) : super(const WorkspaceState());
 
+  static const _key = 'openTabs';
   int _nextId = 1;
+
+  /// Open tab paths persisted from a previous session, in order.
+  static Future<List<String>> restorePaths(KeyValueStore store) async {
+    final raw = await store.get(_key);
+    if (raw == null) return const [];
+    return [for (final p in jsonDecode(raw) as List) p as String];
+  }
+
+  void _persist() =>
+      _store?.put(_key, jsonEncode([for (final t in state.tabs) t.path]));
 
   /// Opens [path] as a tab (or activates the existing one). Returns the tab.
   RepoTab openRepo(String path, {String? name}) {
@@ -51,6 +67,7 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
       path: path,
     );
     state = state.copyWith(tabs: [...state.tabs, tab], activeTabId: tab.id);
+    _persist();
     return tab;
   }
 
@@ -62,11 +79,13 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
         ? (tabs.isEmpty ? null : tabs.first.id)
         : state.activeTabId;
     state = state.copyWith(tabs: tabs, activeTabId: active);
+    _persist();
   }
 
   void closeOthers(int id) {
     final keep = state.tabs.where((t) => t.id == id).toList();
     state = state.copyWith(tabs: keep, activeTabId: keep.isEmpty ? null : id);
+    _persist();
   }
 }
 

@@ -2,10 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/search.dart';
 import '../../state/feedback.dart';
+import '../../state/graph_selection.dart';
 import '../../state/repo_actions.dart';
+import '../../state/repo_data.dart';
+import '../../state/search.dart';
 import '../../state/settings_controller.dart';
 import '../../state/workspace.dart';
+import '../palette/command_palette.dart';
 
 /// Global shortcut dispatcher wrapping the app. Only the shortcuts meaningful
 /// at this stage are wired; the rest arrive with their features (command
@@ -17,10 +22,6 @@ class KeyboardShortcuts extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    void soon(String what) => ref
-        .read(toastProvider.notifier)
-        .show(what, description: 'Coming in a later stage');
-
     void toggleLeft() =>
         ref.read(settingsProvider.notifier).toggleLeftCollapsed();
 
@@ -31,6 +32,39 @@ class KeyboardShortcuts extends ConsumerWidget {
 
     void undo() => activeActions()?.undo();
     void redo() => activeActions()?.redo();
+
+    void openSearch() {
+      if (ref.read(workspaceProvider).activeTab == null) return;
+      ref.read(searchQueryProvider.notifier).state = const CommitQuery(
+        text: '',
+      );
+    }
+
+    void openPalette() {
+      final path = ref.read(workspaceProvider).activeTab?.path;
+      if (path == null) return;
+      final actions = ref.read(repoActionsProvider(path));
+      final data = ref.read(repoDataProvider(path)).valueOrNull;
+      final cmds = <PaletteCommand>[
+        PaletteCommand('Fetch', Icons.download_outlined, () => actions.fetch()),
+        PaletteCommand('Pull', Icons.south_west, () => actions.pull()),
+        PaletteCommand('Push', Icons.north_east, () => actions.push()),
+        PaletteCommand('Global search', Icons.search, () async => openSearch()),
+        for (final b in data?.branches ?? const [])
+          PaletteCommand(
+            'Checkout: ${b.name}',
+            Icons.call_split,
+            () => actions.checkout(b.name),
+          ),
+        for (final c in (data?.commits ?? const []).take(200))
+          PaletteCommand(
+            'Fly to: ${c.shortSha}  ${c.message}',
+            Icons.my_location,
+            () async => ref.read(selectedCommitProvider.notifier).state = c.sha,
+          ),
+      ];
+      showCommandPalette(context, commands: cmds);
+    }
 
     void dismissTopToast() {
       final toasts = ref.read(toastProvider);
@@ -50,8 +84,8 @@ class KeyboardShortcuts extends ConsumerWidget {
     return CallbackShortcuts(
       bindings: {
         ...chord(LogicalKeyboardKey.backslash, toggleLeft),
-        ...chord(LogicalKeyboardKey.keyK, () => soon('Command palette')),
-        ...chord(LogicalKeyboardKey.keyF, () => soon('Global search')),
+        ...chord(LogicalKeyboardKey.keyK, openPalette),
+        ...chord(LogicalKeyboardKey.keyF, openSearch),
         ...chord(LogicalKeyboardKey.keyZ, undo),
         const SingleActivator(LogicalKeyboardKey.keyZ, meta: true, shift: true):
             redo,

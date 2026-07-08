@@ -1,10 +1,16 @@
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../domain/git/conflict.dart';
 import '../domain/git/git_providers.dart';
 import '../domain/git/git_reader.dart';
 import '../domain/git/git_service.dart';
 import '../domain/git/git_writer.dart';
+import '../domain/git/rebase_plan.dart';
 import 'feedback.dart';
+import 'merge_session.dart';
+import 'profiles.dart';
 import 'repo_data.dart';
 import 'undo_stack.dart';
 
@@ -112,12 +118,15 @@ class RepoActions {
     List<String> coauthors = const [],
   }) async {
     if (_blockedByNetwork) return;
+    final profile = _ref.read(profilesProvider).active;
     await _writer.commit(
       summary,
       description: description,
       amend: amend,
       sign: sign,
       coauthors: coauthors,
+      authorName: profile?.name,
+      authorEmail: profile?.email,
     );
     _refresh();
   }
@@ -407,6 +416,250 @@ class RepoActions {
     } on GitException catch (e) {
       _toastErr('Stash drop', e);
     }
+  }
+
+  // --- Merge ----------------------------------------------------------------
+
+  /// Merges [branch] into the current branch. A clean merge commits and is
+  /// undoable; a conflict opens the Merge Tool via [mergeSessionProvider].
+  Future<void> merge(String branch) async {
+    if (_blockedByNetwork) return;
+    final prev = await _headSha();
+    _ref.read(busyProvider.notifier).state = BusyState('Merge $branch');
+    final id = _identity;
+    try {
+      await _writer.merge(
+        branch,
+        noFf: true,
+        authorName: id.name,
+        authorEmail: id.email,
+      );
+      _ref
+          .read(undoProvider(path).notifier)
+          .record(
+            UndoEntry(
+              'Merge $branch',
+              undo: () async {
+                await _undoReset(prev);
+                _refresh();
+              },
+              redo: () async {
+                await _writer.merge(
+                  branch,
+                  noFf: true,
+                  authorName: id.name,
+                  authorEmail: id.email,
+                );
+                _refresh();
+              },
+            ),
+          );
+      _refresh();
+      _ref
+          .read(toastProvider.notifier)
+          .show('Merged $branch', kind: ToastKind.success);
+    } on GitException catch (e) {
+      final conflicts = await GitReader(_git, path).conflictedFiles();
+      if (conflicts.isEmpty) {
+        _toastErr('Merge', e);
+        return;
+      }
+      final files = [for (final p in conflicts) await _conflictFileFor(p)];
+      _ref.read(mergeSessionProvider(path).notifier).state = MergeSession(
+        branch: branch,
+        prevSha: prev,
+        files: files,
+      );
+      _refresh();
+    } finally {
+      _ref.read(busyProvider.notifier).state = null;
+    }
+  }
+
+  /// Active-profile identity for new commits, or (null, null) when unset.
+  ({String? name, String? email}) get _identity {
+    final p = _ref.read(profilesProvider).active;
+    return (name: p?.name, email: p?.email);
+  }
+
+  /// Switches to [branch] without recording undo (so a drag-drop merge/rebase
+  /// is a single undoable action, not checkout+op). Returns false and toasts if
+  /// the switch did not land on [branch] (e.g. a dirty tree blocked it).
+  Future<bool> _switchTo(String branch) async {
+    try {
+      await _writer.checkout(branch);
+    } on GitException catch (e) {
+      _toastErr('Checkout', e);
+      return false;
+    }
+    if (await _headRef() != branch) {
+      _ref
+          .read(toastProvider.notifier)
+          .show('Could not switch to $branch', kind: ToastKind.warning);
+      return false;
+    }
+    return true;
+  }
+
+  /// Switches to [target] then merges [source] into it (drag-and-drop). One
+  /// undo entry (the merge); the switch is not undoable on its own.
+  Future<void> mergeInto(String source, String target) async {
+    if (await _switchTo(target)) await merge(source);
+  }
+
+  Future<ConflictFile> _conflictFileFor(String rel) async => ConflictFile(
+    path: rel,
+    parts: parseConflicts(await File('$path/$rel').readAsString()),
+  );
+
+  /// Runs an interactive rebase of the plan [steps] onto [base].
+  Future<void> rebase(String base, List<RebaseStep> steps) => _runRebase(
+    () => _writer.rebase(
+      base,
+      buildRebaseTodo(steps),
+      authorName: _identity.name,
+      authorEmail: _identity.email,
+    ),
+  );
+
+  /// Straight rebase of [source] onto [target] (drag-and-drop rebase).
+  Future<void> rebaseOnto(String source, String target) async {
+    if (!await _switchTo(source)) return;
+    await _runRebase(
+      () => _writer.rebaseOnto(
+        target,
+        authorName: _identity.name,
+        authorEmail: _identity.email,
+      ),
+    );
+  }
+
+  /// Commits between [base] and HEAD (oldest-first), as an initial pick plan.
+  Future<List<RebaseStep>> rebaseStepsFrom(String base) async {
+    final out = await _out([
+      'log',
+      '--reverse',
+      '--format=%H%x1f%s',
+      '$base..HEAD',
+    ]);
+    if (out.isEmpty) return const [];
+    return [
+      for (final line in out.split('\n'))
+        if (line.contains('\x1f'))
+          RebaseStep(
+            line.split('\x1f')[0],
+            RebaseAction.pick,
+            message: line.split('\x1f')[1],
+          ),
+    ];
+  }
+
+  Future<void> _runRebase(Future<void> Function() op) async {
+    if (_blockedByNetwork) return;
+    final prev = await _headSha();
+    _ref.read(busyProvider.notifier).state = const BusyState('Rebase');
+    try {
+      await op();
+      _ref
+          .read(undoProvider(path).notifier)
+          .record(
+            UndoEntry(
+              'Rebase',
+              undo: () async {
+                await _undoReset(prev);
+                _refresh();
+              },
+              // Re-run the same rebase op to redo it.
+              redo: () async {
+                await op();
+                _refresh();
+              },
+            ),
+          );
+      _refresh();
+      _ref
+          .read(toastProvider.notifier)
+          .show('Rebase complete', kind: ToastKind.success);
+    } on GitException catch (e) {
+      final conflicts = await GitReader(_git, path).conflictedFiles();
+      if (conflicts.isEmpty) {
+        _toastErr('Rebase', e);
+        return;
+      }
+      _ref.read(mergeSessionProvider(path).notifier).state = MergeSession(
+        branch: 'rebase',
+        prevSha: prev,
+        isRebase: true,
+        files: [for (final p in conflicts) await _conflictFileFor(p)],
+      );
+      _refresh();
+    } finally {
+      _ref.read(busyProvider.notifier).state = null;
+    }
+  }
+
+  /// Writes the resolved files, stages them, commits the merge, and records an
+  /// undo. Call only when the session reports all conflicts resolved.
+  Future<void> finishMerge(MergeSession session) async {
+    try {
+      for (final f in session.files) {
+        await File('$path/${f.path}').writeAsString(f.content());
+        await _writer.stageFile(f.path);
+      }
+      final id = _identity;
+      if (session.isRebase) {
+        await _writer.rebaseContinue(
+          authorName: id.name,
+          authorEmail: id.email,
+        );
+        // The rebase may pause again on a later commit; reopen if so.
+        final more = await GitReader(_git, path).conflictedFiles();
+        if (more.isNotEmpty) {
+          _ref.read(mergeSessionProvider(path).notifier).state = session
+              .withFiles([for (final p in more) await _conflictFileFor(p)]);
+          _refresh();
+          return;
+        }
+      } else {
+        await _writer.commitMerge(authorName: id.name, authorEmail: id.email);
+      }
+      final prev = session.prevSha;
+      final label = session.isRebase ? 'Rebase' : 'Merge ${session.branch}';
+      _ref
+          .read(undoProvider(path).notifier)
+          .record(
+            UndoEntry(
+              label,
+              undo: () async {
+                await _undoReset(prev);
+                _refresh();
+              },
+              redo: () async {},
+            ),
+          );
+      _ref.read(mergeSessionProvider(path).notifier).state = null;
+      _refresh();
+      _ref
+          .read(toastProvider.notifier)
+          .show('$label complete', kind: ToastKind.success);
+    } on GitException catch (e) {
+      _toastErr('Finish', e);
+    }
+  }
+
+  Future<void> abortMerge() async {
+    final isRebase = _ref.read(mergeSessionProvider(path))?.isRebase ?? false;
+    try {
+      if (isRebase) {
+        await _writer.rebaseAbort();
+      } else {
+        await _writer.mergeAbort();
+      }
+    } on GitException catch (e) {
+      _toastErr('Abort', e);
+    }
+    _ref.read(mergeSessionProvider(path).notifier).state = null;
+    _refresh();
   }
 
   static String _short(String sha) =>

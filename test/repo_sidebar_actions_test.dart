@@ -17,6 +17,7 @@ class _FakeGit implements GitService {
     List<String> args, {
     String? repoPath,
     Duration? timeout,
+    Map<String, String>? environment,
   }) async {
     calls.add(args);
     final out = switch (args.first) {

@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
 import '../../domain/git/models.dart';
-import '../../state/feedback.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
 import '../../state/settings_controller.dart';
@@ -361,9 +360,6 @@ class _BranchRow extends ConsumerWidget {
     if (path == null) return;
     final actions = ref.read(repoActionsProvider(path));
     final t = context.tokens;
-    void soon(String what) => ref
-        .read(toastProvider.notifier)
-        .show(what, description: 'Merge Tool arrives in a later stage');
 
     PopupMenuItem<void> item(
       String label,
@@ -389,8 +385,16 @@ class _BranchRow extends ConsumerWidget {
           () => actions.checkout(branch.name),
           enabled: !branch.current,
         ),
-        item('Merge into current', () => soon('Merge')),
-        item('Rebase onto current', () => soon('Rebase')),
+        item('Merge into current', () => actions.merge(branch.name)),
+        item('Rebase onto current', () {
+          final current = ref
+              .read(repoDataProvider(path))
+              .valueOrNull
+              ?.branches
+              .where((b) => b.current)
+              .firstOrNull;
+          if (current != null) actions.rebaseOnto(branch.name, current.name);
+        }),
         const PopupMenuDivider(),
         item('Set upstream…', () async {
           final up = await showInputDialog(
@@ -518,16 +522,16 @@ class _BranchRow extends ConsumerWidget {
     String target,
     Offset at,
   ) async {
-    void soon(String op) => ref
-        .read(toastProvider.notifier)
-        .show('$op «$source» → «$target»', description: 'Arrives in Stage 7');
+    final path = ref.read(workspaceProvider).activeTab?.path;
+    if (path == null) return;
+    final actions = ref.read(repoActionsProvider(path));
     await showContextMenu<void>(
       context: context,
       position: at,
       items: [
         PopupMenuItem(
           height: 34,
-          onTap: () => soon('Merge'),
+          onTap: () => actions.mergeInto(source, target),
           child: Text(
             'Merge «$source» into «$target»',
             style: const TextStyle(fontSize: 13),
@@ -535,7 +539,7 @@ class _BranchRow extends ConsumerWidget {
         ),
         PopupMenuItem(
           height: 34,
-          onTap: () => soon('Rebase'),
+          onTap: () => actions.rebaseOnto(source, target),
           child: Text(
             'Rebase «$source» onto «$target»',
             style: const TextStyle(fontSize: 13),

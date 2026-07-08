@@ -18,6 +18,7 @@ class _FakeGit implements GitService {
     List<String> args, {
     String? repoPath,
     Duration? timeout,
+    Map<String, String>? environment,
   }) async {
     final cached = args.contains('--cached');
     if (args.first == 'diff' && !cached) {

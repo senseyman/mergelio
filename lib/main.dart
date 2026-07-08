@@ -4,10 +4,13 @@ import 'package:window_manager/window_manager.dart';
 
 import 'app.dart';
 import 'data/app_database.dart';
+import 'data/kv_store.dart';
 import 'data/settings_repository.dart';
+import 'state/profiles.dart';
 import 'state/recents.dart';
 import 'state/settings.dart';
 import 'state/settings_controller.dart';
+import 'state/workspace.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,11 +34,16 @@ Future<void> main() async {
   final db = AppDatabase();
   final settingsRepo = DriftSettingsRepository(db);
   final recentsRepo = RecentsRepository(db);
+  final kv = DriftKeyValueStore(db);
   var settings = const AppSettings();
   var recents = const <RecentRepo>[];
+  var profiles = const ProfilesState();
+  var restoredTabs = const <String>[];
   try {
     settings = await settingsRepo.load();
     recents = await recentsRepo.load();
+    profiles = await ProfilesController.load(kv);
+    restoredTabs = await WorkspaceController.restorePaths(kv);
   } catch (e, st) {
     debugPrint('startup: state load failed, using defaults: $e\n$st');
   }
@@ -58,6 +66,16 @@ Future<void> main() async {
         recentsProvider.overrideWith(
           (ref) => RecentsController(recentsRepo, recents),
         ),
+        profilesProvider.overrideWith(
+          (ref) => ProfilesController(kv, profiles),
+        ),
+        workspaceProvider.overrideWith((ref) {
+          final c = WorkspaceController(kv);
+          for (final p in restoredTabs) {
+            c.openRepo(p);
+          }
+          return c;
+        }),
       ],
       child: const MergelioApp(),
     ),
