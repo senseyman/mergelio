@@ -40,6 +40,9 @@ class Commit with _$Commit {
     @Default([]) List<String> parents,
     @Default([]) List<GitRef> refs,
     @Default(false) bool signed,
+    // Raw `git log %G?` code: G good, U good-untrusted, X/Y/R expired/revoked,
+    // B bad, E can't-check, N none. Drives the signature label's meaning.
+    @Default('N') String sigStatus,
     @Default(false) bool coauthor,
     // Deterministic author avatar colour (ARGB), derived from the email.
     @Default(0) int avatarValue,
@@ -70,7 +73,25 @@ class Branch with _$Branch {
     @Default(0) int ahead,
     @Default(0) int behind,
     @Default(0) int ci,
+    // Sha the branch ref points at (its tip commit).
+    @Default('') String tip,
   }) = _Branch;
+}
+
+/// A remote-tracking branch, e.g. `origin/main`. [hasLocal] is true when a
+/// local branch of the same short name already exists.
+@freezed
+class RemoteBranch with _$RemoteBranch {
+  const RemoteBranch._();
+  const factory RemoteBranch({
+    required String remote,
+    required String branch,
+    @Default(false) bool hasLocal,
+    // Sha the remote-tracking ref points at.
+    @Default('') String tip,
+  }) = _RemoteBranch;
+
+  String get name => '$remote/$branch';
 }
 
 /// A stash entry, e.g. `stash@{0}` with its message.

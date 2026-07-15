@@ -55,6 +55,7 @@ class GitReader {
           authorEmail: f[3],
           date: DateTime.parse(f[4]),
           signed: gcode.isNotEmpty && gcode != 'N' && gcode != 'E',
+          sigStatus: gcode.isEmpty ? 'N' : gcode,
           refs: _parseRefs(f[6]),
           message: f[7],
           coauthor: f[8].toLowerCase().contains('co-authored-by:'),
@@ -69,7 +70,7 @@ class GitReader {
   Future<List<Branch>> branches() async {
     final r = await _run([
       'for-each-ref',
-      '--format=%(refname:short)\t%(HEAD)\t%(upstream:track)',
+      '--format=%(refname:short)\t%(HEAD)\t%(upstream:track)\t%(objectname)',
       'refs/heads',
     ]);
     if (!r.ok) throw GitException('git for-each-ref failed', r);
@@ -86,6 +87,7 @@ class GitReader {
           ahead: _trackNum(track, 'ahead'),
           behind: _trackNum(track, 'behind'),
           ci: i % 8,
+          tip: p.length > 3 ? p[3] : '',
         ),
       );
       i++;
@@ -102,6 +104,44 @@ class GitReader {
         .toList();
   }
 
+  /// Remote-tracking branches (`refs/remotes/*`), excluding the `*/HEAD`
+  /// symrefs. [hasLocal] flags branches that already have a local counterpart.
+  Future<List<RemoteBranch>> remoteBranches() async {
+    final results = await Future.wait([
+      _run([
+        'for-each-ref',
+        '--format=%(refname:short)\t%(objectname)',
+        'refs/remotes',
+      ]),
+      _run(['for-each-ref', '--format=%(refname:short)', 'refs/heads']),
+    ]);
+    if (!results[0].ok) {
+      throw GitException('git for-each-ref refs/remotes failed', results[0]);
+    }
+    final locals = const LineSplitter().convert(results[1].stdout).toSet();
+    final out = <RemoteBranch>[];
+    for (final line in const LineSplitter().convert(results[0].stdout)) {
+      if (line.isEmpty) continue;
+      final tab = line.indexOf('\t');
+      final short = tab < 0 ? line : line.substring(0, tab);
+      final tip = tab < 0 ? '' : line.substring(tab + 1);
+      final slash = short.indexOf('/');
+      if (slash < 0) continue;
+      final remote = short.substring(0, slash);
+      final branch = short.substring(slash + 1);
+      if (branch == 'HEAD') continue; // symref
+      out.add(
+        RemoteBranch(
+          remote: remote,
+          branch: branch,
+          hasLocal: locals.contains(branch),
+          tip: tip,
+        ),
+      );
+    }
+    return out;
+  }
+
   /// Paths with unresolved merge conflicts (status filter U).
   Future<List<String>> conflictedFiles() async {
     final r = await _run(['diff', '--name-only', '--diff-filter=U', '-z']);
@@ -113,6 +153,13 @@ class GitReader {
   Future<String> remoteUrl(String remote) async {
     final r = await _run(['remote', 'get-url', remote]);
     return r.ok ? r.out : '';
+  }
+
+  /// Full message (subject + body) of HEAD, or empty in an unborn repo. Used
+  /// to pre-fill the composer when amending.
+  Future<String> lastCommitMessage() async {
+    final r = await _run(['log', '-1', '--format=%B']);
+    return r.ok ? r.stdout.trimRight() : '';
   }
 
   Future<List<String>> tags() async {
@@ -404,7 +451,11 @@ class GitReader {
       if (tok.startsWith('refs/heads/')) {
         out.add(GitRef(kind: RefKind.local, name: tok.substring(11)));
       } else if (tok.startsWith('refs/remotes/')) {
-        out.add(GitRef(kind: RefKind.remote, name: tok.substring(13)));
+        final name = tok.substring(13);
+        // Skip the `origin/HEAD` symref — it's noise, not a real branch.
+        if (!name.endsWith('/HEAD')) {
+          out.add(GitRef(kind: RefKind.remote, name: name));
+        }
       } else if (tok.startsWith('refs/tags/')) {
         out.add(GitRef(kind: RefKind.tag, name: tok.substring(10)));
       } else {

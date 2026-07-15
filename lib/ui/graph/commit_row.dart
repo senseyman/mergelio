@@ -47,7 +47,8 @@ class CommitRow extends StatelessWidget {
     final compact = metrics.compact;
     final dim = searchMatch == false;
     final highlight = searchMatch == true;
-    final firstLine = c.message.split('\n').first;
+    final nl = c.message.indexOf('\n');
+    final firstLine = nl < 0 ? c.message : c.message.substring(0, nl);
 
     return Semantics(
       button: true,
@@ -185,20 +186,24 @@ class _Avatar extends StatelessWidget {
     final initial = commit.author.isEmpty
         ? '?'
         : commit.author.trim()[0].toUpperCase();
-    return Container(
-      width: size,
-      height: size,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: Color(commit.avatarValue),
-        shape: BoxShape.circle,
-      ),
-      child: Text(
-        initial,
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: size * 0.5,
-          fontWeight: FontWeight.w700,
+    return Tooltip(
+      message: '${commit.author} <${commit.authorEmail}>',
+      waitDuration: const Duration(milliseconds: 500),
+      child: Container(
+        width: size,
+        height: size,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Color(commit.avatarValue),
+          shape: BoxShape.circle,
+        ),
+        child: Text(
+          initial,
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: size * 0.5,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
     );

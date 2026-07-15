@@ -7,6 +7,7 @@ import '../domain/git/git_providers.dart';
 import '../domain/git/git_reader.dart';
 import '../domain/git/git_service.dart';
 import '../domain/git/git_writer.dart';
+import '../domain/git/models.dart';
 import '../domain/git/rebase_plan.dart';
 import 'feedback.dart';
 import 'merge_session.dart';
@@ -304,6 +305,26 @@ class RepoActions {
     );
   }
 
+  /// Checks out a remote branch: switches to the existing local branch of the
+  /// same name, or creates a local tracking branch and switches to it. Undo
+  /// returns to the prior branch (deleting the freshly-created local branch).
+  Future<void> checkoutRemote(RemoteBranch rb) async {
+    if (rb.hasLocal) {
+      await checkout(rb.branch);
+      return;
+    }
+    final prev = await _headRef();
+    await _undoable(
+      'Checkout ${rb.name}',
+      () => _writer.checkoutTracking(rb.remote, rb.branch),
+      undo: () async {
+        await _writer.checkout(prev);
+        await _writer.deleteBranch(rb.branch, force: true);
+      },
+      redo: () => _writer.checkoutTracking(rb.remote, rb.branch),
+    );
+  }
+
   Future<void> createBranch(String name, {String? at}) async {
     // Resolve the target now so redo can recreate the branch even after undo
     // deleted it (the branch name no longer resolves at that point).
@@ -437,10 +458,10 @@ class RepoActions {
     }
   }
 
-  Future<void> stashPush({String? message}) async {
+  Future<void> stashPush({String? message, bool stagedOnly = false}) async {
     if (_blockedByNetwork) return;
     try {
-      await _writer.stashPush(message: message);
+      await _writer.stashPush(message: message, stagedOnly: stagedOnly);
       _refresh();
     } on GitException catch (e) {
       _toastErr('Stash', e);

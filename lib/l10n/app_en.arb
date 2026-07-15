@@ -40,6 +40,7 @@
   "prefsRestoreTabs": "Restore tabs on launch",
   "prefsTelemetry": "Share anonymous usage data",
   "prefsZoom": "Zoom",
+  "prefsGroupStyle": "Group switcher",
   "prefsPullStrategy": "Pull strategy",
   "prefsDateFormat": "Date format",
   "prefsGraphColumns": "Graph columns",

@@ -46,66 +46,81 @@ List<SquashSegment> resolveSquashSegments(
   return out;
 }
 
-/// Draws dashed connectors from each squash-merged branch tip down to its
-/// landing commit, arcing to the right of the rail so they read as inferred
-/// links rather than real parent edges. Scrolls with [scrollOffset].
-class SquashOverlayPainter extends CustomPainter {
-  final List<SquashSegment> segments;
-  final RailMetrics metrics;
-  final double scrollOffset;
-  final int headerRows;
-  final List<Color> palette;
+/// All dashes of one colour merged into a single [Path] (in un-scrolled canvas
+/// coordinates), so the paint loop is one `drawPath` per colour instead of one
+/// per dash.
+class SquashDash {
+  final Path path;
+  final Color color;
+  const SquashDash(this.path, this.color);
+}
 
-  const SquashOverlayPainter({
-    required this.segments,
-    required this.metrics,
-    required this.scrollOffset,
-    required this.headerRows,
-    required this.palette,
-  });
-
-  Offset _node(int index, int lane) => Offset(
+/// Builds the dashed connector geometry for [segments] once, grouping all
+/// dashes by colour into a single combined path each. Expensive
+/// (`computeMetrics`/`extractPath`) — cache the result and only rebuild when
+/// the segments or metrics change.
+List<SquashDash> buildSquashDashes(
+  List<SquashSegment> segments,
+  RailMetrics metrics,
+  int headerRows,
+  List<Color> palette,
+) {
+  const dash = 4.0, gap = 3.0;
+  Offset node(int index, int lane) => Offset(
     metrics.laneX(lane),
-    (index + headerRows) * metrics.rowHeight + metrics.nodeY - scrollOffset,
+    (index + headerRows) * metrics.rowHeight + metrics.nodeY,
   );
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    for (final s in segments) {
-      final a = _node(s.fromIndex, s.fromLane);
-      final b = _node(s.toIndex, s.toLane);
-      if (a.dy < -metrics.rowHeight && b.dy < -metrics.rowHeight) continue;
-      if (a.dy > size.height + metrics.rowHeight &&
-          b.dy > size.height + metrics.rowHeight) {
-        continue;
-      }
-      // Arc outward to the right so the dashed link stands clear of the lanes.
-      final bow = metrics.laneX(s.fromLane.clamp(1, 99)) + 16;
-      final path = Path()
-        ..moveTo(a.dx, a.dy)
-        ..cubicTo(bow, a.dy, bow, b.dy, b.dx, b.dy);
-      _dashed(canvas, path, palette[s.ci % palette.length]);
-    }
-  }
-
-  void _dashed(Canvas canvas, Path path, Color color) {
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5
-      ..color = color.withValues(alpha: 0.7);
-    const dash = 4.0, gap = 3.0;
-    for (final metric in path.computeMetrics()) {
+  final byColor = <int, ({Color color, Path path})>{};
+  for (final s in segments) {
+    final a = node(s.fromIndex, s.fromLane);
+    final b = node(s.toIndex, s.toLane);
+    final bow = metrics.laneX(s.fromLane.clamp(1, 99)) + 16;
+    final curve = Path()
+      ..moveTo(a.dx, a.dy)
+      ..cubicTo(bow, a.dy, bow, b.dy, b.dx, b.dy);
+    final color = palette[s.ci % palette.length].withValues(alpha: 0.7);
+    final combined = byColor
+        .putIfAbsent(color.toARGB32(), () => (color: color, path: Path()))
+        .path;
+    for (final metric in curve.computeMetrics()) {
       var d = 0.0;
       while (d < metric.length) {
-        canvas.drawPath(metric.extractPath(d, d + dash), paint);
+        combined.addPath(metric.extractPath(d, d + dash), Offset.zero);
         d += dash + gap;
       }
     }
   }
+  return [for (final e in byColor.values) SquashDash(e.path, e.color)];
+}
+
+/// Draws the pre-built dashed connectors, translated by the scroll offset.
+/// Repaints directly off the [scroll] controller ([CustomPainter.repaint]) so
+/// scrolling never rebuilds the widget — only the render object repaints, and
+/// the paint loop is a handful of cheap `drawPath` calls (one per colour).
+class SquashDashPainter extends CustomPainter {
+  final List<SquashDash> dashes;
+  final ScrollController scroll;
+  SquashDashPainter({required this.dashes, required this.scroll})
+    : super(repaint: scroll);
 
   @override
-  bool shouldRepaint(SquashOverlayPainter old) =>
-      old.scrollOffset != scrollOffset ||
-      old.segments != segments ||
-      old.headerRows != headerRows;
+  void paint(Canvas canvas, Size size) {
+    final offset = scroll.hasClients ? scroll.offset : 0.0;
+    canvas.save();
+    // Clip to the paint bounds: the dashes are drawn in scrolled coordinates,
+    // so off-screen ones (above/below) must not bleed outside the graph.
+    canvas.clipRect(Offset.zero & size);
+    canvas.translate(0, -offset);
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    for (final d in dashes) {
+      paint.color = d.color;
+      canvas.drawPath(d.path, paint);
+    }
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(SquashDashPainter old) => !identical(old.dashes, dashes);
 }

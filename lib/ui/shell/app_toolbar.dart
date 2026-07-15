@@ -5,10 +5,11 @@ import '../../core/theme.dart';
 import '../../core/tokens.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/feedback.dart';
-import '../../state/terminal.dart';
+import '../../state/settings_controller.dart';
 import '../../state/workspace.dart';
 import '../brand/mergelio_mark.dart';
 import '../preferences/preferences_dialog.dart';
+import 'global_actions.dart';
 import 'shell_widgets.dart';
 
 /// Top chrome: brand + global utilities (terminal, search, palette, settings,
@@ -52,19 +53,30 @@ class AppToolbar extends ConsumerWidget {
                 soon('Terminal');
                 return;
               }
-              final n = ref.read(terminalVisibleProvider.notifier);
-              n.state = !n.state;
+              ref.read(settingsProvider.notifier).toggleTerminal();
             },
           ),
           BarIconButton(
             icon: Icons.search,
             tooltip: l.tooltipSearch,
-            onPressed: () => soon('Global search'),
+            onPressed: () {
+              if (ref.read(workspaceProvider).activeTab == null) {
+                soon('Global search');
+                return;
+              }
+              openGlobalSearch(ref);
+            },
           ),
           BarIconButton(
             icon: Icons.keyboard_command_key,
             tooltip: l.tooltipPalette,
-            onPressed: () => soon('Command palette'),
+            onPressed: () {
+              if (ref.read(workspaceProvider).activeTab == null) {
+                soon('Command palette');
+                return;
+              }
+              openGlobalPalette(context, ref);
+            },
           ),
           BarIconButton(
             icon: Icons.settings_outlined,

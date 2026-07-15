@@ -7,8 +7,11 @@ import '../../domain/git/models.dart';
 import '../../state/diff_target.dart';
 import '../../state/graph_selection.dart';
 import '../../state/repo_data.dart';
+import '../../state/settings_controller.dart';
 import '../common/dialogs.dart';
+import '../common/file_tree_view.dart';
 import '../graph/commit_columns.dart';
+import '../graph/ref_pill.dart';
 import '../insight/file_insight_dialog.dart';
 
 /// Right panel content for a selected commit: metadata, signature, the list of
@@ -77,6 +80,14 @@ class CommitDetails extends ConsumerWidget {
                     height: 1.35,
                   ),
                 ),
+                if (c.refs.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 4,
+                    runSpacing: 4,
+                    children: [for (final r in c.refs) RefPill(gitRef: r)],
+                  ),
+                ],
                 const SizedBox(height: 12),
                 _Meta(label: 'Author', value: '${c.author} <${c.authorEmail}>'),
                 _Meta(label: 'Date', value: formatCommitDate(c.date)),
@@ -87,33 +98,36 @@ class CommitDetails extends ConsumerWidget {
                     value: p.length > 7 ? p.substring(0, 7) : p,
                     mono: true,
                   ),
-                if (c.signed)
+                if (c.signed) _Signature(status: c.sigStatus),
+                if (c.coauthor)
                   Padding(
-                    padding: const EdgeInsets.only(top: 8),
+                    padding: const EdgeInsets.only(top: 6),
                     child: Row(
                       children: [
-                        Icon(
-                          Icons.verified_user_outlined,
-                          size: 13,
-                          color: t.success,
-                        ),
+                        Icon(Icons.group_outlined, size: 13, color: t.accent),
                         const SizedBox(width: 6),
                         Text(
-                          'Signed',
-                          style: TextStyle(color: t.success, fontSize: 12),
+                          'Co-authored',
+                          style: TextStyle(color: t.textMuted, fontSize: 12),
                         ),
                       ],
                     ),
                   ),
                 const SizedBox(height: 16),
-                Text(
-                  'CHANGED FILES',
-                  style: TextStyle(
-                    color: t.textFaint,
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.5,
-                  ),
+                Row(
+                  children: [
+                    Text(
+                      'CHANGED FILES',
+                      style: TextStyle(
+                        color: t.textFaint,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const Spacer(),
+                    const FileViewToggle(),
+                  ],
                 ),
                 const SizedBox(height: 6),
                 files.when(
@@ -131,33 +145,72 @@ class CommitDetails extends ConsumerWidget {
                     'Could not read changes',
                     style: TextStyle(color: t.textMuted, fontSize: 12),
                   ),
-                  data: (list) => list.isEmpty
-                      ? Text(
-                          'No changes',
-                          style: TextStyle(color: t.textFaint, fontSize: 12),
-                        )
-                      : Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            for (final f in list)
-                              _FileRow(
-                                file: f,
-                                repoPath: repoPath,
-                                onTap: () =>
-                                    ref
-                                        .read(diffTargetProvider.notifier)
-                                        .state = DiffTarget(
-                                      repoPath: repoPath,
-                                      path: f.path,
-                                      commitSha: c.sha,
-                                    ),
-                              ),
-                          ],
-                        ),
+                  data: (list) {
+                    if (list.isEmpty) {
+                      return Text(
+                        'No changes',
+                        style: TextStyle(color: t.textFaint, fontSize: 12),
+                      );
+                    }
+                    final tree = ref.watch(
+                      settingsProvider.select((s) => s.filesAsTree),
+                    );
+                    final byPath = {for (final f in list) f.path: f};
+                    return FileTreeView(
+                      paths: [for (final f in list) f.path],
+                      tree: tree,
+                      fileRow: (path, depth) => _FileRow(
+                        file: byPath[path]!,
+                        repoPath: repoPath,
+                        indent: FileTreeView.indent(depth),
+                        inTree: tree,
+                        onTap: () =>
+                            ref
+                                .read(diffTargetProvider.notifier)
+                                .state = DiffTarget(
+                              repoPath: repoPath,
+                              path: path,
+                              commitSha: c.sha,
+                            ),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Signature indicator whose wording matches the real `%G?` status — never
+/// claims "Verified" for a bad, expired or revoked signature.
+class _Signature extends StatelessWidget {
+  final String status;
+  const _Signature({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final (label, color, icon) = switch (status) {
+      // 'G' is a good, trusted signature; 'U' is good but the key's validity is
+      // unknown/untrusted — never assert "verified" for it.
+      'G' => ('Verified signature', t.success, Icons.verified_user_outlined),
+      'U' => ('Valid, untrusted key', t.warning, Icons.gpp_maybe_outlined),
+      'X' || 'Y' => ('Expired signature', t.warning, Icons.gpp_maybe_outlined),
+      'R' => ('Revoked key', t.danger, Icons.gpp_bad_outlined),
+      'B' => ('Bad signature', t.danger, Icons.gpp_bad_outlined),
+      _ => ('Signed', t.textMuted, Icons.lock_outline),
+    };
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 6),
+          Text(label, style: TextStyle(color: color, fontSize: 12)),
         ],
       ),
     );
@@ -243,11 +296,25 @@ class _FileRow extends StatelessWidget {
   final CommitFileChange file;
   final String repoPath;
   final VoidCallback onTap;
+  final double indent;
+  final bool inTree;
   const _FileRow({
     required this.file,
     required this.repoPath,
     required this.onTap,
+    this.indent = 0,
+    this.inTree = false,
   });
+
+  String get _label {
+    if (inTree) {
+      final i = file.path.lastIndexOf('/');
+      return i < 0 ? file.path : file.path.substring(i + 1);
+    }
+    return file.origPath == null
+        ? file.path
+        : '${file.origPath} → ${file.path}';
+  }
 
   void _menu(BuildContext context, Offset at) {
     showContextMenu<void>(
@@ -290,7 +357,7 @@ class _FileRow extends StatelessWidget {
         onTap: onTap,
         hoverColor: t.hover,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 3),
+          padding: EdgeInsets.fromLTRB(indent, 3, 0, 3),
           child: Row(
             children: [
               Container(
@@ -313,9 +380,7 @@ class _FileRow extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  file.origPath == null
-                      ? file.path
-                      : '${file.origPath} → ${file.path}',
+                  _label,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(color: t.textMuted, fontSize: 12),
                 ),

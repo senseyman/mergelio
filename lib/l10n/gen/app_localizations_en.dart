@@ -117,6 +117,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get prefsZoom => 'Zoom';
 
   @override
+  String get prefsGroupStyle => 'Group switcher';
+
+  @override
   String get prefsPullStrategy => 'Pull strategy';
 
   @override

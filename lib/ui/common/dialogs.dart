@@ -90,57 +90,86 @@ Future<String?> showInputDialog(
   String label = '',
   String initial = '',
   String confirmLabel = 'OK',
-}) {
-  final controller = TextEditingController(text: initial);
-  controller.selection = TextSelection(
-    baseOffset: 0,
-    extentOffset: initial.length,
-  );
-  final result = showAppModal<String>(
-    context: context,
-    title: title,
-    icon: Icons.edit_outlined,
-    width: 420,
-    body: Builder(
-      builder: (ctx) {
-        final t = ctx.tokens;
-        void submit() {
-          final v = controller.text.trim();
-          if (v.isNotEmpty) Navigator.of(ctx).pop(v);
-        }
+}) => showAppModal<String>(
+  context: context,
+  title: title,
+  icon: Icons.edit_outlined,
+  width: 420,
+  // The field + its buttons live in a stateful widget so the controller is
+  // disposed with the route (after the exit animation), never while the
+  // dialog is still transitioning out.
+  body: _InputDialogBody(
+    label: label,
+    initial: initial,
+    confirmLabel: confirmLabel,
+  ),
+);
 
-        return TextField(
-          controller: controller,
+class _InputDialogBody extends StatefulWidget {
+  final String label;
+  final String initial;
+  final String confirmLabel;
+  const _InputDialogBody({
+    required this.label,
+    required this.initial,
+    required this.confirmLabel,
+  });
+
+  @override
+  State<_InputDialogBody> createState() => _InputDialogBodyState();
+}
+
+class _InputDialogBodyState extends State<_InputDialogBody> {
+  late final _controller = TextEditingController(text: widget.initial)
+    ..selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: widget.initial.length,
+    );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final v = _controller.text.trim();
+    if (v.isNotEmpty) Navigator.of(context).pop(v);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          controller: _controller,
           autofocus: true,
-          onSubmitted: (_) => submit(),
+          onSubmitted: (_) => _submit(),
           style: TextStyle(color: t.textPrimary, fontSize: 13),
           decoration: InputDecoration(
-            labelText: label.isEmpty ? null : label,
+            labelText: widget.label.isEmpty ? null : widget.label,
             isDense: true,
             border: const OutlineInputBorder(),
           ),
-        );
-      },
-    ),
-    actions: [
-      Builder(
-        builder: (ctx) => TextButton(
-          onPressed: () => Navigator.of(ctx).pop(),
-          child: const Text('Cancel'),
         ),
-      ),
-      Builder(
-        builder: (ctx) => FilledButton(
-          onPressed: () {
-            final v = controller.text.trim();
-            if (v.isNotEmpty) Navigator.of(ctx).pop(v);
-          },
-          child: Text(confirmLabel),
+        const SizedBox(height: 16),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            const SizedBox(width: 8),
+            FilledButton(onPressed: _submit, child: Text(widget.confirmLabel)),
+          ],
         ),
-      ),
-    ],
-  );
-  return result.whenComplete(controller.dispose);
+      ],
+    );
+  }
 }
 
 /// Confirmation gate for destructive actions. Returns true when confirmed.

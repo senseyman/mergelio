@@ -105,6 +105,20 @@ void main() {
     expect(File('${dir.path}/e.txt').existsSync(), isFalse);
   });
 
+  test('stash push --staged keeps unstaged work in the tree', () async {
+    // One staged change, one unstaged change.
+    await File('${dir.path}/staged.txt').writeAsString('S\n');
+    await g(['add', 'staged.txt']);
+    await File('${dir.path}/a.txt').writeAsString('unstaged\n');
+
+    await writer().stashPush(message: 'only staged', stagedOnly: true);
+
+    // The staged file went into the stash; the unstaged edit survived.
+    expect(File('${dir.path}/staged.txt').existsSync(), isFalse);
+    expect(await File('${dir.path}/a.txt').readAsString(), 'unstaged\n');
+    expect(await reader().stashes(), isNotEmpty);
+  });
+
   test('stash push, apply and drop with re-store', () async {
     await File('${dir.path}/a.txt').writeAsString('dirty\n');
     await writer().stashPush(message: 'wip');

@@ -5,11 +5,12 @@ import '../../core/tokens.dart';
 import '../../domain/git/models.dart';
 import '../../state/profiles.dart';
 import '../../state/repo_data.dart';
+import '../../state/settings_controller.dart';
 import '../../state/workspace.dart';
 import '../profiles/profiles_dialog.dart';
 
-/// Bottom status strip: active repo, current branch and its live ahead/behind.
-/// (The profile identity on the right is still a placeholder until Stage 10.)
+/// Bottom status strip. Left: active profile, repo, branch + live
+/// ahead/behind. Right: theme toggle and the current zoom level.
 class AppStatusBar extends ConsumerWidget {
   const AppStatusBar({super.key});
 
@@ -30,6 +31,13 @@ class AppStatusBar extends ConsumerWidget {
     }
 
     final profile = ref.watch(profilesProvider).active;
+    final settings = ref.watch(settingsProvider);
+    final dark = switch (settings.themeMode) {
+      ThemeMode.dark => true,
+      ThemeMode.light => false,
+      ThemeMode.system =>
+        MediaQuery.platformBrightnessOf(context) == Brightness.dark,
+    };
 
     return Container(
       height: 24,
@@ -42,20 +50,7 @@ class AppStatusBar extends ConsumerWidget {
         style: TextStyle(color: t.textMuted, fontSize: 11),
         child: Row(
           children: [
-            Icon(Icons.circle, size: 8, color: t.success),
-            const SizedBox(width: 6),
-            Text(tab?.name ?? 'No repository'),
-            if (tab != null) ...[
-              _dot(t),
-              Icon(Icons.call_split, size: 12, color: t.textMuted),
-              const SizedBox(width: 4),
-              Text(current?.name ?? 'detached'),
-              if (current != null) ...[
-                _dot(t),
-                Text('↑${current.ahead} ↓${current.behind}'),
-              ],
-            ],
-            const Spacer(),
+            // Profile leads the left cluster.
             InkWell(
               onTap: () => showProfilesDialog(context),
               child: Row(
@@ -75,6 +70,36 @@ class AppStatusBar extends ConsumerWidget {
                 ],
               ),
             ),
+            _dot(t),
+            Text(tab?.name ?? 'No repository'),
+            if (tab != null) ...[
+              _dot(t),
+              Icon(Icons.call_split, size: 12, color: t.textMuted),
+              const SizedBox(width: 4),
+              Text(current?.name ?? 'detached'),
+              if (current != null) ...[
+                _dot(t),
+                Text('↑${current.ahead} ↓${current.behind}'),
+              ],
+            ],
+            const Spacer(),
+            // Theme toggle + zoom close the right cluster.
+            InkWell(
+              onTap: () => ref.read(settingsProvider.notifier).toggleTheme(),
+              child: Row(
+                children: [
+                  Icon(
+                    dark ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
+                    size: 12,
+                    color: t.textMuted,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(dark ? 'Dark' : 'Light'),
+                ],
+              ),
+            ),
+            _dot(t),
+            Text('${(settings.uiScale * 100).round()}%'),
           ],
         ),
       ),

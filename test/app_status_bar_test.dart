@@ -4,6 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/core/tokens.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
+import 'package:mergelio/data/settings_repository.dart';
+import 'package:mergelio/state/settings.dart';
+import 'package:mergelio/state/settings_controller.dart';
 import 'package:mergelio/state/workspace.dart';
 import 'package:mergelio/ui/shell/app_status_bar.dart';
 
@@ -33,7 +36,15 @@ void main() {
   testWidgets('shows the current branch and live ahead/behind', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [gitServiceProvider.overrideWithValue(_FakeGit())],
+        overrides: [
+          gitServiceProvider.overrideWithValue(_FakeGit()),
+          settingsProvider.overrideWith(
+            (ref) => SettingsController(
+              InMemorySettingsRepository(),
+              const AppSettings(),
+            ),
+          ),
+        ],
         child: MaterialApp(
           theme: ThemeData(extensions: [AppTokens.dark()]),
           home: const Scaffold(body: AppStatusBar()),
@@ -53,7 +64,15 @@ void main() {
   testWidgets('shows "No repository" with no active tab', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [gitServiceProvider.overrideWithValue(_FakeGit())],
+        overrides: [
+          gitServiceProvider.overrideWithValue(_FakeGit()),
+          settingsProvider.overrideWith(
+            (ref) => SettingsController(
+              InMemorySettingsRepository(),
+              const AppSettings(),
+            ),
+          ),
+        ],
         child: MaterialApp(
           theme: ThemeData(extensions: [AppTokens.dark()]),
           home: const Scaffold(body: AppStatusBar()),

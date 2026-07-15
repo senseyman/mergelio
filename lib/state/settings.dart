@@ -39,6 +39,16 @@ class AppSettings with _$AppSettings {
     @Default(false) bool telemetryEnabled,
     // UI zoom (text/icon scale), 1.0–2.0 per the 100–200% accessibility NFR.
     @Default(1.0) double uiScale,
+    // Repo-group switcher style: 'dropdown' | 'pills' | 'rail'.
+    @Default('dropdown') String groupStyle,
+    // Terminal dock: open state + height, both restored across sessions.
+    @Default(false) bool terminalOpen,
+    @Default(240.0) double terminalHeight,
+    // Window size, restored on launch.
+    @Default(1440.0) double windowWidth,
+    @Default(900.0) double windowHeight,
+    // Show changed-file lists grouped into a directory tree vs a flat list.
+    @Default(true) bool filesAsTree,
   }) = _AppSettings;
 
   factory AppSettings.fromJson(Map<String, dynamic> json) =>

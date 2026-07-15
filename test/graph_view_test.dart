@@ -155,7 +155,7 @@ void main() {
     await tester.pumpWidget(_harness(data));
 
     final overlay = find.byWidgetPredicate(
-      (w) => w is CustomPaint && w.painter is SquashOverlayPainter,
+      (w) => w is CustomPaint && w.painter is SquashDashPainter,
     );
     expect(overlay, findsOneWidget);
   });

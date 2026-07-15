@@ -4,11 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
 import '../../domain/git/diff.dart';
+import '../../domain/git/models.dart';
 import '../../domain/git/stage_patch.dart';
 import '../../state/diff_document.dart';
 import '../../state/diff_target.dart';
 import '../../state/feedback.dart';
 import '../../state/repo_actions.dart';
+import '../../state/repo_data.dart';
 import '../../state/settings_controller.dart';
 
 /// Slide-up diff sheet over the graph. Occupies [settings.diffHeight] of the
@@ -119,6 +121,8 @@ class _DiffHeader extends ConsumerWidget {
       ),
       child: Row(
         children: [
+          _StatusBadge(target: target),
+          const SizedBox(width: 8),
           Flexible(
             child: Text(
               target.path,
@@ -159,6 +163,70 @@ class _DiffHeader extends ConsumerWidget {
             onPressed: onClose,
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// M/A/D/R status letter for the file being diffed, sourced from the working
+/// tree (working diffs) or the commit's change list (commit diffs).
+class _StatusBadge extends ConsumerWidget {
+  final DiffTarget target;
+  const _StatusBadge({required this.target});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = context.tokens;
+    GitChange? change;
+    if (target.commitSha == null) {
+      final files =
+          ref.watch(repoDataProvider(target.repoPath)).valueOrNull?.working ??
+          const <WorkingFile>[];
+      for (final f in files) {
+        if (f.path == target.path) {
+          change = f.worktree != GitChange.none ? f.worktree : f.index;
+          break;
+        }
+      }
+    } else {
+      final files = ref
+          .watch(
+            commitFilesProvider((
+              repo: target.repoPath,
+              sha: target.commitSha!,
+            )),
+          )
+          .valueOrNull;
+      for (final f in files ?? const <CommitFileChange>[]) {
+        if (f.path == target.path) {
+          change = f.change;
+          break;
+        }
+      }
+    }
+    if (change == null) return const SizedBox.shrink();
+    final (color, letter) = switch (change) {
+      GitChange.added || GitChange.untracked => (t.success, 'A'),
+      GitChange.deleted => (t.danger, 'D'),
+      GitChange.renamed => (t.accent, 'R'),
+      GitChange.copied => (t.accent, 'C'),
+      _ => (t.warning, 'M'),
+    };
+    return Container(
+      width: 16,
+      height: 16,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        letter,
+        style: TextStyle(
+          color: color,
+          fontSize: 9.5,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }

@@ -15,7 +15,11 @@ class ContextBlock extends ConflictPart {
 class ConflictHunk extends ConflictPart {
   final List<String> ours;
   final List<String> theirs;
-  ConflictHunk({required this.ours, required this.theirs});
+
+  /// 1-based line of the `<<<<<<<` marker in the original file — shown as the
+  /// hunk's `@@ line N @@` header.
+  final int line;
+  ConflictHunk({required this.ours, required this.theirs, this.line = 0});
 }
 
 final _start = RegExp(r'^<{7}');
@@ -46,6 +50,7 @@ List<ConflictPart> parseConflicts(String content) {
   while (i < lines.length) {
     if (_start.hasMatch(lines[i])) {
       flushContext();
+      final markerLine = i + 1; // 1-based position of <<<<<<<
       final ours = <String>[], theirs = <String>[];
       i++;
       // "ours" ends at ======= (merge style) or ||||||| (diff3 style).
@@ -65,7 +70,7 @@ List<ConflictPart> parseConflicts(String content) {
         theirs.add(lines[i++]);
       }
       i++; // skip >>>>>>>
-      parts.add(ConflictHunk(ours: ours, theirs: theirs));
+      parts.add(ConflictHunk(ours: ours, theirs: theirs, line: markerLine));
     } else {
       context.add(lines[i++]);
     }

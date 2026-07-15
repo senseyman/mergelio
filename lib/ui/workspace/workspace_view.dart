@@ -68,13 +68,21 @@ class _CenterWithDiff extends ConsumerWidget {
               child: const GraphView(),
             ),
           ),
-          if (open)
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: DiffSheet(availableHeight: box.maxHeight),
+          // The sheet slides up from the bottom edge (~240ms ease-out) and
+          // stays mounted during the exit slide.
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: AnimatedSlide(
+              offset: open ? Offset.zero : const Offset(0, 1),
+              duration: const Duration(milliseconds: 240),
+              curve: Curves.easeOutCubic,
+              child: open
+                  ? DiffSheet(availableHeight: box.maxHeight)
+                  : const SizedBox.shrink(),
             ),
+          ),
         ],
       ),
     );

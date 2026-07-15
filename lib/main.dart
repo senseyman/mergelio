@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
@@ -39,21 +41,21 @@ Future<void> main() async {
   var settings = const AppSettings();
   var recents = const <RecentRepo>[];
   var profiles = const ProfilesState();
-  var restoredTabs = const <String>[];
+  var session = const WorkspaceSession();
   var interruptedOps = const <String>[];
   try {
     settings = await settingsRepo.load();
     recents = await recentsRepo.load();
     profiles = await ProfilesController.load(kv);
-    restoredTabs = await WorkspaceController.restorePaths(kv);
+    session = await WorkspaceController.restoreSession(kv);
     // Scan each restored repo's journal: an op still pending means the app
     // stopped mid-operation last time, so warn the user on launch.
     final notices = <String>[];
-    for (final path in restoredTabs) {
-      final j = OperationJournal(kv, path);
+    for (final tab in session.tabs) {
+      final j = OperationJournal(kv, tab.path);
       await j.load();
       for (final r in j.interrupted) {
-        notices.add('${path.split('/').last}: ${r.label}');
+        notices.add('${tab.path.split('/').last}: ${r.label}');
       }
     }
     interruptedOps = notices;
@@ -61,21 +63,23 @@ Future<void> main() async {
     debugPrint('startup: state load failed, using defaults: $e\n$st');
   }
 
-  const options = WindowOptions(
-    size: Size(1440, 900),
-    minimumSize: Size(960, 600),
+  // Restore the persisted window size (the manager enforces the minimum).
+  final options = WindowOptions(
+    size: Size(settings.windowWidth, settings.windowHeight),
+    minimumSize: const Size(960, 600),
     center: true,
     title: 'Mergelio',
     titleBarStyle: TitleBarStyle.normal,
   );
   await windowManager.waitUntilReadyToShow(options);
 
+  final settingsController = SettingsController(settingsRepo, settings);
+  windowManager.addListener(_WindowPersist(settingsController));
+
   runApp(
     ProviderScope(
       overrides: [
-        settingsProvider.overrideWith(
-          (ref) => SettingsController(settingsRepo, settings),
-        ),
+        settingsProvider.overrideWith((ref) => settingsController),
         recentsProvider.overrideWith(
           (ref) => RecentsController(recentsRepo, recents),
         ),
@@ -84,9 +88,7 @@ Future<void> main() async {
         ),
         workspaceProvider.overrideWith((ref) {
           final c = WorkspaceController(kv);
-          for (final p in restoredTabs) {
-            c.openRepo(p);
-          }
+          c.applySession(session);
           return c;
         }),
         kvStoreProvider.overrideWithValue(kv),
@@ -102,6 +104,35 @@ Future<void> main() async {
     await windowManager.show();
     await windowManager.focus();
   });
+}
+
+/// Persists the window size so the next launch reopens at the same dimensions.
+/// Handles both `onWindowResized` (emitted once at the end on macOS/Windows)
+/// and `onWindowResize` (emitted continuously during the drag on Linux), with
+/// a debounce so the continuous stream does not hammer the store.
+class _WindowPersist with WindowListener {
+  final SettingsController _settings;
+  Timer? _debounce;
+  _WindowPersist(this._settings);
+
+  Future<void> _persistNow() async {
+    _debounce?.cancel();
+    final size = await windowManager.getSize();
+    _settings.setWindowSize(size.width, size.height);
+  }
+
+  // End-of-resize (macOS/Windows): persist immediately so a quick quit can't
+  // drop the final size.
+  @override
+  void onWindowResized() => _persistNow();
+
+  // Continuous during-drag (Linux only fires this): debounce so the stream
+  // doesn't hammer the store.
+  @override
+  void onWindowResize() {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), _persistNow);
+  }
 }
 
 /// Self-contained fallback shown by [ErrorWidget.builder] when a widget subtree

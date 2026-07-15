@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
+import '../../domain/ssh_keys.dart';
 import '../../domain/theme_io.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/feedback.dart';
@@ -190,8 +191,11 @@ class _ShortcutsTab extends StatelessWidget {
   const _ShortcutsTab();
 
   static const _shortcuts = [
-    ('⌘K', 'Command palette'),
+    ('⌘K / ⌘⇧P', 'Command palette'),
     ('⌘F', 'Search commits'),
+    ('N / ⇧N', 'Next / previous search match'),
+    ('⌘⏎', 'Commit (in composer)'),
+    ('⌘B', 'Create branch'),
     ('⌘\\', 'Collapse left panel'),
     ('⌘`', 'Toggle terminal'),
     ('⌘ + / −', 'Zoom in / out'),
@@ -245,14 +249,49 @@ class _ShortcutsTab extends StatelessWidget {
 /// Shows how Mergelio authenticates with remotes. Editing credentials is
 /// delegated to the system (git credential helper / SSH agent) — the app never
 /// stores secrets itself.
-class _CredentialsTab extends StatelessWidget {
+class _CredentialsTab extends ConsumerStatefulWidget {
   const _CredentialsTab();
+
+  @override
+  ConsumerState<_CredentialsTab> createState() => _CredentialsTabState();
+}
+
+class _CredentialsTabState extends ConsumerState<_CredentialsTab> {
+  final _ssh = SshKeys();
+  late Future<List<SshKey>> _keys = _ssh.list();
+
+  void _reload() => setState(() => _keys = _ssh.list());
+
+  Future<void> _generate() async {
+    final name = await showInputDialog(
+      context,
+      title: 'Generate SSH key',
+      label: 'Key file name (e.g. id_ed25519_work)',
+    );
+    if (name == null || name.trim().isEmpty) return;
+    try {
+      await _ssh.generate(name.trim(), comment: 'mergelio');
+      if (!mounted) return;
+      ref
+          .read(toastProvider.notifier)
+          .show(
+            'Key generated without a passphrase',
+            description:
+                'Run ssh-keygen -p -f ~/.ssh/${name.trim()} to add one.',
+            kind: ToastKind.success,
+          );
+      _reload();
+    } on Object catch (e) {
+      if (!mounted) return;
+      ref
+          .read(toastProvider.notifier)
+          .show('Generate failed', description: '$e', kind: ToastKind.error);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
-    TextStyle body() =>
-        TextStyle(color: t.textMuted, fontSize: 13, height: 1.5);
     return ListView(
       padding: const EdgeInsets.all(14),
       children: [
@@ -267,20 +306,112 @@ class _CredentialsTab extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           'HTTPS remotes use your system git credential helper; SSH remotes '
-          'use your SSH agent and keys. Mergelio shells out to git, so it '
-          'never stores or sees your passwords or private keys.',
-          style: body(),
+          'use your SSH agent and keys. Mergelio never stores or reads your '
+          'passwords or private keys — only public keys are listed here.',
+          style: TextStyle(color: t.textMuted, fontSize: 13, height: 1.5),
         ),
-        const SizedBox(height: 12),
-        SelectableText(
-          'git config --global credential.helper\n'
-          'ssh-add -l   # keys loaded in your agent',
-          style: TextStyle(
-            color: t.textFaint,
-            fontSize: 12,
-            fontFamily: 'monospace',
-            height: 1.6,
-          ),
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            Text(
+              'SSH KEYS',
+              style: TextStyle(
+                color: t.textFaint,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.5,
+              ),
+            ),
+            const Spacer(),
+            TextButton(
+              onPressed: _generate,
+              child: const Text(
+                'Generate key…',
+                style: TextStyle(fontSize: 12),
+              ),
+            ),
+          ],
+        ),
+        FutureBuilder(
+          future: _keys,
+          builder: (context, snap) {
+            final keys = snap.data ?? const <SshKey>[];
+            if (snap.connectionState != ConnectionState.done) {
+              return const Padding(
+                padding: EdgeInsets.all(12),
+                child: Center(
+                  child: SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+              );
+            }
+            if (keys.isEmpty) {
+              return Text(
+                'No SSH keys found in ~/.ssh',
+                style: TextStyle(color: t.textFaint, fontSize: 12),
+              );
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final k in keys)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      children: [
+                        Icon(Icons.key_outlined, size: 14, color: t.textFaint),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                k.name,
+                                style: TextStyle(
+                                  color: t.textPrimary,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              Text(
+                                k.publicKey.split(' ').take(2).join(' '),
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: t.textFaint,
+                                  fontSize: 11,
+                                  fontFamily: 'monospace',
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Tooltip(
+                          message: 'Copy public key',
+                          child: IconButton(
+                            iconSize: 15,
+                            visualDensity: VisualDensity.compact,
+                            icon: const Icon(Icons.copy_outlined),
+                            onPressed: () {
+                              Clipboard.setData(
+                                ClipboardData(text: k.publicKey),
+                              );
+                              ref
+                                  .read(toastProvider.notifier)
+                                  .show(
+                                    'Public key copied',
+                                    kind: ToastKind.success,
+                                  );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
       ],
     );
@@ -331,6 +462,12 @@ class _AppearanceTab extends ConsumerWidget {
             _ => ThemeMode.dark,
           }),
           labelFor: (v) => themeLabels[v] ?? v,
+        ),
+        _ChoiceRow(
+          l.prefsGroupStyle,
+          const ['dropdown', 'pills', 'rail'],
+          s.groupStyle,
+          c.setGroupStyle,
         ),
         const SizedBox(height: 8),
         Text(l.prefsAccent, style: TextStyle(color: t.textFaint, fontSize: 12)),

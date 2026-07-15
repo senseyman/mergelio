@@ -15,6 +15,7 @@ import '../../state/workspace.dart';
 import '../common/confirm.dart';
 import '../common/dialogs.dart';
 import '../rebase/rebase_editor.dart';
+import '../shell/repo_op_dialogs.dart';
 import '../../l10n/gen/app_localizations.dart';
 import 'commit_columns.dart';
 import 'graph_derived.dart';
@@ -30,7 +31,7 @@ class GraphView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = context.tokens;
-    final path = ref.watch(workspaceProvider).activeTab?.path;
+    final path = ref.watch(workspaceProvider.select((w) => w.activeTab?.path));
     if (path == null) return Container(color: t.bgApp);
 
     return Container(
@@ -88,18 +89,49 @@ class _GraphListState extends ConsumerState<GraphList> {
     return _derived!;
   }
 
+  int _matchGen = 0;
+
+  /// Current match set. Small histories compute inline; big ones kick a
+  /// background-isolate computation and keep showing the previous set until
+  /// it lands (generation counter drops stale results).
   Set<String> _matchesFor(RepoData d, CommitQuery? query) {
     if (query == null || query.isEmpty) return const {};
     if (identical(_matchDataFor, d) && query == _matchQueryFor) {
       return _matchCache;
     }
-    _matchCache = {
-      for (final c in d.commits)
-        if (matchesCommit(c, query)) c.sha,
-    };
     _matchDataFor = d;
     _matchQueryFor = query;
+    // Bump the generation on every recompute so any still-in-flight isolate
+    // result from a previous (data, query) is dropped when it lands.
+    final gen = ++_matchGen;
+    if (d.commits.length < searchIsolateThreshold) {
+      _matchCache = {
+        for (final c in d.commits)
+          if (matchesCommit(c, query)) c.sha,
+      };
+      return _matchCache;
+    }
+    computeMatchShas(d.commits, query).then((m) {
+      if (mounted && gen == _matchGen) setState(() => _matchCache = m);
+    });
     return _matchCache;
+  }
+
+  // 1-based ordinal of each matched sha in commit order, memoized by the match
+  // set identity so the search "x / y" counter doesn't rescan on every build.
+  Set<String>? _ordinalsFor;
+  Map<String, int> _ordinals = const {};
+
+  Map<String, int> _matchOrdinals(RepoData d, Set<String> matches) {
+    if (identical(_ordinalsFor, matches)) return _ordinals;
+    final m = <String, int>{};
+    var i = 0;
+    for (final c in d.commits) {
+      if (matches.contains(c.sha)) m[c.sha] = ++i;
+    }
+    _ordinals = m;
+    _ordinalsFor = matches;
+    return _ordinals;
   }
 
   @override
@@ -111,29 +143,63 @@ class _GraphListState extends ConsumerState<GraphList> {
 
   bool get _hasWip => widget.data.working.isNotEmpty;
 
-  /// Selection order: WIP row first (when present), then commits top-down.
-  List<String> get _order => [
-    if (_hasWip) wipSelection,
-    for (final c in widget.data.commits) c.sha,
-  ];
+  // Cached squash-dash geometry, rebuilt only when the segments or metrics
+  // change — not on every scroll frame.
+  List<SquashSegment>? _dashesForSegments;
+  bool? _dashesCompact;
+  List<SquashDash> _dashes = const [];
+
+  List<SquashDash> _dashesFor(
+    List<SquashSegment> segments,
+    RailMetrics metrics,
+    int wipRows,
+    List<Color> palette,
+  ) {
+    if (identical(_dashesForSegments, segments) &&
+        _dashesCompact == metrics.compact) {
+      return _dashes;
+    }
+    _dashes = buildSquashDashes(segments, metrics, wipRows, palette);
+    _dashesForSegments = segments;
+    _dashesCompact = metrics.compact;
+    return _dashes;
+  }
 
   void _select(String id, double rowHeight) {
+    // Scrolling is handled centrally by the selectedCommit listener, so a
+    // selection from anywhere (this list, the sidebar, the palette) flies to
+    // the row the same way.
     ref.read(selectedCommitProvider.notifier).state = id;
-    final i = _order.indexOf(id);
-    if (i < 0 || !_scroll.hasClients) return;
+  }
+
+  /// Brings the row for [sha] into view if it is off-screen. Uses the memoized
+  /// sha→index map (O(1)) rather than scanning the commit list, so clicking a
+  /// branch on a 50k-commit repo flies instantly. No-op when the sha isn't a
+  /// loaded commit (e.g. a branch tip beyond the commit cap).
+  void _scrollToSha(String? sha, double rowHeight) {
+    if (sha == null || !_scroll.hasClients) return;
+    final wipRows = _hasWip ? 1 : 0;
+    final int i;
+    if (sha == wipSelection) {
+      i = 0;
+    } else {
+      final ci = _deriveFor(widget.data).rowIndex[sha];
+      if (ci == null) return;
+      i = ci + wipRows;
+    }
     final top = i * rowHeight;
     final viewTop = _scroll.offset;
     final viewBottom = viewTop + _scroll.position.viewportDimension;
     if (top < viewTop) {
       _scroll.animateTo(
         top,
-        duration: const Duration(milliseconds: 120),
+        duration: const Duration(milliseconds: 160),
         curve: Curves.easeOut,
       );
     } else if (top + rowHeight > viewBottom) {
       _scroll.animateTo(
         top + rowHeight - _scroll.position.viewportDimension,
-        duration: const Duration(milliseconds: 120),
+        duration: const Duration(milliseconds: 160),
         curve: Curves.easeOut,
       );
     }
@@ -160,9 +226,58 @@ class _GraphListState extends ConsumerState<GraphList> {
     _select(ordered[next], metrics.rowHeight);
   }
 
+  /// Merge/Rebase menu for a branch dropped onto a commit's local ref.
+  Future<void> _branchDropMenu(
+    BuildContext context,
+    String source,
+    String target,
+    Offset at,
+  ) async {
+    final path = ref.read(workspaceProvider).activeTab?.path;
+    if (path == null) return;
+    final actions = ref.read(repoActionsProvider(path));
+    await showContextMenu<void>(
+      context: context,
+      position: at,
+      items: [
+        PopupMenuItem(
+          height: 34,
+          onTap: () => actions.mergeInto(source, target),
+          child: Text(
+            'Merge «$source» into «$target»',
+            style: const TextStyle(fontSize: 13),
+          ),
+        ),
+        PopupMenuItem(
+          height: 34,
+          onTap: () => actions.rebaseOnto(source, target),
+          child: Text(
+            'Rebase «$source» onto «$target»',
+            style: const TextStyle(fontSize: 13),
+          ),
+        ),
+      ],
+    );
+  }
+
   KeyEventResult _onKey(FocusNode node, KeyEvent event, double rowHeight) {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
+    }
+    // N / ⇧N step through search matches while a search is active and the
+    // graph (not the search field) has focus.
+    if (event.logicalKey == LogicalKeyboardKey.keyN) {
+      final query = ref.read(searchQueryProvider);
+      if (query != null && !query.isEmpty) {
+        final matches = _matchesFor(widget.data, query);
+        _jumpMatch(
+          widget.data,
+          matches,
+          !HardwareKeyboard.instance.isShiftPressed,
+          RailMetrics(compact: ref.read(settingsProvider).graphCompact),
+        );
+        return KeyEventResult.handled;
+      }
     }
     final delta = switch (event.logicalKey) {
       LogicalKeyboardKey.arrowDown => 1,
@@ -170,14 +285,31 @@ class _GraphListState extends ConsumerState<GraphList> {
       _ => 0,
     };
     if (delta == 0) return KeyEventResult.ignored;
-    final order = _order;
-    if (order.isEmpty) return KeyEventResult.ignored;
+    // Row math via the memoized index map instead of building the full order
+    // list + indexOf on every keypress.
+    final d = widget.data;
+    final wipRows = _hasWip ? 1 : 0;
+    final total = d.commits.length + wipRows;
+    if (total == 0) return KeyEventResult.ignored;
     final current = ref.read(selectedCommitProvider);
-    final i = current == null ? -1 : order.indexOf(current);
-    final next = (i + delta).clamp(0, order.length - 1);
-    _select(order[next], rowHeight);
+    final int i;
+    if (current == null) {
+      i = -1;
+    } else if (current == wipSelection) {
+      i = 0;
+    } else {
+      final ci = _deriveFor(d).rowIndex[current];
+      i = ci == null ? -1 : ci + wipRows;
+    }
+    final next = (i + delta).clamp(0, total - 1);
+    _select(_shaAtRow(next, wipRows), rowHeight);
     return KeyEventResult.handled;
   }
+
+  /// Sha at visible row [row] (WIP row first when present).
+  String _shaAtRow(int row, int wipRows) => (_hasWip && row == 0)
+      ? wipSelection
+      : widget.data.commits[row - wipRows].sha;
 
   @override
   Widget build(BuildContext context) {
@@ -187,6 +319,15 @@ class _GraphListState extends ConsumerState<GraphList> {
     final dateFormat = ref.watch(settingsProvider.select((s) => s.dateFormat));
     final selected = ref.watch(selectedCommitProvider);
     final metrics = RailMetrics(compact: compact);
+
+    // Fly to the selected commit whenever the selection changes — from the
+    // graph, the sidebar branch rows, or the command palette. Deferred a frame
+    // so the ListView has its dimensions when a selection arrives on load.
+    ref.listen(selectedCommitProvider, (_, sha) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _scrollToSha(sha, metrics.rowHeight),
+      );
+    });
 
     final derived = _deriveFor(d);
     final maxLane = derived.maxLane;
@@ -205,6 +346,13 @@ class _GraphListState extends ConsumerState<GraphList> {
           _SearchBar(
             query: query,
             matchCount: matchShas.length,
+            currentIndex: () {
+              // Position of the selected commit among ordered matches, 1-based.
+              // Uses a memoized ordinal map so this is O(1) per keystroke rather
+              // than an O(commits) scan.
+              if (selected == null) return 0;
+              return _matchOrdinals(d, matchShas)[selected] ?? 0;
+            }(),
             onChanged: (q) => ref.read(searchQueryProvider.notifier).state = q,
             onClose: () => ref.read(searchQueryProvider.notifier).state = null,
             onJump: (forward) => _jumpMatch(d, matchShas, forward, metrics),
@@ -237,7 +385,7 @@ class _GraphListState extends ConsumerState<GraphList> {
                         );
                       }
                       final c = d.commits[i - wipRows];
-                      return _CommitContextMenu(
+                      final row = _CommitContextMenu(
                         commit: c,
                         child: CommitRow(
                           commit: c,
@@ -256,22 +404,41 @@ class _GraphListState extends ConsumerState<GraphList> {
                           },
                         ),
                       );
+                      // A commit carrying a local branch ref accepts a branch
+                      // drag from the sidebar, opening the Merge/Rebase menu
+                      // against that branch (same flow as branch-onto-branch).
+                      final localRef = derived.localRefBySha[c.sha];
+                      if (localRef == null) return row;
+                      return DragTarget<String>(
+                        onWillAcceptWithDetails: (dd) => dd.data != localRef,
+                        onAcceptWithDetails: (dd) => _branchDropMenu(
+                          context,
+                          dd.data,
+                          localRef,
+                          dd.offset,
+                        ),
+                        builder: (ctx, candidates, _) => Container(
+                          color: candidates.isNotEmpty
+                              ? context.tokens.accent.withValues(alpha: 0.14)
+                              : null,
+                          child: row,
+                        ),
+                      );
                     },
                   ),
                   if (segments.isNotEmpty)
                     Positioned.fill(
                       child: IgnorePointer(
-                        child: AnimatedBuilder(
-                          animation: _scroll,
-                          builder: (context, _) => CustomPaint(
-                            painter: SquashOverlayPainter(
-                              segments: segments,
-                              metrics: metrics,
-                              scrollOffset: _scroll.hasClients
-                                  ? _scroll.offset
-                                  : 0,
-                              headerRows: wipRows,
-                              palette: context.tokens.branchPalette,
+                        child: RepaintBoundary(
+                          child: CustomPaint(
+                            painter: SquashDashPainter(
+                              dashes: _dashesFor(
+                                segments,
+                                metrics,
+                                wipRows,
+                                context.tokens.branchPalette,
+                              ),
+                              scroll: _scroll,
                             ),
                           ),
                         ),
@@ -291,12 +458,16 @@ class _GraphListState extends ConsumerState<GraphList> {
 class _SearchBar extends StatelessWidget {
   final CommitQuery query;
   final int matchCount;
+  // 1-based position of the selected match, 0 when the selection is not a
+  // match. Rendered as "current / total".
+  final int currentIndex;
   final ValueChanged<CommitQuery> onChanged;
   final VoidCallback onClose;
   final void Function(bool forward) onJump;
   const _SearchBar({
     required this.query,
     required this.matchCount,
+    required this.currentIndex,
     required this.onChanged,
     required this.onClose,
     required this.onJump,
@@ -306,87 +477,120 @@ class _SearchBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.tokens;
     final l = AppLocalizations.of(context);
-    return Container(
-      height: 40,
-      padding: const EdgeInsets.only(left: 12, right: 6),
-      decoration: BoxDecoration(
-        color: t.bgPanel,
-        border: Border(bottom: BorderSide(color: t.border)),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.search, size: 15, color: t.textFaint),
-          const SizedBox(width: 8),
-          Expanded(
-            child: TextField(
-              autofocus: true,
-              onChanged: (v) => onChanged(
+    final noMatches = !query.isEmpty && matchCount == 0;
+    return CallbackShortcuts(
+      bindings: {const SingleActivator(LogicalKeyboardKey.escape): onClose},
+      child: Container(
+        height: 40,
+        padding: const EdgeInsets.only(left: 12, right: 6),
+        decoration: BoxDecoration(
+          color: t.bgPanel,
+          border: Border(bottom: BorderSide(color: t.border)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.search, size: 15, color: t.textFaint),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                autofocus: true,
+                onChanged: (v) => onChanged(
+                  CommitQuery(
+                    text: v,
+                    author: query.author,
+                    hideMerges: query.hideMerges,
+                    hideTags: query.hideTags,
+                  ),
+                ),
+                onSubmitted: (_) => onJump(true),
+                style: TextStyle(color: t.textPrimary, fontSize: 13),
+                decoration: InputDecoration(
+                  isDense: true,
+                  border: InputBorder.none,
+                  hintText: 'Search commits…',
+                  hintStyle: TextStyle(color: t.textFaint, fontSize: 13),
+                ),
+              ),
+            ),
+            // Author filter feeds CommitQuery.author.
+            SizedBox(
+              width: 120,
+              child: TextField(
+                onChanged: (v) => onChanged(
+                  CommitQuery(
+                    text: query.text,
+                    author: v,
+                    hideMerges: query.hideMerges,
+                    hideTags: query.hideTags,
+                  ),
+                ),
+                style: TextStyle(color: t.textPrimary, fontSize: 12),
+                decoration: InputDecoration(
+                  isDense: true,
+                  border: InputBorder.none,
+                  hintText: 'Author…',
+                  hintStyle: TextStyle(color: t.textFaint, fontSize: 12),
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            _FilterChip(
+              label: l.filterHideMerges,
+              on: query.hideMerges,
+              onTap: () => onChanged(
                 CommitQuery(
-                  text: v,
+                  text: query.text,
                   author: query.author,
-                  hideMerges: query.hideMerges,
+                  hideMerges: !query.hideMerges,
                   hideTags: query.hideTags,
                 ),
               ),
-              onSubmitted: (_) => onJump(true),
-              style: TextStyle(color: t.textPrimary, fontSize: 13),
-              decoration: InputDecoration(
-                isDense: true,
-                border: InputBorder.none,
-                hintText: 'Search commits…',
-                hintStyle: TextStyle(color: t.textFaint, fontSize: 13),
+            ),
+            const SizedBox(width: 6),
+            _FilterChip(
+              label: l.filterHideTags,
+              on: query.hideTags,
+              onTap: () => onChanged(
+                CommitQuery(
+                  text: query.text,
+                  author: query.author,
+                  hideMerges: query.hideMerges,
+                  hideTags: !query.hideTags,
+                ),
               ),
             ),
-          ),
-          _FilterChip(
-            label: l.filterHideMerges,
-            on: query.hideMerges,
-            onTap: () => onChanged(
-              CommitQuery(
-                text: query.text,
-                author: query.author,
-                hideMerges: !query.hideMerges,
-                hideTags: query.hideTags,
+            const SizedBox(width: 8),
+            Text(
+              noMatches
+                  ? 'No matches'
+                  : (currentIndex > 0
+                        ? '$currentIndex / $matchCount'
+                        : '$matchCount'),
+              style: TextStyle(
+                color: noMatches ? t.warning : t.textFaint,
+                fontSize: 12,
               ),
             ),
-          ),
-          const SizedBox(width: 6),
-          _FilterChip(
-            label: l.filterHideTags,
-            on: query.hideTags,
-            onTap: () => onChanged(
-              CommitQuery(
-                text: query.text,
-                author: query.author,
-                hideMerges: query.hideMerges,
-                hideTags: !query.hideTags,
-              ),
+            IconButton(
+              iconSize: 16,
+              tooltip: 'Previous (⇧N)',
+              icon: const Icon(Icons.keyboard_arrow_up),
+              onPressed: () => onJump(false),
             ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            '$matchCount',
-            style: TextStyle(color: t.textFaint, fontSize: 12),
-          ),
-          IconButton(
-            iconSize: 16,
-            tooltip: 'Previous (⇧N)',
-            icon: const Icon(Icons.keyboard_arrow_up),
-            onPressed: () => onJump(false),
-          ),
-          IconButton(
-            iconSize: 16,
-            tooltip: 'Next (N)',
-            icon: const Icon(Icons.keyboard_arrow_down),
-            onPressed: () => onJump(true),
-          ),
-          IconButton(
-            iconSize: 16,
-            tooltip: 'Close (Esc)',
-            icon: const Icon(Icons.close),
-            onPressed: onClose,
-          ),
-        ],
+            IconButton(
+              iconSize: 16,
+              tooltip: 'Next (N)',
+              icon: const Icon(Icons.keyboard_arrow_down),
+              onPressed: () => onJump(true),
+            ),
+            IconButton(
+              iconSize: 16,
+              tooltip: 'Close (Esc)',
+              icon: const Icon(Icons.close),
+              onPressed: onClose,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -647,14 +851,7 @@ class _CommitContextMenu extends ConsumerWidget {
           );
           if (name != null) await actions.createBranch(name, at: sha);
         }),
-        item(l.menuCreateTag, () async {
-          final name = await showInputDialog(
-            context,
-            title: 'Create tag',
-            label: 'Tag name',
-          );
-          if (name != null) await actions.createTag(name, at: sha);
-        }),
+        item(l.menuCreateTag, () => showTagDialog(context, ref, path, at: sha)),
         item(l.menuCherryPick, () => actions.cherryPick(sha)),
         item(l.menuRevert, () => actions.revert(sha)),
         item(l.menuRebaseHere, () async {

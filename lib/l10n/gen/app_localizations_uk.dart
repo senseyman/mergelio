@@ -117,6 +117,9 @@ class AppLocalizationsUk extends AppLocalizations {
   String get prefsZoom => 'Масштаб';
 
   @override
+  String get prefsGroupStyle => 'Перемикач груп';
+
+  @override
   String get prefsPullStrategy => 'Стратегія стягування';
 
   @override

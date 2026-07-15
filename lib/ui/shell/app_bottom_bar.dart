@@ -10,6 +10,7 @@ import '../../state/undo_stack.dart';
 import '../../state/workspace.dart';
 import '../common/confirm.dart';
 import '../common/dialogs.dart';
+import 'repo_op_dialogs.dart';
 import 'shell_widgets.dart';
 
 /// Bottom action bar: undo/redo pinned left, git operations centred with a
@@ -33,10 +34,6 @@ class AppBottomBar extends ConsumerWidget {
     final undo = path == null
         ? const UndoState()
         : ref.watch(undoProvider(path));
-
-    void soon(String what) => ref
-        .read(toastProvider.notifier)
-        .show(what, description: 'Coming in a later stage');
 
     // A disabled network op explains the actual reason it is unavailable.
     void whyDisabled() {
@@ -116,6 +113,12 @@ class AppBottomBar extends ConsumerWidget {
                               l.opPullRebase,
                               () => actions!.pull(rebase: true),
                             ),
+                            // Fetch every remote, then pull the current
+                            // branch's upstream.
+                            _Op('Pull (all remotes)', () async {
+                              await actions!.fetch();
+                              await actions.pull();
+                            }),
                           ],
                         ),
                         _OpButton(
@@ -154,17 +157,23 @@ class AppBottomBar extends ConsumerWidget {
                         BarTextButton(
                           icon: Icons.call_split,
                           label: 'Branch',
-                          onPressed: () => soon('Branch'),
+                          onPressed: path == null
+                              ? null
+                              : () => showBranchDialog(context, ref, path),
                         ),
                         BarTextButton(
                           icon: Icons.merge,
                           label: 'Merge',
-                          onPressed: () => soon('Merge'),
+                          onPressed: path == null
+                              ? null
+                              : () => showMergeDialog(context, ref, path),
                         ),
                         BarTextButton(
                           icon: Icons.inventory_2_outlined,
                           label: 'Stash',
-                          onPressed: () => soon('Stash'),
+                          onPressed: path == null
+                              ? null
+                              : () => showStashDialog(context, ref, path),
                         ),
                       ],
                     ),

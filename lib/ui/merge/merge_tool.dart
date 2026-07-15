@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
@@ -6,6 +7,7 @@ import '../../domain/git/conflict.dart';
 import '../../domain/git/diff.dart';
 import '../../state/merge_session.dart';
 import '../../state/repo_actions.dart';
+import '../../state/repo_data.dart';
 import '../../state/workspace.dart';
 
 /// Full-panel conflict resolver shown while a [MergeSession] is active. Lists
@@ -36,6 +38,15 @@ class _MergeToolState extends ConsumerState<MergeTool> {
         .replaceFile(_fileIndex, file);
   }
 
+  /// True when a text field currently has focus, so letter shortcuts (N) must
+  /// not fire — they'd be swallowed keystrokes in the hunk editor.
+  bool _isEditingText() {
+    final ctx = FocusManager.instance.primaryFocus?.context;
+    return ctx != null &&
+        (ctx.widget is EditableText ||
+            ctx.findAncestorWidgetOfExactType<EditableText>() != null);
+  }
+
   /// Selects the next file with unresolved conflicts (wraps around).
   void _nextUnresolved(MergeSession session) {
     for (var i = 1; i <= session.files.length; i++) {
@@ -55,38 +66,67 @@ class _MergeToolState extends ConsumerState<MergeTool> {
     final actions = ref.read(repoActionsProvider(widget.repoPath));
     if (_fileIndex >= session.files.length) _fileIndex = 0;
     final file = session.files[_fileIndex];
+    // The branch being merged into — the current branch.
+    final into = ref
+        .watch(repoDataProvider(widget.repoPath))
+        .valueOrNull
+        ?.branches
+        .where((b) => b.current)
+        .firstOrNull
+        ?.name;
 
-    return Container(
-      color: t.bgApp,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _Header(
-            branch: session.branch,
-            resolved: session.resolvedConflicts,
-            total: session.totalConflicts,
-            canFinish: session.allResolved,
-            onNext: session.allResolved ? null : () => _nextUnresolved(session),
-            onAbort: actions.abortMerge,
-            onFinish: () => actions.finishMerge(session),
-          ),
-          Expanded(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _FileList(
-                  files: session.files,
-                  active: _fileIndex,
-                  onSelect: (i) => setState(() => _fileIndex = i),
+    return CallbackShortcuts(
+      // N jumps to the next unresolved conflict — but not while the user is
+      // typing a custom resolution into a hunk editor.
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.keyN): () {
+          if (_isEditingText()) return;
+          if (!session.allResolved) _nextUnresolved(session);
+        },
+      },
+      child: Focus(
+        autofocus: true,
+        child: Container(
+          color: t.bgApp,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _Header(
+                branch: session.branch,
+                into: into,
+                resolved: session.resolvedConflicts,
+                total: session.totalConflicts,
+                canFinish: session.allResolved,
+                onNext: session.allResolved
+                    ? null
+                    : () => _nextUnresolved(session),
+                onAbort: actions.abortMerge,
+                onFinish: () => actions.finishMerge(session),
+              ),
+              Expanded(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _FileList(
+                      files: session.files,
+                      active: _fileIndex,
+                      onSelect: (i) => setState(() => _fileIndex = i),
+                    ),
+                    Container(width: 1, color: t.border),
+                    Expanded(
+                      child: _ConflictView(
+                        file: file,
+                        oursLabel: into == null ? 'Current' : 'Current — $into',
+                        theirsLabel: 'Incoming — ${session.branch}',
+                        onResolve: _resolve,
+                      ),
+                    ),
+                  ],
                 ),
-                Container(width: 1, color: t.border),
-                Expanded(
-                  child: _ConflictView(file: file, onResolve: _resolve),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -94,6 +134,7 @@ class _MergeToolState extends ConsumerState<MergeTool> {
 
 class _Header extends StatelessWidget {
   final String branch;
+  final String? into;
   final int resolved;
   final int total;
   final bool canFinish;
@@ -102,6 +143,7 @@ class _Header extends StatelessWidget {
   final VoidCallback onFinish;
   const _Header({
     required this.branch,
+    required this.into,
     required this.resolved,
     required this.total,
     required this.canFinish,
@@ -122,10 +164,10 @@ class _Header extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(Icons.merge, size: 16, color: t.warning),
+          Icon(Icons.warning_amber_rounded, size: 16, color: t.warning),
           const SizedBox(width: 8),
           Text(
-            'Merging «$branch»',
+            into == null ? 'Merge $branch' : 'Merge $branch → $into',
             style: TextStyle(
               color: t.textPrimary,
               fontSize: 13,
@@ -211,8 +253,15 @@ class _FileList extends StatelessWidget {
 
 class _ConflictView extends StatelessWidget {
   final ConflictFile file;
+  final String oursLabel;
+  final String theirsLabel;
   final void Function(int hunk, Resolution r, {List<String>? lines}) onResolve;
-  const _ConflictView({required this.file, required this.onResolve});
+  const _ConflictView({
+    required this.file,
+    required this.oursLabel,
+    required this.theirsLabel,
+    required this.onResolve,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -225,6 +274,8 @@ class _ConflictView extends StatelessWidget {
             _HunkCard(
               key: ValueKey('$i'),
               hunk: hunk,
+              oursLabel: oursLabel,
+              theirsLabel: theirsLabel,
               resolution: file.resolutions[i],
               custom: file.custom[i],
               onAccept: (r, {lines}) => onResolve(i, r, lines: lines),
@@ -249,12 +300,16 @@ class _ConflictView extends StatelessWidget {
 
 class _HunkCard extends StatefulWidget {
   final ConflictHunk hunk;
+  final String oursLabel;
+  final String theirsLabel;
   final Resolution? resolution;
   final List<String>? custom;
   final void Function(Resolution r, {List<String>? lines}) onAccept;
   const _HunkCard({
     super.key,
     required this.hunk,
+    required this.oursLabel,
+    required this.theirsLabel,
     required this.resolution,
     required this.custom,
     required this.onAccept,
@@ -293,25 +348,54 @@ class _HunkCardState extends State<_HunkCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Hunk header: original file position + resolution state badge.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(6, 4, 6, 2),
+              child: Row(
+                children: [
+                  Text(
+                    '@@ line ${hunk.line} @@',
+                    style: TextStyle(
+                      color: t.textFaint,
+                      fontSize: 11,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                  const Spacer(),
+                  if (res == Resolution.both)
+                    Text(
+                      '⚠ needs review',
+                      style: TextStyle(color: t.warning, fontSize: 11),
+                    )
+                  else if (res != null)
+                    Text(
+                      '✓ resolved',
+                      style: TextStyle(color: t.success, fontSize: 11),
+                    ),
+                ],
+              ),
+            ),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Current side carries the success tint, incoming the accent,
+                // matching the spec's zone colours.
                 _side(
                   t,
-                  'OURS',
+                  widget.oursLabel,
                   hunk.ours,
                   hunk.theirs,
                   t.addWord,
-                  t.accent,
+                  t.success,
                   Resolution.ours,
                 ),
                 _side(
                   t,
-                  'THEIRS',
+                  widget.theirsLabel,
                   hunk.theirs,
                   hunk.ours,
                   t.delWord,
-                  t.success,
+                  t.accent,
                   Resolution.theirs,
                 ),
               ],

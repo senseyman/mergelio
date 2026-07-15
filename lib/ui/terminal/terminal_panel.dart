@@ -3,12 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:xterm/xterm.dart';
 
 import '../../core/tokens.dart';
+import '../../state/settings_controller.dart';
 import '../../state/terminal.dart';
 import '../../state/workspace.dart';
 
 /// The dockable terminal: a header with the repo path + close button, and an
 /// xterm view bound to the active repo's PTY session. Shown only when a repo is
-/// open and [terminalVisibleProvider] is on; toggled by ⌘`.
+/// open and the persisted terminalOpen setting is on; toggled by ⌘`.
 class TerminalPanel extends ConsumerWidget {
   const TerminalPanel({super.key});
 
@@ -18,15 +19,27 @@ class TerminalPanel extends ConsumerWidget {
     final tab = ref.watch(workspaceProvider.select((w) => w.activeTab));
     if (tab == null) return const SizedBox.shrink();
     final session = ref.watch(terminalSessionProvider(tab.path));
+    final height = ref.watch(settingsProvider.select((s) => s.terminalHeight));
+    final ctl = ref.read(settingsProvider.notifier);
 
     return Container(
-      height: 240,
+      height: height,
       decoration: BoxDecoration(
         color: t.bgPanel,
         border: Border(top: BorderSide(color: t.border)),
       ),
       child: Column(
         children: [
+          // Drag strip along the top edge resizes the dock (persisted).
+          MouseRegion(
+            cursor: SystemMouseCursors.resizeRow,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onVerticalDragUpdate: (d) =>
+                  ctl.setTerminalHeight(height - d.delta.dy),
+              child: const SizedBox(height: 6, width: double.infinity),
+            ),
+          ),
           Container(
             height: 30,
             padding: const EdgeInsets.only(left: 12, right: 6),
@@ -52,8 +65,9 @@ class TerminalPanel extends ConsumerWidget {
                   tooltip: 'Close terminal (⌘`)',
                   icon: const Icon(Icons.close, size: 15),
                   color: t.textMuted,
-                  onPressed: () =>
-                      ref.read(terminalVisibleProvider.notifier).state = false,
+                  onPressed: () => ref
+                      .read(settingsProvider.notifier)
+                      .setTerminalOpen(false),
                 ),
               ],
             ),

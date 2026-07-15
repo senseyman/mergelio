@@ -33,6 +33,22 @@ class SettingsController extends StateNotifier<AppSettings> {
   void setTelemetryEnabled(bool v) =>
       _update(state.copyWith(telemetryEnabled: v));
 
+  /// Group-switcher style: 'dropdown' | 'pills' | 'rail'.
+  void setGroupStyle(String s) => _update(state.copyWith(groupStyle: s));
+
+  void toggleFilesAsTree() =>
+      _update(state.copyWith(filesAsTree: !state.filesAsTree));
+
+  void toggleTerminal() =>
+      _update(state.copyWith(terminalOpen: !state.terminalOpen));
+  void setTerminalOpen(bool v) => _update(state.copyWith(terminalOpen: v));
+  void setTerminalHeight(double h) =>
+      _update(state.copyWith(terminalHeight: h.clamp(140, 520)));
+
+  /// Persists the window size (min-size clamped by the window manager).
+  void setWindowSize(double w, double h) =>
+      _update(state.copyWith(windowWidth: w, windowHeight: h));
+
   /// UI zoom, clamped to the 100–200% accessibility range.
   void setUiScale(double v) =>
       _update(state.copyWith(uiScale: v.clamp(1.0, 2.0)));

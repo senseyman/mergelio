@@ -16,6 +16,7 @@ class RepoData with _$RepoData {
     @Default([]) List<Commit> commits,
     @Default([]) List<Branch> branches,
     @Default([]) List<String> remotes,
+    @Default([]) List<RemoteBranch> remoteBranches,
     @Default([]) List<String> tags,
     @Default([]) List<Stash> stashes,
     @Default([]) List<WorkingFile> working,
@@ -37,26 +38,49 @@ final commitFilesProvider = FutureProvider.family
       return reader.commitFiles(key.sha);
     });
 
+/// Per-repo cache of the last squash-link inference, keyed by branch tips.
+final _squashCache = <String, ({String sig, List<SquashLink> links})>{};
+
 final repoDataProvider = FutureProvider.family<RepoData, String>((
   ref,
   path,
 ) async {
   final reader = GitReader(ref.watch(gitServiceProvider), path);
   final results = await Future.wait([
-    // Interim cap; lift once the graph gets windowed rendering.
-    reader.commits(maxCount: 5000),
+    // Load up to the §12 target of 50k commits — the list is virtualised and
+    // lane layout / search stay within budget at that size (perf_benchmark).
+    // The cap still bounds pathological monorepos.
+    reader.commits(maxCount: 50000),
     reader.branches(),
     reader.remotes(),
     reader.tags(),
     reader.stashes(),
     reader.status(),
+    reader.remoteBranches(),
   ]);
   final commits = assignLanes(results[0] as List<Commit>);
   final branches = assignBranchColors(results[1] as List<Branch>, commits);
   final current = branches.where((b) => b.current);
-  final squash = current.isEmpty
-      ? const <SquashLink>[]
-      : await reader.squashLinks(branches, into: current.first.name);
+  // Squash-link inference spawns ~5 git subprocesses per branch — very heavy.
+  // Cache it per repo, keyed by the branch tips + current branch, so a
+  // working-tree-only refresh (tips unchanged) reuses the result instead of
+  // re-running the whole storm.
+  final List<SquashLink> squash;
+  if (current.isEmpty) {
+    squash = const [];
+  } else {
+    final sig = [
+      current.first.name,
+      for (final b in branches) '${b.name}@${b.tip}',
+    ].join(',');
+    final cached = _squashCache[path];
+    if (cached != null && cached.sig == sig) {
+      squash = cached.links;
+    } else {
+      squash = await reader.squashLinks(branches, into: current.first.name);
+      _squashCache[path] = (sig: sig, links: squash);
+    }
+  }
   return RepoData(
     commits: commits,
     branches: branches,
@@ -64,6 +88,7 @@ final repoDataProvider = FutureProvider.family<RepoData, String>((
     tags: results[3] as List<String>,
     stashes: results[4] as List<Stash>,
     working: results[5] as List<WorkingFile>,
+    remoteBranches: results[6] as List<RemoteBranch>,
     squashLinks: squash,
   );
 });

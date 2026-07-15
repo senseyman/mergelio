@@ -176,6 +176,16 @@ class GitWriter {
   /// Checks out [ref] (a branch or commit).
   Future<void> checkout(String ref) => _ok(['checkout', ref], 'git checkout');
 
+  /// Creates a local branch [branch] tracking `[remote]/[branch]` and switches
+  /// to it — the standard "check out a remote branch" flow.
+  Future<void> checkoutTracking(String remote, String branch) => _ok([
+    'switch',
+    '-c',
+    branch,
+    '--track',
+    '$remote/$branch',
+  ], 'git switch --track');
+
   Future<void> renameBranch(String from, String to) =>
       _ok(['branch', '-m', from, to], 'git branch -m');
 
@@ -233,9 +243,12 @@ class GitWriter {
 
   // --- Stash ops ------------------------------------------------------------
 
-  Future<void> stashPush({String? message}) => _ok([
+  /// [stagedOnly] stashes only what is in the index (`--staged`), leaving
+  /// unstaged work in the tree.
+  Future<void> stashPush({String? message, bool stagedOnly = false}) => _ok([
     'stash',
     'push',
+    if (stagedOnly) '--staged',
     if (message != null) ...['-m', message],
   ], 'git stash push');
 

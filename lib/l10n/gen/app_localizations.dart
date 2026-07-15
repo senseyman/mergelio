@@ -314,6 +314,12 @@ abstract class AppLocalizations {
   /// **'Zoom'**
   String get prefsZoom;
 
+  /// No description provided for @prefsGroupStyle.
+  ///
+  /// In en, this message translates to:
+  /// **'Group switcher'**
+  String get prefsGroupStyle;
+
   /// No description provided for @prefsPullStrategy.
   ///
   /// In en, this message translates to:

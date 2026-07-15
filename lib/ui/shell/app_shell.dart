@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../state/auto_fetch.dart';
 import '../../state/feedback.dart';
 import '../../state/operation_journal.dart';
-import '../../state/terminal.dart';
+import '../../state/profile_theme_sync.dart';
+import '../../state/repo_watcher.dart';
+import '../../state/settings_controller.dart';
 import '../../state/workspace.dart';
 import '../terminal/terminal_panel.dart';
 import '../common/progress_top_bar.dart';
@@ -25,8 +27,11 @@ class AppShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final hasRepo = ref.watch(workspaceProvider.select((w) => w.hasRepo));
-    // Keep the auto-fetch scheduler alive for the app's lifetime.
+    // Keep the auto-fetch scheduler, per-profile theme sync and the disk
+    // watcher alive for the app's lifetime.
     ref.watch(autoFetchProvider);
+    ref.watch(profileThemeSyncProvider);
+    ref.watch(repoWatcherProvider);
 
     return Scaffold(
       body: KeyboardShortcuts(
@@ -38,12 +43,29 @@ class AppShell extends ConsumerWidget {
                 const AppTabBar(),
                 Expanded(
                   child: hasRepo
-                      ? Column(
+                      ? Row(
                           children: [
-                            const Expanded(child: WorkspaceView()),
-                            if (ref.watch(terminalVisibleProvider))
-                              const TerminalPanel(),
-                            const AppBottomBar(),
+                            // 'rail' group-switcher style docks a vertical
+                            // group rail at the far left of the workspace.
+                            if (ref.watch(
+                                  settingsProvider.select((s) => s.groupStyle),
+                                ) ==
+                                'rail')
+                              const GroupRail(),
+                            Expanded(
+                              child: Column(
+                                children: [
+                                  const Expanded(child: WorkspaceView()),
+                                  if (ref.watch(
+                                    settingsProvider.select(
+                                      (st) => st.terminalOpen,
+                                    ),
+                                  ))
+                                    const TerminalPanel(),
+                                  const AppBottomBar(),
+                                ],
+                              ),
+                            ),
                           ],
                         )
                       : const WelcomeScreen(),

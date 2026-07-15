@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import 'git/models.dart';
 
 /// Filters applied alongside the free-text query in global search.
@@ -36,6 +38,26 @@ bool matchesCommit(Commit c, CommitQuery q) {
 
 List<Commit> searchCommits(List<Commit> commits, CommitQuery q) =>
     q.isEmpty ? const [] : commits.where((c) => matchesCommit(c, q)).toList();
+
+/// Threshold above which match computation moves to a background isolate so a
+/// keystroke on a huge (50k+) history never blocks the UI thread.
+const searchIsolateThreshold = 5000;
+
+Set<String> _matchShasSync((List<Commit>, CommitQuery) args) => {
+  for (final c in args.$1)
+    if (matchesCommit(c, args.$2)) c.sha,
+};
+
+/// Shas of commits matching [q]. Small lists compute synchronously (isolate
+/// spawn + copy would cost more than the scan); large ones go through
+/// [compute] off the UI isolate.
+Future<Set<String>> computeMatchShas(List<Commit> commits, CommitQuery q) {
+  if (q.isEmpty) return Future.value(const {});
+  if (commits.length < searchIsolateThreshold) {
+    return Future.value(_matchShasSync((commits, q)));
+  }
+  return compute(_matchShasSync, (commits, q));
+}
 
 /// Case-insensitive subsequence fuzzy score for the command palette. Returns
 /// null when [pattern] is not a subsequence of [text]; otherwise a score where

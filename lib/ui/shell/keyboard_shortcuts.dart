@@ -2,16 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../domain/search.dart';
 import '../../state/feedback.dart';
-import '../../state/graph_selection.dart';
 import '../../state/repo_actions.dart';
-import '../../state/repo_data.dart';
-import '../../state/search.dart';
 import '../../state/settings_controller.dart';
-import '../../state/terminal.dart';
 import '../../state/workspace.dart';
-import '../palette/command_palette.dart';
+import '../preferences/preferences_dialog.dart';
+import 'global_actions.dart';
+import 'repo_op_dialogs.dart';
 
 /// Global shortcut dispatcher wrapping the app. Only the shortcuts meaningful
 /// at this stage are wired; the rest arrive with their features (command
@@ -36,43 +33,17 @@ class KeyboardShortcuts extends ConsumerWidget {
 
     void toggleTerminal() {
       if (ref.read(workspaceProvider).activeTab == null) return;
-      final n = ref.read(terminalVisibleProvider.notifier);
-      n.state = !n.state;
+      ref.read(settingsProvider.notifier).toggleTerminal();
     }
 
     final settings = ref.read(settingsProvider.notifier);
 
-    void openSearch() {
-      if (ref.read(workspaceProvider).activeTab == null) return;
-      ref.read(searchQueryProvider.notifier).state = const CommitQuery(
-        text: '',
-      );
-    }
+    void openSearch() => openGlobalSearch(ref);
+    void openPalette() => openGlobalPalette(context, ref);
 
-    void openPalette() {
+    void createBranch() {
       final path = ref.read(workspaceProvider).activeTab?.path;
-      if (path == null) return;
-      final actions = ref.read(repoActionsProvider(path));
-      final data = ref.read(repoDataProvider(path)).valueOrNull;
-      final cmds = <PaletteCommand>[
-        PaletteCommand('Fetch', Icons.download_outlined, () => actions.fetch()),
-        PaletteCommand('Pull', Icons.south_west, () => actions.pull()),
-        PaletteCommand('Push', Icons.north_east, () => actions.push()),
-        PaletteCommand('Global search', Icons.search, () async => openSearch()),
-        for (final b in data?.branches ?? const [])
-          PaletteCommand(
-            'Checkout: ${b.name}',
-            Icons.call_split,
-            () => actions.checkout(b.name),
-          ),
-        for (final c in (data?.commits ?? const []).take(200))
-          PaletteCommand(
-            'Fly to: ${c.shortSha}  ${c.message}',
-            Icons.my_location,
-            () async => ref.read(selectedCommitProvider.notifier).state = c.sha,
-          ),
-      ];
-      showCommandPalette(context, commands: cmds);
+      if (path != null) showBranchDialog(context, ref, path);
     }
 
     void dismissTopToast() {
@@ -94,7 +65,20 @@ class KeyboardShortcuts extends ConsumerWidget {
       bindings: {
         ...chord(LogicalKeyboardKey.backslash, toggleLeft),
         ...chord(LogicalKeyboardKey.keyK, openPalette),
+        // ⌘⇧P — palette alias for muscle memory from other editors.
+        const SingleActivator(LogicalKeyboardKey.keyP, meta: true, shift: true):
+            openPalette,
+        const SingleActivator(
+          LogicalKeyboardKey.keyP,
+          control: true,
+          shift: true,
+        ): openPalette,
         ...chord(LogicalKeyboardKey.keyF, openSearch),
+        ...chord(LogicalKeyboardKey.keyB, createBranch),
+        ...chord(
+          LogicalKeyboardKey.comma,
+          () => showPreferencesDialog(context),
+        ),
         ...chord(LogicalKeyboardKey.backquote, toggleTerminal),
         // Zoom: ⌘/Ctrl with = (also + on many layouts), - and 0 to reset.
         ...chord(LogicalKeyboardKey.equal, settings.zoomIn),

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
 import '../../domain/git/models.dart';
+import '../../state/graph_selection.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
 import '../../state/settings_controller.dart';
@@ -160,12 +161,12 @@ class _Sections extends ConsumerWidget {
           id: 'remotes',
           icon: Icons.cloud_outlined,
           label: 'Remotes',
-          count: data.remotes.length,
+          count: data.remoteBranches.length,
           emptyLabel: 'No remotes',
           open: isOpen('remotes'),
           onToggle: () => ctl.toggleSection('remotes'),
           children: [
-            for (final r in data.remotes)
+            for (final r in data.remotes) ...[
               _LeafRow(
                 icon: Icons.dns_outlined,
                 label: r,
@@ -173,6 +174,17 @@ class _Sections extends ConsumerWidget {
                     ? null
                     : (at) => _remoteMenu(context, actions, r, at),
               ),
+              for (final rb in data.remoteBranches.where((b) => b.remote == r))
+                _RemoteBranchRow(
+                  rb: rb,
+                  onCheckout: actions == null
+                      ? null
+                      : () => actions.checkoutRemote(rb),
+                  onMenu: actions == null
+                      ? null
+                      : (at) => _remoteBranchMenu(context, actions, rb, at),
+                ),
+            ],
           ],
         ),
         _Section(
@@ -439,6 +451,11 @@ class _BranchRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final t = context.tokens;
     final leaf = branch.name.split('/').last;
+    // Row is selected when its tip is the commit currently highlighted in the
+    // graph — a single click on the branch selects (and flies to) that tip.
+    final selected =
+        branch.tip.isNotEmpty &&
+        ref.watch(selectedCommitProvider) == branch.tip;
     final row = GestureDetector(
       onDoubleTap: branch.current
           ? null
@@ -451,8 +468,12 @@ class _BranchRow extends ConsumerWidget {
       onSecondaryTapUp: (d) => _menu(context, ref, d.globalPosition),
       child: InkWell(
         hoverColor: t.hover,
-        onTap: () {},
-        child: Padding(
+        onTap: branch.tip.isEmpty
+            ? null
+            : () =>
+                  ref.read(selectedCommitProvider.notifier).state = branch.tip,
+        child: Container(
+          color: selected ? t.active : null,
           padding: EdgeInsets.fromLTRB(_indent(depth), 5, 10, 5),
           child: Row(
             children: [
@@ -627,6 +648,104 @@ class _TrackBadge extends StatelessWidget {
       ),
     );
   }
+}
+
+/// One remote-tracking branch row, indented under its remote. Double-click or
+/// the context menu checks it out (switching to the local branch or creating a
+/// tracking one). A subtle dot marks branches that already have a local copy.
+class _RemoteBranchRow extends ConsumerWidget {
+  final RemoteBranch rb;
+  final VoidCallback? onCheckout;
+  final void Function(Offset at)? onMenu;
+  const _RemoteBranchRow({
+    required this.rb,
+    required this.onCheckout,
+    required this.onMenu,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = context.tokens;
+    final selected =
+        rb.tip.isNotEmpty && ref.watch(selectedCommitProvider) == rb.tip;
+    return GestureDetector(
+      onSecondaryTapUp: onMenu == null
+          ? null
+          : (d) => onMenu!(d.globalPosition),
+      onDoubleTap: onCheckout,
+      child: Tooltip(
+        message: rb.hasLocal
+            ? 'Click to show its tip · double-click to switch to ${rb.branch}'
+            : 'Click to show its tip · double-click to check out ${rb.name}',
+        waitDuration: const Duration(milliseconds: 600),
+        child: InkWell(
+          hoverColor: t.hover,
+          onTap: rb.tip.isEmpty
+              ? null
+              : () => ref.read(selectedCommitProvider.notifier).state = rb.tip,
+          child: Container(
+            color: selected ? t.active : null,
+            padding: EdgeInsets.fromLTRB(_indent(1), 5, 10, 5),
+            child: Row(
+              children: [
+                Icon(Icons.cloud_outlined, size: 13, color: t.textFaint),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    rb.branch,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: t.textMuted, fontSize: 12.5),
+                  ),
+                ),
+                if (rb.hasLocal)
+                  Tooltip(
+                    message: 'Has a local branch',
+                    child: Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: t.accent,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+Future<void> _remoteBranchMenu(
+  BuildContext context,
+  RepoActions actions,
+  RemoteBranch rb,
+  Offset at,
+) async {
+  await showContextMenu<void>(
+    context: context,
+    position: at,
+    items: [
+      PopupMenuItem(
+        height: 34,
+        onTap: () => actions.checkoutRemote(rb),
+        child: Text(
+          rb.hasLocal ? 'Switch to ${rb.branch}' : 'Check out ${rb.name}',
+          style: const TextStyle(fontSize: 13),
+        ),
+      ),
+      PopupMenuItem(
+        height: 34,
+        onTap: () => actions.merge(rb.name),
+        child: Text(
+          'Merge ${rb.name} into current',
+          style: const TextStyle(fontSize: 13),
+        ),
+      ),
+    ],
+  );
 }
 
 Future<void> _remoteMenu(
