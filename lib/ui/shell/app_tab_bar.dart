@@ -29,8 +29,13 @@ class AppTabBar extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          if (ws.tabs.isNotEmpty && style == 'dropdown') _GroupDropdown(ws: ws),
-          if (ws.tabs.isNotEmpty && style == 'pills') _GroupPills(ws: ws),
+          // Switcher shows even with no repos so a group can be created up
+          // front (repos opened while it is active then join it).
+          if (style == 'dropdown') _GroupDropdown(ws: ws),
+          if (style == 'pills') _GroupPills(ws: ws),
+          // Rail style docks its switcher in the workspace, which is hidden on
+          // the empty welcome state — fall back to the dropdown there.
+          if (style == 'rail' && ws.tabs.isEmpty) _GroupDropdown(ws: ws),
           if (ws.tabs.isNotEmpty && style != 'rail')
             Container(
               width: 1,

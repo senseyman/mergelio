@@ -39,6 +39,7 @@ void main() {
               profiles: [
                 Profile(
                   id: '1',
+                  label: 'Work',
                   name: 'Maria K',
                   email: 'maria@work.com',
                   colorValue: 0xFF112233,

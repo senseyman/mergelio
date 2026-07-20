@@ -10,8 +10,13 @@ import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
 
 void main() {
-  Profile p(String id) =>
-      Profile(id: id, name: id, email: '$id@e.com', colorValue: 0xFF000000);
+  Profile p(String id) => Profile(
+    id: id,
+    label: id,
+    name: id,
+    email: '$id@e.com',
+    colorValue: 0xFF000000,
+  );
 
   test('switching profiles snapshots and restores each theme', () async {
     final kv = InMemoryKeyValueStore();

@@ -5,10 +5,12 @@ import '../../core/theme.dart';
 import '../../core/tokens.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/feedback.dart';
+import '../../state/profiles.dart';
 import '../../state/settings_controller.dart';
 import '../../state/workspace.dart';
 import '../brand/mergelio_mark.dart';
 import '../preferences/preferences_dialog.dart';
+import '../profiles/profiles_dialog.dart';
 import 'global_actions.dart';
 import 'shell_widgets.dart';
 
@@ -84,27 +86,37 @@ class AppToolbar extends ConsumerWidget {
             onPressed: () => showPreferencesDialog(context),
           ),
           const SizedBox(width: 4),
-          Tooltip(
-            message: l.tooltipProfiles,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(t.rButton),
-              onTap: () => soon('Profiles'),
-              child: Padding(
-                padding: const EdgeInsets.all(6),
-                child: CircleAvatar(
-                  radius: 10,
-                  backgroundColor: t.accent,
-                  child: const Text(
-                    'M',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
+          Builder(
+            builder: (_) {
+              final active = ref.watch(profilesProvider).active;
+              final initial = active != null && active.label.trim().isNotEmpty
+                  ? active.label.trim()[0].toUpperCase()
+                  : 'M';
+              return Tooltip(
+                message: l.tooltipProfiles,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(t.rButton),
+                  onTap: () => showProfilesDialog(context),
+                  child: Padding(
+                    padding: const EdgeInsets.all(6),
+                    child: CircleAvatar(
+                      radius: 10,
+                      backgroundColor: active != null
+                          ? Color(active.colorValue)
+                          : t.accent,
+                      child: Text(
+                        initial,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
         ],
       ),

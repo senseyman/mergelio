@@ -8,18 +8,29 @@ import '../data/kv_store.dart';
 /// system keychain (added with the secure-storage integration), never here.
 class Profile {
   final String id;
+
+  /// Display name of the profile itself (e.g. "Work", "Personal"). Distinct
+  /// from [name], the git author identity.
+  final String label;
   final String name;
   final String email;
   final int colorValue;
   const Profile({
     required this.id,
+    required this.label,
     required this.name,
     required this.email,
     required this.colorValue,
   });
 
-  Profile copyWith({String? name, String? email, int? colorValue}) => Profile(
+  Profile copyWith({
+    String? label,
+    String? name,
+    String? email,
+    int? colorValue,
+  }) => Profile(
     id: id,
+    label: label ?? this.label,
     name: name ?? this.name,
     email: email ?? this.email,
     colorValue: colorValue ?? this.colorValue,
@@ -27,6 +38,7 @@ class Profile {
 
   Map<String, dynamic> toJson() => {
     'id': id,
+    'label': label,
     'name': name,
     'email': email,
     'color': colorValue,
@@ -34,6 +46,8 @@ class Profile {
 
   factory Profile.fromJson(Map<String, dynamic> j) => Profile(
     id: j['id'] as String,
+    // Legacy profiles had no label — fall back to the git name.
+    label: (j['label'] ?? j['name']) as String,
     name: j['name'] as String,
     email: j['email'] as String,
     colorValue: j['color'] as int,

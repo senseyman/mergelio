@@ -2,8 +2,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/data/kv_store.dart';
 import 'package:mergelio/state/profiles.dart';
 
-Profile _p(String id, String name) =>
-    Profile(id: id, name: name, email: '$name@e.com', colorValue: 0xFF112233);
+Profile _p(String id, String name) => Profile(
+  id: id,
+  label: name,
+  name: name,
+  email: '$name@e.com',
+  colorValue: 0xFF112233,
+);
 
 void main() {
   group('ProfilesController', () {

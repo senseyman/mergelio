@@ -5,12 +5,15 @@ import '../../state/auto_fetch.dart';
 import '../../state/feedback.dart';
 import '../../state/operation_journal.dart';
 import '../../state/profile_theme_sync.dart';
+import '../../state/profile_workspace_sync.dart';
+import '../../state/profiles.dart';
 import '../../state/repo_watcher.dart';
 import '../../state/settings_controller.dart';
 import '../../state/workspace.dart';
 import '../terminal/terminal_panel.dart';
 import '../common/progress_top_bar.dart';
 import '../common/toast_overlay.dart';
+import '../profiles/first_profile_screen.dart';
 import '../welcome/welcome_screen.dart';
 import '../workspace/workspace_view.dart';
 import 'app_bottom_bar.dart';
@@ -26,12 +29,20 @@ class AppShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final hasRepo = ref.watch(workspaceProvider.select((w) => w.hasRepo));
-    // Keep the auto-fetch scheduler, per-profile theme sync and the disk
-    // watcher alive for the app's lifetime.
+    // Keep the auto-fetch scheduler, per-profile theme + workspace sync and the
+    // disk watcher alive for the app's lifetime.
     ref.watch(autoFetchProvider);
     ref.watch(profileThemeSyncProvider);
+    ref.watch(profileWorkspaceSyncProvider);
     ref.watch(repoWatcherProvider);
+
+    // No profile yet → block on the mandatory first-profile screen. Everything
+    // (groups, repos) belongs to a profile, so one must exist first.
+    if (ref.watch(profilesProvider.select((s) => s.active == null))) {
+      return const FirstProfileScreen();
+    }
+
+    final hasRepo = ref.watch(workspaceProvider.select((w) => w.hasRepo));
 
     return Scaffold(
       body: KeyboardShortcuts(

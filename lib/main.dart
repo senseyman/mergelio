@@ -47,7 +47,12 @@ Future<void> main() async {
     settings = await settingsRepo.load();
     recents = await recentsRepo.load();
     profiles = await ProfilesController.load(kv);
-    session = await WorkspaceController.restoreSession(kv);
+    // Workspaces are per-profile: restore the active profile's session (an
+    // empty one until the first profile is created).
+    final activeProfile = profiles.activeId;
+    session = activeProfile != null
+        ? await WorkspaceController.restoreSessionFor(kv, activeProfile)
+        : const WorkspaceSession();
     // Scan each restored repo's journal: an op still pending means the app
     // stopped mid-operation last time, so warn the user on launch.
     final notices = <String>[];
@@ -87,7 +92,7 @@ Future<void> main() async {
           (ref) => ProfilesController(kv, profiles),
         ),
         workspaceProvider.overrideWith((ref) {
-          final c = WorkspaceController(kv);
+          final c = WorkspaceController(kv, profiles.activeId);
           c.applySession(session);
           return c;
         }),

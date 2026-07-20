@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/tokens.dart';
 import '../../state/profiles.dart';
 import '../common/dialogs.dart';
+import 'profile_form.dart';
 
 /// Manage commit-identity profiles: list, add, edit, delete, and pick the
 /// active one (which drives commit author name/email).
@@ -58,11 +59,11 @@ class _ProfilesBody extends ConsumerWidget {
               ),
             ),
             title: Text(
-              p.name,
+              p.label,
               style: TextStyle(color: t.textPrimary, fontSize: 13),
             ),
             subtitle: Text(
-              p.email,
+              '${p.name} · ${p.email}',
               style: TextStyle(color: t.textFaint, fontSize: 11.5),
             ),
             trailing: Row(
@@ -87,7 +88,7 @@ class _ProfilesBody extends ConsumerWidget {
                   onPressed: () async {
                     final ok = await showConfirmDialog(
                       context,
-                      title: 'Delete profile ${p.name}?',
+                      title: 'Delete profile ${p.label}?',
                       body:
                           'The profile is removed. Any keys it references in '
                           'the keychain are left untouched.',
@@ -118,33 +119,32 @@ class _ProfilesBody extends ConsumerWidget {
     Profile? existing,
     int count,
   ) async {
-    final name = await showInputDialog(
+    final data = await showProfileFormDialog(
       context,
-      title: existing == null ? 'New profile — name' : 'Edit name',
-      label: 'Name',
-      initial: existing?.name ?? '',
+      initial: existing == null
+          ? null
+          : (label: existing.label, name: existing.name, email: existing.email),
     );
-    if (name == null) return;
-    if (!context.mounted) return;
-    final email = await showInputDialog(
-      context,
-      title: 'Email',
-      label: 'Email',
-      initial: existing?.email ?? '',
-    );
-    if (email == null) return;
+    if (data == null) return;
 
     if (existing == null) {
       ctl.add(
         Profile(
           id: 'p${DateTime.now().microsecondsSinceEpoch}',
-          name: name,
-          email: email,
+          label: data.label,
+          name: data.name,
+          email: data.email,
           colorValue: _palette[count % _palette.length],
         ),
       );
     } else {
-      ctl.update(existing.copyWith(name: name, email: email));
+      ctl.update(
+        existing.copyWith(
+          label: data.label,
+          name: data.name,
+          email: data.email,
+        ),
+      );
     }
   }
 }

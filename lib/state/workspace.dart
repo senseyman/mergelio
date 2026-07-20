@@ -81,9 +81,16 @@ class WorkspaceSession {
 
 class WorkspaceController extends StateNotifier<WorkspaceState> {
   final KeyValueStore? _store;
-  WorkspaceController([this._store]) : super(const WorkspaceState());
 
-  static const _key = 'openTabs';
+  /// Active profile whose workspace this holds. null = "no profile" (the
+  /// legacy/global key), used before any profile exists.
+  String? _profileId;
+  WorkspaceController([this._store, this._profileId])
+    : super(const WorkspaceState());
+
+  static const _baseKey = 'openTabs';
+  String get _storageKey =>
+      _profileId == null ? _baseKey : '$_baseKey:$_profileId';
   int _nextId = 1;
   int _nextGroupId = 1;
 
@@ -101,8 +108,20 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
 
   /// Restores the persisted session. Reads both the current object format and
   /// the legacy plain path list from earlier versions.
-  static Future<WorkspaceSession> restoreSession(KeyValueStore store) async {
-    final raw = await store.get(_key);
+  static Future<WorkspaceSession> restoreSession(KeyValueStore store) =>
+      _restore(store, _baseKey);
+
+  /// Restores the session persisted for a specific profile.
+  static Future<WorkspaceSession> restoreSessionFor(
+    KeyValueStore store,
+    String profileId,
+  ) => _restore(store, '$_baseKey:$profileId');
+
+  static Future<WorkspaceSession> _restore(
+    KeyValueStore store,
+    String key,
+  ) async {
+    final raw = await store.get(key);
     if (raw == null) return const WorkspaceSession();
     final decoded = jsonDecode(raw);
     if (decoded is List) {
@@ -159,10 +178,21 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
     _persist();
   }
 
+  /// Switches this controller to [profileId]'s workspace: clears the current
+  /// tabs/groups and applies the profile's restored [session]. Subsequent
+  /// mutations persist under that profile's key.
+  void useProfile(String profileId, WorkspaceSession session) {
+    _profileId = profileId;
+    _nextId = 1;
+    _nextGroupId = 1;
+    state = const WorkspaceState();
+    applySession(session);
+  }
+
   void _persist() {
     if (_restoring) return;
     _store?.put(
-      _key,
+      _storageKey,
       jsonEncode({
         'tabs': [
           for (final t in state.tabs) {'path': t.path, 'group': t.groupId},

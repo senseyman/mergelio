@@ -66,7 +66,7 @@ class AppStatusBar extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(width: 6),
-                  Text(profile?.name ?? 'No profile'),
+                  Text(profile?.label ?? 'No profile'),
                 ],
               ),
             ),
