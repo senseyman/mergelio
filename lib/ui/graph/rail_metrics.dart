@@ -3,7 +3,21 @@
 /// widgets never disagree.
 class RailMetrics {
   final bool compact;
-  const RailMetrics({this.compact = false});
+
+  /// Hard width of the branch-name gutter drawn to the left of the rail (when
+  /// the Branch column is enabled). Branch names ellipsize within it.
+  final double branchWidth;
+
+  /// Fixed width of the rail column, in px. `0` means auto-size to the widest
+  /// visible lane; any positive value is honoured exactly, clipping the graph
+  /// when it needs more lanes than fit.
+  final double railFixedWidth;
+
+  const RailMetrics({
+    this.compact = false,
+    this.branchWidth = 116,
+    this.railFixedWidth = 0,
+  });
 
   static const double laneWidth = 20;
   static const double pad = 16;
@@ -13,8 +27,10 @@ class RailMetrics {
 
   double laneX(int lane) => pad + lane * laneWidth;
 
-  /// Width of the rail column when [maxLane] is the highest visible lane.
-  double railWidth(int maxLane) => pad * 2 + maxLane * laneWidth;
+  /// Width of the rail column. Uses [railFixedWidth] when set, otherwise
+  /// auto-sizes to fit [maxLane], the highest visible lane, plus padding.
+  double railWidth(int maxLane) =>
+      railFixedWidth > 0 ? railFixedWidth : pad * 2 + maxLane * laneWidth;
 
   double nodeRadius({required bool merge}) => merge ? 8 : 7;
   double centerRadius({required bool merge}) => merge ? 3 : 2.5;

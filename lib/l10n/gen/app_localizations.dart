@@ -476,6 +476,12 @@ abstract class AppLocalizations {
   /// **'Hide tags'**
   String get filterHideTags;
 
+  /// No description provided for @menuCheckout.
+  ///
+  /// In en, this message translates to:
+  /// **'Checkout this commit'**
+  String get menuCheckout;
+
   /// No description provided for @menuCreateBranch.
   ///
   /// In en, this message translates to:

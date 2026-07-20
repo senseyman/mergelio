@@ -111,4 +111,47 @@ void main() {
       );
     },
   );
+
+  test(
+    'resetToRemote drops unpushed commits, then undo restores them',
+    () async {
+      // Publish main to a bare origin, then land an unpushed local commit.
+      final remote = await Directory.systemTemp.createTemp('mergelio_remote_');
+      addTearDown(() async {
+        if (await remote.exists()) await remote.delete(recursive: true);
+      });
+      final rg = await svc.run(['init', '-q', '--bare', remote.path]);
+      if (!rg.ok) throw StateError('bare init failed: ${rg.err}');
+      await g(['remote', 'add', 'origin', remote.path]);
+      await g(['push', '-q', '-u', 'origin', 'main']);
+      final remoteSha = (await svc.run([
+        'rev-parse',
+        'HEAD',
+      ], repoPath: dir.path)).out;
+
+      await File('${dir.path}/a.txt').writeAsString('unpushed\n');
+      await g(['add', '.']);
+      await g(['commit', '-q', '-m', 'unpushed']);
+      final ahead = (await svc.run([
+        'rev-parse',
+        'HEAD',
+      ], repoPath: dir.path)).out;
+
+      final c = ProviderContainer();
+      addTearDown(c.dispose);
+      final actions = c.read(repoActionsProvider(dir.path));
+
+      await actions.resetToRemote('origin/main');
+      expect(
+        (await svc.run(['rev-parse', 'HEAD'], repoPath: dir.path)).out,
+        remoteSha,
+      );
+
+      await actions.undo();
+      expect(
+        (await svc.run(['rev-parse', 'HEAD'], repoPath: dir.path)).out,
+        ahead,
+      );
+    },
+  );
 }

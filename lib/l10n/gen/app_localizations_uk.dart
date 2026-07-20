@@ -198,6 +198,9 @@ class AppLocalizationsUk extends AppLocalizations {
   String get filterHideTags => 'Сховати теги';
 
   @override
+  String get menuCheckout => 'Переключитися на цей коміт';
+
+  @override
   String get menuCreateBranch => 'Створити гілку тут';
 
   @override

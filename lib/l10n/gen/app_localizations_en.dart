@@ -198,6 +198,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get filterHideTags => 'Hide tags';
 
   @override
+  String get menuCheckout => 'Checkout this commit';
+
+  @override
   String get menuCreateBranch => 'Create branch here';
 
   @override

@@ -182,7 +182,16 @@ class _Sections extends ConsumerWidget {
                       : () => actions.checkoutRemote(rb),
                   onMenu: actions == null
                       ? null
-                      : (at) => _remoteBranchMenu(context, actions, rb, at),
+                      : (at) => _remoteBranchMenu(
+                          context,
+                          ref,
+                          actions,
+                          rb,
+                          at,
+                          currentLocal: data.branches
+                              .where((b) => b.current && b.name == rb.branch)
+                              .firstOrNull,
+                        ),
                 ),
             ],
           ],
@@ -363,6 +372,34 @@ class _FolderRow extends StatelessWidget {
   }
 }
 
+/// Whether [branch] can be reset to its remote: it must be the checked-out
+/// branch and have an upstream to reset onto.
+bool canResetToRemote(Branch branch) =>
+    branch.current && branch.upstream.isNotEmpty;
+
+/// Confirms, then hard-resets the current branch to [upstream], warning that
+/// [ahead] unpushed commits will be dropped (recoverable via Undo).
+Future<void> _confirmResetToRemote(
+  WidgetRef ref,
+  BuildContext context,
+  RepoActions actions, {
+  required String branchName,
+  required String upstream,
+  required int ahead,
+}) async {
+  final ok = await confirmDestructive(
+    ref,
+    context,
+    title: 'Reset $branchName to $upstream?',
+    body: ahead > 0
+        ? '$ahead unpushed commit${ahead == 1 ? '' : 's'} on $branchName '
+              'will be removed. This can be undone.'
+        : '$branchName will be moved to $upstream. This can be undone.',
+    confirmLabel: 'Reset',
+  );
+  if (ok) await actions.resetToRemote(upstream);
+}
+
 class _BranchRow extends ConsumerWidget {
   final Branch branch;
   final int depth;
@@ -417,6 +454,18 @@ class _BranchRow extends ConsumerWidget {
           );
           if (up != null) await actions.setUpstream(branch.name, up);
         }),
+        if (canResetToRemote(branch))
+          item(
+            'Reset to remote…',
+            () => _confirmResetToRemote(
+              ref,
+              context,
+              actions,
+              branchName: branch.name,
+              upstream: branch.upstream,
+              ahead: branch.ahead,
+            ),
+          ),
         item('Rename…', () async {
           final name = await showInputDialog(
             context,
@@ -457,8 +506,24 @@ class _BranchRow extends ConsumerWidget {
         branch.tip.isNotEmpty &&
         ref.watch(selectedCommitProvider) == branch.tip;
     final row = GestureDetector(
+      // Double-click a branch to go to its state: check it out, or — for the
+      // current branch that tracks a remote — reset it to that remote (with a
+      // confirm, since unpushed commits are dropped).
       onDoubleTap: branch.current
-          ? null
+          ? (canResetToRemote(branch)
+                ? () {
+                    final path = ref.read(workspaceProvider).activeTab?.path;
+                    if (path == null) return;
+                    _confirmResetToRemote(
+                      ref,
+                      context,
+                      ref.read(repoActionsProvider(path)),
+                      branchName: branch.name,
+                      upstream: branch.upstream,
+                      ahead: branch.ahead,
+                    );
+                  }
+                : null)
           : () {
               final path = ref.read(workspaceProvider).activeTab?.path;
               if (path != null) {
@@ -720,10 +785,12 @@ class _RemoteBranchRow extends ConsumerWidget {
 
 Future<void> _remoteBranchMenu(
   BuildContext context,
+  WidgetRef ref,
   RepoActions actions,
   RemoteBranch rb,
-  Offset at,
-) async {
+  Offset at, {
+  Branch? currentLocal,
+}) async {
   await showContextMenu<void>(
     context: context,
     position: at,
@@ -744,6 +811,24 @@ Future<void> _remoteBranchMenu(
           style: const TextStyle(fontSize: 13),
         ),
       ),
+      // Only when this remote branch's local counterpart is checked out —
+      // resetting always acts on HEAD.
+      if (currentLocal != null)
+        PopupMenuItem(
+          height: 34,
+          onTap: () => _confirmResetToRemote(
+            ref,
+            context,
+            actions,
+            branchName: rb.branch,
+            upstream: rb.name,
+            ahead: currentLocal.ahead,
+          ),
+          child: Text(
+            'Reset ${rb.branch} to this',
+            style: const TextStyle(fontSize: 13),
+          ),
+        ),
     ],
   );
 }

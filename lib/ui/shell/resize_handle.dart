@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import '../../core/tokens.dart';
 
 /// A 7px draggable divider between panels. Reports pixel deltas via [onDrag];
-/// the parent applies and persists the resulting width.
+/// the parent applies and persists the resulting width. An optional [onReset]
+/// fires on double-tap, letting the parent restore a default width.
 class ResizeHandle extends StatefulWidget {
   final ValueChanged<double> onDrag;
-  const ResizeHandle({super.key, required this.onDrag});
+  final VoidCallback? onReset;
+  const ResizeHandle({super.key, required this.onDrag, this.onReset});
 
   @override
   State<ResizeHandle> createState() => _ResizeHandleState();
@@ -29,6 +31,7 @@ class _ResizeHandleState extends State<ResizeHandle> {
         onHorizontalDragStart: (_) => setState(() => _dragging = true),
         onHorizontalDragEnd: (_) => setState(() => _dragging = false),
         onHorizontalDragUpdate: (d) => widget.onDrag(d.delta.dx),
+        onDoubleTap: widget.onReset,
         child: SizedBox(
           width: 7,
           child: Center(

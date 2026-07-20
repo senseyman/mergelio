@@ -534,25 +534,39 @@ class _ComposerState extends ConsumerState<_Composer> {
             const SizedBox(height: 8),
             Row(
               children: [
-                _Toggle(label: 'Amend', value: _amend, onChanged: _setAmend),
-                const SizedBox(width: 12),
-                _Toggle(
-                  label: 'Sign',
-                  value: _sign,
-                  onChanged: (v) => setState(() => _sign = v),
-                ),
-                const SizedBox(width: 12),
-                InkWell(
-                  onTap: () => setState(() => _showCoauthors = !_showCoauthors),
-                  child: Text(
-                    '+ Co-author',
-                    style: TextStyle(
-                      color: _showCoauthors ? t.accent : t.textFaint,
-                      fontSize: 12,
-                    ),
+                // Toggles wrap to a second line when the panel is narrow so the
+                // Commit button stays pinned right and never clips off-panel.
+                Expanded(
+                  child: Wrap(
+                    spacing: 12,
+                    runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      _Toggle(
+                        label: 'Amend',
+                        value: _amend,
+                        onChanged: _setAmend,
+                      ),
+                      _Toggle(
+                        label: 'Sign',
+                        value: _sign,
+                        onChanged: (v) => setState(() => _sign = v),
+                      ),
+                      InkWell(
+                        onTap: () =>
+                            setState(() => _showCoauthors = !_showCoauthors),
+                        child: Text(
+                          '+ Co-author',
+                          style: TextStyle(
+                            color: _showCoauthors ? t.accent : t.textFaint,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const Spacer(),
+                const SizedBox(width: 12),
                 Tooltip(
                   message: '⌘⏎',
                   child: FilledButton(

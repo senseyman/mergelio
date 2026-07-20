@@ -16,6 +16,7 @@ import '../common/confirm.dart';
 import '../common/dialogs.dart';
 import '../rebase/rebase_editor.dart';
 import '../shell/repo_op_dialogs.dart';
+import '../shell/resize_handle.dart';
 import '../../l10n/gen/app_localizations.dart';
 import 'commit_columns.dart';
 import 'graph_derived.dart';
@@ -317,8 +318,18 @@ class _GraphListState extends ConsumerState<GraphList> {
     final compact = ref.watch(settingsProvider.select((s) => s.graphCompact));
     final cols = ref.watch(settingsProvider.select((s) => s.graphCols));
     final dateFormat = ref.watch(settingsProvider.select((s) => s.dateFormat));
+    final branchWidth = ref.watch(
+      settingsProvider.select((s) => s.graphBranchWidth),
+    );
+    final railWidth = ref.watch(
+      settingsProvider.select((s) => s.graphRailWidth),
+    );
     final selected = ref.watch(selectedCommitProvider);
-    final metrics = RailMetrics(compact: compact);
+    final metrics = RailMetrics(
+      compact: compact,
+      branchWidth: branchWidth,
+      railFixedWidth: railWidth,
+    );
 
     // Fly to the selected commit whenever the selection changes — from the
     // graph, the sidebar branch rows, or the command palette. Deferred a frame
@@ -376,6 +387,7 @@ class _GraphListState extends ConsumerState<GraphList> {
                         return _WipRow(
                           metrics: metrics,
                           maxLane: maxLane,
+                          branchColumn: cols['branch'] ?? true,
                           fileCount: d.working.length,
                           selected: selected == wipSelection,
                           onTap: () {
@@ -384,12 +396,21 @@ class _GraphListState extends ConsumerState<GraphList> {
                           },
                         );
                       }
-                      final c = d.commits[i - wipRows];
+                      final ci = i - wipRows;
+                      final c = d.commits[ci];
+                      // Name a branch only on the top row of its contiguous run:
+                      // when this row's label differs from the row directly
+                      // above it (or it is the first commit).
+                      final label = labels[c.sha];
+                      final prevLabel = ci > 0
+                          ? labels[d.commits[ci - 1].sha]
+                          : null;
                       final row = _CommitContextMenu(
                         commit: c,
                         child: CommitRow(
                           commit: c,
-                          branchLabel: labels[c.sha],
+                          branchLabel: label,
+                          showBranchLabel: label != null && label != prevLabel,
                           metrics: metrics,
                           maxLane: maxLane,
                           cols: cols,
@@ -439,11 +460,51 @@ class _GraphListState extends ConsumerState<GraphList> {
                                 context.tokens.branchPalette,
                               ),
                               scroll: _scroll,
+                              // Rail is shifted right by the branch gutter when
+                              // that column is on, so the overlay shifts with it.
+                              dx: (cols['branch'] ?? true)
+                                  ? metrics.branchWidth
+                                  : 0,
                             ),
                           ),
                         ),
                       ),
                     ),
+                  // Draggable column dividers, overlaid full-height at the
+                  // branch|rail and rail|description boundaries. Dragging the
+                  // rail handle seeds from the current rail width so it grows
+                  // past the auto-size floor immediately.
+                  ...() {
+                    final branchOn = cols['branch'] ?? true;
+                    final ctl = ref.read(settingsProvider.notifier);
+                    final branchX = branchOn ? metrics.branchWidth : 0.0;
+                    final railX = branchX + metrics.railWidth(maxLane);
+                    return [
+                      if (branchOn)
+                        Positioned(
+                          left: branchX - 3.5,
+                          top: 0,
+                          bottom: 0,
+                          child: ResizeHandle(
+                            onDrag: (dx) => ctl.setGraphBranchWidth(
+                              metrics.branchWidth + dx,
+                            ),
+                            onReset: () => ctl.setGraphBranchWidth(116),
+                          ),
+                        ),
+                      Positioned(
+                        left: railX - 3.5,
+                        top: 0,
+                        bottom: 0,
+                        child: ResizeHandle(
+                          onDrag: (dx) => ctl.setGraphRailWidth(
+                            metrics.railWidth(maxLane) + dx,
+                          ),
+                          onReset: () => ctl.setGraphRailWidth(0),
+                        ),
+                      ),
+                    ];
+                  }(),
                 ],
               ),
             ),
@@ -714,6 +775,7 @@ class _GraphHeader extends ConsumerWidget {
 class _WipRow extends StatelessWidget {
   final RailMetrics metrics;
   final int maxLane;
+  final bool branchColumn;
   final int fileCount;
   final bool selected;
   final VoidCallback onTap;
@@ -721,6 +783,7 @@ class _WipRow extends StatelessWidget {
   const _WipRow({
     required this.metrics,
     required this.maxLane,
+    required this.branchColumn,
     required this.fileCount,
     required this.selected,
     required this.onTap,
@@ -737,13 +800,18 @@ class _WipRow extends StatelessWidget {
         color: selected ? t.active : null,
         child: Row(
           children: [
-            SizedBox(
-              width: metrics.railWidth(maxLane),
-              child: CustomPaint(
-                size: Size(metrics.railWidth(maxLane), metrics.rowHeight),
-                painter: _WipRailPainter(m: metrics, color: t.warning),
+            // Empty gutter keeps the rail aligned with the commit rows below.
+            if (branchColumn) SizedBox(width: metrics.branchWidth),
+            ClipRect(
+              child: SizedBox(
+                width: metrics.railWidth(maxLane),
+                child: CustomPaint(
+                  size: Size(metrics.railWidth(maxLane), metrics.rowHeight),
+                  painter: _WipRailPainter(m: metrics, color: t.warning),
+                ),
               ),
             ),
+            const SizedBox(width: 12),
             Expanded(
               child: Row(
                 children: [
@@ -843,6 +911,7 @@ class _CommitContextMenu extends ConsumerWidget {
       context: context,
       position: at,
       items: [
+        item(l.menuCheckout, () => actions.checkout(sha)),
         item(l.menuCreateBranch, () async {
           final name = await showInputDialog(
             context,

@@ -71,6 +71,7 @@
   "graphCompact": "Compact",
   "filterHideMerges": "Hide merges",
   "filterHideTags": "Hide tags",
+  "menuCheckout": "Checkout this commit",
   "menuCreateBranch": "Create branch here",
   "menuCreateTag": "Create tag here",
   "menuCherryPick": "Cherry-pick",

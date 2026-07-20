@@ -8,12 +8,17 @@ import 'graph_rail.dart';
 import 'rail_metrics.dart';
 import 'ref_pill.dart';
 
-/// One graph row: the painted rail cell, then avatar · message · signed badge ·
-/// ref pills, with a meta line (branch/author/date/sha, each toggleable) in the
-/// two-line layout. Compact mode collapses to a single line.
+/// One graph row: an optional branch-name gutter, the painted rail cell, then
+/// avatar · message · signed badge · tag pills, with a meta line
+/// (author/date/sha, each toggleable) in the two-line layout. Compact mode
+/// collapses to a single line.
 class CommitRow extends StatelessWidget {
   final Commit commit;
   final String? branchLabel;
+
+  /// True only on the top row of a contiguous branch segment, so the gutter
+  /// prints the branch name once instead of repeating it down the column.
+  final bool showBranchLabel;
   final RailMetrics metrics;
   final int maxLane;
   final Map<String, bool> cols;
@@ -29,6 +34,7 @@ class CommitRow extends StatelessWidget {
     super.key,
     required this.commit,
     required this.branchLabel,
+    this.showBranchLabel = false,
     required this.metrics,
     required this.maxLane,
     required this.cols,
@@ -70,18 +76,24 @@ class CommitRow extends StatelessWidget {
                 : (highlight ? t.accent.withValues(alpha: 0.12) : null),
             child: Row(
               children: [
-                SizedBox(
-                  width: metrics.railWidth(maxLane),
-                  child: CustomPaint(
-                    size: Size(metrics.railWidth(maxLane), metrics.rowHeight),
-                    painter: GraphRailPainter(
-                      c: c,
-                      m: metrics,
-                      palette: t.branchPalette,
-                      nodeFill: t.bgApp,
+                if (_on('branch')) _branchColumn(t, c),
+                // Clip so a graph wider than the (user-set) rail width is
+                // hidden rather than bleeding into the commit details.
+                ClipRect(
+                  child: SizedBox(
+                    width: metrics.railWidth(maxLane),
+                    child: CustomPaint(
+                      size: Size(metrics.railWidth(maxLane), metrics.rowHeight),
+                      painter: GraphRailPainter(
+                        c: c,
+                        m: metrics,
+                        palette: t.branchPalette,
+                        nodeFill: t.bgApp,
+                      ),
                     ),
                   ),
                 ),
+                const SizedBox(width: 12),
                 _Avatar(commit: c, size: compact ? 18 : 24),
                 const SizedBox(width: 10),
                 Expanded(child: compact ? _singleLine(t, c) : _twoLines(t, c)),
@@ -108,6 +120,47 @@ class CommitRow extends StatelessWidget {
     ],
   );
 
+  /// Left gutter that names each branch once, at the top of its segment. Right-
+  /// aligned so the name sits flush against the rail, tinted with the lane's
+  /// colour and capped with a matching dot.
+  Widget _branchColumn(AppTokens t, Commit c) {
+    final label = branchLabel;
+    if (!showBranchLabel || label == null) {
+      return SizedBox(width: metrics.branchWidth);
+    }
+    final color = t.branchColor(c.ci);
+    return SizedBox(
+      width: metrics.branchWidth,
+      child: Padding(
+        padding: const EdgeInsets.only(left: 8, right: 6),
+        child: Row(
+          mainAxisSize: MainAxisSize.max,
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Flexible(
+              child: Text(
+                label,
+                textAlign: TextAlign.end,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            Container(
+              width: 6,
+              height: 6,
+              margin: const EdgeInsets.only(left: 5),
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _titleLine(AppTokens t, Commit c) => Row(
     mainAxisSize: MainAxisSize.min,
     children: [
@@ -127,30 +180,16 @@ class CommitRow extends StatelessWidget {
           padding: const EdgeInsets.only(left: 6),
           child: Icon(Icons.verified_user_outlined, size: 12, color: t.success),
         ),
-      for (final r in c.refs) RefPill(gitRef: r),
+      // Branch heads live in the left column now; only HEAD and tags stay inline
+      // since they mark a specific commit, not a whole strand.
+      for (final r in c.refs)
+        if (r.kind == RefKind.head || r.kind == RefKind.tag) RefPill(gitRef: r),
     ],
   );
 
   Widget _metaLine(AppTokens t, Commit c) {
     final style = TextStyle(color: t.textFaint, fontSize: 11);
-    final branch = branchLabel;
     final items = <Widget>[
-      if (_on('branch') && branch != null)
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 7,
-              height: 7,
-              margin: const EdgeInsets.only(right: 4),
-              decoration: BoxDecoration(
-                color: t.branchColor(c.ci),
-                shape: BoxShape.circle,
-              ),
-            ),
-            Text(branch, style: style),
-          ],
-        ),
       if (_on('author')) Text(c.author, style: style),
       if (_on('date'))
         Text(formatCommitDate(c.date, format: dateFormat), style: style),

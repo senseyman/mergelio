@@ -410,15 +410,23 @@ class RepoActions {
     );
   }
 
-  Future<void> resetHard(String sha) async {
+  Future<void> resetHard(String sha) =>
+      _resetTo(sha, 'Reset to ${_short(sha)}');
+
+  /// Resets the current branch to a remote-tracking ref (e.g. `origin/x`),
+  /// discarding any unpushed commits. Uncommitted work is auto-stashed and the
+  /// whole reset is undoable, exactly like [resetHard].
+  Future<void> resetToRemote(String ref) => _resetTo(ref, 'Reset to $ref');
+
+  Future<void> _resetTo(String target, String label) async {
     final prev = await _headSha();
     // Tracks the auto-stash created by the current do/redo so undo can pop it
     // back into the working tree — making undo a true inverse of the reset.
     String? stashRef;
     await _undoable(
-      'Reset to ${_short(sha)}',
+      label,
       () async {
-        stashRef = await _resetPreservingWork(sha);
+        stashRef = await _resetPreservingWork(target);
       },
       undo: () async {
         await _undoReset(prev);
@@ -428,7 +436,7 @@ class RepoActions {
         }
       },
       redo: () async {
-        stashRef = await _resetPreservingWork(sha);
+        stashRef = await _resetPreservingWork(target);
       },
     );
   }

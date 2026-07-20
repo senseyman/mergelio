@@ -58,6 +58,7 @@ class GitReader {
           sigStatus: gcode.isEmpty ? 'N' : gcode,
           refs: _parseRefs(f[6]),
           message: f[7],
+          body: f[8].trimRight(),
           coauthor: f[8].toLowerCase().contains('co-authored-by:'),
           avatarValue: _avatarFor(f[3]),
         ),
@@ -70,7 +71,8 @@ class GitReader {
   Future<List<Branch>> branches() async {
     final r = await _run([
       'for-each-ref',
-      '--format=%(refname:short)\t%(HEAD)\t%(upstream:track)\t%(objectname)',
+      '--format=%(refname:short)\t%(HEAD)\t%(upstream:track)\t%(objectname)'
+          '\t%(upstream:short)',
       'refs/heads',
     ]);
     if (!r.ok) throw GitException('git for-each-ref failed', r);
@@ -88,6 +90,7 @@ class GitReader {
           behind: _trackNum(track, 'behind'),
           ci: i % 8,
           tip: p.length > 3 ? p[3] : '',
+          upstream: p.length > 4 ? p[4] : '',
         ),
       );
       i++;

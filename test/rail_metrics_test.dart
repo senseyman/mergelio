@@ -17,6 +17,24 @@ void main() {
       expect(m.railWidth(3), 92);
     });
 
+    test('rail width uses the fixed width when set, ignoring content', () {
+      const fixed = RailMetrics(railFixedWidth: 200);
+      expect(fixed.railWidth(0), 200);
+      expect(fixed.railWidth(3), 200); // content 92 clipped to fixed
+      expect(fixed.railWidth(20), 200); // wide graph clipped to fixed
+    });
+
+    test('rail width auto-sizes to content when fixed width is 0', () {
+      const auto = RailMetrics(railFixedWidth: 0);
+      expect(auto.railWidth(0), 32);
+      expect(auto.railWidth(3), 92);
+    });
+
+    test('branch width defaults to 116 and is configurable', () {
+      expect(m.branchWidth, 116);
+      expect(const RailMetrics(branchWidth: 200).branchWidth, 200);
+    });
+
     test('node sits at the vertical centre of the row', () {
       expect(m.nodeY, 26);
       expect(const RailMetrics(compact: true).nodeY, 17);

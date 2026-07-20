@@ -124,14 +124,17 @@ void main() {
     expect(container.read(selectedCommitProvider), 'fff');
   });
 
-  testWidgets('renders ref pills for head, local, remote and tag refs', (
-    tester,
-  ) async {
+  testWidgets('keeps HEAD and tag pills inline; branch names move to the '
+      'left column', (tester) async {
     await tester.pumpWidget(_harness(_data()));
+    // HEAD and tags still mark their exact commit, so they stay inline.
     expect(find.text('HEAD'), findsOneWidget);
-    expect(find.text('main'), findsWidgets);
-    expect(find.text('origin/main'), findsOneWidget);
     expect(find.text('v1'), findsOneWidget);
+    // The local branch strand is named in the left gutter, not as a pill.
+    expect(find.text('main'), findsWidgets);
+    // Remote branch heads no longer render inline — the gutter carries the
+    // branch identity instead.
+    expect(find.text('origin/main'), findsNothing);
   });
 
   testWidgets('paints a squash overlay when links are present', (tester) async {
@@ -162,20 +165,22 @@ void main() {
 
   testWidgets('shared ancestors are labelled by the base branch, not a '
       'newer branch containing them', (tester) async {
-    // stage3(ref feat/stage-3) → main(ref main) → root(no ref). All on lane 0.
+    // c1(ref feat/stage-3) → c2(ref main) → c3(no ref). All on lane 0. Shas are
+    // kept distinct from the branch names so the SHA column can't be mistaken
+    // for a gutter label.
     final data = RepoData(
       commits: assignLanes([
         _c(
-          'stage3',
-          ['main'],
+          'c1',
+          ['c2'],
           refs: const [GitRef(kind: RefKind.local, name: 'feat/stage-3')],
         ),
         _c(
-          'main',
-          ['root'],
+          'c2',
+          ['c3'],
           refs: const [GitRef(kind: RefKind.local, name: 'main')],
         ),
-        _c('root', const []),
+        _c('c3', const []),
       ]),
       branches: const [
         Branch(name: 'feat/stage-3', current: true),
@@ -184,18 +189,19 @@ void main() {
     );
     await tester.pumpWidget(_harness(data));
 
-    // The root commit's meta line names main (its nearest ref-bearing
-    // first-parent descendant), never feat/stage-3.
-    final rootRow = find.ancestor(
-      of: find.text('msg root'),
+    // feat/stage-3 names only its own tip; it must not leak down onto the
+    // shared history. main names its own segment (the ancestor inherits it
+    // silently, so the gutter prints it once). Both appear exactly once.
+    expect(find.text('feat/stage-3'), findsOneWidget);
+    expect(find.text('main'), findsOneWidget);
+
+    // The feat/stage-3 label sits on its own tip row, never on the base commit.
+    final mainRow = find.ancestor(
+      of: find.text('msg c2'),
       matching: find.byType(CommitRow),
     );
     expect(
-      find.descendant(of: rootRow, matching: find.text('main')),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(of: rootRow, matching: find.text('feat/stage-3')),
+      find.descendant(of: mainRow, matching: find.text('feat/stage-3')),
       findsNothing,
     );
   });

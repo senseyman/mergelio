@@ -19,6 +19,11 @@ class AppSettings with _$AppSettings {
     // Graph meta columns; a column absent from the map is shown.
     @Default({}) Map<String, bool> graphCols,
     @Default(false) bool graphCompact,
+    // Graph column widths (px). Branch gutter is a hard width; the rail is a
+    // hard width too, clipping the graph when set narrower than it needs. 0
+    // means auto-size the rail to the graph.
+    @Default(116.0) double graphBranchWidth,
+    @Default(0.0) double graphRailWidth,
     // Diff sheet: split vs inline view.
     @Default(false) bool diffSplit,
     // General preferences.

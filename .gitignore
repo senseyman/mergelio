@@ -188,3 +188,5 @@ desktop.ini
 *.temp
 .history/
 .docs
+.tokensave
+docs/

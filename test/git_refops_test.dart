@@ -70,6 +70,17 @@ void main() {
     expect(await out(['rev-parse', 'back']), firstSha);
   });
 
+  test('checkout to a commit sha detaches HEAD at that commit', () async {
+    final firstSha = await out(['rev-parse', 'HEAD']);
+    await commit('b.txt', 'B');
+
+    await writer().checkout(firstSha);
+
+    // HEAD now sits on the older commit, detached (no current branch).
+    expect(await out(['rev-parse', 'HEAD']), firstSha);
+    expect((await reader().branches()).where((b) => b.current), isEmpty);
+  });
+
   test('create, push-less, and delete a tag', () async {
     await writer().createTag('v1.0', message: 'release');
     expect(await reader().tags(), contains('v1.0'));

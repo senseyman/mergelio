@@ -17,6 +17,7 @@ Commit _c(
 );
 
 GitRef _local(String name) => GitRef(kind: RefKind.local, name: name);
+GitRef _remote(String name) => GitRef(kind: RefKind.remote, name: name);
 
 void main() {
   test('formats dates as "Mon D, YYYY"', () {
@@ -33,17 +34,41 @@ void main() {
       expect(labels['tip'], 'main');
     });
 
-    test('remote and tag refs do not name a commit', () {
+    test(
+      'a remote-only commit is labelled by its remote ref, prefix and all',
+      () {
+        final labels = deriveBranchLabels([
+          _c('x', refs: [_remote('origin/feature')]),
+        ]);
+        expect(labels['x'], 'origin/feature');
+      },
+    );
+
+    test('a local ref wins over a remote ref on the same commit', () {
+      final labels = deriveBranchLabels([
+        _c('x', refs: [_remote('origin/main'), _local('main')]),
+      ]);
+      expect(labels['x'], 'main');
+    });
+
+    test('a tag ref does not name a commit', () {
       final labels = deriveBranchLabels([
         _c(
           'x',
-          refs: const [
-            GitRef(kind: RefKind.remote, name: 'origin/main'),
-            GitRef(kind: RefKind.tag, name: 'v1'),
-          ],
+          refs: const [GitRef(kind: RefKind.tag, name: 'v1')],
         ),
       ]);
       expect(labels['x'], isNull);
+    });
+
+    test('a remote ref propagates down first parents like a local one', () {
+      // origin/feature → base(root). Newest first, base has no ref of its own.
+      final labels = deriveBranchLabels([
+        _c('feat', parents: const ['base'], refs: [_remote('origin/feature')]),
+        _c('base'),
+      ]);
+      expect(labels['feat'], 'origin/feature');
+      expect(labels['base'], 'origin/feature');
     });
 
     test('shared ancestors take the nearest descendant branch, not a '

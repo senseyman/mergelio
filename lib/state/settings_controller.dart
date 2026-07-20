@@ -123,6 +123,15 @@ class SettingsController extends StateNotifier<AppSettings> {
   void setRightWidth(double w) =>
       _update(state.copyWith(rightWidth: w.clamp(300, 560)));
 
+  void setGraphBranchWidth(double w) =>
+      _update(state.copyWith(graphBranchWidth: w.clamp(40, 400)));
+
+  /// Sets the rail's fixed width. Non-positive means auto-size; a dragged value
+  /// is floored at 24px so the rail can shrink (clipping the graph) but never
+  /// vanish.
+  void setGraphRailWidth(double w) =>
+      _update(state.copyWith(graphRailWidth: w <= 0 ? 0 : w.clamp(24, 1200)));
+
   void toggleLeftCollapsed() =>
       _update(state.copyWith(leftCollapsed: !state.leftCollapsed));
 

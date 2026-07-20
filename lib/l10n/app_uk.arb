@@ -71,6 +71,7 @@
   "graphCompact": "Компактно",
   "filterHideMerges": "Сховати злиття",
   "filterHideTags": "Сховати теги",
+  "menuCheckout": "Переключитися на цей коміт",
   "menuCreateBranch": "Створити гілку тут",
   "menuCreateTag": "Створити тег тут",
   "menuCherryPick": "Cherry-pick",

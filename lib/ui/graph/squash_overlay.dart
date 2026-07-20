@@ -100,7 +100,11 @@ List<SquashDash> buildSquashDashes(
 class SquashDashPainter extends CustomPainter {
   final List<SquashDash> dashes;
   final ScrollController scroll;
-  SquashDashPainter({required this.dashes, required this.scroll})
+
+  /// Horizontal shift matching the rail's own offset — non-zero when the branch
+  /// gutter is drawn to the left of the rail.
+  final double dx;
+  SquashDashPainter({required this.dashes, required this.scroll, this.dx = 0})
     : super(repaint: scroll);
 
   @override
@@ -110,7 +114,7 @@ class SquashDashPainter extends CustomPainter {
     // Clip to the paint bounds: the dashes are drawn in scrolled coordinates,
     // so off-screen ones (above/below) must not bleed outside the graph.
     canvas.clipRect(Offset.zero & size);
-    canvas.translate(0, -offset);
+    canvas.translate(dx, -offset);
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
@@ -122,5 +126,6 @@ class SquashDashPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(SquashDashPainter old) => !identical(old.dashes, dashes);
+  bool shouldRepaint(SquashDashPainter old) =>
+      !identical(old.dashes, dashes) || old.dx != dx;
 }

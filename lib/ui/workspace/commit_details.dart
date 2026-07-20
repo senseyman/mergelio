@@ -80,6 +80,17 @@ class CommitDetails extends ConsumerWidget {
                     height: 1.35,
                   ),
                 ),
+                if (c.body.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  SelectableText(
+                    c.body,
+                    style: TextStyle(
+                      color: t.textMuted,
+                      fontSize: 12.5,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
                 if (c.refs.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Wrap(

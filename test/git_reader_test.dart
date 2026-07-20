@@ -74,6 +74,31 @@ void main() {
     expect(hasMainHead, isTrue);
   });
 
+  test(
+    'captures the multi-line commit body separately from the subject',
+    () async {
+      await g([
+        'commit',
+        '--allow-empty',
+        '-q',
+        '-m',
+        'Subject line',
+        '-m',
+        'First body paragraph.\n\nSecond paragraph.',
+      ]);
+      final head = (await reader().commits()).first;
+      expect(head.message, 'Subject line');
+      expect(head.body, 'First body paragraph.\n\nSecond paragraph.');
+    },
+  );
+
+  test('a commit with no body has an empty body string', () async {
+    final root = (await reader().commits()).firstWhere(
+      (c) => c.parents.isEmpty,
+    );
+    expect(root.body, isEmpty);
+  });
+
   test('assignLanes places the merge and gives it mergeFrom', () async {
     final laned = assignLanes(await reader().commits());
     final merge = laned.firstWhere((c) => c.merge);
@@ -87,6 +112,14 @@ void main() {
     expect(names, containsAll(<String>['main', 'feature']));
     expect(branches.firstWhere((b) => b.name == 'main').current, isTrue);
     expect(branches.firstWhere((b) => b.name == 'feature').current, isFalse);
+  });
+
+  test('reads the upstream ref of a tracking branch', () async {
+    // Point feature at main as its upstream, leave main untracked.
+    await g(['branch', '--set-upstream-to=main', 'feature']);
+    final branches = await reader().branches();
+    expect(branches.firstWhere((b) => b.name == 'feature').upstream, 'main');
+    expect(branches.firstWhere((b) => b.name == 'main').upstream, '');
   });
 
   test('reads tags', () async {

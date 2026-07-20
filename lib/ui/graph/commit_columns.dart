@@ -25,14 +25,19 @@ String formatCommitDate(DateTime d, {String format = 'medium'}) {
   };
 }
 
+/// Branch ref that names a commit: its local branch if it has one, otherwise a
+/// remote-tracking branch. The remote name keeps its `remote/` prefix, which is
+/// how the gutter tells a remote-only branch apart from a local one.
 String? _ownRef(Commit c) {
+  String? remote;
   for (final r in c.refs) {
     if (r.kind == RefKind.local) return r.name;
+    if (r.kind == RefKind.remote) remote ??= r.name;
   }
-  return null;
+  return remote;
 }
 
-/// Branch column label per commit sha. A commit is named by its own local ref
+/// Branch column label per commit sha. A commit is named by its own branch ref
 /// if it has one, else it inherits the branch of its nearest first-parent
 /// descendant — so shared history stays on the base branch instead of being
 /// claimed by whichever newer branch also happens to contain it.

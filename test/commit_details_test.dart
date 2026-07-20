@@ -21,32 +21,35 @@ final _commit = Commit(
   sigStatus: 'G',
 );
 
-Widget _harness({List<CommitFileChange>? files, bool hasWip = false}) =>
-    ProviderScope(
-      overrides: [
-        commitFilesProvider.overrideWith(
-          (ref, key) async =>
-              files ??
-              const [CommitFileChange(path: 'x', change: GitChange.modified)],
-        ),
-        settingsProvider.overrideWith(
-          (ref) => SettingsController(
-            InMemorySettingsRepository(),
-            const AppSettings(filesAsTree: false),
-          ),
-        ),
-      ],
-      child: MaterialApp(
-        theme: ThemeData(extensions: [AppTokens.dark()]),
-        home: Scaffold(
-          body: CommitDetails(
-            repoPath: '/repo',
-            commit: _commit,
-            hasWip: hasWip,
-          ),
-        ),
+Widget _harness({
+  List<CommitFileChange>? files,
+  bool hasWip = false,
+  Commit? commit,
+}) => ProviderScope(
+  overrides: [
+    commitFilesProvider.overrideWith(
+      (ref, key) async =>
+          files ??
+          const [CommitFileChange(path: 'x', change: GitChange.modified)],
+    ),
+    settingsProvider.overrideWith(
+      (ref) => SettingsController(
+        InMemorySettingsRepository(),
+        const AppSettings(filesAsTree: false),
       ),
-    );
+    ),
+  ],
+  child: MaterialApp(
+    theme: ThemeData(extensions: [AppTokens.dark()]),
+    home: Scaffold(
+      body: CommitDetails(
+        repoPath: '/repo',
+        commit: commit ?? _commit,
+        hasWip: hasWip,
+      ),
+    ),
+  ),
+);
 
 void main() {
   testWidgets('shows metadata, signature and changed files', (tester) async {
@@ -72,6 +75,22 @@ void main() {
     expect(find.text('Verified signature'), findsOneWidget);
     expect(find.text('lib/a.dart'), findsOneWidget);
     expect(find.text('lib/old.dart → lib/new.dart'), findsOneWidget);
+  });
+
+  testWidgets('shows the commit description body below the subject', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        commit: _commit.copyWith(
+          body: 'Explains the why.\n\nSecond paragraph.',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('feat: something'), findsOneWidget);
+    expect(find.text('Explains the why.\n\nSecond paragraph.'), findsOneWidget);
   });
 
   testWidgets('WIP shortcut appears only when the tree is dirty and selects '

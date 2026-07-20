@@ -34,6 +34,9 @@ class Commit with _$Commit {
   const factory Commit({
     required String sha,
     required String message,
+    // Commit body (everything after the subject line); empty when the commit
+    // has no description. Trailing whitespace is trimmed.
+    @Default('') String body,
     required String author,
     required String authorEmail,
     required DateTime date,
@@ -75,6 +78,8 @@ class Branch with _$Branch {
     @Default(0) int ci,
     // Sha the branch ref points at (its tip commit).
     @Default('') String tip,
+    // Short upstream ref name (e.g. `origin/main`), empty when untracked.
+    @Default('') String upstream,
   }) = _Branch;
 }
 
