@@ -109,6 +109,18 @@ class _DiffHeader extends ConsumerWidget {
     final split = ref.watch(settingsProvider.select((s) => s.diffSplit));
     final ctl = ref.read(settingsProvider.notifier);
     final doc = ref.watch(diffDocumentProvider(target)).valueOrNull;
+    // Partial working-tree file: let the user flip between the two sides.
+    final working =
+        ref.watch(repoDataProvider(target.repoPath)).valueOrNull?.working ??
+        const <WorkingFile>[];
+    WorkingFile? wf;
+    for (final f in working) {
+      if (f.path == target.path) {
+        wf = f;
+        break;
+      }
+    }
+    final partial = target.commitSha == null && (wf?.isPartial ?? false);
     final context0 = target.commitSha != null
         ? 'commit ${target.commitSha!.length > 7 ? target.commitSha!.substring(0, 7) : target.commitSha}'
         : 'Uncommitted changes · working tree';
@@ -136,8 +148,24 @@ class _DiffHeader extends ConsumerWidget {
             ),
           ),
           const SizedBox(width: 8),
-          Text(context0, style: TextStyle(color: t.textFaint, fontSize: 11)),
+          Flexible(
+            child: Text(
+              context0,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: t.textFaint, fontSize: 11),
+            ),
+          ),
           const Spacer(),
+          if (partial) ...[
+            _SideToggle(
+              staged: target.staged,
+              onUnstaged: () => ref.read(diffTargetProvider.notifier).state =
+                  target.withStaged(false),
+              onStaged: () => ref.read(diffTargetProvider.notifier).state =
+                  target.withStaged(true),
+            ),
+            const SizedBox(width: 8),
+          ],
           if (doc != null && doc.editable)
             TextButton(
               onPressed: () async {
@@ -677,3 +705,51 @@ Color _syntaxColor(AppTokens t, SyntaxKind k) => switch (k) {
   SyntaxKind.comment => t.textFaint,
   SyntaxKind.plain => t.textPrimary,
 };
+
+/// Segmented Unstaged/Staged control for a partially-staged working-tree file.
+class _SideToggle extends StatelessWidget {
+  final bool staged;
+  final VoidCallback onUnstaged;
+  final VoidCallback onStaged;
+  const _SideToggle({
+    required this.staged,
+    required this.onUnstaged,
+    required this.onStaged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    Widget seg(String label, bool on, VoidCallback tap) => InkWell(
+      onTap: tap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        color: on ? t.active : null,
+        child: Text(
+          label,
+          style: TextStyle(
+            color: on ? t.textPrimary : t.textFaint,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(color: t.border),
+        borderRadius: BorderRadius.circular(5),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            seg('Unstaged', !staged, onUnstaged),
+            seg('Staged', staged, onStaged),
+          ],
+        ),
+      ),
+    );
+  }
+}

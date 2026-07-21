@@ -23,8 +23,7 @@ class DiffDoc {
 }
 
 /// Loads and parses the diff for [target]. For the working tree it shows the
-/// unstaged changes when there are any (actions stage them), otherwise the
-/// staged changes (actions unstage). A commit diff is read-only.
+/// side selected by [DiffTarget.staged]; a commit diff is read-only.
 final diffDocumentProvider = FutureProvider.family
     .autoDispose<DiffDoc, DiffTarget>((ref, target) async {
       final reader = GitReader(ref.watch(gitServiceProvider), target.repoPath);
@@ -36,6 +35,17 @@ final diffDocumentProvider = FutureProvider.family
           editable: false,
           staged: false,
         );
+      }
+
+      // Staged side requested: show the index→HEAD diff. Only fall through to
+      // the unstaged branch when nothing is staged (e.g. a stale target).
+      if (target.staged) {
+        final onlyStaged = parseUnifiedDiff(
+          await reader.stagedDiff(target.path),
+        );
+        if (onlyStaged.any((f) => f.hunks.isNotEmpty || f.binary)) {
+          return DiffDoc(files: onlyStaged, editable: true, staged: true);
+        }
       }
 
       final unstaged = parseUnifiedDiff(await reader.workingDiff(target.path));

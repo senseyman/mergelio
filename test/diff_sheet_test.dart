@@ -6,7 +6,9 @@ import 'package:mergelio/core/tokens.dart';
 import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
+import 'package:mergelio/domain/git/models.dart';
 import 'package:mergelio/state/diff_target.dart';
+import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
 import 'package:mergelio/ui/diff/diff_sheet.dart';
@@ -70,6 +72,35 @@ Future<ProviderContainer> _open(WidgetTester tester) async {
   return container;
 }
 
+/// Same as [_harness] but also serves a partially-staged working file so the
+/// header's Unstaged/Staged toggle has something to react to.
+Widget _harnessPartial(String repoPath) => ProviderScope(
+  overrides: [
+    gitServiceProvider.overrideWithValue(_FakeGit()),
+    settingsProvider.overrideWith(
+      (ref) =>
+          SettingsController(InMemorySettingsRepository(), const AppSettings()),
+    ),
+    repoDataProvider(repoPath).overrideWith(
+      (ref) async => const RepoData(
+        working: [
+          WorkingFile(
+            path: 'p.txt',
+            index: GitChange.modified,
+            worktree: GitChange.modified,
+          ),
+        ],
+      ),
+    ),
+  ],
+  child: MaterialApp(
+    theme: ThemeData(extensions: [AppTokens.dark()]),
+    home: const Scaffold(
+      body: SizedBox(height: 400, child: DiffSheet(availableHeight: 400)),
+    ),
+  ),
+);
+
 void main() {
   testWidgets('renders the hunk header and staging affordances', (
     tester,
@@ -99,5 +130,26 @@ void main() {
     await tester.tap(find.text('Split'));
     await tester.pump();
     expect(container.read(settingsProvider).diffSplit, isTrue);
+  });
+
+  testWidgets('partial file shows the side toggle and flips the target', (
+    tester,
+  ) async {
+    // Default test surface width: the header must fit the toggle plus all the
+    // other controls without overflowing.
+    await tester.pumpWidget(_harnessPartial('/pr'));
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(DiffSheet)),
+    );
+    container.read(diffTargetProvider.notifier).state = const DiffTarget(
+      repoPath: '/pr',
+      path: 'p.txt',
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Staged'), findsWidgets);
+    await tester.tap(find.text('Staged').first);
+    await tester.pump();
+    expect(container.read(diffTargetProvider)?.staged, isTrue);
   });
 }

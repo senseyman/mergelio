@@ -117,4 +117,28 @@ void main() {
     final commitCall = git.calls.firstWhere((c) => c.first == 'commit');
     expect(commitCall, contains('my message'));
   });
+
+  testWidgets('staged row opens the staged side', (tester) async {
+    await tester.pumpWidget(
+      _harness(_FakeGit(), const RepoData(working: [_staged])),
+    );
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(WorkingTreePanel)),
+    );
+    await tester.tap(find.text('staged.txt'));
+    await tester.pump();
+    expect(container.read(diffTargetProvider)?.staged, isTrue);
+  });
+
+  testWidgets('unstaged row opens the unstaged side', (tester) async {
+    await tester.pumpWidget(
+      _harness(_FakeGit(), const RepoData(working: [_unstaged])),
+    );
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(WorkingTreePanel)),
+    );
+    await tester.tap(find.text('unstaged.txt'));
+    await tester.pump();
+    expect(container.read(diffTargetProvider)?.staged, isFalse);
+  });
 }

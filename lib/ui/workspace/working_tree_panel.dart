@@ -52,17 +52,6 @@ class WorkingTreePanel extends ConsumerWidget {
                     padding: const EdgeInsets.only(bottom: 8),
                     children: [
                       _FileSection(
-                        label: 'STAGED',
-                        repoPath: repoPath,
-                        files: staged,
-                        staged: true,
-                        tree: tree,
-                        onBulk: actions.unstageAll,
-                        bulkLabel: 'Unstage all',
-                        onToggle: (f) => actions.unstageFile(f.path),
-                        onOpen: (f) => _open(ref, f.path),
-                      ),
-                      _FileSection(
                         label: 'UNSTAGED',
                         repoPath: repoPath,
                         files: unstaged,
@@ -71,7 +60,18 @@ class WorkingTreePanel extends ConsumerWidget {
                         onBulk: actions.stageAll,
                         bulkLabel: 'Stage all',
                         onToggle: (f) => actions.stageFile(f.path),
-                        onOpen: (f) => _open(ref, f.path),
+                        onOpen: (f) => _open(ref, f.path, staged: false),
+                      ),
+                      _FileSection(
+                        label: 'STAGED',
+                        repoPath: repoPath,
+                        files: staged,
+                        staged: true,
+                        tree: tree,
+                        onBulk: actions.unstageAll,
+                        bulkLabel: 'Unstage all',
+                        onToggle: (f) => actions.unstageFile(f.path),
+                        onOpen: (f) => _open(ref, f.path, staged: true),
                       ),
                     ],
                   ),
@@ -82,10 +82,11 @@ class WorkingTreePanel extends ConsumerWidget {
     );
   }
 
-  void _open(WidgetRef ref, String path) =>
+  void _open(WidgetRef ref, String path, {required bool staged}) =>
       ref.read(diffTargetProvider.notifier).state = DiffTarget(
         repoPath: repoPath,
         path: path,
+        staged: staged,
       );
 }
 
