@@ -290,6 +290,12 @@ abstract class AppLocalizations {
   /// **'Auto-fetch'**
   String get prefsAutoFetch;
 
+  /// No description provided for @prefsAutoFetchInterval.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-fetch interval'**
+  String get prefsAutoFetchInterval;
+
   /// No description provided for @prefsConfirmDestructive.
   ///
   /// In en, this message translates to:

@@ -105,6 +105,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get prefsAutoFetch => 'Auto-fetch';
 
   @override
+  String get prefsAutoFetchInterval => 'Auto-fetch interval';
+
+  @override
   String get prefsConfirmDestructive => 'Confirm destructive actions';
 
   @override

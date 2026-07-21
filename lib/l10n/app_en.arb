@@ -36,6 +36,7 @@
   "prefsTabShortcuts": "Shortcuts",
   "prefsTabCredentials": "Credentials",
   "prefsAutoFetch": "Auto-fetch",
+  "prefsAutoFetchInterval": "Auto-fetch interval",
   "prefsConfirmDestructive": "Confirm destructive actions",
   "prefsRestoreTabs": "Restore tabs on launch",
   "prefsTelemetry": "Share anonymous usage data",

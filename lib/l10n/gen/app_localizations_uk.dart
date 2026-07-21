@@ -105,6 +105,9 @@ class AppLocalizationsUk extends AppLocalizations {
   String get prefsAutoFetch => 'Автоотримання';
 
   @override
+  String get prefsAutoFetchInterval => 'Інтервал автоотримання';
+
+  @override
   String get prefsConfirmDestructive => 'Підтверджувати руйнівні дії';
 
   @override

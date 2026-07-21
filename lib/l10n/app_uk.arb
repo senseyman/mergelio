@@ -36,6 +36,7 @@
   "prefsTabShortcuts": "Комбінації клавіш",
   "prefsTabCredentials": "Облікові дані",
   "prefsAutoFetch": "Автоотримання",
+  "prefsAutoFetchInterval": "Інтервал автоотримання",
   "prefsConfirmDestructive": "Підтверджувати руйнівні дії",
   "prefsRestoreTabs": "Відновлювати вкладки при запуску",
   "prefsTelemetry": "Надсилати анонімні дані про використання",

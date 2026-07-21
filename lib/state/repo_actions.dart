@@ -59,30 +59,39 @@ class RepoActions {
 
   /// Runs a network op behind the top progress bar, refreshes on success and
   /// toasts the outcome. Errors never escape — they surface as a toast.
-  Future<void> _network(String label, Future<void> Function() op) async {
+  Future<void> _network(
+    String label,
+    Future<void> Function() op, {
+    // Background ops (auto-fetch) run silent: no success/failure toast.
+    bool silent = false,
+  }) async {
     final toasts = _ref.read(toastProvider.notifier);
     _ref.read(busyProvider.notifier).state = BusyState(label);
     final opId = await _journalBegin(label);
     try {
       await op();
       await _journalDone(opId);
-      toasts.show('$label complete', kind: ToastKind.success);
+      if (!silent) toasts.show('$label complete', kind: ToastKind.success);
     } on GitException catch (e) {
       await _journalFail(opId);
       // Prefer git's own stderr; fall back to the short message.
       final err = e.result?.err ?? '';
-      toasts.show(
-        '$label failed',
-        description: err.isNotEmpty ? err : e.message,
-        kind: ToastKind.error,
-      );
+      if (!silent) {
+        toasts.show(
+          '$label failed',
+          description: err.isNotEmpty ? err : e.message,
+          kind: ToastKind.error,
+        );
+      }
     } on Object catch (_) {
       await _journalFail(opId);
-      toasts.show(
-        '$label failed',
-        description: 'Unexpected error',
-        kind: ToastKind.error,
-      );
+      if (!silent) {
+        toasts.show(
+          '$label failed',
+          description: 'Unexpected error',
+          kind: ToastKind.error,
+        );
+      }
     } finally {
       // Refresh even on failure: a failed pull/merge can still leave the repo
       // mid-operation (conflicts, MERGING) that the UI must show.
@@ -91,8 +100,8 @@ class RepoActions {
     }
   }
 
-  Future<void> fetch({String? remote}) =>
-      _network('Fetch', () => _writer.fetch(remote: remote));
+  Future<void> fetch({String? remote, bool silent = false}) =>
+      _network('Fetch', () => _writer.fetch(remote: remote), silent: silent);
 
   Future<void> pruneRemote(String remote) =>
       _network('Prune $remote', () => _writer.pruneRemote(remote));

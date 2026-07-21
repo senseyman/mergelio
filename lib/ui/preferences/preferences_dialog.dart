@@ -84,6 +84,18 @@ class _GeneralTab extends ConsumerWidget {
           },
         ),
         _SwitchRow(l.prefsAutoFetch, s.autoFetch, c.setAutoFetch),
+        if (s.autoFetch)
+          _ChoiceRow(
+            l.prefsAutoFetchInterval,
+            const ['5', '15', '30', '60', '300'],
+            '${s.autoFetchIntervalSeconds}',
+            (v) => c.setAutoFetchInterval(int.parse(v)),
+            labelFor: (v) => switch (v) {
+              '60' => '1m',
+              '300' => '5m',
+              _ => '${v}s',
+            },
+          ),
         _SwitchRow(
           l.prefsConfirmDestructive,
           s.confirmDestructive,

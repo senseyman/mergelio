@@ -28,6 +28,8 @@ class AppSettings with _$AppSettings {
     @Default(false) bool diffSplit,
     // General preferences.
     @Default(false) bool autoFetch,
+    // Auto-fetch poll interval in seconds (only used while autoFetch is on).
+    @Default(5) int autoFetchIntervalSeconds,
     @Default(true) bool confirmDestructive,
     @Default(true) bool restoreTabs,
     // 'merge' | 'rebase' — default strategy for Pull.

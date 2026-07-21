@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/git/git_providers.dart';
@@ -9,25 +10,43 @@ import 'settings_controller.dart';
 import 'workspace.dart';
 
 /// Periodically fetches the active repository while the "Auto-fetch" preference
-/// is on. Ticks are best-effort: they skip when no repo is open or it has no
-/// remote, and [RepoActions.fetch] itself no-ops while another network op runs.
+/// is on, at the interval configured in settings. Ticks are best-effort: they
+/// skip when no repo is open or it has no remote, and [RepoActions.fetch]
+/// itself no-ops while another network op runs.
 class AutoFetchController {
   final Ref _ref;
-  final Duration interval;
-  Timer? _timer;
 
-  AutoFetchController(this._ref, {this.interval = const Duration(minutes: 3)}) {
+  /// A fixed interval for tests; when null the interval is read live from
+  /// settings so changing the preference reschedules the running timer.
+  final Duration? _override;
+
+  Timer? _timer;
+  Duration? _interval;
+
+  AutoFetchController(this._ref, {Duration? interval}) : _override = interval {
+    // Reschedule whenever the toggle or the interval changes.
     _ref.listen(
-      settingsProvider.select((s) => s.autoFetch),
-      (_, on) => _reschedule(on),
+      settingsProvider.select((s) => (s.autoFetch, s.autoFetchIntervalSeconds)),
+      (_, next) => _reschedule(on: next.$1, seconds: next.$2),
       fireImmediately: true,
     );
     _ref.onDispose(() => _timer?.cancel());
   }
 
-  void _reschedule(bool on) {
+  /// The interval of the currently running timer, or null while auto-fetch is
+  /// off.
+  @visibleForTesting
+  Duration? get scheduledInterval => _timer == null ? null : _interval;
+
+  void _reschedule({required bool on, required int seconds}) {
     _timer?.cancel();
-    _timer = on ? Timer.periodic(interval, (_) => fetchNow()) : null;
+    if (!on) {
+      _timer = null;
+      _interval = null;
+      return;
+    }
+    _interval = _override ?? Duration(seconds: seconds);
+    _timer = Timer.periodic(_interval!, (_) => fetchNow());
   }
 
   /// Fetches the active repo now, if it exists and has a remote.
@@ -39,7 +58,8 @@ class AutoFetchController {
       tab.path,
     ).remotes();
     if (remotes.isEmpty) return;
-    await _ref.read(repoActionsProvider(tab.path)).fetch();
+    // Background tick: stay silent so only manual fetches toast.
+    await _ref.read(repoActionsProvider(tab.path)).fetch(silent: true);
   }
 }
 
