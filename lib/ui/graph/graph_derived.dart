@@ -9,7 +9,7 @@ import 'squash_overlay.dart';
 /// difference between smooth and janky scrolling on large (50k+) repositories.
 class GraphDerived {
   final int maxLane;
-  final Map<String, String> labels;
+  final Map<String, List<String>> labels;
   final Map<String, int> rowIndex;
   final Map<String, ({int lane, int ci})> laneOf;
   final List<SquashSegment> segments;

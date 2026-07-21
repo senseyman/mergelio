@@ -193,6 +193,62 @@ class GitReader {
     return out;
   }
 
+  /// Submodules of this repo: their recorded commit + status from
+  /// `git submodule status`, enriched with url/branch/name from `.gitmodules`.
+  /// Empty when the repo has no submodules.
+  Future<List<Submodule>> submodules() async {
+    final status = await _run(['submodule', 'status']);
+    if (!status.ok || status.stdout.trim().isEmpty) return const [];
+
+    // Metadata (name/url/branch) keyed by path, parsed from .gitmodules.
+    final meta = <String, ({String name, String url, String? branch})>{};
+    final cfg = await _run(['config', '-f', '.gitmodules', '-l', '-z']);
+    if (cfg.ok) {
+      final byName = <String, Map<String, String>>{};
+      for (final rec in cfg.stdout.split(_rs)) {
+        if (rec.isEmpty) continue;
+        final nl = rec.indexOf('\n');
+        if (nl < 0 || !rec.startsWith('submodule.')) continue;
+        final key = rec.substring('submodule.'.length, nl);
+        final dot = key.lastIndexOf('.');
+        if (dot < 0) continue;
+        (byName[key.substring(0, dot)] ??= {})[key.substring(dot + 1)] = rec
+            .substring(nl + 1);
+      }
+      byName.forEach((name, m) {
+        final p = m['path'];
+        if (p != null) {
+          meta[p] = (name: name, url: m['url'] ?? '', branch: m['branch']);
+        }
+      });
+    }
+
+    final out = <Submodule>[];
+    for (final line in const LineSplitter().convert(status.stdout)) {
+      if (line.isEmpty) continue;
+      // '<char><sha> <path>[ (describe)]'
+      final rest = line.substring(1);
+      final sp = rest.indexOf(' ');
+      if (sp < 0) continue;
+      final sha = rest.substring(0, sp);
+      final tail = rest.substring(sp + 1);
+      final paren = tail.indexOf(' (');
+      final path = (paren >= 0 ? tail.substring(0, paren) : tail).trim();
+      final m = meta[path];
+      out.add(
+        Submodule(
+          name: m?.name ?? path,
+          path: path,
+          url: m?.url ?? '',
+          branch: m?.branch,
+          sha: sha,
+          status: submoduleStatusFromChar(line[0]),
+        ),
+      );
+    }
+    return out;
+  }
+
   /// Working-tree changes via `status --porcelain=v2 -z`. Entries carry both
   /// staged ([WorkingFile.index]) and unstaged ([WorkingFile.worktree]) sides;
   /// renames also carry [WorkingFile.origPath].

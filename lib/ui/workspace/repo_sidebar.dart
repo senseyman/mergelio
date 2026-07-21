@@ -11,6 +11,7 @@ import '../../state/settings_controller.dart';
 import '../../state/workspace.dart';
 import '../common/confirm.dart';
 import '../common/dialogs.dart';
+import 'add_submodule_dialog.dart';
 import 'branch_tree.dart';
 
 /// Left panel for the active repo: Branches (folder-grouped) · Remotes · Tags ·
@@ -244,6 +245,49 @@ class _Sections extends ConsumerWidget {
                 onMenu: actions == null
                     ? null
                     : (at) => _stashMenu(context, ref, actions, s, at),
+              ),
+          ],
+        ),
+        _Section(
+          id: 'submodules',
+          icon: Icons.account_tree_outlined,
+          label: 'Submodules',
+          count: data.submodules.length,
+          emptyLabel: 'No submodules',
+          open: isOpen('submodules'),
+          onToggle: () => ctl.toggleSection('submodules'),
+          children: [
+            for (final sm in data.submodules)
+              _LeafRow(
+                icon: sm.status == SubmoduleStatus.notInitialized
+                    ? Icons.folder_off_outlined
+                    : Icons.folder_special_outlined,
+                label: sm.name,
+                trailing:
+                    actions == null || sm.status == SubmoduleStatus.upToDate
+                    ? const []
+                    : [
+                        _MiniButton(
+                          sm.status == SubmoduleStatus.notInitialized
+                              ? 'Init'
+                              : 'Update',
+                          accent: true,
+                          onTap: () => actions.submoduleUpdate(sm.path),
+                        ),
+                      ],
+                onMenu: actions == null
+                    ? null
+                    : (at) => _submoduleMenu(context, ref, actions, sm, at),
+              ),
+            if (actions != null)
+              _AddRow(
+                'Add submodule…',
+                onTap: () async {
+                  final r = await showAddSubmoduleDialog(context);
+                  if (r != null) {
+                    await actions.submoduleAdd(r.url, r.path, branch: r.branch);
+                  }
+                },
               ),
           ],
         ),
@@ -956,6 +1000,85 @@ Future<void> _stashMenu(
       ),
     ],
   );
+}
+
+Future<void> _submoduleMenu(
+  BuildContext context,
+  WidgetRef ref,
+  RepoActions actions,
+  Submodule sm,
+  Offset at,
+) async {
+  final t = context.tokens;
+  await showContextMenu<void>(
+    context: context,
+    position: at,
+    items: [
+      PopupMenuItem(
+        height: 34,
+        onTap: () => actions.submoduleUpdate(sm.path),
+        child: const Text('Update', style: TextStyle(fontSize: 13)),
+      ),
+      PopupMenuItem(
+        height: 34,
+        onTap: () => actions.submoduleUpdateRemote(sm.path),
+        child: const Text('Update to remote', style: TextStyle(fontSize: 13)),
+      ),
+      PopupMenuItem(
+        height: 34,
+        onTap: () => actions.submoduleSync(sm.path),
+        child: const Text('Sync', style: TextStyle(fontSize: 13)),
+      ),
+      PopupMenuItem(
+        height: 34,
+        onTap: () => actions.submoduleDeinit(sm.path),
+        child: const Text('Deinit', style: TextStyle(fontSize: 13)),
+      ),
+      const PopupMenuDivider(),
+      PopupMenuItem(
+        height: 34,
+        onTap: () async {
+          final ok = await confirmDestructive(
+            ref,
+            context,
+            title: 'Remove ${sm.name}?',
+            body:
+                'The submodule at ${sm.path} will be deinitialized and removed '
+                'from .gitmodules. This cannot be undone.',
+            confirmLabel: 'Remove',
+          );
+          if (ok) await actions.submoduleRemove(sm.path);
+        },
+        child: Text('Remove', style: TextStyle(fontSize: 13, color: t.danger)),
+      ),
+    ],
+  );
+}
+
+/// A muted "+ Add …" affordance rendered as the last row of a section.
+class _AddRow extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  const _AddRow(this.label, {required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return InkWell(
+      hoverColor: t.hover,
+      onTap: onTap,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(_indent(0), 5, 10, 5),
+        child: Row(
+          children: [
+            Icon(Icons.add, size: 14, color: t.textFaint),
+            const SizedBox(width: 8),
+            Text(label, style: TextStyle(color: t.textFaint, fontSize: 13)),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _MiniButton extends StatelessWidget {

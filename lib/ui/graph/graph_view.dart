@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -401,16 +402,18 @@ class _GraphListState extends ConsumerState<GraphList> {
                       // Name a branch only on the top row of its contiguous run:
                       // when this row's label differs from the row directly
                       // above it (or it is the first commit).
-                      final label = labels[c.sha];
-                      final prevLabel = ci > 0
-                          ? labels[d.commits[ci - 1].sha]
-                          : null;
+                      final rowLabels = labels[c.sha] ?? const <String>[];
+                      final prevLabels = ci > 0
+                          ? (labels[d.commits[ci - 1].sha] ?? const <String>[])
+                          : const <String>[];
                       final row = _CommitContextMenu(
                         commit: c,
                         child: CommitRow(
                           commit: c,
-                          branchLabel: label,
-                          showBranchLabel: label != null && label != prevLabel,
+                          branchLabels: rowLabels,
+                          showBranchLabel:
+                              rowLabels.isNotEmpty &&
+                              !listEquals(rowLabels, prevLabels),
                           metrics: metrics,
                           maxLane: maxLane,
                           cols: cols,

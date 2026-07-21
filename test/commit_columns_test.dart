@@ -31,7 +31,7 @@ void main() {
       final labels = deriveBranchLabels([
         _c('tip', parents: const [], refs: [_local('main')]),
       ]);
-      expect(labels['tip'], 'main');
+      expect(labels['tip'], ['main']);
     });
 
     test(
@@ -40,15 +40,22 @@ void main() {
         final labels = deriveBranchLabels([
           _c('x', refs: [_remote('origin/feature')]),
         ]);
-        expect(labels['x'], 'origin/feature');
+        expect(labels['x'], ['origin/feature']);
       },
     );
 
-    test('a local ref wins over a remote ref on the same commit', () {
+    test('a local ref suppresses a remote on the same commit', () {
       final labels = deriveBranchLabels([
         _c('x', refs: [_remote('origin/main'), _local('main')]),
       ]);
-      expect(labels['x'], 'main');
+      expect(labels['x'], ['main']);
+    });
+
+    test('multiple local branches on one commit are all shown', () {
+      final labels = deriveBranchLabels([
+        _c('x', refs: [_local('main'), _local('feature/submodules')]),
+      ]);
+      expect(labels['x'], ['main', 'feature/submodules']);
     });
 
     test('a tag ref does not name a commit', () {
@@ -67,8 +74,8 @@ void main() {
         _c('feat', parents: const ['base'], refs: [_remote('origin/feature')]),
         _c('base'),
       ]);
-      expect(labels['feat'], 'origin/feature');
-      expect(labels['base'], 'origin/feature');
+      expect(labels['feat'], ['origin/feature']);
+      expect(labels['base'], ['origin/feature']);
     });
 
     test('shared ancestors take the nearest descendant branch, not a '
@@ -80,12 +87,26 @@ void main() {
         _c('old1', parents: const ['old2']),
         _c('old2'),
       ]);
-      expect(labels['s3'], 'feat/stage-3');
+      expect(labels['s3'], ['feat/stage-3']);
       // main and everything below it belongs to main — not feat/stage-3, even
       // though stage-3 also contains these commits.
-      expect(labels['main'], 'main');
-      expect(labels['old1'], 'main');
-      expect(labels['old2'], 'main');
+      expect(labels['main'], ['main']);
+      expect(labels['old1'], ['main']);
+      expect(labels['old2'], ['main']);
+    });
+
+    test('only the primary ref of a multi-ref tip propagates down', () {
+      // main + feature both tip 'x'; base inherits only the first (main).
+      final labels = deriveBranchLabels([
+        _c(
+          'x',
+          parents: const ['base'],
+          refs: [_local('main'), _local('feat')],
+        ),
+        _c('base'),
+      ]);
+      expect(labels['x'], ['main', 'feat']);
+      expect(labels['base'], ['main']);
     });
 
     test('a commit\'s own ref wins over an inheriting descendant', () {
@@ -93,7 +114,7 @@ void main() {
         _c('feat', parents: const ['base'], refs: [_local('feature')]),
         _c('base', refs: [_local('main')]),
       ]);
-      expect(labels['base'], 'main');
+      expect(labels['base'], ['main']);
     });
 
     test('a merged branch keeps its own line via first parent', () {
@@ -104,9 +125,9 @@ void main() {
         _c('f1', parents: const ['m1']),
         _c('m1', refs: [_local('main')]),
       ]);
-      expect(labels['f2'], 'feature');
-      expect(labels['f1'], 'feature'); // first-parent descendant is f2
-      expect(labels['m1'], 'main');
+      expect(labels['f2'], ['feature']);
+      expect(labels['f1'], ['feature']); // first-parent descendant is f2
+      expect(labels['m1'], ['main']);
     });
   });
 }

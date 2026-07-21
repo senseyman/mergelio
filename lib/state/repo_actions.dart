@@ -97,6 +97,40 @@ class RepoActions {
   Future<void> pruneRemote(String remote) =>
       _network('Prune $remote', () => _writer.pruneRemote(remote));
 
+  // — Submodules —
+
+  Future<void> submoduleUpdateAll({bool recursive = false}) => _network(
+    'Update submodules',
+    () => _writer.submoduleUpdate(init: true, recursive: recursive),
+  );
+
+  Future<void> submoduleUpdate(String path) => _network(
+    'Update $path',
+    () => _writer.submoduleUpdate(path: path, init: true),
+  );
+
+  Future<void> submoduleUpdateRemote(String path) => _network(
+    'Update $path to remote',
+    () => _writer.submoduleUpdateRemote(path),
+  );
+
+  Future<void> submoduleAdd(String url, String path, {String? branch}) =>
+      _network(
+        'Add submodule',
+        () => _writer.submoduleAdd(url, path, branch: branch),
+      );
+
+  Future<void> submoduleSync([String? path]) =>
+      _network('Sync submodules', () => _writer.submoduleSync(path: path));
+
+  Future<void> submoduleDeinit(String path) => _network(
+    'Deinit $path',
+    () => _writer.submoduleDeinit(path, force: true),
+  );
+
+  Future<void> submoduleRemove(String path) =>
+      _network('Remove $path', () => _writer.submoduleRemove(path));
+
   /// Fetch URL for [remote] (read-only; empty if unset).
   Future<String> remoteUrl(String remote) =>
       GitReader(_git, path).remoteUrl(remote);

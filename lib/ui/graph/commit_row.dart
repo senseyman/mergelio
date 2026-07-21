@@ -14,7 +14,7 @@ import 'ref_pill.dart';
 /// collapses to a single line.
 class CommitRow extends StatelessWidget {
   final Commit commit;
-  final String? branchLabel;
+  final List<String> branchLabels;
 
   /// True only on the top row of a contiguous branch segment, so the gutter
   /// prints the branch name once instead of repeating it down the column.
@@ -33,7 +33,7 @@ class CommitRow extends StatelessWidget {
   const CommitRow({
     super.key,
     required this.commit,
-    required this.branchLabel,
+    required this.branchLabels,
     this.showBranchLabel = false,
     required this.metrics,
     required this.maxLane,
@@ -124,42 +124,69 @@ class CommitRow extends StatelessWidget {
   /// aligned so the name sits flush against the rail, tinted with the lane's
   /// colour and capped with a matching dot.
   Widget _branchColumn(AppTokens t, Commit c) {
-    final label = branchLabel;
-    if (!showBranchLabel || label == null) {
+    if (!showBranchLabel || branchLabels.isEmpty) {
       return SizedBox(width: metrics.branchWidth);
     }
     final color = t.branchColor(c.ci);
+    // Stack all branches on this commit, capped by how many chips fit the row;
+    // the rest collapse into a '+N' chip (its tooltip lists them).
+    final maxChips = (metrics.rowHeight ~/ 16).clamp(1, 5);
+    final List<String> shown;
+    final int overflow;
+    if (branchLabels.length <= maxChips) {
+      shown = branchLabels;
+      overflow = 0;
+    } else {
+      shown = branchLabels.sublist(0, maxChips - 1);
+      overflow = branchLabels.length - shown.length;
+    }
     return SizedBox(
       width: metrics.branchWidth,
       child: Padding(
         padding: const EdgeInsets.only(left: 8, right: 6),
-        child: Row(
-          mainAxisSize: MainAxisSize.max,
-          mainAxisAlignment: MainAxisAlignment.end,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Flexible(
-              child: Text(
-                label,
-                textAlign: TextAlign.end,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                ),
+            for (final name in shown) _branchChip(name, color),
+            if (overflow > 0)
+              Tooltip(
+                message: branchLabels.skip(maxChips - 1).join('\n'),
+                child: _branchChip('+$overflow', t.textFaint, dot: false),
               ),
-            ),
-            Container(
-              width: 6,
-              height: 6,
-              margin: const EdgeInsets.only(left: 5),
-              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-            ),
           ],
         ),
       ),
     );
   }
+
+  /// One right-aligned branch chip: ellipsized name flush to the rail, capped
+  /// with a matching dot (omitted for the '+N' overflow chip).
+  Widget _branchChip(String name, Color color, {bool dot = true}) => Row(
+    mainAxisSize: MainAxisSize.max,
+    mainAxisAlignment: MainAxisAlignment.end,
+    children: [
+      Flexible(
+        child: Text(
+          name,
+          textAlign: TextAlign.end,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: color,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+      if (dot)
+        Container(
+          width: 6,
+          height: 6,
+          margin: const EdgeInsets.only(left: 5),
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+    ],
+  );
 
   Widget _titleLine(AppTokens t, Commit c) => Row(
     mainAxisSize: MainAxisSize.min,

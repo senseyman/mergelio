@@ -20,6 +20,7 @@ class RepoData with _$RepoData {
     @Default([]) List<String> tags,
     @Default([]) List<Stash> stashes,
     @Default([]) List<WorkingFile> working,
+    @Default([]) List<Submodule> submodules,
     // Inferred squash-merge connectors (no git parent edge exists).
     @Default([]) List<SquashLink> squashLinks,
   }) = _RepoData;
@@ -57,6 +58,7 @@ final repoDataProvider = FutureProvider.family<RepoData, String>((
     reader.stashes(),
     reader.status(),
     reader.remoteBranches(),
+    reader.submodules(),
   ]);
   final commits = assignLanes(results[0] as List<Commit>);
   final branches = assignBranchColors(results[1] as List<Branch>, commits);
@@ -89,6 +91,7 @@ final repoDataProvider = FutureProvider.family<RepoData, String>((
     stashes: results[4] as List<Stash>,
     working: results[5] as List<WorkingFile>,
     remoteBranches: results[6] as List<RemoteBranch>,
+    submodules: results[7] as List<Submodule>,
     squashLinks: squash,
   );
 });

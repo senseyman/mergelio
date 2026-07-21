@@ -231,6 +231,59 @@ class GitWriter {
   Future<void> revertAbort() =>
       _ok(['revert', '--abort'], 'git revert --abort');
 
+  // — Submodules —
+
+  Future<void> submoduleUpdate({
+    String? path,
+    bool init = false,
+    bool recursive = false,
+  }) => _ok(
+    [
+      'submodule',
+      'update',
+      if (init) '--init',
+      if (recursive) '--recursive',
+      ?path,
+    ],
+    'git submodule update',
+    timeout: _netTimeout,
+  );
+
+  Future<void> submoduleUpdateRemote(String path) => _ok(
+    ['submodule', 'update', '--remote', path],
+    'git submodule update --remote',
+    timeout: _netTimeout,
+  );
+
+  Future<void> submoduleAdd(String url, String path, {String? branch}) => _ok(
+    [
+      'submodule',
+      'add',
+      if (branch != null) ...['-b', branch],
+      url,
+      path,
+    ],
+    'git submodule add',
+    timeout: _netTimeout,
+  );
+
+  Future<void> submoduleSync({String? path}) =>
+      _ok(['submodule', 'sync', ?path], 'git submodule sync');
+
+  Future<void> submoduleDeinit(String path, {bool force = false}) => _ok([
+    'submodule',
+    'deinit',
+    if (force) '-f',
+    path,
+  ], 'git submodule deinit');
+
+  /// Fully removes a submodule: deinit, then `git rm` (drops the gitlink and
+  /// the `.gitmodules` entry).
+  Future<void> submoduleRemove(String path) async {
+    await _ok(['submodule', 'deinit', '-f', path], 'git submodule deinit');
+    await _ok(['rm', '-f', path], 'git rm submodule');
+  }
+
   /// Moves the current branch to [sha], discarding working-tree and index
   /// changes. Destructive — the caller must confirm first.
   Future<void> resetHard(String sha) =>

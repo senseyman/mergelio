@@ -105,6 +105,33 @@ class Stash with _$Stash {
   const factory Stash({required String ref, required String message}) = _Stash;
 }
 
+/// State of a submodule relative to the commit its superproject records.
+enum SubmoduleStatus { notInitialized, upToDate, newCommits, conflict }
+
+/// Maps a `git submodule status` line-prefix char to [SubmoduleStatus]:
+/// `-` not initialized, `+` a different commit is checked out, `U` merge
+/// conflicts, anything else (a space) up to date.
+SubmoduleStatus submoduleStatusFromChar(String c) => switch (c) {
+  '-' => SubmoduleStatus.notInitialized,
+  '+' => SubmoduleStatus.newCommits,
+  'U' => SubmoduleStatus.conflict,
+  _ => SubmoduleStatus.upToDate,
+};
+
+/// A git submodule: its [name]/[path] and [url] from `.gitmodules`, the [sha]
+/// currently checked out, an optional tracked [branch], and its [status].
+@freezed
+class Submodule with _$Submodule {
+  const factory Submodule({
+    required String name,
+    required String path,
+    required String url,
+    required String sha,
+    String? branch,
+    @Default(SubmoduleStatus.upToDate) SubmoduleStatus status,
+  }) = _Submodule;
+}
+
 /// A working-tree file with its staged ([index]) and unstaged ([worktree])
 /// change state. A file changed on both sides is "partial" and shows in both
 /// STAGED and UNSTAGED lists. [origPath] is set for renames/copies.
