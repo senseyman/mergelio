@@ -124,21 +124,29 @@ class CommitRow extends StatelessWidget {
   /// aligned so the name sits flush against the rail, tinted with the lane's
   /// colour and capped with a matching dot.
   Widget _branchColumn(AppTokens t, Commit c) {
-    if (!showBranchLabel || branchLabels.isEmpty) {
+    final chips = branchColumnChips(
+      c,
+      branchLabels,
+      showBranchLabel: showBranchLabel,
+    );
+    if (chips.isEmpty) {
       return SizedBox(width: metrics.branchWidth);
     }
-    final color = t.branchColor(c.ci);
-    // Stack all branches on this commit, capped by how many chips fit the row;
-    // the rest collapse into a '+N' chip (its tooltip lists them).
+    final laneColor = t.branchColor(c.ci);
+    // The HEAD marker is tinted with the success colour; branch chips take the
+    // lane colour.
+    Color colorFor(BranchChip chip) => chip.isHead ? t.success : laneColor;
+    // Stack the chips on this commit, capped by how many fit the row; the rest
+    // collapse into a '+N' chip (its tooltip lists them).
     final maxChips = (metrics.rowHeight ~/ 16).clamp(1, 5);
-    final List<String> shown;
+    final List<BranchChip> shown;
     final int overflow;
-    if (branchLabels.length <= maxChips) {
-      shown = branchLabels;
+    if (chips.length <= maxChips) {
+      shown = chips;
       overflow = 0;
     } else {
-      shown = branchLabels.sublist(0, maxChips - 1);
-      overflow = branchLabels.length - shown.length;
+      shown = chips.sublist(0, maxChips - 1);
+      overflow = chips.length - shown.length;
     }
     return SizedBox(
       width: metrics.branchWidth,
@@ -148,10 +156,10 @@ class CommitRow extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            for (final name in shown) _branchChip(name, color),
+            for (final chip in shown) _branchChip(chip.name, colorFor(chip)),
             if (overflow > 0)
               Tooltip(
-                message: branchLabels.skip(maxChips - 1).join('\n'),
+                message: chips.skip(maxChips - 1).map((e) => e.name).join('\n'),
                 child: _branchChip('+$overflow', t.textFaint, dot: false),
               ),
           ],
@@ -207,10 +215,10 @@ class CommitRow extends StatelessWidget {
           padding: const EdgeInsets.only(left: 6),
           child: Icon(Icons.verified_user_outlined, size: 12, color: t.success),
         ),
-      // Branch heads live in the left column now; only HEAD and tags stay inline
-      // since they mark a specific commit, not a whole strand.
+      // Branch heads and the HEAD marker live in the left column now; only tags
+      // stay inline since they mark a specific commit, not a whole strand.
       for (final r in c.refs)
-        if (r.kind == RefKind.head || r.kind == RefKind.tag) RefPill(gitRef: r),
+        if (r.kind == RefKind.tag) RefPill(gitRef: r),
     ],
   );
 

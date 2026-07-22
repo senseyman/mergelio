@@ -75,3 +75,41 @@ Map<String, List<String>> deriveBranchLabels(List<Commit> commits) {
   }
   return display;
 }
+
+/// One chip in a row's left branch column: a branch name, or the HEAD marker.
+class BranchChip {
+  final String name;
+  final bool isHead;
+  const BranchChip({required this.name, required this.isHead});
+
+  @override
+  bool operator ==(Object other) =>
+      other is BranchChip && other.name == name && other.isHead == isHead;
+
+  @override
+  int get hashCode => Object.hash(name, isHead);
+
+  @override
+  String toString() => 'BranchChip($name, isHead: $isHead)';
+}
+
+/// Chips shown in the left branch column for [c]: the HEAD marker first (when
+/// this commit is HEAD, including a detached HEAD), then its [branchLabels].
+/// Branch labels only appear on the segment top ([showBranchLabel]); HEAD marks
+/// its exact commit regardless.
+List<BranchChip> branchColumnChips(
+  Commit c,
+  List<String> branchLabels, {
+  required bool showBranchLabel,
+}) {
+  final chips = <BranchChip>[];
+  if (c.refs.any((r) => r.kind == RefKind.head)) {
+    chips.add(const BranchChip(name: 'HEAD', isHead: true));
+  }
+  if (showBranchLabel) {
+    for (final name in branchLabels) {
+      chips.add(BranchChip(name: name, isHead: false));
+    }
+  }
+  return chips;
+}

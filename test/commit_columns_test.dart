@@ -18,6 +18,7 @@ Commit _c(
 
 GitRef _local(String name) => GitRef(kind: RefKind.local, name: name);
 GitRef _remote(String name) => GitRef(kind: RefKind.remote, name: name);
+GitRef _head() => const GitRef(kind: RefKind.head, name: 'HEAD');
 
 void main() {
   test('formats dates as "Mon D, YYYY"', () {
@@ -128,6 +129,43 @@ void main() {
       expect(labels['f2'], ['feature']);
       expect(labels['f1'], ['feature']); // first-parent descendant is f2
       expect(labels['m1'], ['main']);
+    });
+  });
+
+  group('branchColumnChips', () {
+    test('a HEAD ref adds a HEAD chip above the branch chips', () {
+      final chips = branchColumnChips(
+        _c('x', refs: [_head(), _local('main')]),
+        ['main'],
+        showBranchLabel: true,
+      );
+      expect(chips, const [
+        BranchChip(name: 'HEAD', isHead: true),
+        BranchChip(name: 'main', isHead: false),
+      ]);
+    });
+
+    test('a detached HEAD shows a HEAD chip even with no branch label', () {
+      final chips = branchColumnChips(
+        _c('x', refs: [_head()]),
+        const [],
+        showBranchLabel: false,
+      );
+      expect(chips, const [BranchChip(name: 'HEAD', isHead: true)]);
+    });
+
+    test('without a HEAD ref only the branch chips show', () {
+      final chips = branchColumnChips(_c('x', refs: [_local('main')]), [
+        'main',
+      ], showBranchLabel: true);
+      expect(chips, const [BranchChip(name: 'main', isHead: false)]);
+    });
+
+    test('branch labels are suppressed off the segment top', () {
+      final chips = branchColumnChips(_c('x', refs: [_local('main')]), [
+        'main',
+      ], showBranchLabel: false);
+      expect(chips, isEmpty);
     });
   });
 }
