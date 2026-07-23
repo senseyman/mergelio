@@ -190,6 +190,56 @@ class RepoActions {
     _refresh();
   }
 
+  /// Discards all uncommitted changes to [f] — a full revert to HEAD for a
+  /// tracked file, or deletion for an untracked one. Undoable: undo restores
+  /// the working-tree content (and re-stages what was staged).
+  Future<void> discardFile(WorkingFile f) async {
+    if (_blockedByNetwork) return;
+    final file = File('$path/${f.path}');
+    if (f.isUntracked) {
+      final bytes = await file.readAsBytes();
+      await _undoable(
+        'Discard ${f.path}',
+        () async => file.delete(),
+        undo: () async => file.writeAsBytes(bytes),
+        redo: () async => file.delete(),
+      );
+      return;
+    }
+    final bytes = await file.readAsBytes();
+    final stagedPatch = (await _git.run([
+      'diff',
+      '--cached',
+      '--',
+      f.path,
+    ], repoPath: path)).stdout;
+    Future<void> restore() async {
+      await file.writeAsBytes(bytes);
+      if (stagedPatch.trim().isNotEmpty) {
+        await _writer.applyToIndex(stagedPatch);
+      }
+    }
+
+    await _undoable(
+      'Discard ${f.path}',
+      () => _writer.restoreFromHead(f.path),
+      undo: restore,
+      redo: () => _writer.restoreFromHead(f.path),
+    );
+  }
+
+  /// Reverts a single hunk in the working tree ([patch] is a stage-style hunk
+  /// patch); undoable.
+  Future<void> discardHunk(String patch) async {
+    if (_blockedByNetwork) return;
+    await _undoable(
+      'Discard hunk',
+      () => _writer.applyToWorktree(patch, reverse: true),
+      undo: () => _writer.applyToWorktree(patch),
+      redo: () => _writer.applyToWorktree(patch, reverse: true),
+    );
+  }
+
   Future<void> commit(
     String summary, {
     String description = '',

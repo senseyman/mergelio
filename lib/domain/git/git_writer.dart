@@ -388,4 +388,29 @@ class GitWriter {
       body.toString(),
     ], 'git commit');
   }
+
+  /// Reverts [path] to its committed state, dropping staged and unstaged edits.
+  Future<void> restoreFromHead(String path) => _ok([
+    'restore',
+    '--staged',
+    '--worktree',
+    '--source=HEAD',
+    '--',
+    path,
+  ], 'git restore');
+
+  /// Applies [patch] to the working tree (not the index), or reverses it.
+  Future<void> applyToWorktree(String patch, {bool reverse = false}) async {
+    final tmp = await File(
+      '${(await Directory.systemTemp.createTemp('mergelio_discard_')).path}/discard.patch',
+    ).create();
+    try {
+      await tmp.writeAsString(patch);
+      await _ok(['apply', if (reverse) '--reverse', tmp.path], 'git apply');
+    } finally {
+      if (await tmp.parent.exists()) {
+        await tmp.parent.delete(recursive: true);
+      }
+    }
+  }
 }

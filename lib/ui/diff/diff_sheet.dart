@@ -12,6 +12,7 @@ import '../../state/feedback.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
 import '../../state/settings_controller.dart';
+import '../common/confirm.dart';
 
 /// Slide-up diff sheet over the graph. Occupies [settings.diffHeight] of the
 /// available height; the grip resizes it. Renders inline/split with word-level
@@ -375,6 +376,35 @@ class _DiffBody extends ConsumerWidget {
               }
             }
 
+            Future<void> discard(FileDiff file, int hunkIndex) async {
+              final patch = buildStagePatch(file, hunkIndex);
+              if (patch == null) return;
+              final ok = await confirmDestructive(
+                ref,
+                context,
+                title: 'Discard hunk?',
+                body:
+                    'This removes the selected changes from the working tree. '
+                    'You can undo it.',
+                confirmLabel: 'Discard',
+              );
+              if (!ok) return;
+              try {
+                await ref
+                    .read(repoActionsProvider(target.repoPath))
+                    .discardHunk(patch);
+                ref.invalidate(diffDocumentProvider(target));
+              } on Object catch (e) {
+                ref
+                    .read(toastProvider.notifier)
+                    .show(
+                      'Could not discard',
+                      description: '$e',
+                      kind: ToastKind.error,
+                    );
+              }
+            }
+
             // ListView.builder virtualises: only visible rows build (and only
             // they run highlightLine), so large diffs and grip-resize stay
             // smooth.
@@ -389,6 +419,9 @@ class _DiffBody extends ConsumerWidget {
                     editable: doc.editable,
                     staged: doc.staged,
                     onStage: () => apply(it.file, it.hunkIndex, null),
+                    onDiscard: doc.staged
+                        ? null
+                        : () => discard(it.file, it.hunkIndex),
                   );
                 }
                 if (it.pair != null) {
@@ -456,11 +489,13 @@ class _HunkHeaderRow extends StatelessWidget {
   final bool editable;
   final bool staged;
   final VoidCallback onStage;
+  final VoidCallback? onDiscard;
   const _HunkHeaderRow({
     required this.header,
     required this.editable,
     required this.staged,
     required this.onStage,
+    this.onDiscard,
   });
 
   @override
@@ -493,6 +528,16 @@ class _HunkHeaderRow extends StatelessWidget {
                 staged ? 'Unstage hunk' : 'Stage hunk',
                 style: const TextStyle(fontSize: 11),
               ),
+            ),
+          if (onDiscard != null)
+            TextButton(
+              onPressed: onDiscard,
+              style: TextButton.styleFrom(
+                minimumSize: Size.zero,
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text('Discard hunk', style: TextStyle(fontSize: 11)),
             ),
         ],
       ),

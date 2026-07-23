@@ -13,6 +13,7 @@ import '../../state/profiles.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
 import '../../state/settings_controller.dart';
+import '../common/confirm.dart';
 import '../common/dialogs.dart';
 import '../common/file_tree_view.dart';
 import '../insight/file_insight_dialog.dart';
@@ -76,6 +77,8 @@ class WorkingTreePanel extends ConsumerWidget {
                         bulkLabel: 'Stage all',
                         onToggle: (f) => actions.stageFile(f.path),
                         onOpen: (f) => _open(ref, f.path, staged: false),
+                        onDiscard: (f) =>
+                            _confirmDiscardFile(ref, context, repoPath, f),
                       ),
                       _FileSection(
                         label: 'STAGED',
@@ -87,6 +90,8 @@ class WorkingTreePanel extends ConsumerWidget {
                         bulkLabel: 'Unstage all',
                         onToggle: (f) => actions.unstageFile(f.path),
                         onOpen: (f) => _open(ref, f.path, staged: true),
+                        onDiscard: (f) =>
+                            _confirmDiscardFile(ref, context, repoPath, f),
                       ),
                     ],
                   ),
@@ -173,6 +178,7 @@ class _FileSection extends StatelessWidget {
   final String bulkLabel;
   final void Function(WorkingFile) onToggle;
   final void Function(WorkingFile) onOpen;
+  final void Function(WorkingFile) onDiscard;
 
   const _FileSection({
     required this.label,
@@ -184,6 +190,7 @@ class _FileSection extends StatelessWidget {
     required this.bulkLabel,
     required this.onToggle,
     required this.onOpen,
+    required this.onDiscard,
   });
 
   @override
@@ -233,6 +240,7 @@ class _FileSection extends StatelessWidget {
             inTree: tree,
             onToggle: onToggle,
             onOpen: onOpen,
+            onDiscard: onDiscard,
           ),
         ),
       ],
@@ -250,6 +258,7 @@ class _FileRow extends StatelessWidget {
   final bool inTree;
   final void Function(WorkingFile) onToggle;
   final void Function(WorkingFile) onOpen;
+  final void Function(WorkingFile) onDiscard;
 
   const _FileRow({
     required this.file,
@@ -257,6 +266,7 @@ class _FileRow extends StatelessWidget {
     required this.staged,
     required this.onToggle,
     required this.onOpen,
+    required this.onDiscard,
     this.indent = 0,
     this.inTree = false,
   });
@@ -303,6 +313,14 @@ class _FileRow extends StatelessWidget {
               initialTab: 1,
             ),
             child: const Text('Blame', style: TextStyle(fontSize: 13)),
+          ),
+          PopupMenuItem(
+            height: 34,
+            onTap: () => onDiscard(file),
+            child: const Text(
+              'Discard changes',
+              style: TextStyle(fontSize: 13),
+            ),
           ),
         ],
       ),
@@ -645,4 +663,27 @@ class _Toggle extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Confirms discarding [f], then performs it. A tracked file is fully
+/// reverted to its committed state; an untracked file is deleted. Either way
+/// the action is undoable, so the confirm copy says so.
+Future<void> _confirmDiscardFile(
+  WidgetRef ref,
+  BuildContext context,
+  String repoPath,
+  WorkingFile f,
+) async {
+  final ok = await confirmDestructive(
+    ref,
+    context,
+    title: 'Discard changes to ${f.path}?',
+    body: f.isUntracked
+        ? 'This deletes the untracked file. You can undo it.'
+        : 'This reverts the file to its committed state, dropping staged and '
+              'unstaged changes. You can undo it.',
+    confirmLabel: 'Discard',
+  );
+  if (!ok) return;
+  await ref.read(repoActionsProvider(repoPath)).discardFile(f);
 }
