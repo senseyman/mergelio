@@ -47,5 +47,23 @@ void main() {
       );
       expect(session.allResolved, isTrue);
     });
+
+    test('kind defaults to merge and dropStashRef to null', () {
+      const s = MergeSession(branch: 'x', files: []);
+      expect(s.kind, MergeKind.merge);
+      expect(s.dropStashRef, isNull);
+    });
+
+    test('withFiles preserves kind and dropStashRef', () {
+      const s = MergeSession(
+        branch: 'x',
+        files: [],
+        kind: MergeKind.stash,
+        dropStashRef: 'stash@{0}',
+      );
+      final s2 = s.withFiles(const []);
+      expect(s2.kind, MergeKind.stash);
+      expect(s2.dropStashRef, 'stash@{0}');
+    });
   });
 }

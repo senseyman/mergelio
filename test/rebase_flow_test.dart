@@ -86,7 +86,7 @@ void main() {
         RebaseStep(a, RebaseAction.pick),
       ]);
 
-      expect(c.read(mergeSessionProvider(dir.path))?.isRebase, isTrue);
+      expect(c.read(mergeSessionProvider(dir.path))?.kind, MergeKind.rebase);
 
       // Resolve each conflict round to "theirs" until the rebase completes
       // (reordered picks conflict twice here).

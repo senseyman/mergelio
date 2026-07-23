@@ -37,6 +37,10 @@ class ConflictFile {
       );
 }
 
+/// How a conflict-resolution session completes: [merge] commits a merge,
+/// [rebase] runs `rebase --continue`, [stash] just stages the resolution.
+enum MergeKind { merge, rebase, stash }
+
 /// An in-progress conflict resolution for [branch] being merged in.
 class MergeSession {
   final String branch;
@@ -45,14 +49,17 @@ class MergeSession {
   /// HEAD before the merge started, for undo of a finished merge.
   final String prevSha;
 
-  /// True when these conflicts arose during a rebase (finish runs
-  /// `rebase --continue` instead of a merge commit).
-  final bool isRebase;
+  /// How this session completes (see [MergeKind]).
+  final MergeKind kind;
+
+  /// A stash to drop once the session finishes (a conflicted `pop`), else null.
+  final String? dropStashRef;
   const MergeSession({
     required this.branch,
     required this.files,
     this.prevSha = '',
-    this.isRebase = false,
+    this.kind = MergeKind.merge,
+    this.dropStashRef,
   });
 
   bool get allResolved => files.every((f) => f.resolved);
@@ -62,14 +69,16 @@ class MergeSession {
   MergeSession withFiles(List<ConflictFile> newFiles) => MergeSession(
     branch: branch,
     prevSha: prevSha,
-    isRebase: isRebase,
+    kind: kind,
+    dropStashRef: dropStashRef,
     files: newFiles,
   );
 
   MergeSession replaceFile(int index, ConflictFile file) => MergeSession(
     branch: branch,
     prevSha: prevSha,
-    isRebase: isRebase,
+    kind: kind,
+    dropStashRef: dropStashRef,
     files: [
       for (var i = 0; i < files.length; i++) i == index ? file : files[i],
     ],

@@ -18,6 +18,7 @@ import '../common/dialogs.dart';
 import '../rebase/rebase_editor.dart';
 import '../shell/repo_op_dialogs.dart';
 import '../shell/resize_handle.dart';
+import '../workspace/branch_switch.dart';
 import '../../l10n/gen/app_localizations.dart';
 import 'commit_columns.dart';
 import 'graph_derived.dart';
@@ -425,6 +426,31 @@ class _GraphListState extends ConsumerState<GraphList> {
                           onTap: () {
                             _focus.requestFocus();
                             _select(c.sha, metrics.rowHeight);
+                          },
+                          onBranchActivated: (label) {
+                            final repoPath = ref
+                                .read(workspaceProvider)
+                                .activeTab
+                                ?.path;
+                            if (repoPath == null) return;
+                            final target = resolveBranchChip(
+                              label,
+                              d.remoteBranches,
+                            );
+                            // Double-clicking the current branch is a no-op.
+                            if (target.local != null &&
+                                d.branches.any(
+                                  (b) => b.current && b.name == target.local,
+                                )) {
+                              return;
+                            }
+                            activateBranch(
+                              ref,
+                              context,
+                              repoPath,
+                              localBranch: target.local,
+                              remote: target.remote,
+                            );
                           },
                         ),
                       );

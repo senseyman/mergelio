@@ -12,6 +12,7 @@ import '../../state/workspace.dart';
 import '../common/confirm.dart';
 import '../common/dialogs.dart';
 import 'add_submodule_dialog.dart';
+import 'branch_switch.dart';
 import 'branch_tree.dart';
 
 /// Left panel for the active repo: Branches (folder-grouped) · Remotes · Tags ·
@@ -180,7 +181,7 @@ class _Sections extends ConsumerWidget {
                   rb: rb,
                   onCheckout: actions == null
                       ? null
-                      : () => actions.checkoutRemote(rb),
+                      : () => activateBranch(ref, context, path!, remote: rb),
                   onMenu: actions == null
                       ? null
                       : (at) => _remoteBranchMenu(

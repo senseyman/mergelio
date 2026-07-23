@@ -8,6 +8,7 @@ import '../../domain/git/git_reader.dart';
 import '../../domain/git/models.dart';
 import '../../state/diff_target.dart';
 import '../../state/feedback.dart';
+import '../../state/merge_session.dart';
 import '../../state/profiles.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
@@ -35,6 +36,8 @@ class WorkingTreePanel extends ConsumerWidget {
     final unstaged = data.working.where((f) => f.isUnstaged).toList();
     final clean = data.working.isEmpty;
     final tree = ref.watch(settingsProvider.select((s) => s.filesAsTree));
+    final hasConflicts = data.working.any((f) => f.isConflicted);
+    final resolving = ref.watch(mergeSessionProvider(repoPath)) != null;
 
     return Container(
       color: t.bgPanel,
@@ -45,6 +48,18 @@ class WorkingTreePanel extends ConsumerWidget {
             title: 'CHANGES',
             trailing: clean ? null : const FileViewToggle(),
           ),
+          if (hasConflicts && !resolving)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 6, 8, 2),
+              child: SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: actions.openConflictResolution,
+                  icon: const Icon(Icons.merge_type, size: 16),
+                  label: const Text('Resolve conflicts'),
+                ),
+              ),
+            ),
           Expanded(
             child: clean
                 ? _CleanState()

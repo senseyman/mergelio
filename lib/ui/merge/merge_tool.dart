@@ -92,6 +92,7 @@ class _MergeToolState extends ConsumerState<MergeTool> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _Header(
+                kind: session.kind,
                 branch: session.branch,
                 into: into,
                 resolved: session.resolvedConflicts,
@@ -117,7 +118,9 @@ class _MergeToolState extends ConsumerState<MergeTool> {
                       child: _ConflictView(
                         file: file,
                         oursLabel: into == null ? 'Current' : 'Current — $into',
-                        theirsLabel: 'Incoming — ${session.branch}',
+                        theirsLabel: session.branch.isEmpty
+                            ? 'Incoming'
+                            : 'Incoming — ${session.branch}',
                         onResolve: _resolve,
                       ),
                     ),
@@ -133,6 +136,7 @@ class _MergeToolState extends ConsumerState<MergeTool> {
 }
 
 class _Header extends StatelessWidget {
+  final MergeKind kind;
   final String branch;
   final String? into;
   final int resolved;
@@ -142,6 +146,7 @@ class _Header extends StatelessWidget {
   final VoidCallback onAbort;
   final VoidCallback onFinish;
   const _Header({
+    required this.kind,
     required this.branch,
     required this.into,
     required this.resolved,
@@ -166,12 +171,20 @@ class _Header extends StatelessWidget {
         children: [
           Icon(Icons.warning_amber_rounded, size: 16, color: t.warning),
           const SizedBox(width: 8),
-          Text(
-            into == null ? 'Merge $branch' : 'Merge $branch → $into',
-            style: TextStyle(
-              color: t.textPrimary,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
+          Flexible(
+            child: Text(
+              switch (kind) {
+                MergeKind.stash => 'Resolve conflicts',
+                MergeKind.rebase => 'Rebase',
+                MergeKind.merge =>
+                  into == null ? 'Merge $branch' : 'Merge $branch → $into',
+              },
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: t.textPrimary,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
           const SizedBox(width: 12),
@@ -186,7 +199,11 @@ class _Header extends StatelessWidget {
           const SizedBox(width: 8),
           FilledButton(
             onPressed: canFinish ? onFinish : null,
-            child: const Text('Finish merge'),
+            child: Text(switch (kind) {
+              MergeKind.stash => 'Finish',
+              MergeKind.rebase => 'Finish rebase',
+              MergeKind.merge => 'Finish merge',
+            }),
           ),
         ],
       ),

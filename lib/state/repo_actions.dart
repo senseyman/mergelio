@@ -368,6 +368,47 @@ class RepoActions {
     );
   }
 
+  /// Switches to the local branch [rb.branch] and hard-resets it to the remote
+  /// [rb.name], auto-stashing any uncommitted work first. One undoable action:
+  /// undo restores the local branch's prior sha, returns to the prior branch,
+  /// and pops the auto-stash.
+  Future<void> switchResettingToRemote(RemoteBranch rb) async {
+    final prevBranch = await _headRef();
+    final prevLocalSha = await _out(['rev-parse', rb.branch]);
+    String? stashRef;
+    await _undoable(
+      'Reset ${rb.branch} to ${rb.name}',
+      () async {
+        stashRef = await _switchAndResetToRemote(rb);
+      },
+      undo: () async {
+        await _writer.checkout(rb.branch);
+        await _writer.resetHard(prevLocalSha);
+        await _writer.checkout(prevBranch);
+        if (stashRef != null) {
+          await _writer.stashPop(stashRef!);
+          stashRef = null;
+        }
+      },
+      redo: () async {
+        stashRef = await _switchAndResetToRemote(rb);
+      },
+    );
+  }
+
+  /// Stashes dirty work (if any), checks out [rb.branch], resets it hard to the
+  /// remote ref. Returns the created stash ref, or null when the tree was clean.
+  Future<String?> _switchAndResetToRemote(RemoteBranch rb) async {
+    String? ref;
+    if ((await _out(['status', '--porcelain'])).isNotEmpty) {
+      await _writer.stashPush(message: 'auto-stash before switch');
+      ref = 'stash@{0}';
+    }
+    await _writer.checkout(rb.branch);
+    await _writer.resetHard('${rb.remote}/${rb.branch}');
+    return ref;
+  }
+
   Future<void> createBranch(String name, {String? at}) async {
     // Resolve the target now so redo can recreate the branch even after undo
     // deleted it (the branch name no longer resolves at that point).
@@ -525,7 +566,7 @@ class RepoActions {
       await _writer.stashApply(ref);
       _refresh();
     } on GitException catch (e) {
-      _toastErr('Stash apply', e);
+      await _openStashConflictOrToast('Stash apply', e, dropRef: null);
     }
   }
 
@@ -535,8 +576,30 @@ class RepoActions {
       await _writer.stashPop(ref);
       _refresh();
     } on GitException catch (e) {
-      _toastErr('Stash pop', e);
+      // A conflicted pop keeps the stash; drop it once the resolution finishes.
+      await _openStashConflictOrToast('Stash pop', e, dropRef: ref);
     }
+  }
+
+  /// After a failed stash apply/pop, open a resolution session when the failure
+  /// left conflicts in the tree; otherwise surface the error toast.
+  Future<void> _openStashConflictOrToast(
+    String label,
+    GitException e, {
+    required String? dropRef,
+  }) async {
+    final conflicts = await GitReader(_git, path).conflictedFiles();
+    if (conflicts.isEmpty) {
+      _toastErr(label, e);
+      return;
+    }
+    _ref.read(mergeSessionProvider(path).notifier).state = MergeSession(
+      kind: MergeKind.stash,
+      branch: 'Stashed changes',
+      dropStashRef: dropRef,
+      files: [for (final p in conflicts) await _conflictFileFor(p)],
+    );
+    _refresh();
   }
 
   /// Drops a stash, offering an Undo toast that re-stores it (drop is not part
@@ -614,6 +677,7 @@ class RepoActions {
       _ref.read(mergeSessionProvider(path).notifier).state = MergeSession(
         branch: branch,
         prevSha: prev,
+        kind: MergeKind.merge,
         files: files,
       );
       _refresh();
@@ -735,7 +799,7 @@ class RepoActions {
       _ref.read(mergeSessionProvider(path).notifier).state = MergeSession(
         branch: 'rebase',
         prevSha: prev,
-        isRebase: true,
+        kind: MergeKind.rebase,
         files: [for (final p in conflicts) await _conflictFileFor(p)],
       );
       _refresh();
@@ -744,8 +808,10 @@ class RepoActions {
     }
   }
 
-  /// Writes the resolved files, stages them, commits the merge, and records an
-  /// undo. Call only when the session reports all conflicts resolved.
+  /// Writes the resolved files and stages them, then completes the session by
+  /// its kind: a merge commits, a rebase continues, a stash just stages (and
+  /// drops its stash). Call only when the session reports all conflicts
+  /// resolved.
   Future<void> finishMerge(MergeSession session) async {
     try {
       for (final f in session.files) {
@@ -753,59 +819,92 @@ class RepoActions {
         await _writer.stageFile(f.path);
       }
       final id = _identity;
-      if (session.isRebase) {
-        await _writer.rebaseContinue(
-          authorName: id.name,
-          authorEmail: id.email,
-        );
-        // The rebase may pause again on a later commit; reopen if so.
-        final more = await GitReader(_git, path).conflictedFiles();
-        if (more.isNotEmpty) {
-          _ref.read(mergeSessionProvider(path).notifier).state = session
-              .withFiles([for (final p in more) await _conflictFileFor(p)]);
-          _refresh();
-          return;
-        }
-      } else {
-        await _writer.commitMerge(authorName: id.name, authorEmail: id.email);
-      }
-      final prev = session.prevSha;
-      // The merge/rebase result — redo fast-forwards back to it (it survives in
-      // the reflog after undo moves the branch back to prev).
-      final after = await _headSha();
-      final label = session.isRebase ? 'Rebase' : 'Merge ${session.branch}';
-      _ref
-          .read(undoProvider(path).notifier)
-          .record(
-            UndoEntry(
-              label,
-              undo: () async {
-                await _undoReset(prev);
-                _refresh();
-              },
-              redo: () async {
-                await _writer.resetHard(after);
-                _refresh();
-              },
-            ),
+      switch (session.kind) {
+        case MergeKind.rebase:
+          await _writer.rebaseContinue(
+            authorName: id.name,
+            authorEmail: id.email,
           );
+          // The rebase may pause again on a later commit; reopen if so.
+          final more = await GitReader(_git, path).conflictedFiles();
+          if (more.isNotEmpty) {
+            _ref.read(mergeSessionProvider(path).notifier).state = session
+                .withFiles([for (final p in more) await _conflictFileFor(p)]);
+            _refresh();
+            return;
+          }
+          await _recordFinishUndo(session, 'Rebase');
+        case MergeKind.merge:
+          await _writer.commitMerge(authorName: id.name, authorEmail: id.email);
+          await _recordFinishUndo(session, 'Merge ${session.branch}');
+        case MergeKind.stash:
+          // Stage-only: no commit. A conflicted pop kept its stash — drop it.
+          if (session.dropStashRef != null) {
+            await _writer.stashDrop(session.dropStashRef!);
+          }
+      }
       _ref.read(mergeSessionProvider(path).notifier).state = null;
       _refresh();
-      _ref
-          .read(toastProvider.notifier)
-          .show('$label complete', kind: ToastKind.success);
+      final done = switch (session.kind) {
+        MergeKind.rebase => 'Rebase complete',
+        MergeKind.merge => 'Merge ${session.branch} complete',
+        MergeKind.stash => 'Conflicts resolved',
+      };
+      _ref.read(toastProvider.notifier).show(done, kind: ToastKind.success);
     } on GitException catch (e) {
       _toastErr('Finish', e);
     }
   }
 
+  /// Records the undo/redo entry for a completed merge/rebase: undo resets the
+  /// branch back to [session.prevSha]; redo fast-forwards to the finished
+  /// result (which survives in the reflog).
+  Future<void> _recordFinishUndo(MergeSession session, String label) async {
+    final prev = session.prevSha;
+    final after = await _headSha();
+    _ref
+        .read(undoProvider(path).notifier)
+        .record(
+          UndoEntry(
+            label,
+            undo: () async {
+              await _undoReset(prev);
+              _refresh();
+            },
+            redo: () async {
+              await _writer.resetHard(after);
+              _refresh();
+            },
+          ),
+        );
+  }
+
+  /// Opens a conflict-resolution session for any conflicted files already in
+  /// the working tree (e.g. a conflicted stash apply). No-op when a session is
+  /// active or nothing is conflicted; the finish stages the resolution only.
+  Future<void> openConflictResolution() async {
+    if (_ref.read(mergeSessionProvider(path)) != null) return;
+    final conflicts = await GitReader(_git, path).conflictedFiles();
+    if (conflicts.isEmpty) return;
+    _ref.read(mergeSessionProvider(path).notifier).state = MergeSession(
+      kind: MergeKind.stash,
+      branch: '',
+      files: [for (final p in conflicts) await _conflictFileFor(p)],
+    );
+  }
+
   Future<void> abortMerge() async {
-    final isRebase = _ref.read(mergeSessionProvider(path))?.isRebase ?? false;
+    final kind = _ref.read(mergeSessionProvider(path))?.kind ?? MergeKind.merge;
     try {
-      if (isRebase) {
-        await _writer.rebaseAbort();
-      } else {
-        await _writer.mergeAbort();
+      switch (kind) {
+        case MergeKind.rebase:
+          await _writer.rebaseAbort();
+        case MergeKind.merge:
+          await _writer.mergeAbort();
+        case MergeKind.stash:
+          // No in-progress merge to abort; discard the conflicted apply. A
+          // stash-sourced conflict keeps its stash, so the work is recoverable.
+          await _writer.resetHard('HEAD');
       }
     } on GitException catch (e) {
       _toastErr('Abort', e);

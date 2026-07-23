@@ -30,6 +30,11 @@ class CommitRow extends StatelessWidget {
   final bool? searchMatch;
   final VoidCallback onTap;
 
+  /// Double-click on a branch chip in the left gutter: called with the
+  /// chip's label so the caller can resolve and switch to it. Null disables
+  /// the gesture (the chip renders plain).
+  final void Function(String label)? onBranchActivated;
+
   const CommitRow({
     super.key,
     required this.commit,
@@ -42,6 +47,7 @@ class CommitRow extends StatelessWidget {
     this.dateFormat = 'medium',
     this.searchMatch,
     required this.onTap,
+    this.onBranchActivated,
   });
 
   bool _on(String id) => cols[id] ?? true;
@@ -156,7 +162,16 @@ class CommitRow extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            for (final chip in shown) _branchChip(chip.name, colorFor(chip)),
+            for (final chip in shown)
+              if (chip.isHead)
+                _branchChip(chip.name, colorFor(chip))
+              else
+                GestureDetector(
+                  onDoubleTap: onBranchActivated == null
+                      ? null
+                      : () => onBranchActivated!(chip.name),
+                  child: _branchChip(chip.name, colorFor(chip)),
+                ),
             if (overflow > 0)
               Tooltip(
                 message: chips.skip(maxChips - 1).map((e) => e.name).join('\n'),
