@@ -230,6 +230,10 @@ class _Sections extends ConsumerWidget {
               _LeafRow(
                 icon: Icons.archive_outlined,
                 label: s.message.isEmpty ? s.ref : s.message,
+                // Focus the graph on this stash's commit — the graph view
+                // already scrolls to whatever selectedCommitProvider holds.
+                onTap: () =>
+                    ref.read(selectedCommitProvider.notifier).state = s.sha,
                 trailing: actions == null
                     ? const []
                     : [
@@ -1122,11 +1126,13 @@ class _LeafRow extends StatelessWidget {
   final String label;
   final void Function(Offset at)? onMenu;
   final List<Widget> trailing;
+  final VoidCallback? onTap;
   const _LeafRow({
     required this.icon,
     required this.label,
     this.onMenu,
     this.trailing = const [],
+    this.onTap,
   });
 
   @override
@@ -1138,7 +1144,7 @@ class _LeafRow extends StatelessWidget {
           : (d) => onMenu!(d.globalPosition),
       child: InkWell(
         hoverColor: t.hover,
-        onTap: () {},
+        onTap: onTap ?? () {},
         child: Padding(
           padding: EdgeInsets.fromLTRB(_indent(0), 5, 10, 5),
           child: Row(

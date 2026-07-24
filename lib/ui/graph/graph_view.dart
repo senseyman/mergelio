@@ -346,6 +346,7 @@ class _GraphListState extends ConsumerState<GraphList> {
     final maxLane = derived.maxLane;
     final labels = derived.labels;
     final segments = derived.segments;
+    final stashBySha = {for (final s in d.stashes) s.sha: s.ref};
 
     final wipRows = _hasWip ? 1 : 0;
 
@@ -419,6 +420,7 @@ class _GraphListState extends ConsumerState<GraphList> {
                           maxLane: maxLane,
                           cols: cols,
                           dateFormat: dateFormat,
+                          stashLabel: stashBySha[c.sha],
                           selected: selected == c.sha,
                           searchMatch: query == null || query.isEmpty
                               ? null
