@@ -251,9 +251,16 @@ class GitReader {
 
   /// Working-tree changes via `status --porcelain=v2 -z`. Entries carry both
   /// staged ([WorkingFile.index]) and unstaged ([WorkingFile.worktree]) sides;
-  /// renames also carry [WorkingFile.origPath].
+  /// renames also carry [WorkingFile.origPath]. `--untracked-files=all` lists
+  /// each file inside a wholly-untracked directory instead of collapsing it to
+  /// a single `dir/` entry, so the file tree can show and stage them.
   Future<List<WorkingFile>> status() async {
-    final r = await _run(['status', '--porcelain=v2', '-z']);
+    final r = await _run([
+      'status',
+      '--porcelain=v2',
+      '-z',
+      '--untracked-files=all',
+    ]);
     if (!r.ok) throw GitException('git status failed', r);
     final out = <WorkingFile>[];
     final toks = r.stdout.split(_rs);
@@ -394,18 +401,20 @@ class GitReader {
   /// Files changed by [sha]. Merges are diffed against their first parent, so
   /// the list shows what the merged branch brought in.
   Future<List<CommitFileChange>> commitFiles(String sha) async {
+    // `git show --first-parent` reports exactly the merge's own first-parent
+    // changes; `diff-tree -m` instead unions the diff against every parent,
+    // which for a merge pulls in files that only changed on the mainline. This
+    // uses the same base as [commitDiff], so the list and per-file diff agree.
     final r = await _run([
-      'diff-tree',
-      '--root',
-      '--no-commit-id',
-      '--name-status',
-      '-r',
-      '-z',
-      '-m',
+      'show',
+      '--no-color',
+      '--format=',
       '--first-parent',
+      '--name-status',
+      '-z',
       sha,
     ]);
-    if (!r.ok) throw GitException('git diff-tree failed', r);
+    if (!r.ok) throw GitException('git show failed', r);
 
     final out = <CommitFileChange>[];
     final toks = r.stdout.split(_rs);

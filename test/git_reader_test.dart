@@ -136,9 +136,11 @@ void main() {
     expect(rootFiles.single.path, 'a.txt');
     expect(rootFiles.single.change, GitChange.added);
 
-    // A merge shows its first-parent diff: what the merged branch brought in.
+    // A merge shows its first-parent diff: only what the merged branch brought
+    // in (b.txt), never files that changed solely on the mainline (a.txt was
+    // modified by 'C on main', which is the merge's first parent).
     final mergeFiles = await reader().commitFiles(merge.sha);
-    expect(mergeFiles.map((f) => f.path), contains('b.txt'));
+    expect(mergeFiles.map((f) => f.path), ['b.txt']);
   });
 
   test('parses staged, unstaged and untracked working files', () async {
@@ -148,6 +150,22 @@ void main() {
     expect(files['a.txt']?.isUnstaged, isTrue);
     expect(files['e.txt']?.isUntracked, isTrue);
   });
+
+  test(
+    'lists files inside a wholly-untracked directory individually',
+    () async {
+      await Directory('${dir.path}/imgs').create();
+      await write('imgs/one.png', 'a\n');
+      await write('imgs/two.png', 'b\n');
+
+      final paths = {for (final f in await reader().status()) f.path};
+
+      // git collapses an entirely-untracked directory to a single 'imgs/' entry
+      // unless all untracked files are requested; the tree must see each file.
+      expect(paths, containsAll(['imgs/one.png', 'imgs/two.png']));
+      expect(paths, isNot(contains('imgs/')));
+    },
+  );
 
   group('squashLinks', () {
     late Directory sdir;
