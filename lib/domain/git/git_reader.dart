@@ -22,6 +22,38 @@ class GitReader {
   /// are left at their defaults; run [assignLanes] to populate them. Returns an
   /// empty list for a repository with no commits yet.
   Future<List<Commit>> commits({int? maxCount}) async {
+    // Stash commits live outside any ref `--all` walks, so fetch their shas and
+    // pass them as extra revisions below; `stash@{0}` is already reachable via
+    // `--all` but duplicate revs are harmless to `git log`.
+    final stashList = await _run(['stash', 'list', '--format=%H']);
+    final stashShas = stashList.ok
+        ? const LineSplitter()
+              .convert(stashList.stdout)
+              .where((s) => s.isNotEmpty)
+              .toList()
+        : const <String>[];
+
+    // A stash commit's 2nd/3rd parents are its internal index/untracked
+    // snapshots; walking the stash pulls them in as nodes. Collect them so they
+    // are dropped below — only the stash commit itself should show. This also
+    // clears the pre-existing `stash@{0}` index/untracked leak from `--all`.
+    final auxShas = <String>{};
+    if (stashShas.isNotEmpty) {
+      final rl = await _run([
+        'rev-list',
+        '--no-walk',
+        '--parents',
+        ...stashShas,
+      ]);
+      if (rl.ok) {
+        for (final line in const LineSplitter().convert(rl.stdout)) {
+          final toks = line.split(' ').where((s) => s.isNotEmpty).toList();
+          // <stash> <base> <index> [<untracked>] — keep base, drop the rest.
+          if (toks.length > 2) auxShas.addAll(toks.sublist(2));
+        }
+      }
+    }
+
     final r = await _run([
       'log',
       '--all',
@@ -30,6 +62,7 @@ class GitReader {
       '-z',
       if (maxCount != null) '--max-count=$maxCount',
       '--pretty=format:%H$_fs%P$_fs%an$_fs%ae$_fs%aI$_fs%G?$_fs%D$_fs%s$_fs%b',
+      ...stashShas,
     ]);
     if (!r.ok) {
       final e = r.err;
@@ -46,6 +79,7 @@ class GitReader {
     for (final rec in r.stdout.split(_rs)) {
       final f = rec.split(_fs);
       if (f.length < 9) continue;
+      if (auxShas.contains(f[0])) continue; // drop stash index/untracked nodes
       final gcode = f[5];
       out.add(
         Commit(
@@ -175,19 +209,19 @@ class GitReader {
   }
 
   Future<List<Stash>> stashes() async {
-    final r = await _run(['stash', 'list', '--format=%gd\t%gs']);
+    final r = await _run(['stash', 'list', '--format=%gd\t%H\t%gs']);
     if (!r.ok) throw GitException('git stash list failed', r);
     final out = <Stash>[];
     for (final line in const LineSplitter().convert(r.stdout)) {
       if (line.isEmpty) continue;
-      final tab = line.indexOf('\t');
+      final p = line.split('\t');
+      if (p.length < 2) continue;
       out.add(
-        tab < 0
-            ? Stash(ref: line, message: '')
-            : Stash(
-                ref: line.substring(0, tab),
-                message: line.substring(tab + 1),
-              ),
+        Stash(
+          ref: p[0],
+          sha: p[1],
+          message: p.length > 2 ? p.sublist(2).join('\t') : '',
+        ),
       );
     }
     return out;

@@ -25,6 +25,10 @@ class CommitRow extends StatelessWidget {
   final bool selected;
   final String dateFormat;
 
+  /// `stash@{N}` label when this row is a stash commit, null otherwise. Drives
+  /// the distinct rail node and the pill next to the commit message.
+  final String? stashLabel;
+
   /// Search state: a matched row highlights, a non-match dims. Both null when
   /// no search is active.
   final bool? searchMatch;
@@ -45,6 +49,7 @@ class CommitRow extends StatelessWidget {
     required this.cols,
     required this.selected,
     this.dateFormat = 'medium',
+    this.stashLabel,
     this.searchMatch,
     required this.onTap,
     this.onBranchActivated,
@@ -79,7 +84,11 @@ class CommitRow extends StatelessWidget {
             // other matches get a lighter tint.
             color: selected
                 ? t.active
-                : (highlight ? t.accent.withValues(alpha: 0.12) : null),
+                : (highlight
+                      ? t.accent.withValues(alpha: 0.12)
+                      : (stashLabel != null
+                            ? stashNodeColor.withValues(alpha: 0.09)
+                            : null)),
             child: Row(
               children: [
                 if (_on('branch')) _branchColumn(t, c),
@@ -95,6 +104,7 @@ class CommitRow extends StatelessWidget {
                         m: metrics,
                         palette: t.branchPalette,
                         nodeFill: t.bgApp,
+                        stash: stashLabel != null,
                       ),
                     ),
                   ),
@@ -229,6 +239,30 @@ class CommitRow extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.only(left: 6),
           child: Icon(Icons.verified_user_outlined, size: 12, color: t.success),
+        ),
+      if (stashLabel != null)
+        Container(
+          margin: const EdgeInsets.only(left: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+          decoration: BoxDecoration(
+            border: Border.all(color: stashNodeColor.withValues(alpha: 0.6)),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.inventory_2_outlined, size: 10, color: stashNodeColor),
+              const SizedBox(width: 3),
+              Text(
+                stashLabel!,
+                style: TextStyle(
+                  color: stashNodeColor,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
         ),
       // Branch heads and the HEAD marker live in the left column now; only tags
       // stay inline since they mark a specific commit, not a whole strand.

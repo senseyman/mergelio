@@ -167,6 +167,47 @@ void main() {
     },
   );
 
+  test('stashes carry their commit sha and appear in the graph', () async {
+    // Two stashes on top of the existing repo.
+    await write('a.txt', 'stash-one\n');
+    await g(['stash', 'push', '-q', '-m', 'one']);
+    await write('a.txt', 'stash-two\n');
+    await g(['stash', 'push', '-q', '-m', 'two']);
+
+    final stashes = await reader().stashes();
+    expect(stashes, hasLength(2));
+    expect(stashes.every((s) => s.sha.isNotEmpty), isTrue);
+
+    final shas = (await reader().commits()).map((c) => c.sha).toSet();
+    // Every stash node (including the older stash@{1}) is in the graph.
+    expect(shas, containsAll(stashes.map((s) => s.sha)));
+  });
+
+  test(
+    'a stash internal index/untracked commits are not graph nodes',
+    () async {
+      await write('a.txt', 'changed\n');
+      await write('extra.txt', 'untracked\n');
+      await g(['stash', 'push', '-q', '-u', '-m', 'with-untracked']);
+
+      final stashSha = (await reader().stashes()).first.sha;
+      final shas = (await reader().commits()).map((c) => c.sha).toSet();
+      expect(shas, contains(stashSha)); // the stash itself shows
+
+      // rev-list --parents: '<stash> <base> <index> <untracked>'. The index and
+      // untracked snapshot commits must not appear as graph nodes.
+      final parents = (await svc.run(
+        ['rev-list', '--no-walk', '--parents', stashSha],
+        repoPath: dir.path,
+      )).out.split(' ').where((s) => s.isNotEmpty).toList();
+      final aux = parents.skip(2).toList(); // skip stash sha + base parent
+      expect(aux, isNotEmpty);
+      for (final a in aux) {
+        expect(shas, isNot(contains(a)));
+      }
+    },
+  );
+
   group('squashLinks', () {
     late Directory sdir;
 

@@ -102,7 +102,11 @@ class RemoteBranch with _$RemoteBranch {
 /// A stash entry, e.g. `stash@{0}` with its message.
 @freezed
 class Stash with _$Stash {
-  const factory Stash({required String ref, required String message}) = _Stash;
+  const factory Stash({
+    required String ref,
+    required String sha,
+    required String message,
+  }) = _Stash;
 }
 
 /// State of a submodule relative to the commit its superproject records.

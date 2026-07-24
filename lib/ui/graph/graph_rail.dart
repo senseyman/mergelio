@@ -3,21 +3,27 @@ import 'package:flutter/material.dart';
 import '../../domain/git/models.dart';
 import 'rail_metrics.dart';
 
+/// Colour for stash nodes and their pill — distinct from branch lane colours.
+const stashNodeColor = Color(0xFF8B5CF6);
+
 /// Paints one row of the commit graph rail: pass-through lane strands, the
 /// commit node (ring + filled centre, larger for merges), a bezier dropping to
 /// the second parent's lane for merges, and a bezier joining the parent lane
-/// for branch starts.
+/// for branch starts. A stash commit draws a distinct rounded-square node
+/// instead of the usual ring.
 class GraphRailPainter extends CustomPainter {
   final Commit c;
   final RailMetrics m;
   final List<Color> palette;
   final Color nodeFill;
+  final bool stash;
 
   const GraphRailPainter({
     required this.c,
     required this.m,
     required this.palette,
     required this.nodeFill,
+    this.stash = false,
   });
 
   Color _laneColor(int lane) => palette[lane % palette.length];
@@ -74,8 +80,31 @@ class GraphRailPainter extends CustomPainter {
       );
     }
 
-    // Node: ring with a filled centre; merges draw slightly larger.
+    // Node: ring with a filled centre; merges draw slightly larger. A stash
+    // draws a rounded-square node instead, so it reads as visually distinct
+    // from ordinary commits at a glance.
     final r = m.nodeRadius(merge: c.merge);
+    if (stash) {
+      // A solid violet box (larger than the round commit nodes) with a
+      // background-coloured inner square — reads clearly as a stash marker.
+      final side = r * 2.4;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromCenter(center: Offset(x, y), width: side, height: side),
+          const Radius.circular(3),
+        ),
+        Paint()..color = stashNodeColor,
+      );
+      final inner = side * 0.42;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromCenter(center: Offset(x, y), width: inner, height: inner),
+          const Radius.circular(1.5),
+        ),
+        Paint()..color = nodeFill,
+      );
+      return;
+    }
     canvas.drawCircle(Offset(x, y), r, Paint()..color = nodeFill);
     canvas.drawCircle(
       Offset(x, y),
@@ -97,5 +126,6 @@ class GraphRailPainter extends CustomPainter {
       old.c != c ||
       old.m.compact != m.compact ||
       old.palette != palette ||
-      old.nodeFill != nodeFill;
+      old.nodeFill != nodeFill ||
+      old.stash != stash;
 }
