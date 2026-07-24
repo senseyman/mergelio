@@ -84,7 +84,11 @@ class CommitRow extends StatelessWidget {
             // other matches get a lighter tint.
             color: selected
                 ? t.active
-                : (highlight ? t.accent.withValues(alpha: 0.12) : null),
+                : (highlight
+                      ? t.accent.withValues(alpha: 0.12)
+                      : (stashLabel != null
+                            ? stashNodeColor.withValues(alpha: 0.09)
+                            : null)),
             child: Row(
               children: [
                 if (_on('branch')) _branchColumn(t, c),

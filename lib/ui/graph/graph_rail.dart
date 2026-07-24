@@ -85,24 +85,23 @@ class GraphRailPainter extends CustomPainter {
     // from ordinary commits at a glance.
     final r = m.nodeRadius(merge: c.merge);
     if (stash) {
-      final rect = RRect.fromRectAndRadius(
-        Rect.fromCenter(center: Offset(x, y), width: r * 2, height: r * 2),
-        const Radius.circular(3),
-      );
-      canvas.drawRRect(rect, Paint()..color = nodeFill);
-      canvas.drawRRect(
-        rect,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 3
-          ..color = stashNodeColor,
-      );
+      // A solid violet box (larger than the round commit nodes) with a
+      // background-coloured inner square — reads clearly as a stash marker.
+      final side = r * 2.4;
       canvas.drawRRect(
         RRect.fromRectAndRadius(
-          Rect.fromCenter(center: Offset(x, y), width: r, height: r),
-          const Radius.circular(2),
+          Rect.fromCenter(center: Offset(x, y), width: side, height: side),
+          const Radius.circular(3),
         ),
         Paint()..color = stashNodeColor,
+      );
+      final inner = side * 0.42;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromCenter(center: Offset(x, y), width: inner, height: inner),
+          const Radius.circular(1.5),
+        ),
+        Paint()..color = nodeFill,
       );
       return;
     }
