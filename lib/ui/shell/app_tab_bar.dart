@@ -4,9 +4,83 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/tokens.dart';
 import '../../state/settings_controller.dart';
 import '../../state/workspace.dart';
+import '../common/confirm.dart';
 import '../common/dialogs.dart';
 import '../welcome/open_repo.dart';
 import '../welcome/repo_dialogs.dart';
+
+/// Prompts for a name, creates the group and switches to it.
+Future<void> _createGroup(BuildContext context, WidgetRef ref) async {
+  final name = await showInputDialog(
+    context,
+    title: 'New group',
+    label: 'Group name',
+  );
+  if (name == null) return;
+  final ctl = ref.read(workspaceProvider.notifier);
+  ctl.setActiveGroup(ctl.createGroup(name).id);
+}
+
+/// Prompts with the current name pre-filled.
+Future<void> _renameGroup(
+  BuildContext context,
+  WidgetRef ref,
+  RepoGroup g,
+) async {
+  final name = await showInputDialog(
+    context,
+    title: 'Rename group',
+    label: 'Group name',
+    initial: g.name,
+  );
+  if (name == null) return;
+  ref.read(workspaceProvider.notifier).renameGroup(g.id, name);
+}
+
+/// Deletes the group behind the destructive-action gate. The group's
+/// repositories stay open — they only lose their group.
+Future<void> _deleteGroup(
+  BuildContext context,
+  WidgetRef ref,
+  RepoGroup g,
+) async {
+  final ok = await confirmDestructive(
+    ref,
+    context,
+    title: 'Delete group?',
+    body:
+        '"${g.name}" is removed from the switcher. Repositories in it stay '
+        'open, without a group.',
+    confirmLabel: 'Delete',
+  );
+  if (!ok) return;
+  ref.read(workspaceProvider.notifier).deleteGroup(g.id);
+}
+
+/// Rename / delete menu for one group, anchored at the cursor. Shared by the
+/// pill and rail switchers, which both open it on right-click.
+Future<void> _showGroupMenu(
+  BuildContext context,
+  WidgetRef ref,
+  RepoGroup g,
+  Offset at,
+) async {
+  final action = await showContextMenu<String>(
+    context: context,
+    position: at,
+    items: const [
+      PopupMenuItem(value: 'rename', height: 34, child: Text('Rename…')),
+      PopupMenuItem(value: 'delete', height: 34, child: Text('Delete group…')),
+    ],
+  );
+  if (!context.mounted) return;
+  switch (action) {
+    case 'rename':
+      await _renameGroup(context, ref, g);
+    case 'delete':
+      await _deleteGroup(context, ref, g);
+  }
+}
 
 /// Repo tabs strip with the group switcher. The switcher style (dropdown /
 /// pills / side rail) comes from settings; the rail variant renders in the
@@ -129,19 +203,20 @@ class _GroupDropdown extends ConsumerWidget {
     return PopupMenuButton<Object>(
       tooltip: 'Repo group',
       onSelected: (v) async {
-        if (v == 'all') {
-          ctl.setActiveGroup(null);
-        } else if (v == 'new') {
-          final name = await showInputDialog(
-            context,
-            title: 'New group',
-            label: 'Group name',
-          );
-          if (name != null && name.trim().isNotEmpty) {
-            ctl.setActiveGroup(ctl.createGroup(name.trim()).id);
-          }
-        } else if (v is int) {
-          ctl.setActiveGroup(v);
+        // Rename/delete act on the active group: pick it in the same menu
+        // first, then manage it.
+        final target = ws.groupById(ws.activeGroupId);
+        switch (v) {
+          case 'all':
+            ctl.setActiveGroup(null);
+          case 'new':
+            await _createGroup(context, ref);
+          case 'rename':
+            if (target != null) await _renameGroup(context, ref, target);
+          case 'delete':
+            if (target != null) await _deleteGroup(context, ref, target);
+          default:
+            if (v is int) ctl.setActiveGroup(v);
         }
       },
       itemBuilder: (context) => [
@@ -167,6 +242,18 @@ class _GroupDropdown extends ConsumerWidget {
           value: 'new',
           height: 34,
           child: Text('New group…', style: TextStyle(fontSize: 13)),
+        ),
+        PopupMenuItem(
+          value: 'rename',
+          height: 34,
+          enabled: active != null,
+          child: const Text('Rename group…', style: TextStyle(fontSize: 13)),
+        ),
+        PopupMenuItem(
+          value: 'delete',
+          height: 34,
+          enabled: active != null,
+          child: const Text('Delete group…', style: TextStyle(fontSize: 13)),
         ),
       ],
       child: Padding(
@@ -241,35 +328,6 @@ class _GroupPills extends ConsumerWidget {
       ),
     );
 
-    Future<void> manage(RepoGroup g, Offset at) async {
-      final action = await showContextMenu<String>(
-        context: context,
-        position: at,
-        items: const [
-          PopupMenuItem(value: 'rename', height: 34, child: Text('Rename')),
-          PopupMenuItem(
-            value: 'delete',
-            height: 34,
-            child: Text('Delete group'),
-          ),
-        ],
-      );
-      if (!context.mounted) return;
-      switch (action) {
-        case 'rename':
-          final name = await showInputDialog(
-            context,
-            title: 'Rename group',
-            label: 'Group name',
-          );
-          if (name != null && name.trim().isNotEmpty) {
-            ctl.renameGroup(g.id, name.trim());
-          }
-        case 'delete':
-          ctl.deleteGroup(g.id);
-      }
-    }
-
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -284,21 +342,12 @@ class _GroupPills extends ConsumerWidget {
             dot: Color(g.colorValue),
             selected: ws.activeGroupId == g.id,
             onTap: () => ctl.setActiveGroup(g.id),
-            onContext: (d) => manage(g, d.globalPosition),
+            onContext: (d) => _showGroupMenu(context, ref, g, d.globalPosition),
           ),
         pill(
           label: '+',
           selected: false,
-          onTap: () async {
-            final name = await showInputDialog(
-              context,
-              title: 'New group',
-              label: 'Group name',
-            );
-            if (name != null && name.trim().isNotEmpty) {
-              ctl.setActiveGroup(ctl.createGroup(name.trim()).id);
-            }
-          },
+          onTap: () => _createGroup(context, ref),
         ),
       ],
     );
@@ -322,22 +371,26 @@ class GroupRail extends ConsumerWidget {
       required String tooltip,
       required bool selected,
       required VoidCallback onTap,
+      GestureTapDownCallback? onContext,
     }) => Tooltip(
       message: tooltip,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(8),
-        onTap: onTap,
-        child: Container(
-          width: 30,
-          height: 30,
-          margin: const EdgeInsets.symmetric(vertical: 2),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: selected ? t.active : null,
-            borderRadius: BorderRadius.circular(8),
-            border: selected ? Border.all(color: t.accent) : null,
+      child: GestureDetector(
+        onSecondaryTapDown: onContext,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: onTap,
+          child: Container(
+            width: 30,
+            height: 30,
+            margin: const EdgeInsets.symmetric(vertical: 2),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: selected ? t.active : null,
+              borderRadius: BorderRadius.circular(8),
+              border: selected ? Border.all(color: t.accent) : null,
+            ),
+            child: child,
           ),
-          child: child,
         ),
       ),
     );
@@ -363,21 +416,14 @@ class GroupRail extends ConsumerWidget {
               tooltip: g.name,
               selected: ws.activeGroupId == g.id,
               onTap: () => ctl.setActiveGroup(g.id),
+              onContext: (d) =>
+                  _showGroupMenu(context, ref, g, d.globalPosition),
             ),
           item(
             child: Icon(Icons.add, size: 15, color: t.textFaint),
             tooltip: 'New group',
             selected: false,
-            onTap: () async {
-              final name = await showInputDialog(
-                context,
-                title: 'New group',
-                label: 'Group name',
-              );
-              if (name != null && name.trim().isNotEmpty) {
-                ctl.setActiveGroup(ctl.createGroup(name.trim()).id);
-              }
-            },
+            onTap: () => _createGroup(context, ref),
           ),
         ],
       ),
