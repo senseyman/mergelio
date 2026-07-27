@@ -8,6 +8,7 @@ import '../../state/repo_data.dart';
 import '../../state/search.dart';
 import '../../state/workspace.dart';
 import '../palette/command_palette.dart';
+import '../workspace/remote_dialog.dart';
 
 /// App-wide actions shared by the keyboard dispatcher and toolbar buttons, so
 /// clicking the toolbar and pressing the shortcut do exactly the same thing.
@@ -33,6 +34,16 @@ void openGlobalPalette(BuildContext context, WidgetRef ref) {
       Icons.search,
       () async => openGlobalSearch(ref),
     ),
+    PaletteCommand('Add remote…', Icons.dns_outlined, () async {
+      if (!context.mounted) return;
+      final edit = await showRemoteDialog(
+        context,
+        title: 'Add remote',
+        confirmLabel: 'Add',
+        existing: data?.remotes ?? const [],
+      );
+      if (edit != null) await actions.addRemote(edit.name, edit.url);
+    }),
     for (final b in data?.branches ?? const [])
       PaletteCommand(
         'Checkout: ${b.name}',

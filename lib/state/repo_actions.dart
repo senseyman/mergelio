@@ -144,6 +144,47 @@ class RepoActions {
   Future<String> remoteUrl(String remote) =>
       GitReader(_git, path).remoteUrl(remote);
 
+  Future<void> addRemote(String name, String url) => _undoable(
+    'Add remote $name',
+    () => _writer.addRemote(name, url),
+    undo: () => _writer.removeRemote(name),
+    redo: () => _writer.addRemote(name, url),
+  );
+
+  /// Removing a remote also drops its remote-tracking refs; undo restores the
+  /// remote's configuration, and a fetch brings the refs back.
+  Future<void> removeRemote(String name) async {
+    final url = await remoteUrl(name);
+    await _undoable(
+      'Remove remote $name',
+      () => _writer.removeRemote(name),
+      undo: () => _writer.addRemote(name, url),
+      redo: () => _writer.removeRemote(name),
+    );
+  }
+
+  /// Applies a new [name] and/or [url] to the remote currently called [from]
+  /// as a single undoable step, so an edit touching both is undone as one.
+  Future<void> updateRemote(
+    String from, {
+    required String name,
+    required String url,
+  }) async {
+    final prevUrl = await remoteUrl(from);
+    if (name == from && url == prevUrl) return;
+    Future<void> forward() async {
+      if (name != from) await _writer.renameRemote(from, name);
+      if (url != prevUrl) await _writer.setRemoteUrl(name, url);
+    }
+
+    Future<void> back() async {
+      if (url != prevUrl) await _writer.setRemoteUrl(name, prevUrl);
+      if (name != from) await _writer.renameRemote(name, from);
+    }
+
+    await _undoable('Edit remote $from', forward, undo: back, redo: forward);
+  }
+
   Future<void> pull({bool rebase = false}) =>
       _network('Pull', () => _writer.pull(rebase: rebase));
 

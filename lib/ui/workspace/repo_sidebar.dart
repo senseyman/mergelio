@@ -14,6 +14,7 @@ import '../common/dialogs.dart';
 import 'add_submodule_dialog.dart';
 import 'branch_switch.dart';
 import 'branch_tree.dart';
+import 'remote_dialog.dart';
 
 /// Left panel for the active repo: Branches (folder-grouped) · Remotes · Tags ·
 /// Stashes. Read-only rows; sections collapse and their state persists.
@@ -174,7 +175,14 @@ class _Sections extends ConsumerWidget {
                 label: r,
                 onMenu: actions == null
                     ? null
-                    : (at) => _remoteMenu(context, actions, r, at),
+                    : (at) => _remoteMenu(
+                        context,
+                        ref,
+                        actions,
+                        r,
+                        at,
+                        existing: data.remotes,
+                      ),
               ),
               for (final rb in data.remoteBranches.where((b) => b.remote == r))
                 _RemoteBranchRow(
@@ -196,6 +204,22 @@ class _Sections extends ConsumerWidget {
                         ),
                 ),
             ],
+            if (actions != null)
+              _LeafRow(
+                icon: Icons.add,
+                label: 'Add remote…',
+                onTap: () async {
+                  final edit = await showRemoteDialog(
+                    context,
+                    title: 'Add remote',
+                    confirmLabel: 'Add',
+                    existing: data.remotes,
+                  );
+                  if (edit != null) {
+                    await actions.addRemote(edit.name, edit.url);
+                  }
+                },
+              ),
           ],
         ),
         _Section(
@@ -884,10 +908,13 @@ Future<void> _remoteBranchMenu(
 
 Future<void> _remoteMenu(
   BuildContext context,
+  WidgetRef ref,
   RepoActions actions,
   String remote,
-  Offset at,
-) async {
+  Offset at, {
+  required List<String> existing,
+}) async {
+  final t = context.tokens;
   await showContextMenu<void>(
     context: context,
     position: at,
@@ -911,6 +938,45 @@ Future<void> _remoteMenu(
           }
         },
         child: const Text('Copy URL', style: TextStyle(fontSize: 13)),
+      ),
+      const PopupMenuDivider(),
+      PopupMenuItem(
+        height: 34,
+        onTap: () async {
+          final url = await actions.remoteUrl(remote);
+          if (!context.mounted) return;
+          final edit = await showRemoteDialog(
+            context,
+            title: 'Edit remote',
+            initialName: remote,
+            initialUrl: url,
+            existing: existing,
+            current: remote,
+          );
+          if (edit != null) {
+            await actions.updateRemote(remote, name: edit.name, url: edit.url);
+          }
+        },
+        child: const Text('Edit remote…', style: TextStyle(fontSize: 13)),
+      ),
+      PopupMenuItem(
+        height: 34,
+        onTap: () async {
+          final ok = await confirmDestructive(
+            ref,
+            context,
+            title: 'Remove remote $remote?',
+            body:
+                'Its remote-tracking branches go with it. Undo restores the '
+                'remote; fetch to bring the branches back.',
+            confirmLabel: 'Remove',
+          );
+          if (ok) await actions.removeRemote(remote);
+        },
+        child: Text(
+          'Remove remote…',
+          style: TextStyle(fontSize: 13, color: t.danger),
+        ),
       ),
     ],
   );

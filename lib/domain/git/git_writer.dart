@@ -55,6 +55,23 @@ class GitWriter {
     timeout: _netTimeout,
   );
 
+  /// Registers [name] pointing at [url]. Fails when [name] is already taken.
+  Future<void> addRemote(String name, String url) =>
+      _ok(['remote', 'add', name, url], 'git remote add');
+
+  /// Drops [name] along with its remote-tracking refs and branch config.
+  Future<void> removeRemote(String name) =>
+      _ok(['remote', 'remove', name], 'git remote remove');
+
+  /// Renames [from] to [to], moving its remote-tracking refs with it.
+  Future<void> renameRemote(String from, String to) =>
+      _ok(['remote', 'rename', from, to], 'git remote rename');
+
+  /// Points [name] at [url]; the fetch URL, which push inherits unless a
+  /// separate push URL is configured.
+  Future<void> setRemoteUrl(String name, String url) =>
+      _ok(['remote', 'set-url', name, url], 'git remote set-url');
+
   /// Pushes the current branch. A branch with no upstream is published with
   /// `--set-upstream` to origin (or the only/first remote), so a first push
   /// works instead of failing. [force] uses `--force-with-lease`, which refuses
