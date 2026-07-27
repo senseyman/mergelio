@@ -11,7 +11,7 @@
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey.svg)](#installation)
 [![Flutter](https://img.shields.io/badge/Flutter-3.44%2B-02569B.svg?logo=flutter)](https://flutter.dev)
 [![Dart SDK](https://img.shields.io/badge/Dart%20SDK-%5E3.12.2-0175C2.svg?logo=dart)](https://dart.dev)
-[![Tests](https://img.shields.io/badge/tests-429%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-488%20passing-brightgreen.svg)](#testing)
 
 </div>
 
@@ -79,6 +79,13 @@ about to do to your repository. Mergelio takes the opposite position:
   patches.
 - Side-by-side or unified diffs with word-level intra-line highlighting and
   syntax colouring.
+- Select and copy diff text — line numbers, change markers, hunk headers and the
+  hunk buttons are left out, so you copy source and nothing else, with each line
+  on its own line. In split view one column is selectable at a time: click a
+  column to select in it, and right-click anywhere for **Select all**.
+- Edit uncommitted files in place from the diff sheet, syntax-highlighted like
+  the diff. Saving writes the working tree, leaves the change unstaged, and is
+  undoable.
 - Commit, amend, sign (`-S`) and add co-authors.
 - Discard hunks and files behind a confirmation gate.
 
@@ -136,6 +143,7 @@ about to do to your repository. Mergelio takes the opposite position:
 | `⌘\` | Toggle the left panel |
 | `⌘,` | Preferences |
 | `⌘Z` / `⇧⌘Z` | Undo / redo |
+| `⌘S` | Save the file open in the diff editor |
 | `⌘+` / `⌘-` / `⌘0` | Zoom in / out / reset |
 | `Esc` | Dismiss the top notification |
 
@@ -225,7 +233,7 @@ make help
 ## Testing
 
 ```bash
-make test        # 429 unit and widget tests
+make test        # 488 unit and widget tests
 make coverage    # → coverage/lcov.info
 make check       # what CI runs: format check + analyze + test
 ```

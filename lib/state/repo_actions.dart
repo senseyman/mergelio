@@ -281,6 +281,51 @@ class RepoActions {
     );
   }
 
+  /// Writes [text] to the working-tree file at [relPath], creating it when it
+  /// is missing. Undo puts back exactly the bytes that were there before, or
+  /// removes the file again when it was newly created. The result is left
+  /// unstaged — staging stays a separate, explicit step.
+  ///
+  /// Returns whether the file was written. Callers must not discard the text
+  /// they passed in until this reports true: a save can be refused because
+  /// another operation holds the repo, or fail on the filesystem.
+  Future<bool> saveFileText(String relPath, String text) async {
+    if (_blockedByNetwork) return false;
+    final file = File('$path/$relPath');
+    Future<void> write() => file.writeAsString(text);
+    var saved = false;
+    try {
+      final before = await file.exists() ? await file.readAsBytes() : null;
+      await _undoable(
+        'Edit $relPath',
+        () async {
+          await write();
+          saved = true;
+        },
+        undo: () async {
+          if (before != null) {
+            await file.writeAsBytes(before);
+          } else if (await file.exists()) {
+            await file.delete();
+          }
+        },
+        redo: write,
+      );
+    } on FileSystemException catch (e) {
+      // _undoable only converts GitException into a toast; a failed write
+      // would otherwise escape as an unhandled async error.
+      _ref
+          .read(toastProvider.notifier)
+          .show(
+            'Could not save $relPath',
+            description: e.osError?.message ?? e.message,
+            kind: ToastKind.error,
+          );
+      return false;
+    }
+    return saved;
+  }
+
   Future<void> commit(
     String summary, {
     String description = '',

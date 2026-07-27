@@ -9,10 +9,14 @@ import '../../domain/git/stage_patch.dart';
 import '../../state/diff_document.dart';
 import '../../state/diff_target.dart';
 import '../../state/feedback.dart';
+import '../../state/file_editor.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
 import '../../state/settings_controller.dart';
 import '../common/confirm.dart';
+import 'diff_editor.dart';
+import 'diff_selection.dart';
+import 'syntax_style.dart';
 
 /// Slide-up diff sheet over the graph. Occupies [settings.diffHeight] of the
 /// available height; the grip resizes it. Renders inline/split with word-level
@@ -29,13 +33,34 @@ class DiffSheet extends ConsumerWidget {
     final frac = ref.watch(settingsProvider.select((s) => s.diffHeight));
     final ctl = ref.read(settingsProvider.notifier);
     final height = availableHeight * frac;
+    final editing = ref.watch(diffEditingProvider) == target;
 
-    void close() => ref.read(diffTargetProvider.notifier).state = null;
+    Future<void> close() async {
+      // Closing the sheet mid-edit would drop the typed text without a word.
+      if (editing && ref.read(diffEditorDirtyProvider)) {
+        final ok = await confirmDestructive(
+          ref,
+          context,
+          title: 'Discard edits?',
+          body:
+              'What you typed in ${target.path} has not been written to the '
+              'working tree.',
+          confirmLabel: 'Discard',
+        );
+        if (!ok) return;
+      }
+      ref.read(diffEditorDirtyProvider.notifier).state = false;
+      ref.read(diffEditingProvider.notifier).state = null;
+      ref.read(diffTargetProvider.notifier).state = null;
+    }
 
     return Focus(
       autofocus: true,
       onKeyEvent: (n, e) {
         if (e is KeyDownEvent && e.logicalKey == LogicalKeyboardKey.escape) {
+          // While editing, Escape belongs to the editor (cancel), not to the
+          // sheet — closing out from under unsaved text would lose it.
+          if (editing) return KeyEventResult.ignored;
           close();
           return KeyEventResult.handled;
         }
@@ -61,7 +86,11 @@ class DiffSheet extends ConsumerWidget {
               onDrag: (dy) => ctl.setDiffHeight(frac - dy / availableHeight),
             ),
             _DiffHeader(target: target, onClose: close),
-            Expanded(child: _DiffBody(target: target)),
+            Expanded(
+              child: editing
+                  ? DiffEditor(target: target)
+                  : _DiffBody(target: target),
+            ),
           ],
         ),
       ),
@@ -99,6 +128,14 @@ class _Grip extends StatelessWidget {
   }
 }
 
+/// Header buttons share a 38px bar with the path, the toggles and the close
+/// button, so they use tighter padding than the Material default.
+final _compactButton = TextButton.styleFrom(
+  minimumSize: Size.zero,
+  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+);
+
 class _DiffHeader extends ConsumerWidget {
   final DiffTarget target;
   final VoidCallback onClose;
@@ -110,6 +147,7 @@ class _DiffHeader extends ConsumerWidget {
     final split = ref.watch(settingsProvider.select((s) => s.diffSplit));
     final ctl = ref.read(settingsProvider.notifier);
     final doc = ref.watch(diffDocumentProvider(target)).valueOrNull;
+    final editing = ref.watch(diffEditingProvider) == target;
     // Partial working-tree file: let the user flip between the two sides.
     final working =
         ref.watch(repoDataProvider(target.repoPath)).valueOrNull?.working ??
@@ -167,8 +205,16 @@ class _DiffHeader extends ConsumerWidget {
             ),
             const SizedBox(width: 8),
           ],
-          if (doc != null && doc.editable)
+          if (target.isWorkingTree && !editing)
             TextButton(
+              style: _compactButton,
+              onPressed: () =>
+                  ref.read(diffEditingProvider.notifier).state = target,
+              child: const Text('Edit'),
+            ),
+          if (doc != null && doc.editable && !editing)
+            TextButton(
+              style: _compactButton,
               onPressed: () async {
                 final actions = ref.read(repoActionsProvider(target.repoPath));
                 if (doc.staged) {
@@ -408,40 +454,60 @@ class _DiffBody extends ConsumerWidget {
             // ListView.builder virtualises: only visible rows build (and only
             // they run highlightLine), so large diffs and grip-resize stay
             // smooth.
-            return ListView.builder(
-              itemCount: items.length,
-              itemBuilder: (context, i) {
-                final it = items[i];
-                final hunk = it.file.hunks[it.hunkIndex];
-                if (it.header) {
-                  return _HunkHeaderRow(
-                    header: hunk.header,
-                    editable: doc.editable,
-                    staged: doc.staged,
-                    onStage: () => apply(it.file, it.hunkIndex, null),
-                    onDiscard: doc.staged
-                        ? null
-                        : () => discard(it.file, it.hunkIndex),
-                  );
-                }
-                if (it.pair != null) {
-                  return _SplitRow(left: it.pair!.$1, right: it.pair!.$2);
-                }
-                final li = it.lineIndex!;
-                final line = hunk.lines[li];
-                return _LineRow(
-                  line: line,
-                  editable: doc.editable,
-                  staged: doc.staged,
-                  onStage: line.type == DiffLineType.context
-                      ? null
-                      : () => apply(
-                          it.file,
-                          it.hunkIndex,
-                          changeLineGroup(hunk.lines, li),
-                        ),
-                );
-              },
+            //
+            // SelectionArea makes the code text selectable and copyable. Every
+            // part of a row that is not code — gutter, line numbers, +/- sign,
+            // hunk header — opts out via SelectionContainer.disabled, so a copy
+            // yields source, not source interleaved with line numbers.
+            return SelectionArea(
+              // The built-in toolbar is replaced by showDiffSelectionMenu,
+              // which also opens where nothing is selected yet. It is
+              // suppressed with an empty builder rather than a null one:
+              // SelectableRegion._showToolbar dereferences the builder with
+              // `!`, so null crashes the frame instead of hiding the toolbar.
+              contextMenuBuilder: (_, _) => const SizedBox.shrink(),
+              child: Builder(
+                builder: (context) => GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onSecondaryTapUp: (d) =>
+                      showDiffSelectionMenu(context, d.globalPosition),
+                  child: ListView.builder(
+                    itemCount: items.length,
+                    itemBuilder: (context, i) {
+                      final it = items[i];
+                      final hunk = it.file.hunks[it.hunkIndex];
+                      if (it.header) {
+                        return _HunkHeaderRow(
+                          header: hunk.header,
+                          editable: doc.editable,
+                          staged: doc.staged,
+                          onStage: () => apply(it.file, it.hunkIndex, null),
+                          onDiscard: doc.staged
+                              ? null
+                              : () => discard(it.file, it.hunkIndex),
+                        );
+                      }
+                      if (it.pair != null) {
+                        return _SplitRow(left: it.pair!.$1, right: it.pair!.$2);
+                      }
+                      final li = it.lineIndex!;
+                      final line = hunk.lines[li];
+                      return _LineRow(
+                        line: line,
+                        editable: doc.editable,
+                        staged: doc.staged,
+                        onStage: line.type == DiffLineType.context
+                            ? null
+                            : () => apply(
+                                it.file,
+                                it.hunkIndex,
+                                changeLineGroup(hunk.lines, li),
+                              ),
+                      );
+                    },
+                  ),
+                ),
+              ),
             );
           },
         );
@@ -504,42 +570,55 @@ class _HunkHeaderRow extends StatelessWidget {
     return Container(
       color: t.bgApp,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              header,
-              style: TextStyle(
-                color: t.textFaint,
-                fontSize: 11,
-                fontFamily: 'monospace',
-              ),
-            ),
-          ),
-          if (editable)
-            TextButton(
-              onPressed: onStage,
-              style: TextButton.styleFrom(
-                minimumSize: Size.zero,
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
+      // Nothing in the hunk header belongs in a copy — neither the @@ marker
+      // nor the action buttons, which Select All would otherwise sweep up.
+      child: SelectionContainer.disabled(
+        child: Row(
+          children: [
+            Expanded(
               child: Text(
-                staged ? 'Unstage hunk' : 'Stage hunk',
-                style: const TextStyle(fontSize: 11),
+                header,
+                style: TextStyle(
+                  color: t.textFaint,
+                  fontSize: 11,
+                  fontFamily: 'monospace',
+                ),
               ),
             ),
-          if (onDiscard != null)
-            TextButton(
-              onPressed: onDiscard,
-              style: TextButton.styleFrom(
-                minimumSize: Size.zero,
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            if (editable)
+              TextButton(
+                onPressed: onStage,
+                style: TextButton.styleFrom(
+                  minimumSize: Size.zero,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 1,
+                  ),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(
+                  staged ? 'Unstage hunk' : 'Stage hunk',
+                  style: const TextStyle(fontSize: 11),
+                ),
               ),
-              child: const Text('Discard hunk', style: TextStyle(fontSize: 11)),
-            ),
-        ],
+            if (onDiscard != null)
+              TextButton(
+                onPressed: onDiscard,
+                style: TextButton.styleFrom(
+                  minimumSize: Size.zero,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 1,
+                  ),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text(
+                  'Discard hunk',
+                  style: TextStyle(fontSize: 11),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -584,8 +663,18 @@ class _SplitRow extends StatelessWidget {
     final t = context.tokens;
     return Row(
       children: [
-        Expanded(child: _half(t, left, isLeft: true)),
-        Expanded(child: _half(t, right, isLeft: false)),
+        Expanded(
+          child: SplitSelectionSide(
+            isLeft: true,
+            child: _half(t, left, isLeft: true),
+          ),
+        ),
+        Expanded(
+          child: SplitSelectionSide(
+            isLeft: false,
+            child: _half(t, right, isLeft: false),
+          ),
+        ),
       ],
     );
   }
@@ -610,24 +699,29 @@ class _SplitRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 34,
-            child: Text(
-              (isLeft ? line.oldNo : line.newNo)?.toString() ?? '',
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                color: t.textFaint,
-                fontSize: 11,
-                fontFamily: 'monospace',
+          SelectionContainer.disabled(
+            child: SizedBox(
+              width: 34,
+              child: Text(
+                (isLeft ? line.oldNo : line.newNo)?.toString() ?? '',
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  color: t.textFaint,
+                  fontSize: 11,
+                  fontFamily: 'monospace',
+                ),
               ),
             ),
           ),
           const SizedBox(width: 6),
           Expanded(
-            child: Text.rich(
-              _lineSpans(t, line),
-              softWrap: false,
-              overflow: TextOverflow.clip,
+            child: DiffSelectableLine(
+              text: line.text,
+              child: Text.rich(
+                _lineSpans(t, line),
+                softWrap: false,
+                overflow: TextOverflow.clip,
+              ),
             ),
           ),
         ],
@@ -661,37 +755,48 @@ class _LineRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (editable)
-            SizedBox(
-              width: 20,
-              child: onStage == null
-                  ? null
-                  : InkWell(
-                      onTap: onStage,
-                      child: Icon(
-                        staged ? Icons.check : Icons.add,
-                        size: 12,
-                        color: staged ? t.success : t.textFaint,
-                      ),
-                    ),
-            ),
-          _num(t, line.oldNo),
-          _num(t, line.newNo),
-          const SizedBox(width: 6),
-          Text(
-            sign,
-            style: TextStyle(
-              color: t.textFaint,
-              fontSize: 12,
-              fontFamily: 'monospace',
+          SelectionContainer.disabled(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (editable)
+                  SizedBox(
+                    width: 20,
+                    child: onStage == null
+                        ? null
+                        : InkWell(
+                            onTap: onStage,
+                            child: Icon(
+                              staged ? Icons.check : Icons.add,
+                              size: 12,
+                              color: staged ? t.success : t.textFaint,
+                            ),
+                          ),
+                  ),
+                _num(t, line.oldNo),
+                _num(t, line.newNo),
+                const SizedBox(width: 6),
+                Text(
+                  sign,
+                  style: TextStyle(
+                    color: t.textFaint,
+                    fontSize: 12,
+                    fontFamily: 'monospace',
+                  ),
+                ),
+                const SizedBox(width: 4),
+              ],
             ),
           ),
-          const SizedBox(width: 4),
           Expanded(
-            child: Text.rich(
-              _lineSpans(t, line),
-              softWrap: false,
-              overflow: TextOverflow.clip,
+            child: DiffSelectableLine(
+              text: line.text,
+              child: Text.rich(
+                _lineSpans(t, line),
+                softWrap: false,
+                overflow: TextOverflow.clip,
+              ),
             ),
           ),
         ],
@@ -737,19 +842,11 @@ TextSpan _lineSpans(AppTokens t, DiffLine line) {
       for (final tok in highlightLine(line.text))
         TextSpan(
           text: tok.text,
-          style: base.copyWith(color: _syntaxColor(t, tok.kind)),
+          style: base.copyWith(color: syntaxColor(t, tok.kind)),
         ),
     ],
   );
 }
-
-Color _syntaxColor(AppTokens t, SyntaxKind k) => switch (k) {
-  SyntaxKind.keyword => t.accent,
-  SyntaxKind.string => t.success,
-  SyntaxKind.number => t.warning,
-  SyntaxKind.comment => t.textFaint,
-  SyntaxKind.plain => t.textPrimary,
-};
 
 /// Segmented Unstaged/Staged control for a partially-staged working-tree file.
 class _SideToggle extends StatelessWidget {
