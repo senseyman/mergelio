@@ -11,7 +11,7 @@
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey.svg)](#installation)
 [![Flutter](https://img.shields.io/badge/Flutter-3.44%2B-02569B.svg?logo=flutter)](https://flutter.dev)
 [![Dart SDK](https://img.shields.io/badge/Dart%20SDK-%5E3.12.2-0175C2.svg?logo=dart)](https://dart.dev)
-[![Tests](https://img.shields.io/badge/tests-488%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-536%20passing-brightgreen.svg)](#testing)
 
 </div>
 
@@ -233,7 +233,7 @@ make help
 ## Testing
 
 ```bash
-make test        # 488 unit and widget tests
+make test        # 536 unit and widget tests
 make coverage    # → coverage/lcov.info
 make check       # what CI runs: format check + analyze + test
 ```
@@ -255,6 +255,10 @@ Mergelio has no accounts and phones home to nothing by default.
   `ssh-agent`; Mergelio does not store passwords or tokens itself.
 - Everything else — settings, recents, open tabs, the operation journal — stays
   in a local SQLite database in your OS application-support directory.
+- Diagnostic logs are written to `logs/mergelio.log` in that same directory
+  (2 MB per file, three archives kept) and never leave the machine. On macOS
+  that is `~/Library/Application Support/com.mergelio.mergelio/logs/`.
+  Preferences → General shows the path and reveals it in your file manager.
 
 ## Contributing
 

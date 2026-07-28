@@ -10,6 +10,7 @@ import '../../state/feedback.dart';
 import '../../state/settings_controller.dart';
 import '../common/dialogs.dart';
 import '../graph/commit_columns.dart';
+import 'logs_row.dart';
 
 /// Preferences with General and Appearance tabs. All edits apply live and
 /// persist through the settings controller.
@@ -141,6 +142,8 @@ class _GeneralTab extends ConsumerWidget {
           s.graphCompact,
           (_) => c.toggleGraphCompact(),
         ),
+        const Divider(height: 20),
+        const LogsRow(),
       ],
     );
   }

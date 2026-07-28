@@ -5,9 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'app.dart';
+import 'core/logging.dart';
 import 'data/app_database.dart';
 import 'data/kv_store.dart';
 import 'data/settings_repository.dart';
+import 'state/diagnostics.dart';
 import 'state/operation_journal.dart';
 import 'state/profiles.dart';
 import 'state/recents.dart';
@@ -18,14 +20,24 @@ import 'state/workspace.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Start the log file first, so everything below — including a startup crash —
+  // leaves a trace the user can hand over in a bug report.
+  await initFileLogging();
+  appLog.info('launching', scope: 'startup');
+
   // Error boundary: log framework and async errors instead of taking the whole
   // app down, and show a contained fallback in place of a failed subtree.
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
-    debugPrint('uncaught framework error: ${details.exceptionAsString()}');
+    appLog.error(
+      'uncaught framework error',
+      details.exception,
+      details.stack,
+      'flutter',
+    );
   };
   WidgetsBinding.instance.platformDispatcher.onError = (error, stack) {
-    debugPrint('uncaught async error: $error\n$stack');
+    appLog.error('uncaught async error', error, stack, 'flutter');
     return true;
   };
   ErrorWidget.builder = (details) => const _FallbackErrorWidget();
@@ -65,7 +77,7 @@ Future<void> main() async {
     }
     interruptedOps = notices;
   } catch (e, st) {
-    debugPrint('startup: state load failed, using defaults: $e\n$st');
+    appLog.error('state load failed, using defaults', e, st, 'startup');
   }
 
   // Restore the persisted window size (the manager enforces the minimum).
@@ -83,6 +95,9 @@ Future<void> main() async {
 
   runApp(
     ProviderScope(
+      // Provider failures surface in the UI as "could not read …" and are
+      // otherwise invisible; the observer puts them in the log.
+      observers: const [LoggingProviderObserver()],
       overrides: [
         settingsProvider.overrideWith((ref) => settingsController),
         recentsProvider.overrideWith(

@@ -15,8 +15,14 @@ class GitReader {
   static const _fs = '\x1f'; // field separator inside a record
   static const _rs = '\x00'; // record separator (git -z)
 
-  Future<GitResult> _run(List<String> args) =>
-      git.run(args, repoPath: repoPath);
+  Future<GitResult> _run(List<String> args, {Duration? timeout}) =>
+      git.run(args, repoPath: repoPath, timeout: timeout);
+
+  /// Budget for the bulk history walk. The service default is sized to catch a
+  /// stalled network operation; a topological walk of a large monorepo is
+  /// neither stalled nor network-bound, and killing it only turns a slow open
+  /// into a failed one.
+  static const _historyTimeout = Duration(minutes: 5);
 
   /// Commits across all refs in topological order, newest first. Layout fields
   /// are left at their defaults; run [assignLanes] to populate them. Returns an
@@ -63,7 +69,7 @@ class GitReader {
       if (maxCount != null) '--max-count=$maxCount',
       '--pretty=format:%H$_fs%P$_fs%an$_fs%ae$_fs%aI$_fs%G?$_fs%D$_fs%s$_fs%b',
       ...stashShas,
-    ]);
+    ], timeout: _historyTimeout);
     if (!r.ok) {
       final e = r.err;
       // A repository with no commits yet (or an unborn HEAD) is not an error.

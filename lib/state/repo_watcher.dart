@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/concurrency.dart';
+import '../core/logging.dart';
 import 'repo_data.dart';
 import 'workspace.dart';
 
@@ -20,8 +21,9 @@ import 'workspace.dart';
 class RepoWatcher {
   final Ref _ref;
   StreamSubscription<FileSystemEvent>? _sub;
-  Timer? _debounce;
+  RefreshCoalescer? _coalescer;
   String? _path;
+  String? _trigger;
 
   RepoWatcher(this._ref) {
     _ref.listen(
@@ -41,14 +43,15 @@ class RepoWatcher {
     try {
       _sub = dir.watch(recursive: true).listen(
         (e) {
-          if (!_isNoise(e.path)) _schedule(path);
+          if (!_isNoise(e.path)) _schedule(path, e.path);
         },
         // Watch limits / transient FS errors must not crash the app.
-        onError: (Object e) => debugPrint('repo watch error: $e'),
+        onError: (Object e) =>
+            appLog.warn('repo watch error: $e', scope: 'watch'),
       );
     } on Object catch (e) {
       // No recursive watch on this platform / resource limit hit.
-      debugPrint('repo watch unavailable: $e');
+      appLog.warn('repo watch unavailable: $e', scope: 'watch');
     }
   }
 
@@ -59,20 +62,33 @@ class RepoWatcher {
   );
   static bool _isNoise(String path) => _noise.hasMatch(path);
 
-  void _schedule(String path) {
-    _debounce?.cancel();
-    // 500ms trailing: coalesce editor save-storms and long git operations into
-    // a single refresh once things settle.
-    _debounce = Timer(const Duration(milliseconds: 500), () {
-      if (_path == path) _ref.invalidate(repoDataProvider(path));
-    });
+  /// 500ms trailing: coalesces editor save-storms and long git operations into
+  /// a single refresh once things settle. A refresh is also held back while the
+  /// previous read is still running, so a repository that takes longer to read
+  /// than the burst takes to arrive cannot accumulate overlapping reads.
+  RefreshCoalescer _coalescerFor(String path) => RefreshCoalescer(
+    settle: const Duration(milliseconds: 500),
+    busy: () => _ref.read(repoDataProvider(path)).isLoading,
+    onRefresh: () {
+      if (_path != path) return;
+      // Names the file that caused the refresh: a repository that reloads in a
+      // loop is diagnosed from these lines.
+      appLog.info('refresh of $path triggered by $_trigger', scope: 'watch');
+      _ref.invalidate(repoDataProvider(path));
+    },
+  );
+
+  void _schedule(String path, String trigger) {
+    _trigger = trigger;
+    _coalescer ??= _coalescerFor(path);
+    _coalescer!.schedule();
   }
 
   void _cancel() {
     _sub?.cancel();
     _sub = null;
-    _debounce?.cancel();
-    _debounce = null;
+    _coalescer?.cancel();
+    _coalescer = null;
   }
 
   /// Force an immediate refresh of the active repo (e.g. on window focus).
