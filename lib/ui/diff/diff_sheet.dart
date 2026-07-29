@@ -493,9 +493,13 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
               }
             }
 
-            Widget headerRow(_DiffItem it) => _HunkHeaderRow(
-              // The whole-file view collapses everything into one hunk, so a
-              // "stage hunk" there would silently act on the entire file.
+            Widget headerRow(
+              _DiffItem it, {
+              bool showActions = true,
+              bool showMarker = true,
+            }) => _HunkHeaderRow(
+              // The whole-file view collapses everything into one hunk, so
+              // a "stage hunk" there would silently act on the entire file.
               // Line-level staging still applies.
               header: it.file.hunks[it.hunkIndex].header,
               editable: doc.editable && !target.wholeFile,
@@ -504,6 +508,8 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
               onDiscard: doc.staged || target.wholeFile
                   ? null
                   : () => discard(it.file, it.hunkIndex),
+              showActions: showActions,
+              showMarker: showMarker,
             );
 
             if (split) {
@@ -587,7 +593,13 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
                             itemBuilder: (context, i) {
                               final it = items[i];
                               final hunk = it.file.hunks[it.hunkIndex];
-                              if (it.header) return headerRow(it);
+                              if (it.header) {
+                                return _PinnedToViewport(
+                                  controller: _hInline,
+                                  viewport: constraints.maxWidth,
+                                  child: headerRow(it),
+                                );
+                              }
                               final li = it.lineIndex!;
                               final line = hunk.lines[li];
                               return _LineRow(
@@ -672,42 +684,91 @@ List<_DiffItem> _flatten(List<FileDiff> files, bool split) {
   return items;
 }
 
+/// Height of a hunk header. Fixed so the two split columns — one carrying the
+/// marker, the other the buttons — keep the same rows at the same heights.
+const _hunkHeaderHeight = 22.0;
+
+/// Holds a hunk header still while the code beneath it scrolls sideways.
+///
+/// The header lives inside the horizontally scrolling content, which is as
+/// wide as the longest line, so its right-aligned buttons would otherwise sit
+/// at the far end of that width — off screen until you scrolled to the end of
+/// the longest line in the hunk. Sizing it to the viewport and shifting it by
+/// the current offset pins it to the visible area instead.
+class _PinnedToViewport extends StatelessWidget {
+  final ScrollController controller;
+  final double viewport;
+  final Widget child;
+
+  const _PinnedToViewport({
+    required this.controller,
+    required this.viewport,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: controller,
+    builder: (context, pinned) => Transform.translate(
+      offset: Offset(controller.hasClients ? controller.offset : 0, 0),
+      child: pinned,
+    ),
+    // A vertical list hands its children a tight width, which a bare SizedBox
+    // cannot narrow; Align loosens it and holds the header at the left edge.
+    child: Align(
+      alignment: Alignment.centerLeft,
+      child: SizedBox(width: viewport, child: child),
+    ),
+  );
+}
+
 class _HunkHeaderRow extends StatelessWidget {
   final String header;
   final bool editable;
   final bool staged;
   final VoidCallback onStage;
   final VoidCallback? onDiscard;
+
+  /// Split view draws the marker in the left column and the buttons in the
+  /// right one, so each side takes only its half of the header. Inline shows
+  /// both.
+  final bool showActions;
+  final bool showMarker;
   const _HunkHeaderRow({
     required this.header,
     required this.editable,
     required this.staged,
     required this.onStage,
     this.onDiscard,
+    this.showActions = true,
+    this.showMarker = true,
   });
 
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
     return Container(
+      height: _hunkHeaderHeight,
       color: t.bgApp,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
       // Nothing in the hunk header belongs in a copy — neither the @@ marker
       // nor the action buttons, which Select All would otherwise sweep up.
       child: SelectionContainer.disabled(
         child: Row(
           children: [
             Expanded(
-              child: Text(
-                header,
-                style: TextStyle(
-                  color: t.textFaint,
-                  fontSize: 11,
-                  fontFamily: 'monospace',
-                ),
-              ),
+              child: showMarker
+                  ? Text(
+                      header,
+                      style: TextStyle(
+                        color: t.textFaint,
+                        fontSize: 11,
+                        fontFamily: 'monospace',
+                      ),
+                    )
+                  : const SizedBox.shrink(),
             ),
-            if (editable)
+            if (editable && showActions)
               TextButton(
                 onPressed: onStage,
                 style: TextButton.styleFrom(
@@ -723,7 +784,7 @@ class _HunkHeaderRow extends StatelessWidget {
                   style: const TextStyle(fontSize: 11),
                 ),
               ),
-            if (onDiscard != null)
+            if (onDiscard != null && showActions)
               TextButton(
                 onPressed: onDiscard,
                 style: TextButton.styleFrom(
@@ -790,7 +851,7 @@ class _SplitColumn extends StatelessWidget {
   final double lineHeight;
   final ScrollController hController;
   final ScrollController vController;
-  final Widget Function(_DiffItem) header;
+  final Widget Function(_DiffItem, {bool showActions, bool showMarker}) header;
 
   const _SplitColumn({
     required this.items,
@@ -836,16 +897,18 @@ class _SplitColumn extends StatelessWidget {
                     itemBuilder: (context, i) {
                       final it = items[i];
                       if (it.header) {
-                        final row = header(it);
-                        return isLeft
-                            ? row
-                            : Visibility(
-                                visible: false,
-                                maintainSize: true,
-                                maintainState: true,
-                                maintainAnimation: true,
-                                child: row,
-                              );
+                        // The marker belongs over the old line numbers on the
+                        // left; the buttons act on the hunk as a whole and go
+                        // in the right column, where the eye ends up.
+                        return _PinnedToViewport(
+                          controller: hController,
+                          viewport: constraints.maxWidth,
+                          child: header(
+                            it,
+                            showActions: !isLeft,
+                            showMarker: isLeft,
+                          ),
+                        );
                       }
                       return _SplitHalf(
                         line: isLeft ? it.pair!.$1 : it.pair!.$2,
