@@ -17,6 +17,7 @@ import '../common/confirm.dart';
 import 'diff_editor.dart';
 import 'diff_metrics.dart';
 import 'diff_selection.dart';
+import 'linked_scroll.dart';
 import 'syntax_style.dart';
 
 /// Slide-up diff sheet over the graph. Occupies [settings.diffHeight] of the
@@ -377,11 +378,23 @@ class _DiffBody extends ConsumerStatefulWidget {
 class _DiffBodyState extends ConsumerState<_DiffBody> {
   // Owned by the body rather than by a row: one controller drives every line,
   // so the columns cannot drift apart as the diff scrolls sideways.
-  final _hScroll = ScrollController();
+  final _hInline = ScrollController();
+
+  // Split view gives each column its own horizontal scroll — the two sides
+  // rarely hold lines of the same length, and a new file has nothing at all on
+  // the left, which under one shared width crowded the additions off-screen.
+  // Vertically they stay a single surface, so one linked controller drives
+  // both lists.
+  final _hLeft = ScrollController();
+  final _hRight = ScrollController();
+  final _vSplit = LinkedScrollController();
 
   @override
   void dispose() {
-    _hScroll.dispose();
+    _hInline.dispose();
+    _hLeft.dispose();
+    _hRight.dispose();
+    _vSplit.dispose();
     super.dispose();
   }
 
@@ -480,6 +493,53 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
               }
             }
 
+            Widget headerRow(_DiffItem it) => _HunkHeaderRow(
+              // The whole-file view collapses everything into one hunk, so a
+              // "stage hunk" there would silently act on the entire file.
+              // Line-level staging still applies.
+              header: it.file.hunks[it.hunkIndex].header,
+              editable: doc.editable && !target.wholeFile,
+              staged: doc.staged,
+              onStage: () => apply(it.file, it.hunkIndex, null),
+              onDiscard: doc.staged || target.wholeFile
+                  ? null
+                  : () => discard(it.file, it.hunkIndex),
+            );
+
+            if (split) {
+              final sides = longestLineCharsPerSide(doc.files);
+              final charWidth = _codeCharWidth(context);
+              final lineHeight = _codeLineHeight(context);
+              return Row(
+                children: [
+                  Expanded(
+                    child: _SplitColumn(
+                      items: items,
+                      isLeft: true,
+                      chars: sides.left,
+                      charWidth: charWidth,
+                      lineHeight: lineHeight,
+                      hController: _hLeft,
+                      vController: _vSplit,
+                      header: headerRow,
+                    ),
+                  ),
+                  Expanded(
+                    child: _SplitColumn(
+                      items: items,
+                      isLeft: false,
+                      chars: sides.right,
+                      charWidth: charWidth,
+                      lineHeight: lineHeight,
+                      hController: _hRight,
+                      vController: _vSplit,
+                      header: headerRow,
+                    ),
+                  ),
+                ],
+              );
+            }
+
             // ListView.builder virtualises: only visible rows build (and only
             // they run highlightLine), so large diffs and grip-resize stay
             // smooth.
@@ -498,17 +558,16 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
             // selectAll() with nothing to select.
             return LayoutBuilder(
               builder: (context, constraints) => Scrollbar(
-                controller: _hScroll,
+                controller: _hInline,
                 scrollbarOrientation: ScrollbarOrientation.bottom,
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
-                  controller: _hScroll,
+                  controller: _hInline,
                   child: SizedBox(
                     width: diffContentWidth(
                       viewport: constraints.maxWidth,
                       chars: longestLineChars(doc.files),
                       charWidth: _codeCharWidth(context),
-                      split: split,
                     ),
                     child: SelectionArea(
                       // The built-in toolbar is replaced by
@@ -528,27 +587,7 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
                             itemBuilder: (context, i) {
                               final it = items[i];
                               final hunk = it.file.hunks[it.hunkIndex];
-                              if (it.header) {
-                                // The whole-file view collapses everything into one
-                                // hunk, so a "stage hunk" there would silently act on
-                                // the entire file. Line-level staging still applies.
-                                return _HunkHeaderRow(
-                                  header: hunk.header,
-                                  editable: doc.editable && !target.wholeFile,
-                                  staged: doc.staged,
-                                  onStage: () =>
-                                      apply(it.file, it.hunkIndex, null),
-                                  onDiscard: doc.staged || target.wholeFile
-                                      ? null
-                                      : () => discard(it.file, it.hunkIndex),
-                                );
-                              }
-                              if (it.pair != null) {
-                                return _SplitRow(
-                                  left: it.pair!.$1,
-                                  right: it.pair!.$2,
-                                );
-                              }
+                              if (it.header) return headerRow(it);
                               final li = it.lineIndex!;
                               final line = hunk.lines[li];
                               return _LineRow(
@@ -577,19 +616,25 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
   }
 }
 
+const _codeStyle = TextStyle(
+  fontSize: 12.5,
+  fontFamily: 'monospace',
+  height: 1.35,
+);
+
+TextPainter _codeMetrics(BuildContext context) => TextPainter(
+  text: const TextSpan(text: 'M', style: _codeStyle),
+  textDirection: TextDirection.ltr,
+  textScaler: MediaQuery.textScalerOf(context),
+)..layout();
+
 /// Width of one character in the code font, so the widest line can be sized
 /// without laying every line out. The font is monospace, so any glyph will do.
-double _codeCharWidth(BuildContext context) {
-  final painter = TextPainter(
-    text: const TextSpan(
-      text: 'M',
-      style: TextStyle(fontSize: 12.5, fontFamily: 'monospace', height: 1.35),
-    ),
-    textDirection: TextDirection.ltr,
-    textScaler: MediaQuery.textScalerOf(context),
-  )..layout();
-  return painter.width;
-}
+double _codeCharWidth(BuildContext context) => _codeMetrics(context).width;
+
+/// Height of one code line, used to give both split columns rows of the same
+/// height so they stay aligned while scrolling as one.
+double _codeLineHeight(BuildContext context) => _codeMetrics(context).height;
 
 /// One virtualised row of the diff body: a hunk header, an inline line, or a
 /// split pair.
@@ -730,29 +775,125 @@ List<(DiffLine?, DiffLine?)> _pairForSplit(List<DiffLine> lines) {
   return out;
 }
 
-class _SplitRow extends StatelessWidget {
-  final DiffLine? left;
-  final DiffLine? right;
-  const _SplitRow({required this.left, required this.right});
+/// One column of the split view: its own horizontal scroll and its own width,
+/// so an empty or short side cannot crowd out the other. Vertically both
+/// columns share [vController], which keeps them on the same row.
+///
+/// Rows are a fixed [lineHeight] and hunk headers are rendered on both sides —
+/// invisibly on the right — because the two lists only stay aligned while
+/// their rows agree on height, item for item.
+class _SplitColumn extends StatelessWidget {
+  final List<_DiffItem> items;
+  final bool isLeft;
+  final int chars;
+  final double charWidth;
+  final double lineHeight;
+  final ScrollController hController;
+  final ScrollController vController;
+  final Widget Function(_DiffItem) header;
+
+  const _SplitColumn({
+    required this.items,
+    required this.isLeft,
+    required this.chars,
+    required this.charWidth,
+    required this.lineHeight,
+    required this.hController,
+    required this.vController,
+    required this.header,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final list = LayoutBuilder(
+      builder: (context, constraints) => Scrollbar(
+        controller: hController,
+        scrollbarOrientation: ScrollbarOrientation.bottom,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          controller: hController,
+          child: SizedBox(
+            width: diffContentWidth(
+              viewport: constraints.maxWidth,
+              chars: chars,
+              charWidth: charWidth,
+              gutter: kSplitGutterWidth,
+            ),
+            // Each column is its own selection region, so a copy takes one
+            // side's text and never interleaves the two line by line. The
+            // region sits inside the scroll view: a viewport between it and
+            // its selectables leaves selectAll() with nothing to select.
+            child: SelectionArea(
+              contextMenuBuilder: (_, _) => const SizedBox.shrink(),
+              child: Builder(
+                builder: (context) => GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onSecondaryTapUp: (d) =>
+                      showDiffSelectionMenu(context, d.globalPosition),
+                  child: ListView.builder(
+                    controller: vController,
+                    itemCount: items.length,
+                    itemBuilder: (context, i) {
+                      final it = items[i];
+                      if (it.header) {
+                        final row = header(it);
+                        return isLeft
+                            ? row
+                            : Visibility(
+                                visible: false,
+                                maintainSize: true,
+                                maintainState: true,
+                                maintainAnimation: true,
+                                child: row,
+                              );
+                      }
+                      return _SplitHalf(
+                        line: isLeft ? it.pair!.$1 : it.pair!.$2,
+                        isLeft: isLeft,
+                        height: lineHeight,
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    // Only the right column shows a vertical scrollbar; a second one down the
+    // middle of the sheet would read as a divider between two documents.
+    return isLeft
+        ? ScrollConfiguration(
+            behavior: ScrollConfiguration.of(
+              context,
+            ).copyWith(scrollbars: false),
+            child: list,
+          )
+        : list;
+  }
+}
+
+class _SplitHalf extends StatelessWidget {
+  final DiffLine? line;
+  final bool isLeft;
+
+  /// Fixed so the two columns' rows line up; code lines never wrap, so every
+  /// row is one line tall whatever it holds.
+  final double height;
+
+  const _SplitHalf({
+    required this.line,
+    required this.isLeft,
+    required this.height,
+  });
 
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
-    return Row(
-      children: [
-        Expanded(
-          child: SplitSelectionSide(
-            isLeft: true,
-            child: _half(t, left, isLeft: true),
-          ),
-        ),
-        Expanded(
-          child: SplitSelectionSide(
-            isLeft: false,
-            child: _half(t, right, isLeft: false),
-          ),
-        ),
-      ],
+    return SizedBox(
+      height: height,
+      child: _half(t, line, isLeft: isLeft),
     );
   }
 

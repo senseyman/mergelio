@@ -11,7 +11,7 @@
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey.svg)](#installation)
 [![Flutter](https://img.shields.io/badge/Flutter-3.44%2B-02569B.svg?logo=flutter)](https://flutter.dev)
 [![Dart SDK](https://img.shields.io/badge/Dart%20SDK-%5E3.12.2-0175C2.svg?logo=dart)](https://dart.dev)
-[![Tests](https://img.shields.io/badge/tests-593%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-605%20passing-brightgreen.svg)](#testing)
 
 </div>
 
@@ -78,13 +78,15 @@ about to do to your repository. Mergelio takes the opposite position:
 - Stage and unstage by **file, hunk or individual line**, including partial
   patches.
 - Side-by-side or unified diffs with word-level intra-line highlighting and
-  syntax colouring. Long lines scroll sideways instead of being cut off.
+  syntax colouring. Long lines scroll sideways instead of being cut off, and in
+  split view each column scrolls on its own — a new file's empty left half no
+  longer crowds out the additions.
 - Expand any diff to the **whole file** instead of just the changed regions, and
   collapse it back — one toggle in the diff header.
 - Select and copy diff text — line numbers, change markers, hunk headers and the
   hunk buttons are left out, so you copy source and nothing else, with each line
-  on its own line. In split view one column is selectable at a time: click a
-  column to select in it, and right-click anywhere for **Select all**.
+  on its own line. In split view each column selects on its own, so a copy is
+  never the two sides interleaved. Right-click anywhere for **Select all**.
 - Edit uncommitted files in place from the diff sheet, syntax-highlighted like
   the diff. Saving writes the working tree, leaves the change unstaged, and is
   undoable.

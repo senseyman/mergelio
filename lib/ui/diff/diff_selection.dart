@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../common/dialogs.dart';
 
@@ -30,41 +29,6 @@ Future<void> showDiffSelectionMenu(BuildContext context, Offset at) async {
       ),
     ],
   );
-}
-
-/// Which column of the split view accepts selection. Registering both would
-/// interleave the old and new text line by line in a copy, so only one is
-/// live at a time and clicking into a column makes it the live one.
-final splitSelectionLeftProvider = StateProvider<bool>((_) => false);
-
-/// Wraps one half of a split row: selectable when its column is the live one,
-/// and claiming the column when clicked.
-class SplitSelectionSide extends ConsumerWidget {
-  final bool isLeft;
-  final Widget child;
-
-  const SplitSelectionSide({
-    super.key,
-    required this.isLeft,
-    required this.child,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final live = ref.watch(splitSelectionLeftProvider) == isLeft;
-    return Listener(
-      onPointerDown: (_) {
-        if (ref.read(splitSelectionLeftProvider) == isLeft) return;
-        // Switching columns drops the old selection rather than leaving it
-        // live but invisible in a column that no longer accepts selection.
-        context
-            .findAncestorStateOfType<SelectableRegionState>()
-            ?.clearSelection();
-        ref.read(splitSelectionLeftProvider.notifier).state = isLeft;
-      },
-      child: live ? child : SelectionContainer.disabled(child: child),
-    );
-  }
 }
 
 /// Gives one diff row's text its own line break when copied.

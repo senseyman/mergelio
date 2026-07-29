@@ -314,28 +314,42 @@ void main() {
     });
   });
 
-  testWidgets('split view copies the new column by default', (tester) async {
-    await open(tester, split: true);
-    final copied = await selectAllAndCopy(tester);
+  /// Selects everything in one split column and returns what a copy yields.
+  /// Each column scrolls on its own and is therefore its own selection region,
+  /// left first in the widget tree.
+  Future<String> selectAllInColumn(
+    WidgetTester tester, {
+    required bool left,
+  }) async {
+    final regions = find.byType(SelectableRegion);
+    expect(regions, findsNWidgets(2), reason: 'one region per split column');
+    final state = tester.state<SelectableRegionState>(regions.at(left ? 0 : 1));
+    state.selectAll();
+    await tester.pump();
+    // ignore: deprecated_member_use
+    state.copySelection(SelectionChangedCause.keyboard);
+    await tester.pump();
+    return clipboard ?? '';
+  }
 
-    // Only one column is live at a time; the old side would otherwise be
-    // interleaved line by line with the new one.
+  testWidgets('the new column copies only additions and context', (
+    tester,
+  ) async {
+    await open(tester, split: true);
+    final copied = await selectAllInColumn(tester, left: false);
+
+    // Separate regions mean the old side can no longer be interleaved line by
+    // line with the new one.
     expect(copied, contains('new line'));
     expect(copied, isNot(contains('old line')));
   });
 
-  testWidgets('clicking the old column in split view makes it selectable', (
+  testWidgets('the old column copies only deletions and context', (
     tester,
   ) async {
     await open(tester, split: true);
+    final copied = await selectAllInColumn(tester, left: true);
 
-    // Click into the removed-line column, then take everything.
-    await tester.tapAt(
-      tester.getCenter(find.textContaining('old line', findRichText: true)),
-    );
-    await tester.pumpAndSettle();
-
-    final copied = await selectAllAndCopy(tester);
     expect(copied, contains('old line'));
     expect(copied, isNot(contains('new line')));
   });
