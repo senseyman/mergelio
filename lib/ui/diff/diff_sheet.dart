@@ -15,6 +15,7 @@ import '../../state/repo_data.dart';
 import '../../state/settings_controller.dart';
 import '../common/confirm.dart';
 import 'diff_editor.dart';
+import 'diff_metrics.dart';
 import 'diff_selection.dart';
 import 'syntax_style.dart';
 
@@ -231,6 +232,18 @@ class _DiffHeader extends ConsumerWidget {
             onInline: () => ctl.setDiffSplit(false),
             onSplit: () => ctl.setDiffSplit(true),
           ),
+          if (!editing)
+            IconButton(
+              iconSize: 18,
+              tooltip: target.wholeFile
+                  ? 'Show changes only'
+                  : 'Show whole file',
+              icon: Icon(
+                target.wholeFile ? Icons.unfold_less : Icons.unfold_more,
+              ),
+              onPressed: () => ref.read(diffTargetProvider.notifier).state =
+                  target.withWholeFile(!target.wholeFile),
+            ),
           IconButton(
             iconSize: 18,
             tooltip: 'Close',
@@ -353,12 +366,28 @@ class _SegToggle extends StatelessWidget {
   }
 }
 
-class _DiffBody extends ConsumerWidget {
+class _DiffBody extends ConsumerStatefulWidget {
   final DiffTarget target;
   const _DiffBody({required this.target});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_DiffBody> createState() => _DiffBodyState();
+}
+
+class _DiffBodyState extends ConsumerState<_DiffBody> {
+  // Owned by the body rather than by a row: one controller drives every line,
+  // so the columns cannot drift apart as the diff scrolls sideways.
+  final _hScroll = ScrollController();
+
+  @override
+  void dispose() {
+    _hScroll.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final target = widget.target;
     final t = context.tokens;
     final split = ref.watch(settingsProvider.select((s) => s.diffSplit));
     return ref
@@ -459,52 +488,86 @@ class _DiffBody extends ConsumerWidget {
             // part of a row that is not code — gutter, line numbers, +/- sign,
             // hunk header — opts out via SelectionContainer.disabled, so a copy
             // yields source, not source interleaved with line numbers.
-            return SelectionArea(
-              // The built-in toolbar is replaced by showDiffSelectionMenu,
-              // which also opens where nothing is selected yet. It is
-              // suppressed with an empty builder rather than a null one:
-              // SelectableRegion._showToolbar dereferences the builder with
-              // `!`, so null crashes the frame instead of hiding the toolbar.
-              contextMenuBuilder: (_, _) => const SizedBox.shrink(),
-              child: Builder(
-                builder: (context) => GestureDetector(
-                  behavior: HitTestBehavior.translucent,
-                  onSecondaryTapUp: (d) =>
-                      showDiffSelectionMenu(context, d.globalPosition),
-                  child: ListView.builder(
-                    itemCount: items.length,
-                    itemBuilder: (context, i) {
-                      final it = items[i];
-                      final hunk = it.file.hunks[it.hunkIndex];
-                      if (it.header) {
-                        return _HunkHeaderRow(
-                          header: hunk.header,
-                          editable: doc.editable,
-                          staged: doc.staged,
-                          onStage: () => apply(it.file, it.hunkIndex, null),
-                          onDiscard: doc.staged
-                              ? null
-                              : () => discard(it.file, it.hunkIndex),
-                        );
-                      }
-                      if (it.pair != null) {
-                        return _SplitRow(left: it.pair!.$1, right: it.pair!.$2);
-                      }
-                      final li = it.lineIndex!;
-                      final line = hunk.lines[li];
-                      return _LineRow(
-                        line: line,
-                        editable: doc.editable,
-                        staged: doc.staged,
-                        onStage: line.type == DiffLineType.context
-                            ? null
-                            : () => apply(
-                                it.file,
-                                it.hunkIndex,
-                                changeLineGroup(hunk.lines, li),
-                              ),
-                      );
-                    },
+            // Code lines are laid out with softWrap off, so anything past the
+            // right edge would otherwise be clipped with no way to reach it.
+            // The list is given the width of its longest line and the whole
+            // thing scrolls sideways, gutter included.
+            //
+            // The scroll view sits outside SelectionArea on purpose: a
+            // viewport between the region and its selectables leaves
+            // selectAll() with nothing to select.
+            return LayoutBuilder(
+              builder: (context, constraints) => Scrollbar(
+                controller: _hScroll,
+                scrollbarOrientation: ScrollbarOrientation.bottom,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  controller: _hScroll,
+                  child: SizedBox(
+                    width: diffContentWidth(
+                      viewport: constraints.maxWidth,
+                      chars: longestLineChars(doc.files),
+                      charWidth: _codeCharWidth(context),
+                      split: split,
+                    ),
+                    child: SelectionArea(
+                      // The built-in toolbar is replaced by
+                      // showDiffSelectionMenu, which also opens where nothing
+                      // is selected yet. It is suppressed with an empty builder
+                      // rather than a null one: SelectableRegion._showToolbar
+                      // dereferences the builder with `!`, so null crashes the
+                      // frame instead of hiding the toolbar.
+                      contextMenuBuilder: (_, _) => const SizedBox.shrink(),
+                      child: Builder(
+                        builder: (context) => GestureDetector(
+                          behavior: HitTestBehavior.translucent,
+                          onSecondaryTapUp: (d) =>
+                              showDiffSelectionMenu(context, d.globalPosition),
+                          child: ListView.builder(
+                            itemCount: items.length,
+                            itemBuilder: (context, i) {
+                              final it = items[i];
+                              final hunk = it.file.hunks[it.hunkIndex];
+                              if (it.header) {
+                                // The whole-file view collapses everything into one
+                                // hunk, so a "stage hunk" there would silently act on
+                                // the entire file. Line-level staging still applies.
+                                return _HunkHeaderRow(
+                                  header: hunk.header,
+                                  editable: doc.editable && !target.wholeFile,
+                                  staged: doc.staged,
+                                  onStage: () =>
+                                      apply(it.file, it.hunkIndex, null),
+                                  onDiscard: doc.staged || target.wholeFile
+                                      ? null
+                                      : () => discard(it.file, it.hunkIndex),
+                                );
+                              }
+                              if (it.pair != null) {
+                                return _SplitRow(
+                                  left: it.pair!.$1,
+                                  right: it.pair!.$2,
+                                );
+                              }
+                              final li = it.lineIndex!;
+                              final line = hunk.lines[li];
+                              return _LineRow(
+                                line: line,
+                                editable: doc.editable,
+                                staged: doc.staged,
+                                onStage: line.type == DiffLineType.context
+                                    ? null
+                                    : () => apply(
+                                        it.file,
+                                        it.hunkIndex,
+                                        changeLineGroup(hunk.lines, li),
+                                      ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -512,6 +575,20 @@ class _DiffBody extends ConsumerWidget {
           },
         );
   }
+}
+
+/// Width of one character in the code font, so the widest line can be sized
+/// without laying every line out. The font is monospace, so any glyph will do.
+double _codeCharWidth(BuildContext context) {
+  final painter = TextPainter(
+    text: const TextSpan(
+      text: 'M',
+      style: TextStyle(fontSize: 12.5, fontFamily: 'monospace', height: 1.35),
+    ),
+    textDirection: TextDirection.ltr,
+    textScaler: MediaQuery.textScalerOf(context),
+  )..layout();
+  return painter.width;
 }
 
 /// One virtualised row of the diff body: a hunk header, an inline line, or a

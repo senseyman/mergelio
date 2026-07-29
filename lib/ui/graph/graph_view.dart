@@ -16,6 +16,7 @@ import '../../state/workspace.dart';
 import '../common/confirm.dart';
 import '../common/dialogs.dart';
 import '../rebase/rebase_editor.dart';
+import '../shell/remote_merge_confirm.dart';
 import '../shell/repo_op_dialogs.dart';
 import '../shell/resize_handle.dart';
 import '../workspace/branch_switch.dart';
@@ -245,7 +246,16 @@ class _GraphListState extends ConsumerState<GraphList> {
       items: [
         PopupMenuItem(
           height: 34,
-          onTap: () => actions.mergeInto(source, target),
+          onTap: () async {
+            if (await confirmRemoteSource(
+              context,
+              ref,
+              repoPath: path,
+              source: source,
+            )) {
+              await actions.mergeInto(source, target);
+            }
+          },
           child: Text(
             'Merge «$source» into «$target»',
             style: const TextStyle(fontSize: 13),

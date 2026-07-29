@@ -47,7 +47,28 @@ class WorkingTreePanel extends ConsumerWidget {
         children: [
           _Header(
             title: 'CHANGES',
-            trailing: clean ? null : const FileViewToggle(),
+            trailing: clean
+                ? null
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        iconSize: 15,
+                        visualDensity: VisualDensity.compact,
+                        tooltip: 'Discard all changes',
+                        icon: const Icon(Icons.backspace_outlined),
+                        onPressed: () => _confirmDiscardAll(
+                          ref,
+                          context,
+                          repoPath,
+                          untracked: data.working
+                              .where((f) => f.isUntracked)
+                              .length,
+                        ),
+                      ),
+                      const FileViewToggle(),
+                    ],
+                  ),
           ),
           if (hasConflicts && !resolving)
             Padding(
@@ -663,6 +684,87 @@ class _Toggle extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Confirms discarding the whole working tree, then performs it. [untracked]
+/// is how many untracked files are present; when there are any, the prompt
+/// carries an opt-in to delete them as well, off by default — reverting a
+/// tracked file has a committed state to come back to, while deleting a new
+/// file does not, so the two are not offered as one blanket action.
+///
+/// Unlike [_confirmDiscardFile] this prompt is shown even when "confirm
+/// destructive actions" is off: it collects a choice, not just an acknowledgement.
+Future<void> _confirmDiscardAll(
+  WidgetRef ref,
+  BuildContext context,
+  String repoPath, {
+  required int untracked,
+}) async {
+  var deleteUntracked = false;
+  final t = context.tokens;
+  final ok = await showAppModal<bool>(
+    context: context,
+    title: 'Discard all changes?',
+    icon: Icons.warning_amber_rounded,
+    width: 460,
+    body: StatefulBuilder(
+      builder: (ctx, setState) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'This reverts every tracked file to its committed state, dropping '
+            'staged and unstaged changes. You can undo it.',
+            style: TextStyle(color: t.textMuted, fontSize: 13, height: 1.5),
+          ),
+          if (untracked > 0) ...[
+            const SizedBox(height: 6),
+            InkWell(
+              onTap: () => setState(() => deleteUntracked = !deleteUntracked),
+              child: Row(
+                children: [
+                  Checkbox(
+                    value: deleteUntracked,
+                    onChanged: (v) =>
+                        setState(() => deleteUntracked = v ?? false),
+                  ),
+                  Expanded(
+                    child: Text(
+                      'Also delete $untracked untracked '
+                      '${untracked == 1 ? 'file' : 'files'}',
+                      style: TextStyle(color: t.textMuted, fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    ),
+    actions: [
+      Builder(
+        builder: (ctx) => TextButton(
+          onPressed: () => Navigator.of(ctx).pop(false),
+          child: const Text('Cancel'),
+        ),
+      ),
+      Builder(
+        builder: (ctx) => FilledButton(
+          style: FilledButton.styleFrom(
+            backgroundColor: ctx.tokens.danger,
+            foregroundColor: Colors.white,
+          ),
+          onPressed: () => Navigator.of(ctx).pop(true),
+          child: const Text('Discard'),
+        ),
+      ),
+    ],
+  );
+  if (ok != true) return;
+  await ref
+      .read(repoActionsProvider(repoPath))
+      .discardAll(includeUntracked: deleteUntracked);
 }
 
 /// Confirms discarding [f], then performs it. A tracked file is fully

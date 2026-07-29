@@ -6,6 +6,7 @@ import '../../domain/git/models.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
 import '../common/dialogs.dart';
+import 'remote_merge_confirm.dart';
 
 /// Create-branch dialog: name, the branch to start from (defaults to the
 /// current one) and a checkout-after toggle.
@@ -30,25 +31,40 @@ Future<void> showBranchDialog(
   );
 }
 
-/// Merge dialog: pick a branch to merge into the current one.
+/// Merge dialog: pick a branch to merge into the current one. Remote-tracking
+/// branches are offered too, listed after the local ones.
 Future<void> showMergeDialog(
   BuildContext context,
   WidgetRef ref,
   String repoPath,
 ) async {
-  final branches =
-      ref.read(repoDataProvider(repoPath)).valueOrNull?.branches ??
-      const <Branch>[];
+  // Awaited rather than read: a snapshot taken before the repository has
+  // loaded would offer an empty branch list.
+  RepoData? data;
+  try {
+    data = await ref.read(repoDataProvider(repoPath).future);
+  } on Object catch (_) {
+    data = null;
+  }
+  if (!context.mounted) return;
+  final branches = data?.branches ?? const <Branch>[];
   final current = branches.where((b) => b.current).firstOrNull?.name;
   final others = [
     for (final b in branches)
       if (!b.current) b.name,
   ];
+  final remotes = [
+    for (final rb in data?.remoteBranches ?? const <RemoteBranch>[]) rb.name,
+  ];
   await showAppModal<void>(
     context: context,
     title: 'Merge into ${current ?? 'current branch'}',
     icon: Icons.merge,
-    body: _MergeBody(repoPath: repoPath, branches: others),
+    body: _MergeBody(
+      repoPath: repoPath,
+      branches: others,
+      remoteBranches: remotes,
+    ),
   );
 }
 
@@ -307,7 +323,12 @@ class _BranchBodyState extends ConsumerState<_BranchBody> {
 class _MergeBody extends ConsumerStatefulWidget {
   final String repoPath;
   final List<String> branches;
-  const _MergeBody({required this.repoPath, required this.branches});
+  final List<String> remoteBranches;
+  const _MergeBody({
+    required this.repoPath,
+    required this.branches,
+    this.remoteBranches = const [],
+  });
 
   @override
   ConsumerState<_MergeBody> createState() => _MergeBodyState();
@@ -319,7 +340,7 @@ class _MergeBodyState extends ConsumerState<_MergeBody> {
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
-    if (widget.branches.isEmpty) {
+    if (widget.branches.isEmpty && widget.remoteBranches.isEmpty) {
       return Text(
         'No other branches to merge.',
         style: TextStyle(color: t.textMuted, fontSize: 13),
@@ -348,6 +369,20 @@ class _MergeBodyState extends ConsumerState<_MergeBody> {
                 value: b,
                 child: Text(b, style: const TextStyle(fontSize: 13)),
               ),
+            // Remote-tracking refs merge exactly like local branches; the
+            // cloud icon keeps them tellable apart in the closed field too.
+            for (final b in widget.remoteBranches)
+              DropdownMenuItem(
+                value: b,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.cloud_outlined, size: 13, color: t.textFaint),
+                    const SizedBox(width: 6),
+                    Text(b, style: TextStyle(fontSize: 13, color: t.textMuted)),
+                  ],
+                ),
+              ),
           ],
           onChanged: (v) => setState(() => _branch = v),
         ),
@@ -363,12 +398,24 @@ class _MergeBodyState extends ConsumerState<_MergeBody> {
             FilledButton(
               onPressed: _branch == null
                   ? null
-                  : () {
+                  : () async {
+                      final source = _branch!;
                       final actions = ref.read(
                         repoActionsProvider(widget.repoPath),
                       );
-                      Navigator.of(context).pop();
-                      actions.merge(_branch!);
+                      final navigator = Navigator.of(context);
+                      // Backing out of the fetch question returns to the
+                      // picker; only a real merge closes the dialog.
+                      if (!await confirmRemoteSource(
+                        context,
+                        ref,
+                        repoPath: widget.repoPath,
+                        source: source,
+                      )) {
+                        return;
+                      }
+                      navigator.pop();
+                      await actions.merge(source);
                     },
               child: const Text('Merge'),
             ),

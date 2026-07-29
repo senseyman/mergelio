@@ -3,6 +3,11 @@ import 'dart:convert';
 import 'git_service.dart';
 import 'models.dart';
 
+/// Context-line count that makes git emit every unchanged line of a file, so
+/// the diff covers the whole file as a single hunk. Larger than any realistic
+/// source file; git clamps to the file length.
+const kWholeFileContext = 1000000;
+
 /// Reads a repository's refs, commits and working-tree state through a
 /// [GitService] and parses the raw output into domain [models]. Kept separate
 /// from [GitService] (a thin process runner) so the parsing is reusable if the
@@ -17,6 +22,10 @@ class GitReader {
 
   Future<GitResult> _run(List<String> args, {Duration? timeout}) =>
       git.run(args, repoPath: repoPath, timeout: timeout);
+
+  /// `-U<n>` for an explicit context width, or nothing to keep git's default.
+  List<String> _contextArgs(int? context) =>
+      context == null ? const [] : ['-U$context'];
 
   /// Budget for the bulk history walk. The service default is sized to catch a
   /// stalled network operation; a topological walk of a large monorepo is
@@ -356,15 +365,32 @@ class GitReader {
   }
 
   /// Unified diff of the unstaged changes to [path] (working tree vs index).
-  Future<String> workingDiff(String path) async {
-    final r = await _run(['diff', '--no-color', '--', path]);
+  ///
+  /// [context] sets the number of surrounding context lines; null leaves git's
+  /// default of 3. Pass [kWholeFileContext] to render the entire file.
+  Future<String> workingDiff(String path, {int? context}) async {
+    final r = await _run([
+      'diff',
+      '--no-color',
+      ..._contextArgs(context),
+      '--',
+      path,
+    ]);
     if (!r.ok) throw GitException('git diff failed', r);
     return r.stdout;
   }
 
-  /// Unified diff of the staged changes to [path] (index vs HEAD).
-  Future<String> stagedDiff(String path) async {
-    final r = await _run(['diff', '--no-color', '--cached', '--', path]);
+  /// Unified diff of the staged changes to [path] (index vs HEAD). See
+  /// [workingDiff] for [context].
+  Future<String> stagedDiff(String path, {int? context}) async {
+    final r = await _run([
+      'diff',
+      '--no-color',
+      '--cached',
+      ..._contextArgs(context),
+      '--',
+      path,
+    ]);
     if (!r.ok) throw GitException('git diff --cached failed', r);
     return r.stdout;
   }
@@ -372,11 +398,12 @@ class GitReader {
   /// Full content of an untracked [path] rendered as an all-added diff, via
   /// `git diff --no-index` against /dev/null. That command exits 1 when there
   /// is a difference, which is expected here — not an error.
-  Future<String> untrackedDiff(String path) async {
+  Future<String> untrackedDiff(String path, {int? context}) async {
     final r = await _run([
       'diff',
       '--no-color',
       '--no-index',
+      ..._contextArgs(context),
       '--',
       '/dev/null',
       path,
@@ -385,12 +412,14 @@ class GitReader {
   }
 
   /// Unified diff introduced by [sha] for [path], against its first parent.
-  Future<String> commitDiff(String sha, String path) async {
+  /// See [workingDiff] for [context].
+  Future<String> commitDiff(String sha, String path, {int? context}) async {
     final r = await _run([
       'show',
       '--no-color',
       '--format=',
       '--first-parent',
+      ..._contextArgs(context),
       sha,
       '--',
       path,

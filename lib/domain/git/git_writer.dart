@@ -407,6 +407,17 @@ class GitWriter {
   }
 
   /// Reverts [path] to its committed state, dropping staged and unstaged edits.
+  /// Reverts every tracked file in the repository to HEAD, index and working
+  /// tree alike. Untracked files are not touched — git does not consider them.
+  Future<void> restoreAllFromHead() => _ok([
+    'restore',
+    '--staged',
+    '--worktree',
+    '--source=HEAD',
+    '--',
+    '.',
+  ], 'git restore .');
+
   Future<void> restoreFromHead(String path) => _ok([
     'restore',
     '--staged',

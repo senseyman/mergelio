@@ -62,15 +62,14 @@ Future<T?> showAppModal<T>({
                 Divider(height: 1, color: t.border),
                 Padding(
                   padding: const EdgeInsets.all(14),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      for (final a in actions)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 10),
-                          child: a,
-                        ),
-                    ],
+                  // Wrap, not Row: a dialog offering three choices runs out of
+                  // width at large text scales, and a second line beats a
+                  // clipped button.
+                  child: Wrap(
+                    alignment: WrapAlignment.end,
+                    spacing: 10,
+                    runSpacing: 8,
+                    children: actions,
                   ),
                 ),
               ],

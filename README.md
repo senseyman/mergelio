@@ -11,7 +11,7 @@
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey.svg)](#installation)
 [![Flutter](https://img.shields.io/badge/Flutter-3.44%2B-02569B.svg?logo=flutter)](https://flutter.dev)
 [![Dart SDK](https://img.shields.io/badge/Dart%20SDK-%5E3.12.2-0175C2.svg?logo=dart)](https://dart.dev)
-[![Tests](https://img.shields.io/badge/tests-536%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-593%20passing-brightgreen.svg)](#testing)
 
 </div>
 
@@ -78,7 +78,9 @@ about to do to your repository. Mergelio takes the opposite position:
 - Stage and unstage by **file, hunk or individual line**, including partial
   patches.
 - Side-by-side or unified diffs with word-level intra-line highlighting and
-  syntax colouring.
+  syntax colouring. Long lines scroll sideways instead of being cut off.
+- Expand any diff to the **whole file** instead of just the changed regions, and
+  collapse it back — one toggle in the diff header.
 - Select and copy diff text — line numbers, change markers, hunk headers and the
   hunk buttons are left out, so you copy source and nothing else, with each line
   on its own line. In split view one column is selectable at a time: click a
@@ -87,14 +89,19 @@ about to do to your repository. Mergelio takes the opposite position:
   the diff. Saving writes the working tree, leaves the change unstaged, and is
   undoable.
 - Commit, amend, sign (`-S`) and add co-authors.
-- Discard hunks and files behind a confirmation gate.
+- Discard by **hunk, file, or the whole working tree** behind a confirmation
+  gate, and undoable afterwards. Discarding everything reverts tracked files
+  only; deleting untracked files is a separate opt-in on the prompt.
 
 ### Branching & remotes
 
 - Branches: create, checkout, rename, delete, set upstream — organised into
   folders from `/`-separated names.
 - Fetch, pull (merge or rebase strategy), and push with **force-with-lease**.
-- Merge from the branch menu or by drag-and-drop, with merge options.
+- Merge from the branch menu, the merge dialog or by drag-and-drop, with merge
+  options. **Remote-tracking branches merge too** — drag one onto a branch, or
+  drop a branch onto it and the merge lands on its local counterpart. Merging
+  from a remote offers to fetch first, showing how long ago you last did.
 - **Interactive rebase** — reorder, reword, squash, fixup and drop.
 - Cherry-pick, revert, reset (soft / hard), and reset-to-remote.
 - Stash push, apply, pop, drop — with undo.

@@ -11,6 +11,7 @@ import '../../state/settings_controller.dart';
 import '../../state/workspace.dart';
 import '../common/confirm.dart';
 import '../common/dialogs.dart';
+import '../shell/remote_merge_confirm.dart';
 import 'add_submodule_dialog.dart';
 import 'branch_switch.dart';
 import 'branch_tree.dart';
@@ -508,7 +509,16 @@ class _BranchRow extends ConsumerWidget {
           () => actions.checkout(branch.name),
           enabled: !branch.current,
         ),
-        item('Merge into current', () => actions.merge(branch.name)),
+        item('Merge into current', () async {
+          if (await confirmRemoteSource(
+            context,
+            ref,
+            repoPath: path,
+            source: branch.name,
+          )) {
+            await actions.merge(branch.name);
+          }
+        }),
         item('Rebase onto current', () {
           final current = ref
               .read(repoDataProvider(path))
@@ -692,7 +702,16 @@ class _BranchRow extends ConsumerWidget {
       items: [
         PopupMenuItem(
           height: 34,
-          onTap: () => actions.mergeInto(source, target),
+          onTap: () async {
+            if (await confirmRemoteSource(
+              context,
+              ref,
+              repoPath: path,
+              source: source,
+            )) {
+              await actions.mergeInto(source, target);
+            }
+          },
           child: Text(
             'Merge «$source» into «$target»',
             style: const TextStyle(fontSize: 13),
@@ -806,7 +825,7 @@ class _RemoteBranchRow extends ConsumerWidget {
     final t = context.tokens;
     final selected =
         rb.tip.isNotEmpty && ref.watch(selectedCommitProvider) == rb.tip;
-    return GestureDetector(
+    final row = GestureDetector(
       onSecondaryTapUp: onMenu == null
           ? null
           : (d) => onMenu!(d.globalPosition),
@@ -853,7 +872,71 @@ class _RemoteBranchRow extends ConsumerWidget {
         ),
       ),
     );
+
+    // Draggable both ways: a remote branch is a merge source like any other,
+    // and dropping onto one lands on the local branch behind it.
+    return DragTarget<String>(
+      onWillAcceptWithDetails: (d) => d.data != rb.name,
+      onAcceptWithDetails: (d) =>
+          _remoteDropMenu(context, ref, d.data, rb, d.offset),
+      builder: (ctx, candidate, rejected) => Draggable<String>(
+        data: rb.name,
+        dragAnchorStrategy: pointerDragAnchorStrategy,
+        feedback: _DragChip(label: rb.name),
+        childWhenDragging: Opacity(opacity: 0.4, child: row),
+        child: Container(
+          color: candidate.isNotEmpty ? t.accent.withValues(alpha: 0.14) : null,
+          child: row,
+        ),
+      ),
+    );
   }
+}
+
+/// Drop menu for a remote-tracking branch as the target. Merging names the
+/// local branch that will actually carry the merge commit; rebasing can point
+/// at the remote ref directly, since it needs no checkout of the target.
+Future<void> _remoteDropMenu(
+  BuildContext context,
+  WidgetRef ref,
+  String source,
+  RemoteBranch rb,
+  Offset at,
+) async {
+  final path = ref.read(workspaceProvider).activeTab?.path;
+  if (path == null) return;
+  final actions = ref.read(repoActionsProvider(path));
+  await showContextMenu<void>(
+    context: context,
+    position: at,
+    items: [
+      PopupMenuItem(
+        height: 34,
+        onTap: () async {
+          if (await confirmRemoteSource(
+            context,
+            ref,
+            repoPath: path,
+            source: source,
+          )) {
+            await actions.mergeIntoRemote(source, rb);
+          }
+        },
+        child: Text(
+          'Merge «$source» into «${rb.branch}»',
+          style: const TextStyle(fontSize: 13),
+        ),
+      ),
+      PopupMenuItem(
+        height: 34,
+        onTap: () => actions.rebaseOnto(source, rb.name),
+        child: Text(
+          'Rebase «$source» onto «${rb.name}»',
+          style: const TextStyle(fontSize: 13),
+        ),
+      ),
+    ],
+  );
 }
 
 Future<void> _remoteBranchMenu(
@@ -878,7 +961,18 @@ Future<void> _remoteBranchMenu(
       ),
       PopupMenuItem(
         height: 34,
-        onTap: () => actions.merge(rb.name),
+        onTap: () async {
+          final path = ref.read(workspaceProvider).activeTab?.path;
+          if (path == null) return;
+          if (await confirmRemoteSource(
+            context,
+            ref,
+            repoPath: path,
+            source: rb.name,
+          )) {
+            await actions.merge(rb.name);
+          }
+        },
         child: Text(
           'Merge ${rb.name} into current',
           style: const TextStyle(fontSize: 13),

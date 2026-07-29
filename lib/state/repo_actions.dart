@@ -269,6 +269,73 @@ class RepoActions {
     );
   }
 
+  /// Discards every uncommitted change at once: tracked files revert to HEAD,
+  /// staged and unstaged alike, and untracked files are deleted when
+  /// [includeUntracked] is set. Recorded as one undo entry that puts the
+  /// working tree back and re-stages what was staged, so the whole sweep is
+  /// reversible in a single step. A clean tree records nothing.
+  Future<void> discardAll({bool includeUntracked = false}) async {
+    if (_blockedByNetwork) return;
+    final files = await GitReader(_git, path).status();
+    final tracked = [
+      for (final f in files)
+        if (!f.isUntracked) f,
+    ];
+    final untracked = includeUntracked
+        ? [
+            for (final f in files)
+              if (f.isUntracked) f.path,
+          ]
+        : const <String>[];
+    if (tracked.isEmpty && untracked.isEmpty) return;
+
+    // Every path the sweep can touch, so undo can put the bytes back. A rename
+    // moved content away from origPath, which must come back too.
+    final paths = <String>{
+      for (final f in tracked) ...[f.path, ?f.origPath],
+      ...untracked,
+    };
+    final before = <String, List<int>?>{};
+    for (final p in paths) {
+      final file = File('$path/$p');
+      before[p] = await file.exists() ? await file.readAsBytes() : null;
+    }
+    final stagedPatch = (await _git.run([
+      'diff',
+      '--cached',
+    ], repoPath: path)).stdout;
+
+    Future<void> discard() async {
+      if (tracked.isNotEmpty) await _writer.restoreAllFromHead();
+      for (final p in untracked) {
+        final file = File('$path/$p');
+        if (await file.exists()) await file.delete();
+      }
+    }
+
+    Future<void> restore() async {
+      for (final entry in before.entries) {
+        final file = File('$path/${entry.key}');
+        if (entry.value == null) {
+          if (await file.exists()) await file.delete();
+        } else {
+          await file.parent.create(recursive: true);
+          await file.writeAsBytes(entry.value!);
+        }
+      }
+      if (stagedPatch.trim().isNotEmpty) {
+        await _writer.applyToIndex(stagedPatch);
+      }
+    }
+
+    await _undoable(
+      'Discard all changes',
+      discard,
+      undo: restore,
+      redo: discard,
+    );
+  }
+
   /// Reverts a single hunk in the working tree ([patch] is a stage-style hunk
   /// patch); undoable.
   Future<void> discardHunk(String patch) async {
@@ -851,6 +918,34 @@ class RepoActions {
   /// undo entry (the merge); the switch is not undoable on its own.
   Future<void> mergeInto(String source, String target) async {
     if (await _switchTo(target)) await merge(source);
+  }
+
+  /// Merges [source] into the branch behind the remote-tracking ref [rb]. A
+  /// remote-tracking ref cannot carry a merge commit, so the work lands on its
+  /// local counterpart. Like [mergeInto], this is one undo entry (the merge);
+  /// the switch is not undoable on its own.
+  Future<void> mergeIntoRemote(String source, RemoteBranch rb) async {
+    if (await _switchToRemote(rb)) await merge(source);
+  }
+
+  /// Puts HEAD on the local branch behind [rb], creating it as a tracking
+  /// branch when there is none. [RemoteBranch.hasLocal] only reflects the last
+  /// repository read, so a failed create falls back to a plain switch rather
+  /// than reporting an error for a branch that does exist.
+  Future<bool> _switchToRemote(RemoteBranch rb) async {
+    if (rb.hasLocal) return _switchTo(rb.branch);
+    try {
+      await _writer.checkoutTracking(rb.remote, rb.branch);
+    } on GitException {
+      return _switchTo(rb.branch);
+    }
+    if (await _headRef() != rb.branch) {
+      _ref
+          .read(toastProvider.notifier)
+          .show('Could not switch to ${rb.branch}', kind: ToastKind.warning);
+      return false;
+    }
+    return true;
   }
 
   Future<ConflictFile> _conflictFileFor(String rel) async => ConflictFile(
