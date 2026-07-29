@@ -10,7 +10,15 @@ import '../common/dialogs.dart';
 /// two, a right-click on a hunk header, the gutter or blank space did nothing
 /// at all until the user had left-clicked somewhere selectable first. This
 /// menu is always available, and matches the menus used elsewhere in the app.
-Future<void> showDiffSelectionMenu(BuildContext context, Offset at) async {
+/// [stageLabel], [onStageLines] and [onDiscardLines] are supplied when a run of
+/// lines is picked out and the diff can be staged; they act on that run only.
+Future<void> showDiffSelectionMenu(
+  BuildContext context,
+  Offset at, {
+  String? stageLabel,
+  VoidCallback? onStageLines,
+  VoidCallback? onDiscardLines,
+}) async {
   final region = context.findAncestorStateOfType<SelectableRegionState>();
   if (region == null) return;
 
@@ -18,6 +26,26 @@ Future<void> showDiffSelectionMenu(BuildContext context, Offset at) async {
     context: context,
     position: at,
     items: [
+      if (onStageLines != null)
+        PopupMenuItem(
+          height: 34,
+          onTap: onStageLines,
+          child: Text(
+            stageLabel ?? 'Stage selected lines',
+            style: const TextStyle(fontSize: 13),
+          ),
+        ),
+      if (onDiscardLines != null)
+        PopupMenuItem(
+          height: 34,
+          onTap: onDiscardLines,
+          child: const Text(
+            'Discard selected lines',
+            style: TextStyle(fontSize: 13),
+          ),
+        ),
+      if (onStageLines != null || onDiscardLines != null)
+        const PopupMenuDivider(height: 1),
       PopupMenuItem(
         height: 34,
         onTap: () {

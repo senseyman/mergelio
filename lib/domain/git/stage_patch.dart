@@ -33,6 +33,74 @@ Set<int> changeLineGroup(List<DiffLine> lines, int index) {
   return {index, if (asAdd < dels.length) dels[asAdd]};
 }
 
+/// Builds a patch that `git apply --reverse` can apply to the working tree to
+/// drop a selection within one hunk of [file].
+///
+/// This is not the staging patch reversed. That one is built against the index,
+/// so it omits the changes it does not touch; the working tree holds all of
+/// them, and reversing a patch whose post-image is missing the neighbouring
+/// changes fails with "patch does not apply". Here the unselected changes are
+/// described as they exist in the working tree instead: an untouched addition
+/// is context, and an untouched deletion is left out because the working tree
+/// no longer has that line.
+///
+/// [lineIndexes] selects change lines by their index within the hunk; null
+/// takes the whole hunk. Returns null when the selection changes nothing.
+String? buildDiscardPatch(FileDiff file, int hunkIndex, Set<int>? lineIndexes) {
+  final hunk = file.hunks[hunkIndex];
+  bool selected(int i, DiffLine l) =>
+      l.type != DiffLineType.context &&
+      (lineIndexes == null || lineIndexes.contains(i));
+
+  if (!hunk.lines.asMap().entries.any((e) => selected(e.key, e.value))) {
+    return null;
+  }
+
+  final body = <String>[];
+  var oldCount = 0, newCount = 0;
+  for (var i = 0; i < hunk.lines.length; i++) {
+    final l = hunk.lines[i];
+    var emitted = false;
+    switch (l.type) {
+      case DiffLineType.context:
+        body.add(' ${l.text}');
+        oldCount++;
+        newCount++;
+        emitted = true;
+      case DiffLineType.add:
+        if (selected(i, l)) {
+          body.add('+${l.text}');
+          newCount++;
+        } else {
+          // Left alone: the line is in the working tree and stays there, so
+          // both sides of this patch carry it.
+          body.add(' ${l.text}');
+          oldCount++;
+          newCount++;
+        }
+        emitted = true;
+      case DiffLineType.del:
+        if (selected(i, l)) {
+          body.add('-${l.text}');
+          oldCount++;
+          emitted = true;
+        }
+      // An untouched deletion is absent from the working tree, so it cannot
+      // appear in a patch matched against it.
+    }
+    if (emitted && l.noNewline) body.add(r'\ No newline at end of file');
+  }
+
+  final header =
+      '@@ -${hunk.oldStart},$oldCount +${hunk.newStart},$newCount @@';
+  final old = file.oldPath ?? file.path;
+  return 'diff --git a/$old b/${file.path}\n'
+      '--- a/$old\n'
+      '+++ b/${file.path}\n'
+      '$header\n'
+      '${body.join('\n')}\n';
+}
+
 /// Builds a minimal unified patch that `git apply --cached` can apply to stage
 /// (or, with `--reverse`, unstage) a selection within one hunk of [file].
 ///

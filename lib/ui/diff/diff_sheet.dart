@@ -17,6 +17,7 @@ import '../common/confirm.dart';
 import 'diff_editor.dart';
 import 'diff_metrics.dart';
 import 'diff_selection.dart';
+import 'line_selection.dart';
 import 'linked_scroll.dart';
 import 'syntax_style.dart';
 
@@ -403,6 +404,17 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
     final target = widget.target;
     final t = context.tokens;
     final split = ref.watch(settingsProvider.select((s) => s.diffSplit));
+    // Watched rather than read on demand: whether the file is tracked decides
+    // how discarding works, and a snapshot taken before the repository has
+    // loaded would report it as tracked.
+    final working =
+        ref.watch(repoDataProvider(target.repoPath)).valueOrNull?.working ??
+        const <WorkingFile>[];
+    // Line indices mean nothing once the sheet moves to another file or the
+    // other staging side, so a run picked out there must not survive.
+    ref.listen(diffTargetProvider, (_, _) {
+      ref.read(lineSelectionProvider.notifier).state = null;
+    });
     return ref
         .watch(diffDocumentProvider(target))
         .when(
@@ -464,13 +476,52 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
               }
             }
 
-            Future<void> discard(FileDiff file, int hunkIndex) async {
-              final patch = buildStagePatch(file, hunkIndex);
+            /// The working-tree entry for [path] when git is not tracking it,
+            /// null otherwise — discarding differs for the two.
+            WorkingFile? untrackedFile(String path) {
+              for (final f in working) {
+                if (f.path == path && f.isUntracked) return f;
+              }
+              return null;
+            }
+
+            Future<void> discard(
+              FileDiff file,
+              int hunkIndex, [
+              Set<int>? lineIndexes,
+            ]) async {
+              // An untracked file has no committed state to revert to, so
+              // reversing its patch would only empty it and leave the file
+              // behind. Taking back all of it means deleting it instead.
+              final wf = untrackedFile(file.path);
+              if (wf != null && lineIndexes == null && file.hunks.length == 1) {
+                final ok = await confirmDestructive(
+                  ref,
+                  context,
+                  title: 'Discard ${file.path}?',
+                  body: 'This deletes the untracked file. You can undo it.',
+                  confirmLabel: 'Discard',
+                );
+                if (!ok) return;
+                await ref
+                    .read(repoActionsProvider(target.repoPath))
+                    .discardFile(wf);
+                ref.invalidate(diffDocumentProvider(target));
+                return;
+              }
+
+              // Discarding reverse-applies to the working tree, which holds
+              // every change in the hunk — not the staging patch, whose
+              // post-image leaves the untouched ones out and would not match.
+              final patch = buildDiscardPatch(file, hunkIndex, lineIndexes);
               if (patch == null) return;
               final ok = await confirmDestructive(
                 ref,
                 context,
-                title: 'Discard hunk?',
+                title: lineIndexes == null
+                    ? 'Discard hunk?'
+                    : 'Discard ${lineIndexes.length} '
+                          '${lineIndexes.length == 1 ? 'line' : 'lines'}?',
                 body:
                     'This removes the selected changes from the working tree. '
                     'You can undo it.',
@@ -492,6 +543,60 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
                     );
               }
             }
+
+            // Staging a picked-out run reuses the per-hunk patch builder: the
+            // selection is confined to one hunk, so its line indices address
+            // that hunk directly.
+            (FileDiff, DiffLineSelection)? selectedRun() {
+              final sel = ref.read(lineSelectionProvider);
+              if (sel == null) return null;
+              for (final f in doc.files) {
+                if (f.path == sel.path && sel.hunkIndex < f.hunks.length) {
+                  return (f, sel);
+                }
+              }
+              return null;
+            }
+
+            void clearRun() =>
+                ref.read(lineSelectionProvider.notifier).state = null;
+
+            Future<void> applyRun() async {
+              final run = selectedRun();
+              if (run == null) return;
+              await apply(run.$1, run.$2.hunkIndex, run.$2.lines);
+              clearRun();
+            }
+
+            Future<void> discardRun() async {
+              final run = selectedRun();
+              if (run == null) return;
+              await discard(run.$1, run.$2.hunkIndex, run.$2.lines);
+              clearRun();
+            }
+
+            void openMenu(BuildContext menuContext, Offset at) {
+              final hasRun = selectedRun() != null;
+              showDiffSelectionMenu(
+                menuContext,
+                at,
+                stageLabel: doc.staged
+                    ? 'Unstage selected lines'
+                    : 'Stage selected lines',
+                onStageLines: hasRun && doc.editable ? applyRun : null,
+                onDiscardLines: hasRun && doc.editable && !doc.staged
+                    ? discardRun
+                    : null,
+              );
+            }
+
+            /// Ends a line-selection drag wherever the pointer is released,
+            /// including outside the row it started on.
+            Widget endDragOnRelease(Widget child) => Listener(
+              onPointerUp: (_) =>
+                  ref.read(lineDraggingProvider.notifier).state = false,
+              child: child,
+            );
 
             Widget headerRow(
               _DiffItem it, {
@@ -516,33 +621,37 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
               final sides = longestLineCharsPerSide(doc.files);
               final charWidth = _codeCharWidth(context);
               final lineHeight = _codeLineHeight(context);
-              return Row(
-                children: [
-                  Expanded(
-                    child: _SplitColumn(
-                      items: items,
-                      isLeft: true,
-                      chars: sides.left,
-                      charWidth: charWidth,
-                      lineHeight: lineHeight,
-                      hController: _hLeft,
-                      vController: _vSplit,
-                      header: headerRow,
+              return endDragOnRelease(
+                Row(
+                  children: [
+                    Expanded(
+                      child: _SplitColumn(
+                        items: items,
+                        onMenu: openMenu,
+                        isLeft: true,
+                        chars: sides.left,
+                        charWidth: charWidth,
+                        lineHeight: lineHeight,
+                        hController: _hLeft,
+                        vController: _vSplit,
+                        header: headerRow,
+                      ),
                     ),
-                  ),
-                  Expanded(
-                    child: _SplitColumn(
-                      items: items,
-                      isLeft: false,
-                      chars: sides.right,
-                      charWidth: charWidth,
-                      lineHeight: lineHeight,
-                      hController: _hRight,
-                      vController: _vSplit,
-                      header: headerRow,
+                    Expanded(
+                      child: _SplitColumn(
+                        items: items,
+                        onMenu: openMenu,
+                        isLeft: false,
+                        chars: sides.right,
+                        charWidth: charWidth,
+                        lineHeight: lineHeight,
+                        hController: _hRight,
+                        vController: _vSplit,
+                        header: headerRow,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               );
             }
 
@@ -562,59 +671,64 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
             // The scroll view sits outside SelectionArea on purpose: a
             // viewport between the region and its selectables leaves
             // selectAll() with nothing to select.
-            return LayoutBuilder(
-              builder: (context, constraints) => Scrollbar(
-                controller: _hInline,
-                scrollbarOrientation: ScrollbarOrientation.bottom,
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
+            return endDragOnRelease(
+              LayoutBuilder(
+                builder: (context, constraints) => Scrollbar(
                   controller: _hInline,
-                  child: SizedBox(
-                    width: diffContentWidth(
-                      viewport: constraints.maxWidth,
-                      chars: longestLineChars(doc.files),
-                      charWidth: _codeCharWidth(context),
-                    ),
-                    child: SelectionArea(
-                      // The built-in toolbar is replaced by
-                      // showDiffSelectionMenu, which also opens where nothing
-                      // is selected yet. It is suppressed with an empty builder
-                      // rather than a null one: SelectableRegion._showToolbar
-                      // dereferences the builder with `!`, so null crashes the
-                      // frame instead of hiding the toolbar.
-                      contextMenuBuilder: (_, _) => const SizedBox.shrink(),
-                      child: Builder(
-                        builder: (context) => GestureDetector(
-                          behavior: HitTestBehavior.translucent,
-                          onSecondaryTapUp: (d) =>
-                              showDiffSelectionMenu(context, d.globalPosition),
-                          child: ListView.builder(
-                            itemCount: items.length,
-                            itemBuilder: (context, i) {
-                              final it = items[i];
-                              final hunk = it.file.hunks[it.hunkIndex];
-                              if (it.header) {
-                                return _PinnedToViewport(
-                                  controller: _hInline,
-                                  viewport: constraints.maxWidth,
-                                  child: headerRow(it),
+                  scrollbarOrientation: ScrollbarOrientation.bottom,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    controller: _hInline,
+                    child: SizedBox(
+                      width: diffContentWidth(
+                        viewport: constraints.maxWidth,
+                        chars: longestLineChars(doc.files),
+                        charWidth: _codeCharWidth(context),
+                      ),
+                      child: SelectionArea(
+                        // The built-in toolbar is replaced by
+                        // showDiffSelectionMenu, which also opens where nothing
+                        // is selected yet. It is suppressed with an empty builder
+                        // rather than a null one: SelectableRegion._showToolbar
+                        // dereferences the builder with `!`, so null crashes the
+                        // frame instead of hiding the toolbar.
+                        contextMenuBuilder: (_, _) => const SizedBox.shrink(),
+                        child: Builder(
+                          builder: (context) => GestureDetector(
+                            behavior: HitTestBehavior.translucent,
+                            onSecondaryTapUp: (d) =>
+                                openMenu(context, d.globalPosition),
+                            child: ListView.builder(
+                              itemCount: items.length,
+                              itemBuilder: (context, i) {
+                                final it = items[i];
+                                final hunk = it.file.hunks[it.hunkIndex];
+                                if (it.header) {
+                                  return _PinnedToViewport(
+                                    controller: _hInline,
+                                    viewport: constraints.maxWidth,
+                                    child: headerRow(it),
+                                  );
+                                }
+                                final li = it.lineIndex!;
+                                final line = hunk.lines[li];
+                                return _LineRow(
+                                  line: line,
+                                  path: it.file.path,
+                                  hunkIndex: it.hunkIndex,
+                                  lineIndex: li,
+                                  editable: doc.editable,
+                                  staged: doc.staged,
+                                  onStage: line.type == DiffLineType.context
+                                      ? null
+                                      : () => apply(
+                                          it.file,
+                                          it.hunkIndex,
+                                          changeLineGroup(hunk.lines, li),
+                                        ),
                                 );
-                              }
-                              final li = it.lineIndex!;
-                              final line = hunk.lines[li];
-                              return _LineRow(
-                                line: line,
-                                editable: doc.editable,
-                                staged: doc.staged,
-                                onStage: line.type == DiffLineType.context
-                                    ? null
-                                    : () => apply(
-                                        it.file,
-                                        it.hunkIndex,
-                                        changeLineGroup(hunk.lines, li),
-                                      ),
-                              );
-                            },
+                              },
+                            ),
                           ),
                         ),
                       ),
@@ -655,7 +769,7 @@ class _DiffItem {
   final int hunkIndex;
   final bool header;
   final int? lineIndex;
-  final (DiffLine?, DiffLine?)? pair;
+  final (int?, int?)? pair;
   const _DiffItem({
     required this.file,
     required this.hunkIndex,
@@ -809,22 +923,24 @@ class _HunkHeaderRow extends StatelessWidget {
 
 /// Groups hunk lines into left/right pairs for split view: context aligns on
 /// both sides; a run of deletions pairs with the following run of additions.
-List<(DiffLine?, DiffLine?)> _pairForSplit(List<DiffLine> lines) {
-  final out = <(DiffLine?, DiffLine?)>[];
+/// Pairs are indices into the hunk's line list rather than the lines
+/// themselves, so a half knows which line it is showing — staging a run of
+/// selected lines builds its patch from those indices.
+List<(int?, int?)> _pairForSplit(List<DiffLine> lines) {
+  final out = <(int?, int?)>[];
   var i = 0;
   while (i < lines.length) {
-    final l = lines[i];
-    if (l.type == DiffLineType.context) {
-      out.add((l, l));
+    if (lines[i].type == DiffLineType.context) {
+      out.add((i, i));
       i++;
       continue;
     }
-    final dels = <DiffLine>[], adds = <DiffLine>[];
+    final dels = <int>[], adds = <int>[];
     while (i < lines.length && lines[i].type == DiffLineType.del) {
-      dels.add(lines[i++]);
+      dels.add(i++);
     }
     while (i < lines.length && lines[i].type == DiffLineType.add) {
-      adds.add(lines[i++]);
+      adds.add(i++);
     }
     for (var k = 0; k < dels.length || k < adds.length; k++) {
       out.add((
@@ -852,9 +968,11 @@ class _SplitColumn extends StatelessWidget {
   final ScrollController hController;
   final ScrollController vController;
   final Widget Function(_DiffItem, {bool showActions, bool showMarker}) header;
+  final void Function(BuildContext, Offset) onMenu;
 
   const _SplitColumn({
     required this.items,
+    required this.onMenu,
     required this.isLeft,
     required this.chars,
     required this.charWidth,
@@ -889,8 +1007,7 @@ class _SplitColumn extends StatelessWidget {
               child: Builder(
                 builder: (context) => GestureDetector(
                   behavior: HitTestBehavior.translucent,
-                  onSecondaryTapUp: (d) =>
-                      showDiffSelectionMenu(context, d.globalPosition),
+                  onSecondaryTapUp: (d) => onMenu(context, d.globalPosition),
                   child: ListView.builder(
                     controller: vController,
                     itemCount: items.length,
@@ -910,8 +1027,14 @@ class _SplitColumn extends StatelessWidget {
                           ),
                         );
                       }
+                      final index = isLeft ? it.pair!.$1 : it.pair!.$2;
                       return _SplitHalf(
-                        line: isLeft ? it.pair!.$1 : it.pair!.$2,
+                        line: index == null
+                            ? null
+                            : it.file.hunks[it.hunkIndex].lines[index],
+                        path: it.file.path,
+                        hunkIndex: it.hunkIndex,
+                        lineIndex: index,
                         isLeft: isLeft,
                         height: lineHeight,
                       );
@@ -937,8 +1060,14 @@ class _SplitColumn extends StatelessWidget {
   }
 }
 
-class _SplitHalf extends StatelessWidget {
+class _SplitHalf extends ConsumerWidget {
   final DiffLine? line;
+  final String path;
+  final int hunkIndex;
+
+  /// Index of the line in the hunk, or null where this half is blank because
+  /// only the other side has a line on this row.
+  final int? lineIndex;
   final bool isLeft;
 
   /// Fixed so the two columns' rows line up; code lines never wrap, so every
@@ -947,27 +1076,50 @@ class _SplitHalf extends StatelessWidget {
 
   const _SplitHalf({
     required this.line,
+    required this.path,
+    required this.hunkIndex,
+    required this.lineIndex,
     required this.isLeft,
     required this.height,
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final t = context.tokens;
+    final index = lineIndex;
+    final selected =
+        index != null &&
+        (ref.watch(lineSelectionProvider)?.covers(path, hunkIndex, index) ??
+            false);
     return SizedBox(
       height: height,
-      child: _half(t, line, isLeft: isLeft),
+      child: LineSelectHandle(
+        path: path,
+        hunkIndex: hunkIndex,
+        lineIndex: index,
+        child: _half(t, line, isLeft: isLeft, selected: selected),
+      ),
     );
   }
 
-  Widget _half(AppTokens t, DiffLine? line, {required bool isLeft}) {
-    final bg = line == null
+  Widget _half(
+    AppTokens t,
+    DiffLine? line, {
+    required bool isLeft,
+    required bool selected,
+  }) {
+    final lineBg = line == null
         ? Colors.transparent
         : switch (line.type) {
             DiffLineType.add => t.addBg,
             DiffLineType.del => t.delBg,
             DiffLineType.context => Colors.transparent,
           };
+    // The picked-out run reads over the add/delete tint rather than replacing
+    // it, so a selected line still shows what kind of change it is.
+    final bg = selected
+        ? Color.alphaBlend(t.accent.withValues(alpha: 0.22), lineBg)
+        : lineBg;
     final border = isLeft
         ? Border(right: BorderSide(color: t.border))
         : const Border();
@@ -1011,63 +1163,85 @@ class _SplitHalf extends StatelessWidget {
   }
 }
 
-class _LineRow extends StatelessWidget {
+class _LineRow extends ConsumerWidget {
   final DiffLine line;
   final bool editable;
   final bool staged;
   final VoidCallback? onStage;
+
+  /// Where this line sits, so the gutter can pick it out for staging a run.
+  final String path;
+  final int hunkIndex;
+  final int lineIndex;
+
   const _LineRow({
     required this.line,
     required this.editable,
     required this.staged,
     required this.onStage,
+    required this.path,
+    required this.hunkIndex,
+    required this.lineIndex,
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final t = context.tokens;
-    final (bg, sign) = switch (line.type) {
+    final selected =
+        ref.watch(lineSelectionProvider)?.covers(path, hunkIndex, lineIndex) ??
+        false;
+    final (lineBg, sign) = switch (line.type) {
       DiffLineType.add => (t.addBg, '+'),
       DiffLineType.del => (t.delBg, '-'),
       DiffLineType.context => (Colors.transparent, ' '),
     };
+    // The picked-out run reads over the add/delete tint rather than replacing
+    // it, so a selected line still shows what kind of change it is.
+    final bg = selected
+        ? Color.alphaBlend(t.accent.withValues(alpha: 0.22), lineBg)
+        : lineBg;
     return Container(
       color: bg,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SelectionContainer.disabled(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (editable)
-                  SizedBox(
-                    width: 20,
-                    child: onStage == null
-                        ? null
-                        : InkWell(
-                            onTap: onStage,
-                            child: Icon(
-                              staged ? Icons.check : Icons.add,
-                              size: 12,
-                              color: staged ? t.success : t.textFaint,
+          LineSelectHandle(
+            path: path,
+            hunkIndex: hunkIndex,
+            lineIndex: lineIndex,
+            child: SelectionContainer.disabled(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (editable)
+                    SizedBox(
+                      width: 20,
+                      child: onStage == null
+                          ? null
+                          : InkWell(
+                              onTap: onStage,
+                              child: Icon(
+                                staged ? Icons.check : Icons.add,
+                                size: 12,
+                                color: staged ? t.success : t.textFaint,
+                              ),
                             ),
-                          ),
+                    ),
+                  _num(t, line.oldNo),
+                  _num(t, line.newNo),
+                  const SizedBox(width: 6),
+                  Text(
+                    sign,
+                    style: TextStyle(
+                      color: t.textFaint,
+                      fontSize: 12,
+                      fontFamily: 'monospace',
+                    ),
                   ),
-                _num(t, line.oldNo),
-                _num(t, line.newNo),
-                const SizedBox(width: 6),
-                Text(
-                  sign,
-                  style: TextStyle(
-                    color: t.textFaint,
-                    fontSize: 12,
-                    fontFamily: 'monospace',
-                  ),
-                ),
-                const SizedBox(width: 4),
-              ],
+                  const SizedBox(width: 4),
+                ],
+              ),
             ),
           ),
           Expanded(
