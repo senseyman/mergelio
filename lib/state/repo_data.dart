@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../core/logging.dart';
 import '../domain/git/git_providers.dart';
 import '../domain/git/git_reader.dart';
 import '../domain/git/lane_layout.dart';
@@ -39,13 +40,23 @@ final commitFilesProvider = FutureProvider.family
       return reader.commitFiles(key.sha);
     });
 
+/// Signature verification for the one commit shown in the details panel.
+/// On demand because verifying spawns gpg per signed commit — doing it for
+/// the whole graph takes seconds on a repository that enforces signing.
+final commitSignatureProvider = FutureProvider.family
+    .autoDispose<String, ({String repo, String sha})>((ref, key) async {
+      final reader = GitReader(ref.watch(gitServiceProvider), key.repo);
+      return reader.signatureStatus(key.sha);
+    });
+
 /// Per-repo cache of the last squash-link inference, keyed by branch tips.
 final _squashCache = <String, ({String sig, List<SquashLink> links})>{};
 
 final repoDataProvider = FutureProvider.family<RepoData, String>(
   name: 'repoData',
-  (ref, path) async {
+  (ref, path) => appLog.timed('Load repo', () async {
     final reader = GitReader(ref.watch(gitServiceProvider), path);
+    final started = DateTime.now();
     final results = await Future.wait([
       // Load up to the §12 target of 50k commits — the list is virtualised and
       // lane layout / search stay within budget at that size (perf_benchmark).
@@ -59,8 +70,10 @@ final repoDataProvider = FutureProvider.family<RepoData, String>(
       reader.remoteBranches(),
       reader.submodules(),
     ]);
+    final readsDone = DateTime.now();
     final commits = assignLanes(results[0] as List<Commit>);
     final branches = assignBranchColors(results[1] as List<Branch>, commits);
+    final layoutDone = DateTime.now();
     final current = branches.where((b) => b.current);
     // Squash-link inference spawns ~5 git subprocesses per branch — very heavy.
     // Cache it per repo, keyed by the branch tips + current branch, so a
@@ -82,6 +95,17 @@ final repoDataProvider = FutureProvider.family<RepoData, String>(
         _squashCache[path] = (sig: sig, links: squash);
       }
     }
+    // Phase breakdown so a slow open points at its cause: git reads, lane
+    // layout (CPU, scales with commit count) or squash-link inference.
+    final squashDone = DateTime.now();
+    int ms(DateTime from, DateTime to) => to.difference(from).inMilliseconds;
+    appLog.info(
+      'Load repo phases: ${commits.length} commits — '
+      'git reads ${ms(started, readsDone)}ms, '
+      'lane layout ${ms(readsDone, layoutDone)}ms, '
+      'squash links ${ms(layoutDone, squashDone)}ms',
+      scope: path,
+    );
     return RepoData(
       commits: commits,
       branches: branches,
@@ -93,5 +117,5 @@ final repoDataProvider = FutureProvider.family<RepoData, String>(
       submodules: results[7] as List<Submodule>,
       squashLinks: squash,
     );
-  },
+  }, scope: path),
 );

@@ -24,7 +24,6 @@ Commit _c(String sha, List<String> parents, {List<GitRef> refs = const []}) =>
       date: DateTime(2026, 7, 1),
       parents: parents,
       refs: refs,
-      signed: sha == 'bbb',
     );
 
 /// A merge topology so the rail paints every connector kind, with refs of all

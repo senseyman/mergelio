@@ -135,6 +135,28 @@ class AppLogger {
     String? scope,
   ]) => log(LogLevel.error, message, error: error, stack: stack, scope: scope);
 
+  /// Runs [op] as a named action, logging one line when it starts and one
+  /// when it ends with the elapsed wall-clock time. A failure is logged with
+  /// its cause and rethrown, so call sites keep their own error handling.
+  Future<T> timed<T>(
+    String label,
+    Future<T> Function() op, {
+    String? scope,
+  }) async {
+    final started = now();
+    info('$label started', scope: scope);
+    try {
+      final result = await op();
+      final ms = now().difference(started).inMilliseconds;
+      info('$label completed in ${ms}ms', scope: scope);
+      return result;
+    } on Object catch (e) {
+      final ms = now().difference(started).inMilliseconds;
+      error('$label failed after ${ms}ms', e, null, scope);
+      rethrow;
+    }
+  }
+
   void log(
     LogLevel level,
     String message, {

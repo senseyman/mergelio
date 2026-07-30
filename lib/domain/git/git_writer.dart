@@ -366,9 +366,8 @@ class GitWriter {
   /// patch is written to a temp file because git reads it from a path, not
   /// this process's stdin.
   Future<void> applyToIndex(String patch, {bool reverse = false}) async {
-    final tmp = await File(
-      '${(await Directory.systemTemp.createTemp('mergelio_stage_')).path}/stage.patch',
-    ).create();
+    final dir = await Directory.systemTemp.createTemp('mergelio_stage_');
+    final tmp = File('${dir.path}/stage.patch');
     try {
       await tmp.writeAsString(patch);
       await _ok([
@@ -378,8 +377,11 @@ class GitWriter {
         tmp.path,
       ], 'git apply --cached');
     } finally {
-      if (await tmp.parent.exists()) {
-        await tmp.parent.delete(recursive: true);
+      try {
+        if (await tmp.exists()) await tmp.delete();
+        if (await dir.exists()) await dir.delete();
+      } on FileSystemException {
+        // Best-effort: a leaked temp file is not worth failing the op over.
       }
     }
   }
@@ -442,15 +444,17 @@ class GitWriter {
 
   /// Applies [patch] to the working tree (not the index), or reverses it.
   Future<void> applyToWorktree(String patch, {bool reverse = false}) async {
-    final tmp = await File(
-      '${(await Directory.systemTemp.createTemp('mergelio_discard_')).path}/discard.patch',
-    ).create();
+    final dir = await Directory.systemTemp.createTemp('mergelio_discard_');
+    final tmp = File('${dir.path}/discard.patch');
     try {
       await tmp.writeAsString(patch);
       await _ok(['apply', if (reverse) '--reverse', tmp.path], 'git apply');
     } finally {
-      if (await tmp.parent.exists()) {
-        await tmp.parent.delete(recursive: true);
+      try {
+        if (await tmp.exists()) await tmp.delete();
+        if (await dir.exists()) await dir.delete();
+      } on FileSystemException {
+        // Best-effort cleanup.
       }
     }
   }

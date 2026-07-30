@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/logging.dart';
 import '../domain/file_edit.dart';
 import '../domain/git/conflict.dart';
 import '../domain/git/git_providers.dart';
@@ -26,6 +27,11 @@ class RepoActions {
   RepoActions(this._ref, this.path, this._writer);
 
   void _refresh() => _ref.invalidate(repoDataProvider(path));
+
+  /// Every repo action runs through here so the log records what ran, on
+  /// which repo, and how long it took — success and failure alike.
+  Future<T> _timed<T>(String label, Future<T> Function() op) =>
+      appLog.timed(label, op, scope: path);
 
   // Crash-safe journal: write a durable pending marker before a mutation runs,
   // then mark it done/failed. A marker still pending on the next launch means
@@ -79,7 +85,7 @@ class RepoActions {
     _ref.read(busyProvider.notifier).state = BusyState(label);
     final opId = await _journalBegin(label);
     try {
-      await op();
+      await _timed(label, op);
       await _journalDone(opId);
       if (!silent) toasts.show('$label complete', kind: ToastKind.success);
     } on GitException catch (e) {
@@ -213,31 +219,34 @@ class RepoActions {
 
   Future<void> stageFile(String p) async {
     if (_blockedByNetwork) return;
-    await _writer.stageFile(p);
+    await _timed('Stage $p', () => _writer.stageFile(p));
     _refresh();
   }
 
   Future<void> unstageFile(String p) async {
     if (_blockedByNetwork) return;
-    await _writer.unstageFile(p);
+    await _timed('Unstage $p', () => _writer.unstageFile(p));
     _refresh();
   }
 
   Future<void> stageAll() async {
     if (_blockedByNetwork) return;
-    await _writer.stageAll();
+    await _timed('Stage all', _writer.stageAll);
     _refresh();
   }
 
   Future<void> unstageAll() async {
     if (_blockedByNetwork) return;
-    await _writer.unstageAll();
+    await _timed('Unstage all', _writer.unstageAll);
     _refresh();
   }
 
   Future<void> applyPatch(String patch, {bool reverse = false}) async {
     if (_blockedByNetwork) return;
-    await _writer.applyToIndex(patch, reverse: reverse);
+    await _timed(
+      reverse ? 'Unstage patch' : 'Stage patch',
+      () => _writer.applyToIndex(patch, reverse: reverse),
+    );
     _refresh();
   }
 
@@ -372,6 +381,8 @@ class RepoActions {
     // else could address a file outside the repository.
     if (!isRepoRelativePath(relPath)) return false;
     final file = File('$path/$relPath');
+    // Reject writes through symlinks that escape the repository.
+    if (file.existsSync() && !isInsideRepo(path, file.path)) return false;
     Future<void> write() => file.writeAsString(text);
     var saved = false;
     try {
@@ -475,7 +486,7 @@ class RepoActions {
     _ref.read(busyProvider.notifier).state = BusyState(label);
     final opId = await _journalBegin(label);
     try {
-      await run();
+      await _timed(label, run);
       await _journalDone(opId);
       _ref
           .read(undoProvider(path).notifier)
@@ -534,7 +545,7 @@ class RepoActions {
     if (_blockedByNetwork) return;
     _ref.read(busyProvider.notifier).state = const BusyState('Undo');
     try {
-      await _ref.read(undoProvider(path).notifier).undo();
+      await _timed('Undo', _ref.read(undoProvider(path).notifier).undo);
     } on GitException catch (e) {
       _toastErr('Undo', e);
     } on Object catch (e) {
@@ -552,7 +563,7 @@ class RepoActions {
     if (_blockedByNetwork) return;
     _ref.read(busyProvider.notifier).state = const BusyState('Redo');
     try {
-      await _ref.read(undoProvider(path).notifier).redo();
+      await _timed('Redo', _ref.read(undoProvider(path).notifier).redo);
     } on GitException catch (e) {
       _toastErr('Redo', e);
     } on Object catch (e) {
@@ -669,7 +680,10 @@ class RepoActions {
   Future<void> setUpstream(String branch, String upstream) async {
     if (_blockedByNetwork) return;
     try {
-      await _writer.setUpstream(branch, upstream);
+      await _timed(
+        'Set upstream $branch → $upstream',
+        () => _writer.setUpstream(branch, upstream),
+      );
       _refresh();
     } on GitException catch (e) {
       _toastErr('Set upstream', e);
@@ -767,7 +781,7 @@ class RepoActions {
   Future<void> pushTag(String name) async {
     if (_blockedByNetwork) return;
     try {
-      await _writer.pushTag(name);
+      await _timed('Push tag $name', () => _writer.pushTag(name));
       _ref
           .read(toastProvider.notifier)
           .show('Pushed tag $name', kind: ToastKind.success);
@@ -779,7 +793,10 @@ class RepoActions {
   Future<void> stashPush({String? message, bool stagedOnly = false}) async {
     if (_blockedByNetwork) return;
     try {
-      await _writer.stashPush(message: message, stagedOnly: stagedOnly);
+      await _timed(
+        'Stash push',
+        () => _writer.stashPush(message: message, stagedOnly: stagedOnly),
+      );
       _refresh();
     } on GitException catch (e) {
       _toastErr('Stash', e);
@@ -789,7 +806,7 @@ class RepoActions {
   Future<void> stashApply(String ref) async {
     if (_blockedByNetwork) return;
     try {
-      await _writer.stashApply(ref);
+      await _timed('Stash apply $ref', () => _writer.stashApply(ref));
       _refresh();
     } on GitException catch (e) {
       await _openStashConflictOrToast('Stash apply', e, dropRef: null);
@@ -799,7 +816,7 @@ class RepoActions {
   Future<void> stashPop(String ref) async {
     if (_blockedByNetwork) return;
     try {
-      await _writer.stashPop(ref);
+      await _timed('Stash pop $ref', () => _writer.stashPop(ref));
       _refresh();
     } on GitException catch (e) {
       // A conflicted pop keeps the stash; drop it once the resolution finishes.
@@ -833,7 +850,7 @@ class RepoActions {
   Future<void> stashDrop(String ref) async {
     if (_blockedByNetwork) return;
     try {
-      final sha = await _writer.stashDrop(ref);
+      final sha = await _timed('Stash drop $ref', () => _writer.stashDrop(ref));
       _refresh();
       _ref
           .read(toastProvider.notifier)
@@ -863,11 +880,14 @@ class RepoActions {
     _ref.read(busyProvider.notifier).state = BusyState('Merge $branch');
     final id = _identity;
     try {
-      await _writer.merge(
-        branch,
-        noFf: true,
-        authorName: id.name,
-        authorEmail: id.email,
+      await _timed(
+        'Merge $branch',
+        () => _writer.merge(
+          branch,
+          noFf: true,
+          authorName: id.name,
+          authorEmail: id.email,
+        ),
       );
       _ref
           .read(undoProvider(path).notifier)
@@ -1023,7 +1043,7 @@ class RepoActions {
     final prev = await _headSha();
     _ref.read(busyProvider.notifier).state = const BusyState('Rebase');
     try {
-      await op();
+      await _timed('Rebase', op);
       _ref
           .read(undoProvider(path).notifier)
           .record(
@@ -1067,47 +1087,56 @@ class RepoActions {
   /// drops its stash). Call only when the session reports all conflicts
   /// resolved.
   Future<void> finishMerge(MergeSession session) async {
+    final label = switch (session.kind) {
+      MergeKind.rebase => 'Finish rebase',
+      MergeKind.merge => 'Finish merge ${session.branch}',
+      MergeKind.stash => 'Finish conflict resolution',
+    };
     try {
-      for (final f in session.files) {
-        await File('$path/${f.path}').writeAsString(f.content());
-        await _writer.stageFile(f.path);
-      }
-      final id = _identity;
-      switch (session.kind) {
-        case MergeKind.rebase:
-          await _writer.rebaseContinue(
-            authorName: id.name,
-            authorEmail: id.email,
-          );
-          // The rebase may pause again on a later commit; reopen if so.
-          final more = await GitReader(_git, path).conflictedFiles();
-          if (more.isNotEmpty) {
-            _ref.read(mergeSessionProvider(path).notifier).state = session
-                .withFiles([for (final p in more) await _conflictFileFor(p)]);
-            _refresh();
-            return;
-          }
-          await _recordFinishUndo(session, 'Rebase');
-        case MergeKind.merge:
-          await _writer.commitMerge(authorName: id.name, authorEmail: id.email);
-          await _recordFinishUndo(session, 'Merge ${session.branch}');
-        case MergeKind.stash:
-          // Stage-only: no commit. A conflicted pop kept its stash — drop it.
-          if (session.dropStashRef != null) {
-            await _writer.stashDrop(session.dropStashRef!);
-          }
-      }
-      _ref.read(mergeSessionProvider(path).notifier).state = null;
-      _refresh();
-      final done = switch (session.kind) {
-        MergeKind.rebase => 'Rebase complete',
-        MergeKind.merge => 'Merge ${session.branch} complete',
-        MergeKind.stash => 'Conflicts resolved',
-      };
-      _ref.read(toastProvider.notifier).show(done, kind: ToastKind.success);
+      await _timed(label, () => _finishMerge(session));
     } on GitException catch (e) {
       _toastErr('Finish', e);
     }
+  }
+
+  Future<void> _finishMerge(MergeSession session) async {
+    for (final f in session.files) {
+      await File('$path/${f.path}').writeAsString(f.content());
+      await _writer.stageFile(f.path);
+    }
+    final id = _identity;
+    switch (session.kind) {
+      case MergeKind.rebase:
+        await _writer.rebaseContinue(
+          authorName: id.name,
+          authorEmail: id.email,
+        );
+        // The rebase may pause again on a later commit; reopen if so.
+        final more = await GitReader(_git, path).conflictedFiles();
+        if (more.isNotEmpty) {
+          _ref.read(mergeSessionProvider(path).notifier).state = session
+              .withFiles([for (final p in more) await _conflictFileFor(p)]);
+          _refresh();
+          return;
+        }
+        await _recordFinishUndo(session, 'Rebase');
+      case MergeKind.merge:
+        await _writer.commitMerge(authorName: id.name, authorEmail: id.email);
+        await _recordFinishUndo(session, 'Merge ${session.branch}');
+      case MergeKind.stash:
+        // Stage-only: no commit. A conflicted pop kept its stash — drop it.
+        if (session.dropStashRef != null) {
+          await _writer.stashDrop(session.dropStashRef!);
+        }
+    }
+    _ref.read(mergeSessionProvider(path).notifier).state = null;
+    _refresh();
+    final done = switch (session.kind) {
+      MergeKind.rebase => 'Rebase complete',
+      MergeKind.merge => 'Merge ${session.branch} complete',
+      MergeKind.stash => 'Conflicts resolved',
+    };
+    _ref.read(toastProvider.notifier).show(done, kind: ToastKind.success);
   }
 
   /// Records the undo/redo entry for a completed merge/rebase: undo resets the
@@ -1150,16 +1179,19 @@ class RepoActions {
   Future<void> abortMerge() async {
     final kind = _ref.read(mergeSessionProvider(path))?.kind ?? MergeKind.merge;
     try {
-      switch (kind) {
-        case MergeKind.rebase:
-          await _writer.rebaseAbort();
-        case MergeKind.merge:
-          await _writer.mergeAbort();
-        case MergeKind.stash:
-          // No in-progress merge to abort; discard the conflicted apply. A
-          // stash-sourced conflict keeps its stash, so the work is recoverable.
-          await _writer.resetHard('HEAD');
-      }
+      await _timed('Abort ${kind.name}', () async {
+        switch (kind) {
+          case MergeKind.rebase:
+            await _writer.rebaseAbort();
+          case MergeKind.merge:
+            await _writer.mergeAbort();
+          case MergeKind.stash:
+            // No in-progress merge to abort; discard the conflicted apply. A
+            // stash-sourced conflict keeps its stash, so the work is
+            // recoverable.
+            await _writer.resetHard('HEAD');
+        }
+      });
     } on GitException catch (e) {
       _toastErr('Abort', e);
     }

@@ -42,10 +42,6 @@ class Commit with _$Commit {
     required DateTime date,
     @Default([]) List<String> parents,
     @Default([]) List<GitRef> refs,
-    @Default(false) bool signed,
-    // Raw `git log %G?` code: G good, U good-untrusted, X/Y/R expired/revoked,
-    // B bad, E can't-check, N none. Drives the signature label's meaning.
-    @Default('N') String sigStatus,
     @Default(false) bool coauthor,
     // Deterministic author avatar colour (ARGB), derived from the email.
     @Default(0) int avatarValue,

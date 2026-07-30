@@ -34,6 +34,22 @@ class RepoBootstrap {
     return name;
   }
 
+  /// Whether joining [name] onto [parentDir] yields a path inside [parentDir].
+  /// `join` discards the parent entirely when [name] is absolute (including
+  /// drive-letter paths on Windows), so containment must be checked on the
+  /// joined result. Lexical only; [parentDir] is expected to be absolute.
+  /// [context] defaults to the host platform and lets tests exercise Windows
+  /// path rules from any host.
+  static bool staysInsideParent(
+    String parentDir,
+    String name, {
+    p.Context? context,
+  }) {
+    final ctx = context ?? p.context;
+    final target = ctx.normalize(ctx.join(parentDir, name));
+    return ctx.isWithin(ctx.normalize(parentDir), target);
+  }
+
   /// Clones [url] into `[parentDir]/[folderName]` and opens it. Long timeout —
   /// clones legitimately take minutes on big repos. Returns the new repo path.
   Future<String?> clone({
@@ -46,6 +62,15 @@ class RepoBootstrap {
         : folderName.trim();
     if (url.trim().isEmpty || parentDir.isEmpty || name.isEmpty) {
       _toast('Clone failed', 'URL and destination are required');
+      return null;
+    }
+    // Reject folder names that could escape the parent via .. segments.
+    if (name.contains('..') || name.startsWith('/') || name.startsWith(r'\')) {
+      _toast('Clone failed', 'Invalid folder name');
+      return null;
+    }
+    if (!staysInsideParent(parentDir, name)) {
+      _toast('Clone failed', 'Destination is outside the parent directory');
       return null;
     }
     final target = p.join(parentDir, name);
@@ -88,7 +113,19 @@ class RepoBootstrap {
       _toast('Create failed', 'Name and folder are required');
       return null;
     }
-    final target = p.join(parentDir, name.trim());
+    final trimmed = name.trim();
+    // Reject names that could escape the parent via .. segments.
+    if (trimmed.contains('..') ||
+        trimmed.startsWith('/') ||
+        trimmed.startsWith(r'\')) {
+      _toast('Create failed', 'Invalid folder name');
+      return null;
+    }
+    if (!staysInsideParent(parentDir, trimmed)) {
+      _toast('Create failed', 'Destination is outside the parent directory');
+      return null;
+    }
+    final target = p.join(parentDir, trimmed);
     if (Directory(target).existsSync() &&
         Directory(target).listSync().isNotEmpty) {
       _toast('Create failed', 'Folder already exists: $target');

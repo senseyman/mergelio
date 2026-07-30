@@ -33,6 +33,11 @@ class CommitDetails extends ConsumerWidget {
     final t = context.tokens;
     final c = commit;
     final files = ref.watch(commitFilesProvider((repo: repoPath, sha: c.sha)));
+    // 'N' is unsigned and 'E' cannot be checked; neither warrants a row. Null
+    // while verification is still running, so the row appears once known.
+    final sig = ref
+        .watch(commitSignatureProvider((repo: repoPath, sha: c.sha)))
+        .valueOrNull;
 
     return Container(
       color: t.bgPanel,
@@ -109,7 +114,8 @@ class CommitDetails extends ConsumerWidget {
                     value: p.length > 7 ? p.substring(0, 7) : p,
                     mono: true,
                   ),
-                if (c.signed) _Signature(status: c.sigStatus),
+                if (sig != null && sig != 'N' && sig != 'E')
+                  _Signature(status: sig),
                 if (c.coauthor)
                   Padding(
                     padding: const EdgeInsets.only(top: 6),

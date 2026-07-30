@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/concurrency.dart';
@@ -43,7 +44,7 @@ class RepoWatcher {
     try {
       _sub = dir.watch(recursive: true).listen(
         (e) {
-          if (!_isNoise(e.path)) _schedule(path, e.path);
+          if (!isNoise(e.path)) _schedule(path, e.path);
         },
         // Watch limits / transient FS errors must not crash the app.
         onError: (Object e) =>
@@ -56,11 +57,18 @@ class RepoWatcher {
   }
 
   // High-churn paths that never affect what the UI shows — a refresh here would
-  // just re-read the whole repo for nothing.
+  // just re-read the whole repo for nothing. Lock files under `.git` and
+  // FETCH_HEAD are transients of every git command (including this app's own
+  // reads and the auto-fetch): any real state change also touches the file the
+  // lock protects, so ignoring them loses nothing and breaks the loop where
+  // our own refresh re-triggers the watcher.
   static final _noise = RegExp(
-    r'(^|/)(\.git/objects|\.git/lfs|node_modules|build|\.dart_tool|\.gradle|target|dist|\.next)(/|$)',
+    r'(^|/)(\.git/objects|\.git/lfs|node_modules|build|\.dart_tool|\.gradle|target|dist|\.next)(/|$)'
+    r'|(^|/)\.git/(.+\.lock|FETCH_HEAD)$',
   );
-  static bool _isNoise(String path) => _noise.hasMatch(path);
+
+  @visibleForTesting
+  static bool isNoise(String path) => _noise.hasMatch(path);
 
   /// 500ms trailing: coalesces editor save-storms and long git operations into
   /// a single refresh once things settle. A refresh is also held back while the

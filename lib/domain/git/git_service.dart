@@ -139,6 +139,12 @@ class SystemGitService implements GitService {
       return GitResult(exitCode, output[0], output[1]);
     } on TimeoutException {
       proc.kill(ProcessSignal.sigkill);
+      // Wait briefly for the killed process to release its resources. Without
+      // this the OS may hold the pid slot as a zombie until the next wait.
+      await proc.exitCode.timeout(
+        const Duration(seconds: 2),
+        onTimeout: () => -1,
+      );
       final limit = timeout ?? defaultTimeout;
       _record(args, repoPath, started, inFlight, timedOut: true);
       throw GitException(

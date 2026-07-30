@@ -55,6 +55,8 @@ class ToastController extends StateNotifier<List<Toast>> {
 
   void dismiss(int id) {
     _timers.remove(id)?.cancel();
+    // Check mounted before mutating state: a dispose() already cleared _timers
+    // and calling state = after dispose throws.
     if (!mounted) return;
     state = state.where((t) => t.id != id).toList();
   }

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/state/repo_bootstrap.dart';
 import 'package:mergelio/state/workspace.dart';
+import 'package:path/path.dart' as p;
 
 void main() {
   const svc = SystemGitService();
@@ -35,6 +36,78 @@ void main() {
       );
       expect(RepoBootstrap.folderNameFromUrl(''), '');
     });
+  });
+
+  group('staysInsideParent', () {
+    test('accepts plain child names on both platforms', () {
+      expect(
+        RepoBootstrap.staysInsideParent('/repos', 'repo', context: p.posix),
+        isTrue,
+      );
+      expect(
+        RepoBootstrap.staysInsideParent(
+          r'C:\repos',
+          'repo',
+          context: p.windows,
+        ),
+        isTrue,
+      );
+    });
+
+    test('rejects absolute names, which make join discard the parent', () {
+      expect(
+        RepoBootstrap.staysInsideParent('/repos', '/evil', context: p.posix),
+        isFalse,
+      );
+      expect(
+        RepoBootstrap.staysInsideParent(
+          r'C:\repos',
+          r'C:\evil',
+          context: p.windows,
+        ),
+        isFalse,
+      );
+      expect(
+        RepoBootstrap.staysInsideParent(
+          r'C:\repos',
+          r'D:\evil',
+          context: p.windows,
+        ),
+        isFalse,
+      );
+    });
+
+    test('rejects names that climb out via dot-dot segments', () {
+      expect(
+        RepoBootstrap.staysInsideParent('/repos', '../evil', context: p.posix),
+        isFalse,
+      );
+      expect(
+        RepoBootstrap.staysInsideParent(
+          '/repos',
+          'a/../../evil',
+          context: p.posix,
+        ),
+        isFalse,
+      );
+    });
+  });
+
+  test('clone refuses a folder name that escapes the parent', () async {
+    final c = ProviderContainer();
+    addTearDown(c.dispose);
+    final parent = Directory('${work.path}/parent')..createSync();
+
+    final path = await c
+        .read(repoBootstrapProvider)
+        .clone(
+          url: '/nowhere/repo.git',
+          parentDir: parent.path,
+          folderName: '../evil',
+        );
+
+    expect(path, isNull);
+    expect(Directory('${work.path}/evil').existsSync(), isFalse);
   });
 
   test('clone clones a real repo, opens a tab', () async {

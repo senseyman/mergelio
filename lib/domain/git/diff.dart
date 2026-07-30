@@ -425,8 +425,14 @@ List<FileDiff> parseUnifiedDiff(String raw) {
     final hh = _hunkHeader.firstMatch(line);
     if (hh != null) {
       flushHunk();
-      oldStart = int.parse(hh.group(1)!);
-      newStart = int.parse(hh.group(2)!);
+      // Guard against malformed diff output that could throw FormatException
+      // on parseInt. A corrupt hunk header is skipped rather than crashing
+      // the entire diff parse.
+      final parsedOld = int.tryParse(hh.group(1)!);
+      final parsedNew = int.tryParse(hh.group(2)!);
+      if (parsedOld == null || parsedNew == null) continue;
+      oldStart = parsedOld;
+      newStart = parsedNew;
       oldNo = oldStart;
       newNo = newStart;
       hunkHeader = line;

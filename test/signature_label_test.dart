@@ -26,53 +26,58 @@ class _FakeGit implements GitService {
 }
 
 void main() {
-  Commit sig(String status) => Commit(
+  final c = Commit(
     sha: 'abcdef1234567890',
     message: 'm',
     author: 'A',
     authorEmail: 'a@e',
     date: DateTime(2026),
-    signed: true,
-    sigStatus: status,
   );
 
-  Future<void> pump(WidgetTester tester, Commit c) => tester.pumpWidget(
-    ProviderScope(
-      overrides: [
-        gitServiceProvider.overrideWithValue(_FakeGit()),
-        commitFilesProvider((
-          repo: '/r',
-          sha: c.sha,
-        )).overrideWith((ref) async => const <CommitFileChange>[]),
-        settingsProvider.overrideWith(
-          (ref) => SettingsController(
-            InMemorySettingsRepository(),
-            const AppSettings(),
+  Future<void> pump(WidgetTester tester, String status) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gitServiceProvider.overrideWithValue(_FakeGit()),
+          commitFilesProvider((
+            repo: '/r',
+            sha: c.sha,
+          )).overrideWith((ref) async => const <CommitFileChange>[]),
+          commitSignatureProvider((
+            repo: '/r',
+            sha: c.sha,
+          )).overrideWith((ref) async => status),
+          settingsProvider.overrideWith(
+            (ref) => SettingsController(
+              InMemorySettingsRepository(),
+              const AppSettings(),
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          theme: ThemeData(extensions: [AppTokens.dark()]),
+          home: Scaffold(
+            body: CommitDetails(repoPath: '/r', commit: c, hasWip: false),
           ),
         ),
-      ],
-      child: MaterialApp(
-        theme: ThemeData(extensions: [AppTokens.dark()]),
-        home: Scaffold(
-          body: CommitDetails(repoPath: '/r', commit: c, hasWip: false),
-        ),
       ),
-    ),
-  );
+    );
+    await tester.pump();
+  }
 
   testWidgets('good signature reads Verified', (tester) async {
-    await pump(tester, sig('G'));
+    await pump(tester, 'G');
     expect(find.text('Verified signature'), findsOneWidget);
   });
 
   testWidgets('bad signature is never labelled Verified', (tester) async {
-    await pump(tester, sig('B'));
+    await pump(tester, 'B');
     expect(find.text('Bad signature'), findsOneWidget);
     expect(find.textContaining('Verified'), findsNothing);
   });
 
   testWidgets('expired signature is warned, not Verified', (tester) async {
-    await pump(tester, sig('X'));
+    await pump(tester, 'X');
     expect(find.text('Expired signature'), findsOneWidget);
     expect(find.textContaining('Verified'), findsNothing);
   });
@@ -80,7 +85,7 @@ void main() {
   testWidgets('untrusted-key (U) signature is not labelled Verified', (
     tester,
   ) async {
-    await pump(tester, sig('U'));
+    await pump(tester, 'U');
     expect(find.text('Valid, untrusted key'), findsOneWidget);
     expect(find.textContaining('Verified'), findsNothing);
   });

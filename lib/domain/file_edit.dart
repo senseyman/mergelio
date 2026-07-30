@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:path/path.dart' as p;
+
 /// Files larger than this are not offered for in-place editing: the editor
 /// holds the whole text in memory and re-lays it out on every keystroke.
 const maxEditableBytes = 2 * 1024 * 1024;
@@ -43,6 +45,36 @@ bool isRepoRelativePath(String relPath) {
   if (relPath.startsWith('/') || relPath.startsWith(r'\')) return false;
   if (relPath.length >= 2 && relPath[1] == ':') return false;
   return !relPath.split(RegExp(r'[\\/]')).contains('..');
+}
+
+/// Whether [resolvedPath] is safely inside [repoRoot] after resolving symlinks.
+/// Catches a symlink in the working tree that points outside the repo.
+bool isInsideRepo(String repoRoot, String resolvedPath) {
+  final repoDir = Directory(repoRoot);
+  final file = File(resolvedPath);
+  // Resolve to real paths, following symlinks. If either side fails (deleted,
+  // permission denied) refuse the path — it is not worth the risk.
+  String? realRepo, realFile;
+  try {
+    realRepo = repoDir.resolveSymbolicLinksSync();
+  } on FileSystemException {
+    return false;
+  }
+  try {
+    realFile = file.resolveSymbolicLinksSync();
+  } on FileSystemException {
+    return false;
+  }
+  return isWithinOrEqual(realRepo, realFile);
+}
+
+/// Whether [path] is [root] itself or sits beneath it. Purely lexical, so both
+/// sides must already be resolved absolute paths. [context] defaults to the
+/// host platform; tests pass `p.windows` to exercise drive letters and
+/// backslash separators from any host.
+bool isWithinOrEqual(String root, String path, {p.Context? context}) {
+  final ctx = context ?? p.context;
+  return ctx.equals(root, path) || ctx.isWithin(root, path);
 }
 
 /// Whether [file] was written after [loadedAt] — something outside the editor

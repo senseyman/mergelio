@@ -20,8 +20,18 @@ class GitReader {
   static const _fs = '\x1f'; // field separator inside a record
   static const _rs = '\x00'; // record separator (git -z)
 
-  Future<GitResult> _run(List<String> args, {Duration? timeout}) =>
-      git.run(args, repoPath: repoPath, timeout: timeout);
+  /// Reads must leave the repository untouched: plain `git status` (and
+  /// friends) opportunistically rewrite `.git/index` under an optional lock,
+  /// which the disk watcher then sees as a change and refreshes again — an
+  /// endless reload loop. `GIT_OPTIONAL_LOCKS=0` disables those writes.
+  static const _readEnvironment = {'GIT_OPTIONAL_LOCKS': '0'};
+
+  Future<GitResult> _run(List<String> args, {Duration? timeout}) => git.run(
+    args,
+    repoPath: repoPath,
+    timeout: timeout,
+    environment: _readEnvironment,
+  );
 
   /// `-U<n>` for an explicit context width, or nothing to keep git's default.
   List<String> _contextArgs(int? context) =>
@@ -76,7 +86,7 @@ class GitReader {
       '--decorate=full',
       '-z',
       if (maxCount != null) '--max-count=$maxCount',
-      '--pretty=format:%H$_fs%P$_fs%an$_fs%ae$_fs%aI$_fs%G?$_fs%D$_fs%s$_fs%b',
+      '--pretty=format:%H$_fs%P$_fs%an$_fs%ae$_fs%aI$_fs%D$_fs%s$_fs%b',
       ...stashShas,
     ], timeout: _historyTimeout);
     if (!r.ok) {
@@ -93,9 +103,8 @@ class GitReader {
     final out = <Commit>[];
     for (final rec in r.stdout.split(_rs)) {
       final f = rec.split(_fs);
-      if (f.length < 9) continue;
+      if (f.length < 8) continue;
       if (auxShas.contains(f[0])) continue; // drop stash index/untracked nodes
-      final gcode = f[5];
       out.add(
         Commit(
           sha: f[0],
@@ -103,12 +112,10 @@ class GitReader {
           author: f[2],
           authorEmail: f[3],
           date: DateTime.parse(f[4]),
-          signed: gcode.isNotEmpty && gcode != 'N' && gcode != 'E',
-          sigStatus: gcode.isEmpty ? 'N' : gcode,
-          refs: _parseRefs(f[6]),
-          message: f[7],
-          body: f[8].trimRight(),
-          coauthor: f[8].toLowerCase().contains('co-authored-by:'),
+          refs: _parseRefs(f[5]),
+          message: f[6],
+          body: f[7].trimRight(),
+          coauthor: f[7].toLowerCase().contains('co-authored-by:'),
           avatarValue: _avatarFor(f[3]),
         ),
       );
@@ -447,7 +454,7 @@ class GitReader {
       '--follow',
       '--decorate=full',
       '-z',
-      '--pretty=format:%H$_fs%P$_fs%an$_fs%ae$_fs%aI$_fs%G?$_fs%D$_fs%s$_fs%b',
+      '--pretty=format:%H$_fs%P$_fs%an$_fs%ae$_fs%aI$_fs%D$_fs%s$_fs%b',
       '--',
       path,
     ]);
@@ -455,7 +462,7 @@ class GitReader {
     final out = <Commit>[];
     for (final rec in r.stdout.split(_rs)) {
       final f = rec.split(_fs);
-      if (f.length < 9) continue;
+      if (f.length < 8) continue;
       out.add(
         Commit(
           sha: f[0],
@@ -463,12 +470,21 @@ class GitReader {
           author: f[2],
           authorEmail: f[3],
           date: DateTime.parse(f[4]),
-          message: f[7],
+          message: f[6],
           avatarValue: _avatarFor(f[3]),
         ),
       );
     }
     return out;
+  }
+
+  /// `%G?` verification for one commit, on demand. Bulk history reads skip
+  /// verification because git spawns gpg per signed commit — thousands of
+  /// subprocesses on a repository that enforces signing.
+  Future<String> signatureStatus(String sha) async {
+    final r = await _run(['log', '-1', '--format=%G?', sha]);
+    if (!r.ok) throw GitException('git log -1 --format=%G? failed', r);
+    return r.out.isEmpty ? 'N' : r.out;
   }
 
   /// Raw `git blame --line-porcelain` output for [path] (parse with

@@ -45,10 +45,19 @@ class UndoController extends StateNotifier<UndoState> {
     _running = true;
     try {
       final entry = state.past.last;
+      final before = state;
       await entry.undo();
+      // record() may run during the await (the op itself recording a
+      // follow-up action). Remove the undone entry by identity rather than
+      // splicing off the last slot, and only offer it for redo when nothing
+      // intervened — a new recording clears the redo future.
+      final intervened = !identical(state, before);
       state = UndoState(
-        past: state.past.sublist(0, state.past.length - 1),
-        future: [...state.future, entry],
+        past: [
+          for (final e in state.past)
+            if (!identical(e, entry)) e,
+        ],
+        future: intervened ? state.future : [...state.future, entry],
       );
     } finally {
       _running = false;
@@ -60,10 +69,17 @@ class UndoController extends StateNotifier<UndoState> {
     _running = true;
     try {
       final entry = state.future.last;
+      final before = state;
       await entry.redo();
+      // Mirror of undo(): remove by identity, and only push onto past when
+      // no recording intervened during the await.
+      final intervened = !identical(state, before);
       state = UndoState(
-        past: [...state.past, entry],
-        future: state.future.sublist(0, state.future.length - 1),
+        past: intervened ? state.past : [...state.past, entry],
+        future: [
+          for (final e in state.future)
+            if (!identical(e, entry)) e,
+        ],
       );
     } finally {
       _running = false;

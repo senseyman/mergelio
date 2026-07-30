@@ -17,14 +17,13 @@ final _commit = Commit(
   authorEmail: 't@example.com',
   date: DateTime(2026, 7, 2),
   parents: const ['1111111aaaa'],
-  signed: true,
-  sigStatus: 'G',
 );
 
 Widget _harness({
   List<CommitFileChange>? files,
   bool hasWip = false,
   Commit? commit,
+  String sigStatus = 'G',
 }) => ProviderScope(
   overrides: [
     commitFilesProvider.overrideWith(
@@ -32,6 +31,7 @@ Widget _harness({
           files ??
           const [CommitFileChange(path: 'x', change: GitChange.modified)],
     ),
+    commitSignatureProvider.overrideWith((ref, key) async => sigStatus),
     settingsProvider.overrideWith(
       (ref) => SettingsController(
         InMemorySettingsRepository(),
@@ -75,6 +75,14 @@ void main() {
     expect(find.text('Verified signature'), findsOneWidget);
     expect(find.text('lib/a.dart'), findsOneWidget);
     expect(find.text('lib/old.dart → lib/new.dart'), findsOneWidget);
+  });
+
+  testWidgets('shows no signature row for an unsigned commit', (tester) async {
+    await tester.pumpWidget(_harness(sigStatus: 'N'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('feat: something'), findsOneWidget);
+    expect(find.text('Verified signature'), findsNothing);
   });
 
   testWidgets('shows the commit description body below the subject', (

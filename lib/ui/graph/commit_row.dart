@@ -235,11 +235,6 @@ class CommitRow extends StatelessWidget {
           ),
         ),
       ),
-      if (c.signed)
-        Padding(
-          padding: const EdgeInsets.only(left: 6),
-          child: Icon(Icons.verified_user_outlined, size: 12, color: t.success),
-        ),
       if (stashLabel != null)
         Container(
           margin: const EdgeInsets.only(left: 6),

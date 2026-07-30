@@ -81,6 +81,21 @@ void main() {
       expect(c.state.canUndo, isFalse);
     });
 
+    test('a record landing during undo removes the undone entry', () async {
+      final gate = Completer<void>();
+      c.record(UndoEntry('slow', undo: () => gate.future, redo: () async {}));
+
+      final inFlight = c.undo();
+      c.record(entry('new')); // lands while undo awaits its git op
+      gate.complete();
+      await inFlight;
+
+      // The undone entry must not linger in past, and the new recording
+      // cleared the redo future.
+      expect(c.state.past.map((e) => e.label), ['new']);
+      expect(c.state.canRedo, isFalse);
+    });
+
     test('history is capped at 40 entries', () {
       for (var i = 0; i < 45; i++) {
         c.record(entry('e$i'));

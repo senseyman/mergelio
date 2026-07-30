@@ -70,6 +70,11 @@ class SshKeys {
       throw StateError('A key named $name already exists');
     }
     await Directory(sshDir).create(recursive: true);
+    // Strip control characters and leading dashes from the comment to prevent
+    // ssh-keygen from misinterpreting it as a command-line flag.
+    final safeComment = comment
+        .replaceAll(RegExp(r'[\x00-\x1f\x7f]'), '')
+        .replaceFirst(RegExp(r'^-+'), '');
     final r = await Process.run('ssh-keygen', [
       '-t',
       'ed25519',
@@ -78,7 +83,7 @@ class SshKeys {
       '-N',
       '',
       '-C',
-      comment,
+      safeComment,
     ]);
     if (r.exitCode != 0) {
       throw StateError('ssh-keygen failed: ${r.stderr}');
