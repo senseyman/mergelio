@@ -31,6 +31,11 @@ class EditableFile {
 /// Reads the working-tree file behind [target] for editing.
 final editableFileProvider = FutureProvider.family
     .autoDispose<EditableFile, DiffTarget>((ref, target) async {
+      if (!isRepoRelativePath(target.path)) {
+        return const EditableFile(
+          blocker: 'This file is not in the repository',
+        );
+      }
       final file = File('${target.repoPath}/${target.path}');
       final exists = await file.exists();
       final size = exists ? await file.length() : 0;

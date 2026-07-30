@@ -109,8 +109,9 @@ class SettingsController extends StateNotifier<AppSettings> {
     if (blob == null) return;
     try {
       applyTheme(ThemeSpec.decode(blob));
-    } on FormatException {
-      // Corrupt blob — leave the current theme untouched.
+    } on Object {
+      // Corrupt blob — bad JSON, wrong value types, unparseable colours —
+      // leaves the current theme untouched.
     }
   }
 

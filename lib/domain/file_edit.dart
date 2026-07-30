@@ -34,6 +34,17 @@ String? fileEditBlocker({
   return null;
 }
 
+/// Whether [relPath] is a plain repo-relative path — the only shape git ever
+/// reports for a working file. Rejects absolute paths, drive letters, UNC
+/// shares and `..` segments so a hostile path cannot address files outside
+/// the repository the user opened.
+bool isRepoRelativePath(String relPath) {
+  if (relPath.isEmpty) return false;
+  if (relPath.startsWith('/') || relPath.startsWith(r'\')) return false;
+  if (relPath.length >= 2 && relPath[1] == ':') return false;
+  return !relPath.split(RegExp(r'[\\/]')).contains('..');
+}
+
 /// Whether [file] was written after [loadedAt] — something outside the editor
 /// (another editor, a git command) changed it while it sat open. A file that
 /// has since been deleted reports false; saving will simply recreate it.

@@ -321,41 +321,53 @@ class GitReader {
         continue;
       }
       switch (e[0]) {
+        // Field-count guards: a truncated entry (interrupted git, torn read)
+        // is skipped rather than crashing the whole listing.
         case '1':
           final p = e.split(' ');
-          out.add(
-            WorkingFile(
-              path: p.sublist(8).join(' '),
-              index: _code(p[1][0]),
-              worktree: _code(p[1][1]),
-            ),
-          );
+          if (p.length > 8 && p[1].length >= 2) {
+            out.add(
+              WorkingFile(
+                path: p.sublist(8).join(' '),
+                index: _code(p[1][0]),
+                worktree: _code(p[1][1]),
+              ),
+            );
+          }
           i++;
         case '2':
           final p = e.split(' ');
-          out.add(
-            WorkingFile(
-              path: p.sublist(9).join(' '),
-              index: _code(p[1][0]),
-              worktree: _code(p[1][1]),
-              origPath: i + 1 < toks.length ? toks[i + 1] : null,
-            ),
-          );
-          i += 2; // rename/copy: the next token is the original path
+          if (p.length > 9 && p[1].length >= 2) {
+            out.add(
+              WorkingFile(
+                path: p.sublist(9).join(' '),
+                index: _code(p[1][0]),
+                worktree: _code(p[1][1]),
+                origPath: i + 1 < toks.length ? toks[i + 1] : null,
+              ),
+            );
+            i += 2; // rename/copy: the next token is the original path
+          } else {
+            i++;
+          }
         case 'u':
           final p = e.split(' ');
-          out.add(
-            WorkingFile(
-              path: p.sublist(10).join(' '),
-              index: GitChange.conflicted,
-              worktree: GitChange.conflicted,
-            ),
-          );
+          if (p.length > 10) {
+            out.add(
+              WorkingFile(
+                path: p.sublist(10).join(' '),
+                index: GitChange.conflicted,
+                worktree: GitChange.conflicted,
+              ),
+            );
+          }
           i++;
         case '?':
-          out.add(
-            WorkingFile(path: e.substring(2), worktree: GitChange.untracked),
-          );
+          if (e.length > 2) {
+            out.add(
+              WorkingFile(path: e.substring(2), worktree: GitChange.untracked),
+            );
+          }
           i++;
         default: // '!' ignored, or anything unexpected
           i++;

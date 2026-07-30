@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../domain/file_edit.dart';
 import '../domain/git/conflict.dart';
 import '../domain/git/git_providers.dart';
 import '../domain/git/git_reader.dart';
@@ -66,6 +67,15 @@ class RepoActions {
     bool silent = false,
   }) async {
     final toasts = _ref.read(toastProvider.notifier);
+    // One op at a time: a second network op would race the first on the busy
+    // state (the loser's `finally` clears it mid-flight) and on git's own
+    // locks. Background (silent) ops skip quietly instead of warning.
+    if (_ref.read(busyProvider) != null) {
+      if (!silent) {
+        toasts.show('An operation is already running', kind: ToastKind.warning);
+      }
+      return;
+    }
     _ref.read(busyProvider.notifier).state = BusyState(label);
     final opId = await _journalBegin(label);
     try {
@@ -358,6 +368,9 @@ class RepoActions {
   /// another operation holds the repo, or fail on the filesystem.
   Future<bool> saveFileText(String relPath, String text) async {
     if (_blockedByNetwork) return false;
+    // Only plain repo-relative paths are ever offered for editing; anything
+    // else could address a file outside the repository.
+    if (!isRepoRelativePath(relPath)) return false;
     final file = File('$path/$relPath');
     Future<void> write() => file.writeAsString(text);
     var saved = false;
@@ -524,6 +537,12 @@ class RepoActions {
       await _ref.read(undoProvider(path).notifier).undo();
     } on GitException catch (e) {
       _toastErr('Undo', e);
+    } on Object catch (e) {
+      // File-edit undo entries do filesystem writes, which can fail with
+      // more than GitException; surface it rather than crash.
+      _ref
+          .read(toastProvider.notifier)
+          .show('Undo failed', description: '$e', kind: ToastKind.error);
     } finally {
       _ref.read(busyProvider.notifier).state = null;
     }
@@ -536,6 +555,10 @@ class RepoActions {
       await _ref.read(undoProvider(path).notifier).redo();
     } on GitException catch (e) {
       _toastErr('Redo', e);
+    } on Object catch (e) {
+      _ref
+          .read(toastProvider.notifier)
+          .show('Redo failed', description: '$e', kind: ToastKind.error);
     } finally {
       _ref.read(busyProvider.notifier).state = null;
     }

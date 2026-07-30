@@ -154,7 +154,9 @@ class GitWriter {
         [..._identity(authorName, authorEmail), 'rebase', '-i', onto],
         'git rebase',
         environment: {
-          'GIT_SEQUENCE_EDITOR': 'cp ${todoFile.path}',
+          // Quoted: the editor line is run by a shell, and the temp path can
+          // contain spaces (e.g. Windows user profiles).
+          'GIT_SEQUENCE_EDITOR': 'cp "${todoFile.path}"',
           'GIT_EDITOR': 'true',
         },
       );
@@ -260,14 +262,14 @@ class GitWriter {
       'update',
       if (init) '--init',
       if (recursive) '--recursive',
-      ?path,
+      if (path != null) ...['--', path],
     ],
     'git submodule update',
     timeout: _netTimeout,
   );
 
   Future<void> submoduleUpdateRemote(String path) => _ok(
-    ['submodule', 'update', '--remote', path],
+    ['submodule', 'update', '--remote', '--', path],
     'git submodule update --remote',
     timeout: _netTimeout,
   );
@@ -277,6 +279,7 @@ class GitWriter {
       'submodule',
       'add',
       if (branch != null) ...['-b', branch],
+      '--',
       url,
       path,
     ],
@@ -284,21 +287,31 @@ class GitWriter {
     timeout: _netTimeout,
   );
 
-  Future<void> submoduleSync({String? path}) =>
-      _ok(['submodule', 'sync', ?path], 'git submodule sync');
+  Future<void> submoduleSync({String? path}) => _ok([
+    'submodule',
+    'sync',
+    if (path != null) ...['--', path],
+  ], 'git submodule sync');
 
   Future<void> submoduleDeinit(String path, {bool force = false}) => _ok([
     'submodule',
     'deinit',
     if (force) '-f',
+    '--',
     path,
   ], 'git submodule deinit');
 
   /// Fully removes a submodule: deinit, then `git rm` (drops the gitlink and
   /// the `.gitmodules` entry).
   Future<void> submoduleRemove(String path) async {
-    await _ok(['submodule', 'deinit', '-f', path], 'git submodule deinit');
-    await _ok(['rm', '-f', path], 'git rm submodule');
+    await _ok([
+      'submodule',
+      'deinit',
+      '-f',
+      '--',
+      path,
+    ], 'git submodule deinit');
+    await _ok(['rm', '-f', '--', path], 'git rm submodule');
   }
 
   /// Moves the current branch to [sha], discarding working-tree and index
