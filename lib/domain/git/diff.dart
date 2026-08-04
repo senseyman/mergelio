@@ -70,12 +70,18 @@ class FileDiff {
   final String? oldPath;
   final GitChange status;
   final bool binary;
+
+  /// The six-digit file mode git printed for an added or deleted file, when it
+  /// printed one. Kept so a file put back from a patch comes back with the
+  /// permissions it had rather than a plain 100644.
+  final String? mode;
   final List<DiffHunk> hunks;
   const FileDiff({
     required this.path,
     this.oldPath,
     required this.status,
     this.binary = false,
+    this.mode,
     this.hunks = const [],
   });
 }
@@ -362,12 +368,15 @@ final _hunkHeader = RegExp(r'^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@');
 /// Parses `git diff` unified output into a [FileDiff] per file. Handles new /
 /// deleted / renamed / binary files and standard hunks; line numbers are
 /// tracked per side.
+/// The mode on a `new file mode 100755` / `deleted file mode 100644` line.
+final _fileMode = RegExp(r'^(?:new|deleted) file mode (\d{6})$');
+
 List<FileDiff> parseUnifiedDiff(String raw) {
   final out = <FileDiff>[];
   final lines = raw.split('\n');
 
   // Mutable accumulator for the file currently being parsed.
-  String? path, oldPath, fromPath, toPath;
+  String? path, oldPath, fromPath, toPath, mode;
   var status = GitChange.modified;
   var binary = false;
   var hunks = <DiffHunk>[];
@@ -399,11 +408,12 @@ List<FileDiff> parseUnifiedDiff(String raw) {
           oldPath: status == GitChange.renamed ? (fromPath ?? oldPath) : null,
           status: status,
           binary: binary,
+          mode: mode,
           hunks: hunks,
         ),
       );
     }
-    path = oldPath = fromPath = toPath = null;
+    path = oldPath = fromPath = toPath = mode = null;
     status = GitChange.modified;
     binary = false;
     hunks = <DiffHunk>[];
@@ -482,10 +492,12 @@ List<FileDiff> parseUnifiedDiff(String raw) {
     // Preamble metadata (only before the first hunk of a file).
     if (line.startsWith('new file')) {
       status = GitChange.added;
+      mode = _fileMode.firstMatch(line)?.group(1);
       continue;
     }
     if (line.startsWith('deleted file')) {
       status = GitChange.deleted;
+      mode = _fileMode.firstMatch(line)?.group(1);
       continue;
     }
     if (line.startsWith('rename from ')) {

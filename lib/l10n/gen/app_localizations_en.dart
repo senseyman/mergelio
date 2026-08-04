@@ -48,6 +48,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tooltipProfiles => 'Profiles';
 
   @override
+  String get tooltipProjectFiles => 'Project files';
+
+  @override
+  String get tooltipHistory => 'History';
+
+  @override
   String get opFetch => 'Fetch';
 
   @override

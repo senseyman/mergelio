@@ -7,6 +7,23 @@ import '../data/kv_store.dart';
 
 part 'workspace.freezed.dart';
 
+/// Which view a repo tab is showing: the commit history workspace, or the
+/// project file browser and editor.
+enum RepoViewMode {
+  graph,
+  files;
+
+  /// Reads a persisted name, falling back to [graph] for anything missing or
+  /// unrecognised — a payload written by an older or newer build must still
+  /// open, just in the default view.
+  static RepoViewMode parse(Object? name) {
+    for (final m in RepoViewMode.values) {
+      if (m.name == name) return m;
+    }
+    return RepoViewMode.graph;
+  }
+}
+
 /// An open repository tab. [groupId] scopes it to a repo group (null = none).
 @freezed
 class RepoTab with _$RepoTab {
@@ -15,6 +32,11 @@ class RepoTab with _$RepoTab {
     required String name,
     required String path,
     int? groupId,
+    @Default(RepoViewMode.graph) RepoViewMode viewMode,
+    // Files mode: the editor tabs this repo was left with. Paths only —
+    // unsaved text is deliberately not persisted.
+    @Default([]) List<String> openFiles,
+    String? activeFile,
   }) = _RepoTab;
 }
 
@@ -69,7 +91,16 @@ class WorkspaceState with _$WorkspaceState {
 
 /// What a previous session left behind, restored at startup.
 class WorkspaceSession {
-  final List<({String path, int? groupId})> tabs;
+  final List<
+    ({
+      String path,
+      int? groupId,
+      RepoViewMode viewMode,
+      List<String> openFiles,
+      String? activeFile,
+    })
+  >
+  tabs;
   final List<RepoGroup> groups;
   final int? activeGroupId;
   const WorkspaceSession({
@@ -127,7 +158,16 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
     if (decoded is List) {
       // Legacy: ["path", ...]
       return WorkspaceSession(
-        tabs: [for (final p in decoded) (path: p as String, groupId: null)],
+        tabs: [
+          for (final p in decoded)
+            (
+              path: p as String,
+              groupId: null,
+              viewMode: RepoViewMode.graph,
+              openFiles: const <String>[],
+              activeFile: null,
+            ),
+        ],
       );
     }
     final map = decoded as Map<String, dynamic>;
@@ -137,6 +177,11 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
           (
             path: (t as Map<String, dynamic>)['path'] as String,
             groupId: t['group'] as int?,
+            viewMode: RepoViewMode.parse(t['view']),
+            openFiles: [
+              for (final f in (t['files'] as List? ?? const [])) f as String,
+            ],
+            activeFile: t['activeFile'] as String?,
           ),
       ],
       groups: [
@@ -167,6 +212,10 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
       for (final t in session.tabs) {
         final tab = openRepo(t.path);
         if (t.groupId != null) moveToGroup(tab.id, t.groupId);
+        if (t.viewMode != RepoViewMode.graph) setViewMode(tab.id, t.viewMode);
+        if (t.openFiles.isNotEmpty) {
+          setOpenFiles(t.path, t.openFiles, t.activeFile);
+        }
       }
       state = state.copyWith(activeGroupId: session.activeGroupId);
       _normalizeActive();
@@ -195,7 +244,14 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
       _storageKey,
       jsonEncode({
         'tabs': [
-          for (final t in state.tabs) {'path': t.path, 'group': t.groupId},
+          for (final t in state.tabs)
+            {
+              'path': t.path,
+              'group': t.groupId,
+              'view': t.viewMode.name,
+              'files': t.openFiles,
+              'activeFile': t.activeFile,
+            },
         ],
         'groups': [
           for (final g in state.groups)
@@ -255,6 +311,35 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
   }
 
   void setActive(int id) => state = state.copyWith(activeTabId: id);
+
+  /// Switches one tab between the history workspace and the file browser. The
+  /// choice is per tab, so each open repo keeps the view it was left in.
+  void setViewMode(int id, RepoViewMode mode) {
+    state = state.copyWith(
+      tabs: [
+        for (final t in state.tabs)
+          if (t.id == id) t.copyWith(viewMode: mode) else t,
+      ],
+    );
+    _persist();
+  }
+
+  /// Records the editor tabs of the repository at [repoPath]. Keyed by path
+  /// rather than tab id: the editors themselves are per repository, and the
+  /// same repository is never open in two tabs.
+  void setOpenFiles(String repoPath, List<String> files, String? active) {
+    if (!state.tabs.any((t) => t.path == repoPath)) return;
+    state = state.copyWith(
+      tabs: [
+        for (final t in state.tabs)
+          if (t.path == repoPath)
+            t.copyWith(openFiles: List.of(files), activeFile: active)
+          else
+            t,
+      ],
+    );
+    _persist();
+  }
 
   void closeTab(int id) {
     state = state.copyWith(tabs: state.tabs.where((t) => t.id != id).toList());

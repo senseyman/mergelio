@@ -56,6 +56,10 @@ class AppSettings with _$AppSettings {
     @Default(900.0) double windowHeight,
     // Show changed-file lists grouped into a directory tree vs a flat list.
     @Default(true) bool filesAsTree,
+    // Files mode: navigator width, and whether gitignored entries are hidden.
+    @Default(300.0) double filesNavWidth,
+    @Default(false) bool filesHideIgnored,
+    @Default(false) bool filesNavCollapsed,
   }) = _AppSettings;
 
   factory AppSettings.fromJson(Map<String, dynamic> json) =>

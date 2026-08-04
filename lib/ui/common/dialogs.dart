@@ -210,6 +210,55 @@ Future<bool> showConfirmDialog(
   return result ?? false;
 }
 
+/// What to do with editor text that has not been written yet.
+enum UnsavedChoice { save, discard, cancel }
+
+/// Asked before unsaved editors are thrown away — closing a tab, leaving Files
+/// mode, closing a repository or quitting. [paths] names every file at risk, so
+/// one prompt covers a whole batch.
+Future<UnsavedChoice> showUnsavedDialog(
+  BuildContext context, {
+  required List<String> paths,
+}) async {
+  final t = context.tokens;
+  final result = await showAppModal<UnsavedChoice>(
+    context: context,
+    title: 'Unsaved changes',
+    icon: Icons.edit_note_outlined,
+    width: 460,
+    body: Text(
+      paths.length == 1
+          ? '${paths.single} has changes that are not on disk.'
+          : 'These files have changes that are not on disk:\n\n'
+                '${paths.map((p) => '· $p').join('\n')}',
+      style: TextStyle(color: t.textMuted, fontSize: 13, height: 1.5),
+    ),
+    actions: [
+      Builder(
+        builder: (ctx) => TextButton(
+          onPressed: () => Navigator.of(ctx).pop(UnsavedChoice.cancel),
+          child: const Text('Cancel'),
+        ),
+      ),
+      Builder(
+        builder: (ctx) => TextButton(
+          style: TextButton.styleFrom(foregroundColor: ctx.tokens.danger),
+          onPressed: () => Navigator.of(ctx).pop(UnsavedChoice.discard),
+          child: const Text('Discard'),
+        ),
+      ),
+      Builder(
+        builder: (ctx) => FilledButton(
+          onPressed: () => Navigator.of(ctx).pop(UnsavedChoice.save),
+          child: const Text('Save'),
+        ),
+      ),
+    ],
+  );
+  // Dismissing the dialog is a decision not to lose anything.
+  return result ?? UnsavedChoice.cancel;
+}
+
 /// Cursor-anchored flat context menu.
 Future<T?> showContextMenu<T>({
   required BuildContext context,

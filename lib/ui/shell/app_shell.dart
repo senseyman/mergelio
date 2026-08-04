@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../state/auto_fetch.dart';
 import '../../state/feedback.dart';
+import '../../state/open_files_sync.dart';
 import '../../state/operation_journal.dart';
 import '../../state/profile_theme_sync.dart';
 import '../../state/profile_workspace_sync.dart';
@@ -21,6 +22,7 @@ import 'app_status_bar.dart';
 import 'app_tab_bar.dart';
 import 'app_toolbar.dart';
 import 'keyboard_shortcuts.dart';
+import 'quit_guard.dart';
 
 /// Root application scaffold: chrome bars framing either the workspace (a repo
 /// is open) or the Welcome screen, with global overlays on top.
@@ -35,6 +37,7 @@ class AppShell extends ConsumerWidget {
     ref.watch(profileThemeSyncProvider);
     ref.watch(profileWorkspaceSyncProvider);
     ref.watch(repoWatcherProvider);
+    ref.watch(openFilesSyncProvider);
 
     // No profile yet → block on the mandatory first-profile screen. Everything
     // (groups, repos) belongs to a profile, so one must exist first.
@@ -45,49 +48,53 @@ class AppShell extends ConsumerWidget {
     final hasRepo = ref.watch(workspaceProvider.select((w) => w.hasRepo));
 
     return Scaffold(
-      body: KeyboardShortcuts(
-        child: Stack(
-          children: [
-            Column(
-              children: [
-                const AppToolbar(),
-                const AppTabBar(),
-                Expanded(
-                  child: hasRepo
-                      ? Row(
-                          children: [
-                            // 'rail' group-switcher style docks a vertical
-                            // group rail at the far left of the workspace.
-                            if (ref.watch(
-                                  settingsProvider.select((s) => s.groupStyle),
-                                ) ==
-                                'rail')
-                              const GroupRail(),
-                            Expanded(
-                              child: Column(
-                                children: [
-                                  const Expanded(child: WorkspaceView()),
-                                  if (ref.watch(
+      body: QuitGuard(
+        child: KeyboardShortcuts(
+          child: Stack(
+            children: [
+              Column(
+                children: [
+                  const AppToolbar(),
+                  const AppTabBar(),
+                  Expanded(
+                    child: hasRepo
+                        ? Row(
+                            children: [
+                              // 'rail' group-switcher style docks a vertical
+                              // group rail at the far left of the workspace.
+                              if (ref.watch(
                                     settingsProvider.select(
-                                      (st) => st.terminalOpen,
+                                      (s) => s.groupStyle,
                                     ),
-                                  ))
-                                    const TerminalPanel(),
-                                  const AppBottomBar(),
-                                ],
+                                  ) ==
+                                  'rail')
+                                const GroupRail(),
+                              Expanded(
+                                child: Column(
+                                  children: [
+                                    const Expanded(child: WorkspaceView()),
+                                    if (ref.watch(
+                                      settingsProvider.select(
+                                        (st) => st.terminalOpen,
+                                      ),
+                                    ))
+                                      const TerminalPanel(),
+                                    const AppBottomBar(),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
-                        )
-                      : const WelcomeScreen(),
-                ),
-                const AppStatusBar(),
-              ],
-            ),
-            const ProgressTopBar(),
-            const ToastOverlay(),
-            const _StartupNotices(),
-          ],
+                            ],
+                          )
+                        : const WelcomeScreen(),
+                  ),
+                  const AppStatusBar(),
+                ],
+              ),
+              const ProgressTopBar(),
+              const ToastOverlay(),
+              const _StartupNotices(),
+            ],
+          ),
         ),
       ),
     );

@@ -128,6 +128,15 @@ class SettingsController extends StateNotifier<AppSettings> {
   void setRightWidth(double w) =>
       _update(state.copyWith(rightWidth: w.clamp(300, 560)));
 
+  void setFilesNavWidth(double w) =>
+      _update(state.copyWith(filesNavWidth: w.clamp(200, 560)));
+
+  void toggleFilesHideIgnored() =>
+      _update(state.copyWith(filesHideIgnored: !state.filesHideIgnored));
+
+  void toggleFilesNavCollapsed() =>
+      _update(state.copyWith(filesNavCollapsed: !state.filesNavCollapsed));
+
   void setGraphBranchWidth(double w) =>
       _update(state.copyWith(graphBranchWidth: w.clamp(40, 400)));
 

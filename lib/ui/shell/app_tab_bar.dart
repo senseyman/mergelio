@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
 import '../../state/settings_controller.dart';
+import '../../state/unsaved_guard.dart';
 import '../../state/workspace.dart';
 import '../common/confirm.dart';
 import '../common/dialogs.dart';
@@ -10,6 +11,17 @@ import '../welcome/open_repo.dart';
 import '../welcome/repo_dialogs.dart';
 
 /// Prompts for a name, creates the group and switches to it.
+/// Closes a repository tab, giving its open editors a chance to object: the
+/// tab takes any unsaved text with it.
+Future<void> _closeTab(
+  WidgetRef ref,
+  WorkspaceController ctl,
+  RepoTab tab,
+) async {
+  if (!await ref.read(unsavedGuardsProvider).confirm(tab.path)) return;
+  ctl.closeTab(tab.id);
+}
+
 Future<void> _createGroup(BuildContext context, WidgetRef ref) async {
   final name = await showInputDialog(
     context,
@@ -497,7 +509,7 @@ class _Tab extends ConsumerWidget {
               const SizedBox(width: 6),
               InkWell(
                 borderRadius: BorderRadius.circular(4),
-                onTap: () => ctl.closeTab(tab.id),
+                onTap: () => _closeTab(ref, ctl, tab),
                 child: Icon(Icons.close, size: 13, color: t.textFaint),
               ),
             ],
@@ -562,7 +574,7 @@ class _Tab extends ConsumerWidget {
             if (action == null) return;
             switch (action) {
               case 'close':
-                ctl.closeTab(tab.id);
+                await _closeTab(ref, ctl, tab);
               case 'others':
                 ctl.closeOthers(tab.id);
               default:

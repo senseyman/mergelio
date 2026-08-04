@@ -8,21 +8,50 @@ class CommitQuery {
   final String author;
   final bool hideMerges;
   final bool hideTags;
+
+  /// Repo-relative path whose history is being followed, or empty for none.
+  /// Which commits touched it cannot be told from a commit alone, so the shas
+  /// are read from git separately and passed to the matchers.
+  final String path;
   const CommitQuery({
     this.text = '',
     this.author = '',
     this.hideMerges = false,
     this.hideTags = false,
+    this.path = '',
   });
 
+  CommitQuery copyWith({
+    String? text,
+    String? author,
+    bool? hideMerges,
+    bool? hideTags,
+    String? path,
+  }) => CommitQuery(
+    text: text ?? this.text,
+    author: author ?? this.author,
+    hideMerges: hideMerges ?? this.hideMerges,
+    hideTags: hideTags ?? this.hideTags,
+    path: path ?? this.path,
+  );
+
   bool get isEmpty =>
-      text.trim().isEmpty && author.isEmpty && !hideMerges && !hideTags;
+      text.trim().isEmpty &&
+      author.isEmpty &&
+      path.isEmpty &&
+      !hideMerges &&
+      !hideTags;
 }
 
 /// True when [c] matches [q]: the free text is found (case-insensitive) in the
 /// message, author, or sha; the author filter is a substring of the author;
 /// merges and tag-carrying commits are excluded when requested.
-bool matchesCommit(Commit c, CommitQuery q) {
+///
+/// [pathShas] are the commits that touched [CommitQuery.path]. While a path
+/// filter is on and they have not arrived yet, nothing matches — better a
+/// momentarily empty result than every commit claiming to touch the file.
+bool matchesCommit(Commit c, CommitQuery q, {Set<String>? pathShas}) {
+  if (q.path.isNotEmpty && !(pathShas?.contains(c.sha) ?? false)) return false;
   if (q.hideMerges && c.merge) return false;
   if (q.hideTags && c.refs.any((r) => r.kind == RefKind.tag)) return false;
   if (q.author.isNotEmpty &&
@@ -36,27 +65,36 @@ bool matchesCommit(Commit c, CommitQuery q) {
       c.sha.toLowerCase().startsWith(text);
 }
 
-List<Commit> searchCommits(List<Commit> commits, CommitQuery q) =>
-    q.isEmpty ? const [] : commits.where((c) => matchesCommit(c, q)).toList();
+List<Commit> searchCommits(
+  List<Commit> commits,
+  CommitQuery q, {
+  Set<String>? pathShas,
+}) => q.isEmpty
+    ? const []
+    : commits.where((c) => matchesCommit(c, q, pathShas: pathShas)).toList();
 
 /// Threshold above which match computation moves to a background isolate so a
 /// keystroke on a huge (50k+) history never blocks the UI thread.
 const searchIsolateThreshold = 5000;
 
-Set<String> _matchShasSync((List<Commit>, CommitQuery) args) => {
+Set<String> _matchShasSync((List<Commit>, CommitQuery, Set<String>?) args) => {
   for (final c in args.$1)
-    if (matchesCommit(c, args.$2)) c.sha,
+    if (matchesCommit(c, args.$2, pathShas: args.$3)) c.sha,
 };
 
 /// Shas of commits matching [q]. Small lists compute synchronously (isolate
 /// spawn + copy would cost more than the scan); large ones go through
 /// [compute] off the UI isolate.
-Future<Set<String>> computeMatchShas(List<Commit> commits, CommitQuery q) {
+Future<Set<String>> computeMatchShas(
+  List<Commit> commits,
+  CommitQuery q, {
+  Set<String>? pathShas,
+}) {
   if (q.isEmpty) return Future.value(const {});
   if (commits.length < searchIsolateThreshold) {
-    return Future.value(_matchShasSync((commits, q)));
+    return Future.value(_matchShasSync((commits, q, pathShas)));
   }
-  return compute(_matchShasSync, (commits, q));
+  return compute(_matchShasSync, (commits, q, pathShas));
 }
 
 /// Case-insensitive subsequence fuzzy score for the command palette. Returns

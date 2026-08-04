@@ -176,6 +176,18 @@ abstract class AppLocalizations {
   /// **'Profiles'**
   String get tooltipProfiles;
 
+  /// No description provided for @tooltipProjectFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Project files'**
+  String get tooltipProjectFiles;
+
+  /// No description provided for @tooltipHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'History'**
+  String get tooltipHistory;
+
   /// No description provided for @opFetch.
   ///
   /// In en, this message translates to:

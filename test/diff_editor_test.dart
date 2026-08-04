@@ -97,7 +97,9 @@ void main() {
           ),
           // The real provider reads the working tree; a widget test's
           // fake-async zone never lets that I/O complete.
-          editableFileProvider(target).overrideWith((ref) async => file),
+          editableFileForPathProvider(
+            FileRef(target.repoPath, target.path),
+          ).overrideWith((ref) async => file),
           repoActionsProvider('/r').overrideWith((ref) {
             final a = _RecordingActions(ref, '/r', GitWriter(_FakeGit(), '/r'));
             actions = a;

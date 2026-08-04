@@ -28,15 +28,59 @@ class EditableFile {
   bool get canEdit => blocker == null;
 }
 
-/// Reads the working-tree file behind [target] for editing.
+/// Identifies one working-tree file. Value equality is what lets the family
+/// cache per file rather than per call.
+class FileRef {
+  final String repoPath;
+
+  /// Repo-relative, `/`-separated.
+  final String relPath;
+  const FileRef(this.repoPath, this.relPath);
+
+  @override
+  bool operator ==(Object other) =>
+      other is FileRef &&
+      other.repoPath == repoPath &&
+      other.relPath == relPath;
+
+  @override
+  int get hashCode => Object.hash(repoPath, relPath);
+
+  @override
+  String toString() => 'FileRef($repoPath, $relPath)';
+}
+
+/// Reads the working-tree file behind [target] for editing. A commit diff is
+/// turned down here; everything else is the plain working-tree read.
 final editableFileProvider = FutureProvider.family
     .autoDispose<EditableFile, DiffTarget>((ref, target) async {
-      if (!isRepoRelativePath(target.path)) {
+      if (!target.isWorkingTree) {
+        return EditableFile(
+          blocker: fileEditBlocker(
+            isWorkingTree: false,
+            exists: false,
+            binary: false,
+            sizeBytes: 0,
+          ),
+        );
+      }
+      return ref.watch(
+        editableFileForPathProvider(
+          FileRef(target.repoPath, target.path),
+        ).future,
+      );
+    });
+
+/// Reads one working-tree file for editing, or the reason it cannot be. Keyed
+/// by path so Files mode can open a file the diff sheet never touched.
+final editableFileForPathProvider = FutureProvider.family
+    .autoDispose<EditableFile, FileRef>((ref, key) async {
+      if (!isRepoRelativePath(key.relPath)) {
         return const EditableFile(
           blocker: 'This file is not in the repository',
         );
       }
-      final file = File('${target.repoPath}/${target.path}');
+      final file = File('${key.repoPath}/${key.relPath}');
       final exists = await file.exists();
       final size = exists ? await file.length() : 0;
       // Sniff the first block only, so an oversized file is not read whole
@@ -48,7 +92,7 @@ final editableFileProvider = FutureProvider.family
                 .toList()
           : const <int>[];
       final blocker = fileEditBlocker(
-        isWorkingTree: target.isWorkingTree,
+        isWorkingTree: true,
         exists: exists,
         binary: looksBinary(head),
         sizeBytes: size,

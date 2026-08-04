@@ -48,6 +48,12 @@ class AppLocalizationsUk extends AppLocalizations {
   String get tooltipProfiles => 'Профілі';
 
   @override
+  String get tooltipProjectFiles => 'Файли проєкту';
+
+  @override
+  String get tooltipHistory => 'Історія';
+
+  @override
   String get opFetch => 'Отримати';
 
   @override

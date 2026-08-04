@@ -1,4 +1,5 @@
 import 'diff.dart';
+import 'models.dart';
 
 /// The set of change-line indexes to stage together when the gutter beside
 /// line [index] is clicked. A modified line (a deletion paired with the
@@ -94,9 +95,14 @@ String? buildDiscardPatch(FileDiff file, int hunkIndex, Set<int>? lineIndexes) {
   final header =
       '@@ -${hunk.oldStart},$oldCount +${hunk.newStart},$newCount @@';
   final old = file.oldPath ?? file.path;
+  // The patch is matched against the working tree, where a deleted file is not
+  // there to be read. Naming it as the post-image sends git looking for it;
+  // /dev/null says it is gone, and reversing that is what puts it back.
+  final gone = file.status == GitChange.deleted;
   return 'diff --git a/$old b/${file.path}\n'
+      '${gone ? 'deleted file mode ${file.mode ?? '100644'}\n' : ''}'
       '--- a/$old\n'
-      '+++ b/${file.path}\n'
+      '${gone ? '+++ /dev/null' : '+++ b/${file.path}'}\n'
       '$header\n'
       '${body.join('\n')}\n';
 }

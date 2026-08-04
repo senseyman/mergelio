@@ -9,8 +9,10 @@ import '../../state/settings_controller.dart';
 import '../../state/workspace.dart';
 import '../../state/diff_target.dart';
 import '../diff/diff_sheet.dart';
+import '../files/files_view.dart';
 import '../merge/merge_tool.dart';
 import '../graph/graph_view.dart';
+import '../shell/collapsed_rail.dart';
 import '../shell/resize_handle.dart';
 import 'commit_details.dart';
 import 'panel_placeholder.dart';
@@ -27,12 +29,17 @@ class WorkspaceView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(settingsProvider);
     final ctl = ref.read(settingsProvider.notifier);
+    final tab = ref.watch(workspaceProvider.select((w) => w.activeTab));
+
+    if (tab != null && tab.viewMode == RepoViewMode.files) {
+      return MergeToolGate(child: FilesView(repoPath: tab.path));
+    }
 
     return MergeToolGate(
       child: Row(
         children: [
           if (s.leftCollapsed)
-            _CollapsedRail(onExpand: ctl.toggleLeftCollapsed)
+            CollapsedRail(onExpand: ctl.toggleLeftCollapsed)
           else ...[
             SizedBox(
               width: s.leftWidth,
@@ -129,34 +136,6 @@ class _RightPanel extends ConsumerWidget {
       title: 'Changes',
       hint: 'Working tree · staging · commit',
       background: t.bgPanel,
-    );
-  }
-}
-
-class _CollapsedRail extends StatelessWidget {
-  final VoidCallback onExpand;
-  const _CollapsedRail({required this.onExpand});
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.tokens;
-    return Container(
-      width: 44,
-      decoration: BoxDecoration(
-        color: t.bgPanel,
-        border: Border(right: BorderSide(color: t.border)),
-      ),
-      child: Column(
-        children: [
-          const SizedBox(height: 6),
-          IconButton(
-            iconSize: 17,
-            tooltip: 'Expand',
-            icon: const Icon(Icons.chevron_right),
-            onPressed: onExpand,
-          ),
-        ],
-      ),
     );
   }
 }

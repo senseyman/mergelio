@@ -14,6 +14,8 @@
   "tooltipPalette": "Command palette (⌘K)",
   "tooltipPreferences": "Preferences (⌘,)",
   "tooltipProfiles": "Profiles",
+  "tooltipProjectFiles": "Project files",
+  "tooltipHistory": "History",
 
   "opFetch": "Fetch",
   "opPull": "Pull",

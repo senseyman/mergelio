@@ -6,6 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/concurrency.dart';
 import '../core/logging.dart';
+import '../domain/project_watch.dart';
+import 'open_files.dart';
+import 'project_files.dart';
 import 'repo_data.dart';
 import 'workspace.dart';
 
@@ -26,6 +29,11 @@ class RepoWatcher {
   String? _path;
   String? _trigger;
 
+  /// Repo-relative directories touched since the last refresh. Only these are
+  /// re-listed, so a save in one folder leaves the rest of an expanded tree
+  /// alone.
+  final _dirtyDirs = <String>{};
+
   RepoWatcher(this._ref) {
     _ref.listen(
       workspaceProvider.select((w) => w.activeTab?.path),
@@ -44,7 +52,9 @@ class RepoWatcher {
     try {
       _sub = dir.watch(recursive: true).listen(
         (e) {
-          if (!isNoise(e.path)) _schedule(path, e.path);
+          if (isNoise(e.path)) return;
+          _followOpenEditors(path, e);
+          _schedule(path, e.path);
         },
         // Watch limits / transient FS errors must not crash the app.
         onError: (Object e) =>
@@ -83,11 +93,50 @@ class RepoWatcher {
       // loop is diagnosed from these lines.
       appLog.info('refresh of $path triggered by $_trigger', scope: 'watch');
       _ref.invalidate(repoDataProvider(path));
+      _refreshDirtyDirs(path);
     },
   );
 
+  /// Drops the cached listing, ignore state and tracked set for what changed.
+  /// Files mode reads these lazily, so an unopened directory pays nothing.
+  void _refreshDirtyDirs(String path) {
+    if (_dirtyDirs.isEmpty) return;
+    for (final dir in _dirtyDirs) {
+      final key = DirKey(path, dir);
+      _ref.invalidate(dirListingProvider(key));
+      _ref.invalidate(ignoredInDirProvider(key));
+    }
+    _dirtyDirs.clear();
+    // A new or removed file changes what git tracks, and that set is per
+    // repository rather than per directory.
+    _ref.invalidate(trackedPathsProvider(path));
+  }
+
+  /// Keeps open editors pointing at the right file when something moves or
+  /// removes it from underneath them. Paths nothing has open are ignored by
+  /// the notifier, so this costs a lookup and nothing more.
+  void _followOpenEditors(String repoPath, FileSystemEvent e) {
+    final rel = relPathOf(repoPath, e.path);
+    if (rel == null) return;
+    final files = _ref.read(openFilesProvider(repoPath).notifier);
+    if (e is FileSystemMoveEvent) {
+      final to = e.destination == null
+          ? null
+          : relPathOf(repoPath, e.destination!);
+      // A move out of the repository is a disappearance as far as the tab is
+      // concerned.
+      to == null ? files.markGone(rel) : files.rename(rel, to);
+      return;
+    }
+    e.type == FileSystemEvent.delete
+        ? files.markGone(rel)
+        : files.markPresent(rel);
+  }
+
   void _schedule(String path, String trigger) {
     _trigger = trigger;
+    final dir = changedDirOf(path, trigger);
+    if (dir != null) _dirtyDirs.add(dir);
     _coalescer ??= _coalescerFor(path);
     _coalescer!.schedule();
   }
@@ -97,6 +146,8 @@ class RepoWatcher {
     _sub = null;
     _coalescer?.cancel();
     _coalescer = null;
+    // Directories belong to the repository being left behind.
+    _dirtyDirs.clear();
   }
 
   /// Force an immediate refresh of the active repo (e.g. on window focus).

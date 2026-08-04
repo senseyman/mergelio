@@ -14,6 +14,8 @@
   "tooltipPalette": "Палітра команд (⌘K)",
   "tooltipPreferences": "Налаштування (⌘,)",
   "tooltipProfiles": "Профілі",
+  "tooltipProjectFiles": "Файли проєкту",
+  "tooltipHistory": "Історія",
 
   "opFetch": "Отримати",
   "opPull": "Стягнути",

@@ -7,6 +7,7 @@ import '../../l10n/gen/app_localizations.dart';
 import '../../state/feedback.dart';
 import '../../state/profiles.dart';
 import '../../state/settings_controller.dart';
+import '../../state/unsaved_guard.dart';
 import '../../state/workspace.dart';
 import '../brand/mergelio_mark.dart';
 import '../preferences/preferences_dialog.dart';
@@ -47,6 +48,38 @@ class AppToolbar extends ConsumerWidget {
             ),
           ),
           const Spacer(),
+          Builder(
+            builder: (_) {
+              // Watched, not read: the icon and tooltip flip with the mode.
+              final tab = ref.watch(
+                workspaceProvider.select((w) => w.activeTab),
+              );
+              final files = tab?.viewMode == RepoViewMode.files;
+              return BarIconButton(
+                icon: files ? Icons.history : Icons.folder_outlined,
+                tooltip: files ? l.tooltipHistory : l.tooltipProjectFiles,
+                active: files,
+                onPressed: tab == null
+                    ? null
+                    : () async {
+                        // Leaving Files mode takes the editors down with it,
+                        // so unsaved text gets one prompt before it goes.
+                        if (files &&
+                            !await ref
+                                .read(unsavedGuardsProvider)
+                                .confirm(tab.path)) {
+                          return;
+                        }
+                        ref
+                            .read(workspaceProvider.notifier)
+                            .setViewMode(
+                              tab.id,
+                              files ? RepoViewMode.graph : RepoViewMode.files,
+                            );
+                      },
+              );
+            },
+          ),
           BarIconButton(
             icon: Icons.terminal_outlined,
             tooltip: l.tooltipTerminal,

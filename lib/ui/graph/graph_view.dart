@@ -8,6 +8,7 @@ import '../../domain/git/models.dart';
 import '../../domain/git/rebase_plan.dart';
 import '../../domain/search.dart';
 import '../../state/graph_selection.dart';
+import '../../state/path_history.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
 import '../../state/search.dart';
@@ -83,6 +84,7 @@ class _GraphListState extends ConsumerState<GraphList> {
   GraphDerived? _derived;
   RepoData? _matchDataFor;
   CommitQuery? _matchQueryFor;
+  Set<String>? _matchPathsFor;
   Set<String> _matchCache = const {};
 
   GraphDerived _deriveFor(RepoData d) {
@@ -98,24 +100,27 @@ class _GraphListState extends ConsumerState<GraphList> {
   /// Current match set. Small histories compute inline; big ones kick a
   /// background-isolate computation and keep showing the previous set until
   /// it lands (generation counter drops stale results).
-  Set<String> _matchesFor(RepoData d, CommitQuery? query) {
+  Set<String> _matchesFor(RepoData d, CommitQuery? query, Set<String>? paths) {
     if (query == null || query.isEmpty) return const {};
-    if (identical(_matchDataFor, d) && query == _matchQueryFor) {
+    if (identical(_matchDataFor, d) &&
+        query == _matchQueryFor &&
+        identical(_matchPathsFor, paths)) {
       return _matchCache;
     }
     _matchDataFor = d;
     _matchQueryFor = query;
+    _matchPathsFor = paths;
     // Bump the generation on every recompute so any still-in-flight isolate
     // result from a previous (data, query) is dropped when it lands.
     final gen = ++_matchGen;
     if (d.commits.length < searchIsolateThreshold) {
       _matchCache = {
         for (final c in d.commits)
-          if (matchesCommit(c, query)) c.sha,
+          if (matchesCommit(c, query, pathShas: paths)) c.sha,
       };
       return _matchCache;
     }
-    computeMatchShas(d.commits, query).then((m) {
+    computeMatchShas(d.commits, query, pathShas: paths).then((m) {
       if (mounted && gen == _matchGen) setState(() => _matchCache = m);
     });
     return _matchCache;
@@ -282,7 +287,8 @@ class _GraphListState extends ConsumerState<GraphList> {
     if (event.logicalKey == LogicalKeyboardKey.keyN) {
       final query = ref.read(searchQueryProvider);
       if (query != null && !query.isEmpty) {
-        final matches = _matchesFor(widget.data, query);
+        // Reuses whatever the last build computed, path shas included.
+        final matches = _matchesFor(widget.data, query, _matchPathsFor);
         _jumpMatch(
           widget.data,
           matches,
@@ -361,7 +367,14 @@ class _GraphListState extends ConsumerState<GraphList> {
     final wipRows = _hasWip ? 1 : 0;
 
     final query = ref.watch(searchQueryProvider);
-    final matchShas = _matchesFor(d, query);
+    // The commits that touched the followed file, if one is being followed.
+    // Only the loaded value counts: while the read is in flight the filter has
+    // no shas yet and the graph shows no matches.
+    final repo = ref.watch(workspaceProvider.select((w) => w.activeTab?.path));
+    final pathShas = (query == null || query.path.isEmpty || repo == null)
+        ? null
+        : ref.watch(pathHistoryProvider(PathKey(repo, query.path))).valueOrNull;
+    final matchShas = _matchesFor(d, query, pathShas);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -596,14 +609,7 @@ class _SearchBar extends StatelessWidget {
             Expanded(
               child: TextField(
                 autofocus: true,
-                onChanged: (v) => onChanged(
-                  CommitQuery(
-                    text: v,
-                    author: query.author,
-                    hideMerges: query.hideMerges,
-                    hideTags: query.hideTags,
-                  ),
-                ),
+                onChanged: (v) => onChanged(query.copyWith(text: v)),
                 onSubmitted: (_) => onJump(true),
                 style: TextStyle(color: t.textPrimary, fontSize: 13),
                 decoration: InputDecoration(
@@ -618,14 +624,7 @@ class _SearchBar extends StatelessWidget {
             SizedBox(
               width: 120,
               child: TextField(
-                onChanged: (v) => onChanged(
-                  CommitQuery(
-                    text: query.text,
-                    author: v,
-                    hideMerges: query.hideMerges,
-                    hideTags: query.hideTags,
-                  ),
-                ),
+                onChanged: (v) => onChanged(query.copyWith(author: v)),
                 style: TextStyle(color: t.textPrimary, fontSize: 12),
                 decoration: InputDecoration(
                   isDense: true,
@@ -635,31 +634,29 @@ class _SearchBar extends StatelessWidget {
                 ),
               ),
             ),
+            if (query.path.isNotEmpty) ...[
+              const SizedBox(width: 6),
+              // Flexible so a narrow window shortens the name rather than
+              // pushing the match counter and buttons off the bar.
+              Flexible(
+                child: _PathChip(
+                  path: query.path,
+                  onClear: () => onChanged(query.copyWith(path: '')),
+                ),
+              ),
+            ],
             const SizedBox(width: 6),
             _FilterChip(
               label: l.filterHideMerges,
               on: query.hideMerges,
-              onTap: () => onChanged(
-                CommitQuery(
-                  text: query.text,
-                  author: query.author,
-                  hideMerges: !query.hideMerges,
-                  hideTags: query.hideTags,
-                ),
-              ),
+              onTap: () =>
+                  onChanged(query.copyWith(hideMerges: !query.hideMerges)),
             ),
             const SizedBox(width: 6),
             _FilterChip(
               label: l.filterHideTags,
               on: query.hideTags,
-              onTap: () => onChanged(
-                CommitQuery(
-                  text: query.text,
-                  author: query.author,
-                  hideMerges: query.hideMerges,
-                  hideTags: !query.hideTags,
-                ),
-              ),
+              onTap: () => onChanged(query.copyWith(hideTags: !query.hideTags)),
             ),
             const SizedBox(width: 8),
             Text(
@@ -733,6 +730,61 @@ class _FilterChip extends StatelessWidget {
               fontWeight: FontWeight.w600,
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The file the history is being followed for. Named so it is obvious why the
+/// graph is showing so few commits, and dismissible so the user is never stuck
+/// wondering where the rest went.
+class _PathChip extends StatelessWidget {
+  final String path;
+  final VoidCallback onClear;
+  const _PathChip({required this.path, required this.onClear});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final name = path.split('/').last;
+    return Tooltip(
+      message: path,
+      child: Container(
+        padding: const EdgeInsets.only(left: 8, right: 2),
+        decoration: BoxDecoration(
+          color: t.accent.withValues(alpha: 0.16),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.insert_drive_file_outlined, size: 12, color: t.accent),
+            const SizedBox(width: 5),
+            Flexible(
+              child: Text(
+                name,
+                overflow: TextOverflow.ellipsis,
+                softWrap: false,
+                style: TextStyle(
+                  color: t.accent,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            // A plain tap target rather than an IconButton: the button's
+            // 40px minimum would crowd the name out of the chip.
+            InkWell(
+              key: const ValueKey('search:clearPath'),
+              onTap: onClear,
+              borderRadius: BorderRadius.circular(4),
+              child: Padding(
+                padding: const EdgeInsets.all(5),
+                child: Icon(Icons.close, size: 12, color: t.accent),
+              ),
+            ),
+          ],
         ),
       ),
     );

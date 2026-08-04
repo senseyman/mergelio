@@ -154,8 +154,9 @@ void main() {
     final c = await open(
       tester,
       extra: [
-        editableFileProvider.overrideWith(
-          (ref, target) async => const EditableFile(text: 'keep\nold line\n'),
+        editableFileForPathProvider.overrideWith(
+          (ref, FileRef _) async =>
+              const EditableFile(text: 'keep\nold line\n'),
         ),
       ],
     );

@@ -79,7 +79,16 @@ final toastProvider = StateNotifierProvider<ToastController, List<Toast>>(
 class BusyState {
   final String label;
   final double? progress; // 0..1, null = indeterminate
-  const BusyState(this.label, [this.progress]);
+
+  /// Whether the running operation rewrites files in the working tree. A save
+  /// from an editor has to wait for one that does; it has no reason to wait
+  /// for a fetch, which only moves objects and refs.
+  final bool touchesWorkingTree;
+  const BusyState(this.label, [this.progress]) : touchesWorkingTree = true;
+
+  /// An operation that talks to a remote and leaves the working tree alone.
+  const BusyState.network(this.label, [this.progress])
+    : touchesWorkingTree = false;
 }
 
 final busyProvider = StateProvider<BusyState?>((ref) => null);

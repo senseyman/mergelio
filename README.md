@@ -11,7 +11,7 @@
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey.svg)](#installation)
 [![Flutter](https://img.shields.io/badge/Flutter-3.44%2B-02569B.svg?logo=flutter)](https://flutter.dev)
 [![Dart SDK](https://img.shields.io/badge/Dart%20SDK-%5E3.12.2-0175C2.svg?logo=dart)](https://dart.dev)
-[![Tests](https://img.shields.io/badge/tests-677%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-927%20passing-brightgreen.svg)](#testing)
 
 </div>
 
@@ -96,6 +96,26 @@ about to do to your repository. Mergelio takes the opposite position:
   gate, and undoable afterwards. Discarding everything reverts tracked files
   only; deleting untracked files is a separate opt-in on the prompt.
 
+### Project files
+
+- **Files mode** — switch a repository tab from the commit graph to a project
+  browser and back; the choice is remembered per tab.
+- A lazy directory tree: a folder is read the first time it is opened, so a
+  repository with a huge `node_modules` costs nothing until you look inside it.
+- Git context on every row — modified and untracked badges, dimmed ignored
+  entries, and a hide-ignored toggle.
+- **Editor tabs** with the same editor the diff sheet uses: syntax colouring,
+  `⌘S` / `Ctrl+S` saving, a line-number gutter, and `⌘F` / `Ctrl+F` find and
+  replace with a match count and a case toggle. Open files are restored on the
+  next launch; unsaved text never is.
+- Unsaved editors are asked about once — when leaving Files mode, closing the
+  repository tab, or quitting.
+- Right-click a row for new file, new folder, rename, delete, stage, unstage,
+  discard, file history, and reveal in the system file manager. Every path is
+  checked against the opened repository before disk is touched.
+- An open file follows what happens on disk: renamed, its tab moves with it;
+  deleted, the tab says so and saving is refused.
+
 ### Branching & remotes
 
 - Branches: create, checkout, rename, delete, set upstream — organised into
@@ -153,7 +173,8 @@ about to do to your repository. Mergelio takes the opposite position:
 | `⌘\` | Toggle the left panel |
 | `⌘,` | Preferences |
 | `⌘Z` / `⇧⌘Z` | Undo / redo |
-| `⌘S` | Save the file open in the diff editor |
+| `⌘S` | Save the file open in the editor |
+| `⌘F` | Find and replace, with an editor focused |
 | `⌘+` / `⌘-` / `⌘0` | Zoom in / out / reset |
 | `Esc` | Dismiss the top notification |
 
@@ -243,7 +264,7 @@ make help
 ## Testing
 
 ```bash
-make test        # 536 unit and widget tests
+make test        # 885 unit and widget tests
 make coverage    # → coverage/lcov.info
 make check       # what CI runs: format check + analyze + test
 ```

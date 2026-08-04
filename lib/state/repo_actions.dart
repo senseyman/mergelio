@@ -71,6 +71,9 @@ class RepoActions {
     Future<void> Function() op, {
     // Background ops (auto-fetch) run silent: no success/failure toast.
     bool silent = false,
+    // Fetch and push move objects and refs only. Ops that also write files —
+    // pull, submodule update — say so, and an editor save then waits for them.
+    bool writesWorkingTree = true,
   }) async {
     final toasts = _ref.read(toastProvider.notifier);
     // One op at a time: a second network op would race the first on the busy
@@ -82,7 +85,9 @@ class RepoActions {
       }
       return;
     }
-    _ref.read(busyProvider.notifier).state = BusyState(label);
+    _ref.read(busyProvider.notifier).state = writesWorkingTree
+        ? BusyState(label)
+        : BusyState.network(label);
     final opId = await _journalBegin(label);
     try {
       await _timed(label, op);
@@ -116,11 +121,18 @@ class RepoActions {
     }
   }
 
-  Future<void> fetch({String? remote, bool silent = false}) =>
-      _network('Fetch', () => _writer.fetch(remote: remote), silent: silent);
+  Future<void> fetch({String? remote, bool silent = false}) => _network(
+    'Fetch',
+    () => _writer.fetch(remote: remote),
+    silent: silent,
+    writesWorkingTree: false,
+  );
 
-  Future<void> pruneRemote(String remote) =>
-      _network('Prune $remote', () => _writer.pruneRemote(remote));
+  Future<void> pruneRemote(String remote) => _network(
+    'Prune $remote',
+    () => _writer.pruneRemote(remote),
+    writesWorkingTree: false,
+  );
 
   // — Submodules —
 
@@ -204,13 +216,27 @@ class RepoActions {
   Future<void> pull({bool rebase = false}) =>
       _network('Pull', () => _writer.pull(rebase: rebase));
 
-  Future<void> push({bool force = false}) =>
-      _network(force ? 'Force push' : 'Push', () => _writer.push(force: force));
+  Future<void> push({bool force = false}) => _network(
+    force ? 'Force push' : 'Push',
+    () => _writer.push(force: force),
+    writesWorkingTree: false,
+  );
 
   /// True (and toasts) when a network op holds the repo, so an index-touching
   /// mutation must not run concurrently and race on `.git/index.lock`.
   bool get _blockedByNetwork {
     if (_ref.read(busyProvider) == null) return false;
+    _ref
+        .read(toastProvider.notifier)
+        .show('An operation is already running', kind: ToastKind.warning);
+    return true;
+  }
+
+  /// Whether a file write has to wait. Only an operation that rewrites the
+  /// working tree conflicts with one; a fetch or a push can run for minutes,
+  /// and turning a save away for that long would lose the user's typing.
+  bool get _blockedByWorkingTreeOp {
+    if (_ref.read(busyProvider)?.touchesWorkingTree != true) return false;
     _ref
         .read(toastProvider.notifier)
         .show('An operation is already running', kind: ToastKind.warning);
@@ -376,7 +402,7 @@ class RepoActions {
   /// they passed in until this reports true: a save can be refused because
   /// another operation holds the repo, or fail on the filesystem.
   Future<bool> saveFileText(String relPath, String text) async {
-    if (_blockedByNetwork) return false;
+    if (_blockedByWorkingTreeOp) return false;
     // Only plain repo-relative paths are ever offered for editing; anything
     // else could address a file outside the repository.
     if (!isRepoRelativePath(relPath)) return false;
@@ -401,6 +427,9 @@ class RepoActions {
           }
         },
         redo: write,
+        // Writing one file races with nothing git holds a lock for, and the
+        // op it may be running alongside owns the busy flag.
+        claimsRepo: false,
       );
     } on FileSystemException catch (e) {
       // _undoable only converts GitException into a toast; a failed write
@@ -479,11 +508,16 @@ class RepoActions {
     Future<void> Function() run, {
     required Future<void> Function() undo,
     required Future<void> Function() redo,
+    // Set false by an op that writes a working-tree file and nothing else: it
+    // needs no lock of its own and must not take the one a running op holds.
+    bool claimsRepo = true,
   }) async {
-    if (_blockedByNetwork) return;
-    // Hold the shared busy flag so a second ref op (or network op) cannot run
-    // concurrently and race on .git/index.lock.
-    _ref.read(busyProvider.notifier).state = BusyState(label);
+    if (claimsRepo) {
+      if (_blockedByNetwork) return;
+      // Hold the shared busy flag so a second ref op (or network op) cannot
+      // run concurrently and race on .git/index.lock.
+      _ref.read(busyProvider.notifier).state = BusyState(label);
+    }
     final opId = await _journalBegin(label);
     try {
       await _timed(label, run);
@@ -511,7 +545,9 @@ class RepoActions {
       _refresh();
       _toastErr(label, e);
     } finally {
-      _ref.read(busyProvider.notifier).state = null;
+      // Clearing a flag this op never set would let the op that does own it
+      // disappear from the progress bar mid-run.
+      if (claimsRepo) _ref.read(busyProvider.notifier).state = null;
     }
   }
 
