@@ -36,6 +36,8 @@ class AppSettings with _$AppSettings {
     @Default('merge') String pullStrategy,
     // 'medium' (Jul 2, 2026) | 'iso' (2026-07-02) | 'short' (07/02/26).
     @Default('medium') String dateFormat,
+    // '24h' (14:33) | '12h' (2:33 PM) — used wherever a clock is shown.
+    @Default('24h') String clockFormat,
     // Per-index branch-palette colour overrides (ARGB); missing = default.
     @Default({}) Map<String, int> branchColorOverrides,
     // Saved themes by name → JSON blob.

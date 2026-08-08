@@ -40,6 +40,10 @@ class Commit with _$Commit {
     required String author,
     required String authorEmail,
     required DateTime date,
+    // UTC offset the author's machine was on when the commit was made. [date]
+    // is the bare instant; this is what turns it back into the wall clock the
+    // author saw. Null when the offset is unknown.
+    Duration? dateOffset,
     @Default([]) List<String> parents,
     @Default([]) List<GitRef> refs,
     @Default(false) bool coauthor,

@@ -112,6 +112,7 @@ class GitReader {
           author: f[2],
           authorEmail: f[3],
           date: DateTime.parse(f[4]),
+          dateOffset: _isoOffset(f[4]),
           refs: _parseRefs(f[5]),
           message: f[6],
           body: f[7].trimRight(),
@@ -470,6 +471,7 @@ class GitReader {
           author: f[2],
           authorEmail: f[3],
           date: DateTime.parse(f[4]),
+          dateOffset: _isoOffset(f[4]),
           message: f[6],
           avatarValue: _avatarFor(f[3]),
         ),
@@ -662,5 +664,16 @@ class GitReader {
       h = (h * 31 + c) & 0x7fffffff;
     }
     return _avatarPalette[h % _avatarPalette.length];
+  }
+
+  /// The trailing UTC offset of an ISO-8601 stamp (`%aI` always writes one,
+  /// down to `+00:00`). `DateTime.parse` folds the offset away into a UTC
+  /// instant, so it has to be read off the text before it is lost. Null when
+  /// the stamp carries no offset at all.
+  static Duration? _isoOffset(String s) {
+    final m = RegExp(r'([+-])(\d{2}):?(\d{2})$').firstMatch(s);
+    if (m == null) return null;
+    final d = Duration(hours: int.parse(m[2]!), minutes: int.parse(m[3]!));
+    return m[1] == '-' ? -d : d;
   }
 }

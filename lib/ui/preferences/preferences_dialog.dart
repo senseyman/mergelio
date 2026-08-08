@@ -123,6 +123,13 @@ class _GeneralTab extends ConsumerWidget {
             _ => l.dateMedium,
           },
         ),
+        _ChoiceRow(
+          l.prefsClockFormat,
+          const ['24h', '12h'],
+          s.clockFormat,
+          c.setClockFormat,
+          labelFor: (v) => v == '12h' ? l.clock12 : l.clock24,
+        ),
         const Divider(height: 20),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8),

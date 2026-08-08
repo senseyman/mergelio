@@ -33,6 +33,7 @@ class CommitDetails extends ConsumerWidget {
     final t = context.tokens;
     final c = commit;
     final files = ref.watch(commitFilesProvider((repo: repoPath, sha: c.sha)));
+    final clock = ref.watch(settingsProvider.select((s) => s.clockFormat));
     // 'N' is unsigned and 'E' cannot be checked; neither warrants a row. Null
     // while verification is still running, so the row appears once known.
     final sig = ref
@@ -106,7 +107,15 @@ class CommitDetails extends ConsumerWidget {
                 ],
                 const SizedBox(height: 12),
                 _Meta(label: 'Author', value: '${c.author} <${c.authorEmail}>'),
-                _Meta(label: 'Date', value: formatCommitDate(c.date)),
+                _Meta(
+                  label: 'Date',
+                  value: formatCommitDate(
+                    c.date,
+                    withTime: true,
+                    clock: clock,
+                    offset: c.dateOffset,
+                  ),
+                ),
                 _MetaSha(sha: c.sha),
                 for (final p in c.parents)
                   _Meta(

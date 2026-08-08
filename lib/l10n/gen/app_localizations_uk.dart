@@ -177,6 +177,15 @@ class AppLocalizationsUk extends AppLocalizations {
   String get dateShort => 'короткий';
 
   @override
+  String get prefsClockFormat => 'Годинник';
+
+  @override
+  String get clock24 => '24-годинний';
+
+  @override
+  String get clock12 => '12-годинний';
+
+  @override
   String get themeDark => 'темна';
 
   @override

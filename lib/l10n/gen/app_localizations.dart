@@ -434,6 +434,24 @@ abstract class AppLocalizations {
   /// **'short'**
   String get dateShort;
 
+  /// No description provided for @prefsClockFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'Clock'**
+  String get prefsClockFormat;
+
+  /// No description provided for @clock24.
+  ///
+  /// In en, this message translates to:
+  /// **'24-hour'**
+  String get clock24;
+
+  /// No description provided for @clock12.
+  ///
+  /// In en, this message translates to:
+  /// **'12-hour'**
+  String get clock12;
+
   /// No description provided for @themeDark.
   ///
   /// In en, this message translates to:

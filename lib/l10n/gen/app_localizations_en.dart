@@ -177,6 +177,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dateShort => 'short';
 
   @override
+  String get prefsClockFormat => 'Clock';
+
+  @override
+  String get clock24 => '24-hour';
+
+  @override
+  String get clock12 => '12-hour';
+
+  @override
   String get themeDark => 'dark';
 
   @override

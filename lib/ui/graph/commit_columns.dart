@@ -14,15 +14,42 @@ const _months = [
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ];
 
+String _p2(int n) => n.toString().padLeft(2, '0');
+
+/// `+02:00` / `-05:30` — how a UTC offset is spelled beside a time.
+String _zoneLabel(Duration o) {
+  final a = o.abs();
+  return '${o.isNegative ? '-' : '+'}${_p2(a.inHours)}:${_p2(a.inMinutes % 60)}';
+}
+
 /// Formats [d] per [format]: 'medium' (Jul 2, 2026), 'iso' (2026-07-02) or
-/// 'short' (07/02/26).
-String formatCommitDate(DateTime d, {String format = 'medium'}) {
-  String p2(int n) => n.toString().padLeft(2, '0');
-  return switch (format) {
-    'iso' => '${d.year}-${p2(d.month)}-${p2(d.day)}',
-    'short' => '${p2(d.month)}/${p2(d.day)}/${p2(d.year % 100)}',
-    _ => '${_months[d.month - 1]} ${d.day}, ${d.year}',
+/// 'short' (07/02/26). With [withTime] a clock is appended, as HH:mm or, when
+/// [clock] is '12h', as h:mm AM/PM.
+///
+/// [d] is an instant, not a wall clock. Given an [offset] it is rendered in
+/// that zone and tagged with it — the time the commit was authored, where it
+/// was authored. Without one it falls back to the viewer's local zone. Either
+/// way the date and the clock agree, so a commit made near midnight does not
+/// show one zone's day beside another zone's hour.
+String formatCommitDate(
+  DateTime d, {
+  String format = 'medium',
+  bool withTime = false,
+  String clock = '24h',
+  Duration? offset,
+}) {
+  final l = offset == null ? d.toLocal() : d.toUtc().add(offset);
+  final date = switch (format) {
+    'iso' => '${l.year}-${_p2(l.month)}-${_p2(l.day)}',
+    'short' => '${_p2(l.month)}/${_p2(l.day)}/${_p2(l.year % 100)}',
+    _ => '${_months[l.month - 1]} ${l.day}, ${l.year}',
   };
+  if (!withTime) return date;
+  final time = clock == '12h'
+      ? '${l.hour % 12 == 0 ? 12 : l.hour % 12}:${_p2(l.minute)} '
+            '${l.hour < 12 ? 'AM' : 'PM'}'
+      : '${_p2(l.hour)}:${_p2(l.minute)}';
+  return offset == null ? '$date $time' : '$date $time ${_zoneLabel(offset)}';
 }
 
 /// Branch refs that name a commit: all of its local branches, or — when it has

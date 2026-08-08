@@ -30,6 +30,7 @@ class SettingsController extends StateNotifier<AppSettings> {
   void setRestoreTabs(bool v) => _update(state.copyWith(restoreTabs: v));
   void setPullStrategy(String s) => _update(state.copyWith(pullStrategy: s));
   void setDateFormat(String s) => _update(state.copyWith(dateFormat: s));
+  void setClockFormat(String s) => _update(state.copyWith(clockFormat: s));
 
   /// UI language: '' (system), 'en' or 'uk'.
   void setLocaleCode(String code) => _update(state.copyWith(localeCode: code));

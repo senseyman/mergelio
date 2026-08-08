@@ -11,7 +11,7 @@
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey.svg)](#installation)
 [![Flutter](https://img.shields.io/badge/Flutter-3.44%2B-02569B.svg?logo=flutter)](https://flutter.dev)
 [![Dart SDK](https://img.shields.io/badge/Dart%20SDK-%5E3.12.2-0175C2.svg?logo=dart)](https://dart.dev)
-[![Tests](https://img.shields.io/badge/tests-927%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-941%20passing-brightgreen.svg)](#testing)
 
 </div>
 

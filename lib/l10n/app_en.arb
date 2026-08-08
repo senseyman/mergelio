@@ -61,6 +61,9 @@
   "dateMedium": "medium",
   "dateIso": "ISO",
   "dateShort": "short",
+  "prefsClockFormat": "Clock",
+  "clock24": "24-hour",
+  "clock12": "12-hour",
 
   "themeDark": "dark",
   "themeLight": "light",

@@ -60,6 +60,38 @@ void main() {
 
   GitReader reader() => GitReader(svc, dir.path);
 
+  test("keeps the author's UTC offset alongside the instant", () async {
+    await g([
+      'commit',
+      '--allow-empty',
+      '-q',
+      '-m',
+      'Zoned',
+      '--date=2026-07-02T14:33:00+05:30',
+    ]);
+    final head = (await reader().commits()).first;
+    expect(head.message, 'Zoned');
+    expect(head.dateOffset, const Duration(hours: 5, minutes: 30));
+    // The instant itself is unchanged: 14:33 at +05:30 is 09:03 UTC.
+    expect(head.date.toUtc(), DateTime.utc(2026, 7, 2, 9, 3));
+  });
+
+  test(
+    'a commit authored west of Greenwich carries a negative offset',
+    () async {
+      await g([
+        'commit',
+        '--allow-empty',
+        '-q',
+        '-m',
+        'Western',
+        '--date=2026-07-02T09:00:00-08:00',
+      ]);
+      final head = (await reader().commits()).first;
+      expect(head.dateOffset, const Duration(hours: -8));
+    },
+  );
+
   test('reads commits with a two-parent merge and ref decoration', () async {
     final commits = await reader().commits();
     expect(commits, isNotEmpty);

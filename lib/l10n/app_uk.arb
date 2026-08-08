@@ -61,6 +61,9 @@
   "dateMedium": "середній",
   "dateIso": "ISO",
   "dateShort": "короткий",
+  "prefsClockFormat": "Годинник",
+  "clock24": "24-годинний",
+  "clock12": "12-годинний",
 
   "themeDark": "темна",
   "themeLight": "світла",

@@ -15,7 +15,7 @@ final _commit = Commit(
   message: 'feat: something',
   author: 'Tester',
   authorEmail: 't@example.com',
-  date: DateTime(2026, 7, 2),
+  date: DateTime(2026, 7, 2, 14, 33),
   parents: const ['1111111aaaa'],
 );
 
@@ -69,7 +69,7 @@ void main() {
 
     expect(find.text('feat: something'), findsOneWidget);
     expect(find.text('Tester <t@example.com>'), findsOneWidget);
-    expect(find.text('Jul 2, 2026'), findsOneWidget);
+    expect(find.text('Jul 2, 2026 14:33'), findsOneWidget);
     expect(find.text('abcdef1'), findsOneWidget);
     expect(find.text('1111111'), findsOneWidget);
     expect(find.text('Verified signature'), findsOneWidget);
