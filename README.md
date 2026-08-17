@@ -11,7 +11,7 @@
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey.svg)](#installation)
 [![Flutter](https://img.shields.io/badge/Flutter-3.44%2B-02569B.svg?logo=flutter)](https://flutter.dev)
 [![Dart SDK](https://img.shields.io/badge/Dart%20SDK-%5E3.12.2-0175C2.svg?logo=dart)](https://dart.dev)
-[![Tests](https://img.shields.io/badge/tests-941%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-1062%20passing-brightgreen.svg)](#testing)
 
 </div>
 
@@ -63,6 +63,19 @@ about to do to your repository. Mergelio takes the opposite position:
   SSH keys are generated through the system `ssh-keygen`, so key material stays
   with the OS tooling.
 - Submodules: add, update, sync, deinit and remove.
+
+### Worktrees
+
+- Every linked worktree of the repository is listed in the sidebar — with its
+  branch (or short HEAD when detached), lock state, and prunable status.
+- Create a worktree on a new branch, an existing branch, or a detached head —
+  and open it as its own tab.
+- Move, lock, unlock and remove worktrees; removing one with uncommitted
+  changes asks before forcing, and pruning shows exactly which stale entries
+  would be dropped.
+- Branches already checked out in another worktree are badged in the branch
+  list, and switching to one offers to jump to that worktree instead of failing
+  with git's error.
 
 ### Commit graph & history
 
@@ -264,7 +277,7 @@ make help
 ## Testing
 
 ```bash
-make test        # 885 unit and widget tests
+make test        # 1062 unit and widget tests
 make coverage    # → coverage/lcov.info
 make check       # what CI runs: format check + analyze + test
 ```

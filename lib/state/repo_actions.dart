@@ -17,6 +17,8 @@ import 'operation_journal.dart';
 import 'profiles.dart';
 import 'repo_data.dart';
 import 'undo_stack.dart';
+import 'workspace.dart';
+import 'worktrees.dart';
 
 /// Mutating git operations for one repo, each followed by a refresh of
 /// [repoDataProvider] so the graph, counts and file lists update in lockstep.
@@ -611,13 +613,14 @@ class RepoActions {
     }
   }
 
-  Future<void> checkout(String ref) async {
+  Future<void> checkout(String ref, {bool ignoreOtherWorktrees = false}) async {
     final prev = await _headRef();
     await _undoable(
       'Checkout $ref',
-      () => _writer.checkout(ref),
+      () => _writer.checkout(ref, ignoreOtherWorktrees: ignoreOtherWorktrees),
       undo: () => _writer.checkout(prev),
-      redo: () => _writer.checkout(ref),
+      redo: () =>
+          _writer.checkout(ref, ignoreOtherWorktrees: ignoreOtherWorktrees),
     );
   }
 
@@ -644,15 +647,24 @@ class RepoActions {
   /// Switches to the local branch [rb.branch] and hard-resets it to the remote
   /// [rb.name], auto-stashing any uncommitted work first. One undoable action:
   /// undo restores the local branch's prior sha, returns to the prior branch,
-  /// and pops the auto-stash.
-  Future<void> switchResettingToRemote(RemoteBranch rb) async {
+  /// and pops the auto-stash. [ignoreOtherWorktrees] passes
+  /// `--ignore-other-worktrees` on the initial checkout (and on redo), for
+  /// callers that already confirmed overriding a worktree collision; undo
+  /// never needs it since by then this repo already holds the branch.
+  Future<void> switchResettingToRemote(
+    RemoteBranch rb, {
+    bool ignoreOtherWorktrees = false,
+  }) async {
     final prevBranch = await _headRef();
     final prevLocalSha = await _out(['rev-parse', rb.branch]);
     String? stashRef;
     await _undoable(
       'Reset ${rb.branch} to ${rb.name}',
       () async {
-        stashRef = await _switchAndResetToRemote(rb);
+        stashRef = await _switchAndResetToRemote(
+          rb,
+          ignoreOtherWorktrees: ignoreOtherWorktrees,
+        );
       },
       undo: () async {
         await _writer.checkout(rb.branch);
@@ -664,20 +676,29 @@ class RepoActions {
         }
       },
       redo: () async {
-        stashRef = await _switchAndResetToRemote(rb);
+        stashRef = await _switchAndResetToRemote(
+          rb,
+          ignoreOtherWorktrees: ignoreOtherWorktrees,
+        );
       },
     );
   }
 
   /// Stashes dirty work (if any), checks out [rb.branch], resets it hard to the
   /// remote ref. Returns the created stash ref, or null when the tree was clean.
-  Future<String?> _switchAndResetToRemote(RemoteBranch rb) async {
+  Future<String?> _switchAndResetToRemote(
+    RemoteBranch rb, {
+    bool ignoreOtherWorktrees = false,
+  }) async {
     String? ref;
     if ((await _out(['status', '--porcelain'])).isNotEmpty) {
       await _writer.stashPush(message: 'auto-stash before switch');
       ref = 'stash@{0}';
     }
-    await _writer.checkout(rb.branch);
+    await _writer.checkout(
+      rb.branch,
+      ignoreOtherWorktrees: ignoreOtherWorktrees,
+    );
     await _writer.resetHard('${rb.remote}/${rb.branch}');
     return ref;
   }
@@ -1237,6 +1258,133 @@ class RepoActions {
 
   static String _short(String sha) =>
       sha.length > 7 ? sha.substring(0, 7) : sha;
+
+  /// A local (non-network) mutation: time it, toast the outcome, refresh.
+  ///
+  /// Unlike [_network] it writes no journal entry and registers no undo step —
+  /// worktree operations create and delete directories, which no git command
+  /// puts back.
+  Future<bool> _local(String label, Future<void> Function() op) async {
+    try {
+      await _timed(label, op);
+      _ref
+          .read(toastProvider.notifier)
+          .show('$label complete', kind: ToastKind.success);
+      return true;
+    } on GitException catch (e) {
+      _toastErr(label, e);
+      return false;
+    } on Object catch (_) {
+      _ref
+          .read(toastProvider.notifier)
+          .show(
+            '$label failed',
+            description: 'Unexpected error',
+            kind: ToastKind.error,
+          );
+      return false;
+    } finally {
+      _refresh();
+      _invalidateWorktrees();
+    }
+  }
+
+  /// Every open tab shows the same worktree list, so a mutation made from one
+  /// of them invalidates the whole family rather than this repository's entry:
+  /// a sibling tab must not keep serving a cached list that still contains a
+  /// worktree this call just removed. Passing the family itself invalidates
+  /// every instance of it.
+  void _invalidateWorktrees() => _ref.invalidate(worktreesProvider);
+
+  Future<bool> worktreeAdd(
+    String at, {
+    String? newBranch,
+    String? startPoint,
+    String? existingBranch,
+    bool detach = false,
+  }) => _local(
+    'Add worktree',
+    () => _writer.addWorktree(
+      at,
+      newBranch: newBranch,
+      startPoint: startPoint,
+      existingBranch: existingBranch,
+      detach: detach,
+    ),
+  );
+
+  /// Removes the worktree at [at], closing any tab that showed it.
+  ///
+  /// Returns null on success, or git's own message when it refused — the
+  /// caller turns that into the force-escalation prompt, so no toast is shown
+  /// for the refusal.
+  Future<String?> worktreeRemove(String at, {bool force = false}) async {
+    try {
+      await _timed(
+        'Remove worktree',
+        () => _writer.removeWorktree(at, force: force),
+      );
+      _ref.read(workspaceProvider.notifier).closeTabsAt(at);
+      _ref
+          .read(toastProvider.notifier)
+          .show('Remove worktree complete', kind: ToastKind.success);
+      return null;
+    } on GitException catch (e) {
+      final err = e.result?.err ?? '';
+      return err.isNotEmpty ? err : e.message;
+    } on Object catch (_) {
+      return 'Unexpected error';
+    } finally {
+      _refresh();
+      _invalidateWorktrees();
+    }
+  }
+
+  /// Moves the worktree at [from] to [to], taking any tab showing it along —
+  /// the checkout is the same one, only its directory changed, and a tab left
+  /// on the old path would sit on nothing.
+  Future<bool> worktreeMove(String from, String to) async {
+    final ok = await _local(
+      'Move worktree',
+      () => _writer.moveWorktree(from, to),
+    );
+    if (ok) _ref.read(workspaceProvider.notifier).retargetTabs(from, to);
+    return ok;
+  }
+
+  Future<bool> worktreeLock(String at, {String? reason}) =>
+      _local('Lock worktree', () => _writer.lockWorktree(at, reason: reason));
+
+  Future<bool> worktreeUnlock(String at) =>
+      _local('Unlock worktree', () => _writer.unlockWorktree(at));
+
+  /// Returns git's report. A dry run changes nothing and is shown to the user
+  /// before the real prune.
+  Future<String> worktreePrune({bool dryRun = false}) async {
+    try {
+      return await _timed(
+        dryRun ? 'Preview prune' : 'Prune worktrees',
+        () => _writer.pruneWorktrees(dryRun: dryRun),
+      );
+    } on GitException catch (e) {
+      _toastErr('Prune worktrees', e);
+      return '';
+    } on Object catch (_) {
+      _ref
+          .read(toastProvider.notifier)
+          .show(
+            'Prune worktrees failed',
+            description: 'Unexpected error',
+            kind: ToastKind.error,
+          );
+      return '';
+    } finally {
+      if (!dryRun) {
+        _refresh();
+        _invalidateWorktrees();
+      }
+    }
+  }
 }
 
 final repoActionsProvider = Provider.family<RepoActions, String>(

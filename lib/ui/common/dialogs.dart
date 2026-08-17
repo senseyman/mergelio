@@ -81,14 +81,22 @@ Future<T?> showAppModal<T>({
   );
 }
 
-/// Single-line text prompt. Returns the entered value (trimmed, non-empty) or
-/// null on cancel. [initial] pre-fills and selects the field.
+/// Single-line text prompt. Returns the entered value (trimmed) or null on
+/// cancel. [initial] pre-fills and selects the field.
+///
+/// By default an empty field cannot be confirmed, so a null result always
+/// means "cancelled". Set [allowEmpty] when the value really is optional —
+/// then confirming an empty field returns `''`, which is still distinct from
+/// the null a cancel returns. Callers must keep telling those two apart:
+/// treating null as "no value given" is how a cancelled prompt turns into an
+/// action the user declined.
 Future<String?> showInputDialog(
   BuildContext context, {
   required String title,
   String label = '',
   String initial = '',
   String confirmLabel = 'OK',
+  bool allowEmpty = false,
 }) => showAppModal<String>(
   context: context,
   title: title,
@@ -101,6 +109,7 @@ Future<String?> showInputDialog(
     label: label,
     initial: initial,
     confirmLabel: confirmLabel,
+    allowEmpty: allowEmpty,
   ),
 );
 
@@ -108,10 +117,12 @@ class _InputDialogBody extends StatefulWidget {
   final String label;
   final String initial;
   final String confirmLabel;
+  final bool allowEmpty;
   const _InputDialogBody({
     required this.label,
     required this.initial,
     required this.confirmLabel,
+    required this.allowEmpty,
   });
 
   @override
@@ -133,7 +144,7 @@ class _InputDialogBodyState extends State<_InputDialogBody> {
 
   void _submit() {
     final v = _controller.text.trim();
-    if (v.isNotEmpty) Navigator.of(context).pop(v);
+    if (v.isNotEmpty || widget.allowEmpty) Navigator.of(context).pop(v);
   }
 
   @override

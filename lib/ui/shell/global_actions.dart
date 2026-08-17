@@ -8,6 +8,7 @@ import '../../state/repo_data.dart';
 import '../../state/search.dart';
 import '../../state/workspace.dart';
 import '../palette/command_palette.dart';
+import '../workspace/branch_switch.dart';
 import '../workspace/remote_dialog.dart';
 
 /// App-wide actions shared by the keyboard dispatcher and toolbar buttons, so
@@ -48,7 +49,13 @@ void openGlobalPalette(BuildContext context, WidgetRef ref) {
       PaletteCommand(
         'Checkout: ${b.name}',
         Icons.call_split,
-        () => actions.checkout(b.name),
+        // Routed through activateBranch, not actions.checkout directly, so
+        // this consults the same worktree-collision guard as every other
+        // checkout entry point. Safe to reuse `context` here: the palette
+        // dialog pops itself before running the command (see _Palette._run),
+        // so by the time this runs `context` is the long-lived shell context
+        // this function was called with, not the palette's own route.
+        () => activateBranch(ref, context, path, localBranch: b.name),
       ),
     for (final c in (data?.commits ?? const []).take(200))
       PaletteCommand(

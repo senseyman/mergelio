@@ -5,6 +5,7 @@ import '../../core/tokens.dart';
 import '../../state/settings_controller.dart';
 import '../../state/unsaved_guard.dart';
 import '../../state/workspace.dart';
+import '../../state/worktrees.dart';
 import '../common/confirm.dart';
 import '../common/dialogs.dart';
 import '../welcome/open_repo.dart';
@@ -470,6 +471,13 @@ class _Tab extends ConsumerWidget {
     final dotColor = Color(
       ws.groupById(tab.groupId)?.colorValue ?? t.accent.toARGB32(),
     );
+    // Filesystem-backed: never awaited, so the tab renders immediately and
+    // picks up the glyph once the check resolves.
+    final isLinkedWorktree =
+        ref.watch(isLinkedWorktreeProvider(tab.path)).valueOrNull ?? false;
+    final worktreeParent = ref
+        .watch(worktreeParentProvider(tab.path))
+        .valueOrNull;
 
     final content = Material(
       color: active ? t.bgPanel : Colors.transparent,
@@ -498,6 +506,19 @@ class _Tab extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: 8),
+              if (isLinkedWorktree) ...[
+                Tooltip(
+                  message: worktreeParent == null
+                      ? 'Worktree'
+                      : 'Worktree of $worktreeParent',
+                  child: Icon(
+                    Icons.dashboard_outlined,
+                    size: 12,
+                    color: t.textFaint,
+                  ),
+                ),
+                const SizedBox(width: 4),
+              ],
               Text(
                 tab.name,
                 style: TextStyle(

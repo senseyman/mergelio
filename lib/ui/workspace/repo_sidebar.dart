@@ -4,11 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
 import '../../domain/git/models.dart';
+import '../../domain/path_key.dart';
 import '../../state/graph_selection.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
 import '../../state/settings_controller.dart';
 import '../../state/workspace.dart';
+import '../../state/worktrees.dart';
 import '../common/confirm.dart';
 import '../common/dialogs.dart';
 import '../shell/remote_merge_confirm.dart';
@@ -16,6 +18,8 @@ import 'add_submodule_dialog.dart';
 import 'branch_switch.dart';
 import 'branch_tree.dart';
 import 'remote_dialog.dart';
+import 'sidebar_section.dart';
+import 'worktrees_section.dart';
 
 /// Left panel for the active repo: Branches (folder-grouped) · Remotes · Tags ·
 /// Stashes. Read-only rows; sections collapse and their state persists.
@@ -140,7 +144,7 @@ class _Sections extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.only(bottom: 12),
       children: [
-        _Section(
+        SidebarSection(
           id: 'branches',
           icon: Icons.call_split,
           label: 'Branches',
@@ -158,10 +162,14 @@ class _Sections extends ConsumerWidget {
                   onToggle: () => ctl.toggleSection(row.id),
                 )
               else if (row is BranchLeafRow)
-                _BranchRow(branch: row.branch, depth: row.depth),
+                _BranchRow(
+                  branch: row.branch,
+                  depth: row.depth,
+                  repoPath: path,
+                ),
           ],
         ),
-        _Section(
+        SidebarSection(
           id: 'remotes',
           icon: Icons.cloud_outlined,
           label: 'Remotes',
@@ -223,7 +231,7 @@ class _Sections extends ConsumerWidget {
               ),
           ],
         ),
-        _Section(
+        SidebarSection(
           id: 'tags',
           icon: Icons.sell_outlined,
           label: 'Tags',
@@ -242,7 +250,7 @@ class _Sections extends ConsumerWidget {
               ),
           ],
         ),
-        _Section(
+        SidebarSection(
           id: 'stashes',
           icon: Icons.inventory_2_outlined,
           label: 'Stashes',
@@ -278,7 +286,7 @@ class _Sections extends ConsumerWidget {
               ),
           ],
         ),
-        _Section(
+        SidebarSection(
           id: 'submodules',
           icon: Icons.account_tree_outlined,
           label: 'Submodules',
@@ -321,80 +329,7 @@ class _Sections extends ConsumerWidget {
               ),
           ],
         ),
-      ],
-    );
-  }
-}
-
-class _Section extends StatelessWidget {
-  final String id;
-  final IconData icon;
-  final String label;
-  final int count;
-  final bool open;
-  final String emptyLabel;
-  final VoidCallback onToggle;
-  final List<Widget> children;
-
-  const _Section({
-    required this.id,
-    required this.icon,
-    required this.label,
-    required this.count,
-    required this.emptyLabel,
-    required this.open,
-    required this.onToggle,
-    required this.children,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.tokens;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        InkWell(
-          onTap: onToggle,
-          hoverColor: t.hover,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(10, 10, 12, 4),
-            child: Row(
-              children: [
-                Icon(
-                  open ? Icons.expand_more : Icons.chevron_right,
-                  size: 16,
-                  color: t.textFaint,
-                ),
-                const SizedBox(width: 2),
-                Icon(icon, size: 14, color: t.textMuted),
-                const SizedBox(width: 8),
-                Text(
-                  label.toUpperCase(),
-                  style: TextStyle(
-                    color: t.textFaint,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  '$count',
-                  style: TextStyle(color: t.textFaint, fontSize: 11),
-                ),
-              ],
-            ),
-          ),
-        ),
-        if (open && children.isEmpty)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(34, 2, 12, 4),
-            child: Text(
-              emptyLabel,
-              style: TextStyle(color: t.textFaint, fontSize: 12),
-            ),
-          ),
-        if (open) ...children,
+        if (path != null) WorktreesSection(repoPath: path),
       ],
     );
   }
@@ -477,7 +412,8 @@ Future<void> _confirmResetToRemote(
 class _BranchRow extends ConsumerWidget {
   final Branch branch;
   final int depth;
-  const _BranchRow({required this.branch, required this.depth});
+  final String? repoPath;
+  const _BranchRow({required this.branch, required this.depth, this.repoPath});
 
   Future<void> _menu(BuildContext context, WidgetRef ref, Offset at) async {
     final path = ref.read(workspaceProvider).activeTab?.path;
@@ -506,7 +442,10 @@ class _BranchRow extends ConsumerWidget {
       items: [
         item(
           'Checkout',
-          () => actions.checkout(branch.name),
+          // Routed through activateBranch, not actions.checkout directly, so
+          // this consults the same worktree-collision guard as every other
+          // checkout entry point.
+          () => activateBranch(ref, context, path, localBranch: branch.name),
           enabled: !branch.current,
         ),
         item('Merge into current', () async {
@@ -588,6 +527,14 @@ class _BranchRow extends ConsumerWidget {
     final selected =
         branch.tip.isNotEmpty &&
         ref.watch(selectedCommitProvider) == branch.tip;
+    // A branch git already refuses a second checkout for — surfaced here so
+    // the user sees it before trying, rather than after. The current repo's
+    // own worktree holding its own branch is not a collision.
+    final path = repoPath;
+    final heldBy = path == null
+        ? null
+        : ref.watch(worktreeByBranchProvider(path))[branch.name];
+    final heldElsewhere = heldBy != null && !samePath(heldBy.path, path!);
     final row = GestureDetector(
       // Double-click a branch to go to its state: check it out, or — for the
       // current branch that tracks a remote — reset it to that remote (with a
@@ -610,7 +557,9 @@ class _BranchRow extends ConsumerWidget {
           : () {
               final path = ref.read(workspaceProvider).activeTab?.path;
               if (path != null) {
-                ref.read(repoActionsProvider(path)).checkout(branch.name);
+                // Routed through activateBranch so a double-tap consults the
+                // same worktree-collision guard as the context menu.
+                activateBranch(ref, context, path, localBranch: branch.name);
               }
             },
       onSecondaryTapUp: (d) => _menu(context, ref, d.globalPosition),
@@ -656,6 +605,17 @@ class _BranchRow extends ConsumerWidget {
                       ),
                     ),
                     if (branch.current) const _HeadBadge(),
+                    if (heldElsewhere) ...[
+                      const SizedBox(width: 6),
+                      Tooltip(
+                        message: 'Checked out in ${heldBy.name}',
+                        child: Icon(
+                          Icons.dashboard_outlined,
+                          size: 12,
+                          color: t.textFaint,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -953,7 +913,14 @@ Future<void> _remoteBranchMenu(
     items: [
       PopupMenuItem(
         height: 34,
-        onTap: () => actions.checkoutRemote(rb),
+        // Routed through activateBranch, like the row's own double-click, so
+        // switching to a local branch another worktree holds asks first
+        // instead of failing in git.
+        onTap: () {
+          final path = ref.read(workspaceProvider).activeTab?.path;
+          if (path == null) return;
+          activateBranch(ref, context, path, remote: rb);
+        },
         child: Text(
           rb.hasLocal ? 'Switch to ${rb.branch}' : 'Check out ${rb.name}',
           style: const TextStyle(fontSize: 13),

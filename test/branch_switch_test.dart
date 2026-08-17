@@ -6,9 +6,12 @@ import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/domain/git/models.dart';
+import 'package:mergelio/domain/git/worktree.dart';
 import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
+import 'package:mergelio/state/workspace.dart';
+import 'package:mergelio/state/worktrees.dart';
 import 'package:mergelio/ui/workspace/branch_switch.dart';
 
 class _FakeGit implements GitService {
@@ -37,6 +40,7 @@ ProviderContainer _container(
   _FakeGit git,
   RepoData data, {
   bool confirm = false,
+  Map<String, Worktree> heldBranches = const {},
 }) => ProviderContainer(
   overrides: [
     gitServiceProvider.overrideWithValue(git),
@@ -47,6 +51,7 @@ ProviderContainer _container(
       ),
     ),
     repoDataProvider('/r').overrideWith((ref) async => data),
+    worktreeByBranchProvider('/r').overrideWithValue(heldBranches),
   ],
 );
 
@@ -249,5 +254,216 @@ void main() {
       );
       expect(calls.any((a) => a.contains('--hard')), isTrue);
     });
+  });
+
+  group('activateBranch: collision guard', () {
+    Future<(List<List<String>>, ProviderContainer)> run(
+      WidgetTester tester, {
+      String? local = 'feat/x',
+      RemoteBranch? remote,
+      RepoData data = const RepoData(),
+      bool confirm = false,
+      required Worktree holder,
+      String heldBranch = 'feat/x',
+      List<String> taps = const [],
+    }) async {
+      final git = _FakeGit();
+      final c = _container(
+        git,
+        data,
+        confirm: confirm,
+        heldBranches: {heldBranch: holder},
+      );
+      addTearDown(c.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: c,
+          child: MaterialApp(
+            theme: ThemeData(extensions: [AppTokens.dark()]),
+            home: Consumer(
+              builder: (ctx, ref, _) => TextButton(
+                onPressed: () => activateBranch(
+                  ref,
+                  ctx,
+                  '/r',
+                  localBranch: remote == null ? local : null,
+                  remote: remote,
+                ),
+                child: const Text('go'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('go'));
+      await tester.pumpAndSettle();
+      for (final label in taps) {
+        await tester.tap(find.text(label));
+        await tester.pumpAndSettle();
+      }
+      return (git.calls, c);
+    }
+
+    testWidgets('a branch held elsewhere shows the collision dialog', (
+      tester,
+    ) async {
+      await run(
+        tester,
+        holder: const Worktree(path: '/other', branch: 'feat/x'),
+      );
+      expect(find.text('Checkout anyway'), findsOneWidget);
+    });
+
+    testWidgets('cancel leaves the branch untouched', (tester) async {
+      final (calls, _) = await run(
+        tester,
+        holder: const Worktree(path: '/other', branch: 'feat/x'),
+        taps: const ['Cancel'],
+      );
+      expect(calls.any((a) => a.first == 'checkout'), isFalse);
+    });
+
+    testWidgets('checkout anyway checks out with the override flag', (
+      tester,
+    ) async {
+      final (calls, _) = await run(
+        tester,
+        holder: const Worktree(path: '/other', branch: 'feat/x'),
+        taps: const ['Checkout anyway'],
+      );
+      expect(calls.last, ['checkout', '--ignore-other-worktrees', 'feat/x']);
+    });
+
+    testWidgets('open worktree switches tabs instead of checking out', (
+      tester,
+    ) async {
+      final (calls, c) = await run(
+        tester,
+        holder: const Worktree(path: '/other', branch: 'feat/x'),
+        taps: const ['Open worktree'],
+      );
+      expect(calls.any((a) => a.first == 'checkout'), isFalse);
+      expect(c.read(workspaceProvider).activeTab?.path, '/other');
+    });
+
+    testWidgets('a branch held by this repo is not a collision', (
+      tester,
+    ) async {
+      final (calls, _) = await run(
+        tester,
+        holder: const Worktree(path: '/r', branch: 'feat/x'),
+      );
+      expect(calls.last, ['checkout', 'feat/x']);
+    });
+
+    testWidgets(
+      'a remote target whose equal-tip local is held elsewhere shows the '
+      'collision dialog instead of an immediate checkout',
+      (tester) async {
+        final (calls, _) = await run(
+          tester,
+          data: const RepoData(
+            branches: [Branch(name: 'main', tip: 'x')],
+          ),
+          remote: const RemoteBranch(
+            remote: 'origin',
+            branch: 'main',
+            hasLocal: true,
+            tip: 'x',
+          ),
+          holder: const Worktree(path: '/other', branch: 'main'),
+          heldBranch: 'main',
+        );
+        expect(find.text('Checkout anyway'), findsOneWidget);
+        expect(calls.any((a) => a.first == 'checkout'), isFalse);
+      },
+    );
+
+    testWidgets(
+      'checkout anyway on a remote target with equal-tip local checks out '
+      'with the override flag, no reset',
+      (tester) async {
+        final (calls, _) = await run(
+          tester,
+          data: const RepoData(
+            branches: [Branch(name: 'main', tip: 'x')],
+          ),
+          remote: const RemoteBranch(
+            remote: 'origin',
+            branch: 'main',
+            hasLocal: true,
+            tip: 'x',
+          ),
+          holder: const Worktree(path: '/other', branch: 'main'),
+          heldBranch: 'main',
+          taps: const ['Checkout anyway'],
+        );
+        expect(calls.last, ['checkout', '--ignore-other-worktrees', 'main']);
+        expect(calls.any((a) => a.contains('--hard')), isFalse);
+      },
+    );
+
+    testWidgets(
+      'a diverged remote target whose local is held elsewhere shows the '
+      'collision dialog before the destructive-reset confirmation',
+      (tester) async {
+        final (calls, _) = await run(
+          tester,
+          data: const RepoData(
+            branches: [Branch(name: 'main', tip: 'aaa')],
+          ),
+          remote: const RemoteBranch(
+            remote: 'origin',
+            branch: 'main',
+            hasLocal: true,
+            tip: 'bbb',
+          ),
+          confirm: true,
+          holder: const Worktree(path: '/other', branch: 'main'),
+          heldBranch: 'main',
+        );
+        // The collision dialog shows first; the destructive-reset
+        // confirmation has not appeared yet, and nothing has been reset.
+        expect(find.text('Checkout anyway'), findsOneWidget);
+        expect(find.text('Reset & switch'), findsNothing);
+        expect(calls.any((a) => a.contains('--hard')), isFalse);
+      },
+    );
+
+    testWidgets(
+      'checkout anyway on a diverged, held-elsewhere remote target then '
+      'confirming the reset resets with the override flag',
+      (tester) async {
+        final (calls, _) = await run(
+          tester,
+          data: const RepoData(
+            branches: [Branch(name: 'main', tip: 'aaa')],
+          ),
+          remote: const RemoteBranch(
+            remote: 'origin',
+            branch: 'main',
+            hasLocal: true,
+            tip: 'bbb',
+          ),
+          confirm: true,
+          holder: const Worktree(path: '/other', branch: 'main'),
+          heldBranch: 'main',
+          taps: const ['Checkout anyway', 'Reset & switch'],
+        );
+        expect(
+          calls.any((a) => a.contains('--hard') && a.contains('origin/main')),
+          isTrue,
+        );
+        expect(
+          calls.any(
+            (a) =>
+                a.first == 'checkout' &&
+                a.contains('--ignore-other-worktrees') &&
+                a.contains('main'),
+          ),
+          isTrue,
+        );
+      },
+    );
   });
 }

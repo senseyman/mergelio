@@ -192,8 +192,14 @@ class GitWriter {
   Future<void> createBranch(String name, {String? at}) =>
       _ok(['branch', name, ?at], 'git branch');
 
-  /// Checks out [ref] (a branch or commit).
-  Future<void> checkout(String ref) => _ok(['checkout', ref], 'git checkout');
+  /// Checks out [ref] (a branch or commit). [ignoreOtherWorktrees] overrides
+  /// git's refusal to check out a branch already held by another worktree —
+  /// callers only set it after the user has confirmed the collision, since it
+  /// can leave two worktrees on the same branch with one HEAD going stale.
+  Future<void> checkout(String ref, {bool ignoreOtherWorktrees = false}) => _ok(
+    ['checkout', if (ignoreOtherWorktrees) '--ignore-other-worktrees', ref],
+    'git checkout',
+  );
 
   /// Creates a local branch [branch] tracking `[remote]/[branch]` and switches
   /// to it — the standard "check out a remote branch" flow.
@@ -457,5 +463,80 @@ class GitWriter {
         // Best-effort cleanup.
       }
     }
+  }
+
+  /// Creates a worktree at [path]. Exactly one of [newBranch], [existingBranch]
+  /// or [detach] describes what it checks out; [startPoint] is the commit-ish a
+  /// new branch or a detached head starts from.
+  ///
+  /// Combining two of them is a programming error, not a user error — git
+  /// would reject the argv anyway, but its message ("options '-b' and
+  /// '--detach' cannot be used together") would surface as a failed git
+  /// operation instead of pointing at the caller. Throws [ArgumentError] up
+  /// front so the mistake cannot reach a release build unnoticed.
+  Future<void> addWorktree(
+    String path, {
+    String? newBranch,
+    String? startPoint,
+    String? existingBranch,
+    bool detach = false,
+  }) {
+    final targets = [
+      if (newBranch != null) 'newBranch',
+      if (existingBranch != null) 'existingBranch',
+      if (detach) 'detach',
+    ];
+    if (targets.length > 1) {
+      throw ArgumentError(
+        'git worktree add takes one checkout target, got ${targets.join(' + ')}',
+      );
+    }
+    // An existing branch is itself the commit-ish; otherwise the start point
+    // is, and either may be absent (git then uses HEAD).
+    final commitish = existingBranch ?? startPoint;
+    return _ok([
+      'worktree',
+      'add',
+      if (newBranch != null) ...['-b', newBranch],
+      if (detach) '--detach',
+      path,
+      ?commitish,
+    ], 'git worktree add');
+  }
+
+  /// Removes the worktree at [path] and deletes its directory. Git refuses
+  /// when the tree is dirty unless [force] is set.
+  Future<void> removeWorktree(String path, {bool force = false}) => _ok([
+    'worktree',
+    'remove',
+    if (force) '--force',
+    path,
+  ], 'git worktree remove');
+
+  Future<void> moveWorktree(String from, String to) =>
+      _ok(['worktree', 'move', from, to], 'git worktree move');
+
+  /// Locks a worktree so it is never pruned — for one on a removable drive or
+  /// a network mount that comes and goes.
+  Future<void> lockWorktree(String path, {String? reason}) => _ok([
+    'worktree',
+    'lock',
+    if (reason != null && reason.isNotEmpty) ...['--reason', reason],
+    path,
+  ], 'git worktree lock');
+
+  Future<void> unlockWorktree(String path) =>
+      _ok(['worktree', 'unlock', path], 'git worktree unlock');
+
+  /// Drops administrative entries whose directories are gone. Returns git's
+  /// own verbose report, which the UI shows verbatim — parsing it would only
+  /// add a way to be wrong.
+  ///
+  /// `-v` writes its report to stderr, not stdout, even on success — so this
+  /// reads [GitResult.stderr] rather than the more usual stdout.
+  Future<String> pruneWorktrees({bool dryRun = false}) async {
+    final r = await _run(['worktree', 'prune', '-v', if (dryRun) '--dry-run']);
+    if (!r.ok) throw GitException('git worktree prune', r);
+    return r.stderr;
   }
 }

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import '../data/kv_store.dart';
+import '../domain/path_key.dart';
 
 part 'workspace.freezed.dart';
 
@@ -280,7 +281,10 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
   /// group. Returns the tab.
   RepoTab openRepo(String path, {String? name}) {
     for (final t in state.tabs) {
-      if (t.path == path) {
+      // Normalised, not `==`: git reports resolved absolute paths while a tab
+      // may carry the picker's spelling of the same directory, and the rest of
+      // the app relies on one repository never being open in two tabs.
+      if (samePath(t.path, path)) {
         final g = state.activeGroupId;
         // Opening a repo brings it into the active group (consistent with a
         // brand-new tab joining it). Under "All" (g == null) the tab's own
@@ -344,6 +348,50 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
   void closeTab(int id) {
     state = state.copyWith(tabs: state.tabs.where((t) => t.id != id).toList());
     _normalizeActive();
+    _persist();
+  }
+
+  /// Closes every tab pointing at [path] — used when a worktree is removed
+  /// from under one. Path comparison is normalised: the tab's spelling comes
+  /// from a directory picker, the removed path from git.
+  void closeTabsAt(String path) {
+    final key = repoPathKey(path);
+    final doomed = [
+      for (final t in state.tabs)
+        if (repoPathKey(t.path) == key) t.id,
+    ];
+    for (final id in doomed) {
+      closeTab(id);
+    }
+  }
+
+  /// Points every tab at [from] to [to] — a moved worktree is the same
+  /// checkout at a new location, so its tab follows it rather than being left
+  /// on a directory that no longer exists. Editor paths move with it, since
+  /// they are absolute and all sit under the old root.
+  void retargetTabs(String from, String to) {
+    final key = repoPathKey(from);
+    final leaf = to.split(RegExp(r'[/\\]')).where((s) => s.isNotEmpty).last;
+    var changed = false;
+    final tabs = [
+      for (final t in state.tabs)
+        if (repoPathKey(t.path) == key)
+          () {
+            changed = true;
+            String move(String p) =>
+                p.startsWith(t.path) ? '$to${p.substring(t.path.length)}' : p;
+            return t.copyWith(
+              path: to,
+              name: leaf,
+              openFiles: [for (final f in t.openFiles) move(f)],
+              activeFile: t.activeFile == null ? null : move(t.activeFile!),
+            );
+          }()
+        else
+          t,
+    ];
+    if (!changed) return;
+    state = state.copyWith(tabs: tabs);
     _persist();
   }
 

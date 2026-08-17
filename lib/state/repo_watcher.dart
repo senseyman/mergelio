@@ -11,6 +11,7 @@ import 'open_files.dart';
 import 'project_files.dart';
 import 'repo_data.dart';
 import 'workspace.dart';
+import 'worktrees.dart';
 
 /// Watches the active repository's directory and refreshes its data when
 /// anything changes on disk — commits, checkouts, staging or file edits made
@@ -25,6 +26,7 @@ import 'workspace.dart';
 class RepoWatcher {
   final Ref _ref;
   StreamSubscription<FileSystemEvent>? _sub;
+  StreamSubscription<FileSystemEvent>? _gitDirSub;
   RefreshCoalescer? _coalescer;
   String? _path;
   String? _trigger;
@@ -50,20 +52,46 @@ class RepoWatcher {
     final dir = Directory(path);
     if (!dir.existsSync()) return;
     try {
-      _sub = dir.watch(recursive: true).listen(
-        (e) {
-          if (isNoise(e.path)) return;
-          _followOpenEditors(path, e);
-          _schedule(path, e.path);
-        },
-        // Watch limits / transient FS errors must not crash the app.
-        onError: (Object e) =>
-            appLog.warn('repo watch error: $e', scope: 'watch'),
-      );
+      _sub = dir
+          .watch(recursive: true)
+          .listen(
+            (e) => _handleEvent(path, e),
+            // Watch limits / transient FS errors must not crash the app.
+            onError: (Object e) =>
+                appLog.warn('repo watch error: $e', scope: 'watch'),
+          );
     } on Object catch (e) {
       // No recursive watch on this platform / resource limit hit.
       appLog.warn('repo watch unavailable: $e', scope: 'watch');
     }
+
+    // A linked worktree's refs live in the main repository, outside the tree
+    // watched above; without this a CLI branch switch never reaches the UI.
+    final gitDir = resolveGitDir(path);
+    if (gitDir != null && !gitDir.startsWith('$path/')) {
+      try {
+        _gitDirSub = Directory(gitDir)
+            .watch(recursive: true)
+            .listen(
+              (e) => _handleEvent(path, e),
+              // Tagged apart from the working-tree watch above: this one alone
+              // can fail (a gitdir on a network mount, a platform that refuses
+              // a second recursive watch) while the primary watch is healthy,
+              // and the symptom — a linked worktree that misses CLI branch
+              // switches but sees file edits — is otherwise hard to place.
+              onError: (Object e) =>
+                  appLog.warn('gitdir watch error: $e', scope: 'watch'),
+            );
+      } on Object catch (e) {
+        appLog.warn('gitdir watch unavailable: $e', scope: 'watch');
+      }
+    }
+  }
+
+  void _handleEvent(String path, FileSystemEvent e) {
+    if (isNoise(e.path)) return;
+    _followOpenEditors(path, e);
+    _schedule(path, e.path);
   }
 
   // High-churn paths that never affect what the UI shows — a refresh here would
@@ -93,6 +121,10 @@ class RepoWatcher {
       // loop is diagnosed from these lines.
       appLog.info('refresh of $path triggered by $_trigger', scope: 'watch');
       _ref.invalidate(repoDataProvider(path));
+      // The family, not this path's entry: a worktree added or removed from a
+      // terminal changes the list every open tab shows, and a sibling tab that
+      // kept its cached copy would go on showing an entry that is gone.
+      _ref.invalidate(worktreesProvider);
       _refreshDirtyDirs(path);
     },
   );
@@ -144,6 +176,8 @@ class RepoWatcher {
   void _cancel() {
     _sub?.cancel();
     _sub = null;
+    _gitDirSub?.cancel();
+    _gitDirSub = null;
     _coalescer?.cancel();
     _coalescer = null;
     // Directories belong to the repository being left behind.
@@ -153,7 +187,10 @@ class RepoWatcher {
   /// Force an immediate refresh of the active repo (e.g. on window focus).
   void refreshNow() {
     final path = _path;
-    if (path != null) _ref.invalidate(repoDataProvider(path));
+    if (path != null) {
+      _ref.invalidate(repoDataProvider(path));
+      _ref.invalidate(worktreesProvider);
+    }
   }
 }
 

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'git_service.dart';
 import 'models.dart';
+import 'worktree.dart';
 
 /// Context-line count that makes git emit every unchanged line of a file, so
 /// the diff covers the whole file as a single hunk. Larger than any realistic
@@ -304,6 +305,18 @@ class GitReader {
       );
     }
     return out;
+  }
+
+  /// Every worktree of this repository, main checkout first. `git worktree
+  /// list` reports the same set whichever worktree it runs in, so this is
+  /// correct from a linked worktree too.
+  ///
+  /// A repository too old to know the subcommand, or one being read mid-clone,
+  /// simply has no worktrees to report — an empty list, not an error.
+  Future<List<Worktree>> worktrees() async {
+    final r = await _run(['worktree', 'list', '--porcelain']);
+    if (!r.ok) return const [];
+    return parseWorktreeList(r.stdout);
   }
 
   /// Working-tree changes via `status --porcelain=v2 -z`. Entries carry both
