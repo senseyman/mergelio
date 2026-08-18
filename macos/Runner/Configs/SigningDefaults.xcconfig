@@ -1,0 +1,12 @@
+// Default code-signing settings for the Runner target.
+//
+// These produce an ad-hoc signed build, which runs fine on the machine that
+// built it. That keeps a fresh clone buildable without an Apple Developer
+// account.
+//
+// To build a distributable, Developer ID signed app, put your values in .env
+// and run scripts/release.sh. It writes Signing.xcconfig next to this file,
+// which is included afterwards and overrides everything here.
+
+MERGELIO_CODE_SIGN_IDENTITY = -
+MERGELIO_TEAM_ID =

@@ -104,13 +104,8 @@ else
 endif
 
 .PHONY: build-macos
-build-macos: ## Release build: macOS (.app)
-ifeq ($(UNAME_S),Darwin)
-	$(FLUTTER) build macos --release
-	@echo "artifact: build/macos/Build/Products/Release/mergelio.app"
-else
-	@echo "error: macOS builds require a macOS host" && exit 1
-endif
+build-macos: ## Release build: macOS (.app + zip in dist/)
+	./scripts/build-macos.sh
 
 .PHONY: build-macos-debug
 build-macos-debug: ## Debug build: macOS
@@ -121,22 +116,12 @@ else
 endif
 
 .PHONY: build-linux
-build-linux: ## Release build: Linux (bundle)
-ifeq ($(UNAME_S),Linux)
-	$(FLUTTER) build linux --release
-	@echo "artifact: build/linux/x64/release/bundle/"
-else
-	@echo "error: Linux builds require a Linux host" && exit 1
-endif
+build-linux: ## Release build: Linux (bundle + tar.gz in dist/)
+	./scripts/build-linux.sh
 
 .PHONY: build-windows
-build-windows: ## Release build: Windows (exe)
-ifeq ($(UNAME_S),Windows)
-	$(FLUTTER) build windows --release
-	@echo "artifact: build/windows/x64/runner/Release/"
-else
-	@echo "error: Windows builds require a Windows host" && exit 1
-endif
+build-windows: ## Release build: Windows (exe + zip in dist/)
+	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-windows.ps1
 
 # ------------------------------------------------------------
 # Aggregate pipelines

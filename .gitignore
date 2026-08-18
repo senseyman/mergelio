@@ -152,6 +152,7 @@ installers/
 secrets.dart
 lib/**/secrets.dart
 signing/
+macos/Runner/Configs/Signing.xcconfig
 
 # ============================================================
 # IDE / editor

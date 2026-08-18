@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #
-# bump-version.sh — increments the app version in pubspec.yaml.
+# bump-version.sh — increment the application version in pubspec.yaml.
 #
-# Version format is SemVer with a build number: MAJOR.MINOR.PATCH+BUILD.
-# The build number always increments; patch/minor reset at the higher level.
+# The version is SemVer with a build number: MAJOR.MINOR.PATCH+BUILD.
+# The build number always grows; patch/minor reset when a higher level moves.
 #
-# Usage (normally via the bump-patch/minor/major.sh wrappers):
+# Usage (normally through the bump-patch/minor/major.sh wrappers):
 #   ./scripts/bump-version.sh <patch|minor|major>
 #
 set -euo pipefail
@@ -28,7 +28,7 @@ line="$(grep -E '^version:' "$PUBSPEC")" ||
 cur="$(printf '%s' "${line#version:}" | tr -d '[:space:]')" # X.Y.Z+B
 semver="${cur%%+*}"
 build="${cur##*+}"
-[ "$build" = "$cur" ] && build=0 # version without +build
+[ "$build" = "$cur" ] && build=0 # version carries no +build
 
 IFS='.' read -r major minor patch <<<"$semver"
 : "${major:?cannot parse MAJOR}" "${minor:?cannot parse MINOR}" "${patch:?cannot parse PATCH}"
@@ -45,5 +45,5 @@ new="${major}.${minor}.${patch}+${build}"
 tmp="$(mktemp)"
 sed "s/^version:.*/version: ${new}/" "$PUBSPEC" >"$tmp" && mv "$tmp" "$PUBSPEC"
 
-printf '✓ version: %s -> %s\n' "$cur" "$new"
+printf '✓ version: %s → %s\n' "$cur" "$new"
 printf '  next: build the artifacts, then `git tag v%s`\n' "${major}.${minor}.${patch}"

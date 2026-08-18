@@ -9,8 +9,8 @@
 
 [![License: BSD-3-Clause](https://img.shields.io/badge/license-BSD--3--Clause-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey.svg)](#installation)
-[![Flutter](https://img.shields.io/badge/Flutter-3.44%2B-02569B.svg?logo=flutter)](https://flutter.dev)
-[![Dart SDK](https://img.shields.io/badge/Dart%20SDK-%5E3.12.2-0175C2.svg?logo=dart)](https://dart.dev)
+[![Flutter](https://img.shields.io/badge/Flutter-3.44.6-02569B.svg?logo=flutter)](https://flutter.dev)
+[![Dart SDK](https://img.shields.io/badge/Dart%20SDK-3.12.x-0175C2.svg?logo=dart)](https://dart.dev)
 [![Tests](https://img.shields.io/badge/tests-1062%20passing-brightgreen.svg)](#testing)
 
 </div>
@@ -210,13 +210,47 @@ On Windows, repositories inside a WSL2 distribution are supported.
 
 ### Prerequisites
 
-- **Flutter** 3.44 or newer on the `stable` channel (Dart SDK `^3.12.2`)
+- **Flutter 3.44.6** on the `stable` channel (Dart SDK 3.12.2) — see
+  [Toolchain version](#toolchain-version) below; this one is pinned, not a floor
 - **Desktop toolchain** for your host: Xcode (macOS), Visual Studio with the
   *Desktop development with C++* workload (Windows), or
   `clang cmake ninja-build pkg-config libgtk-3-dev` (Linux)
 - **Git** on your `PATH`
 
 Check your setup with `make doctor`.
+
+### Toolchain version
+
+The Flutter release is pinned in [`.fvmrc`](.fvmrc) and `pubspec.yaml` declares
+`sdk: '>=3.12.2 <3.13.0'`. Both bounds are intentional.
+
+`pubspec.lock` holds `analyzer` 7.7.1, and `freezed` 2.x caps it there. That
+analyzer understands language version 3.9, so a Dart 3.13+ SDK hands it syntax
+it cannot serialise and code generation dies with an unhelpful stack trace:
+
+```
+Exception: Missing implementation of visitDotShorthandPropertyAccess
+```
+
+The SDK bound in `pubspec.yaml` turns that into a clear `pub get` error instead.
+Lifting it means migrating the codegen chain to `freezed` 3.x / `source_gen` 4.x
+first.
+
+With [fvm](https://fvm.app) the pin is picked up automatically:
+
+```bash
+fvm install    # reads .fvmrc
+fvm use
+fvm flutter --version
+```
+
+Without fvm, match it by hand:
+
+```bash
+flutter --version          # expect 3.44.6 / Dart 3.12.2
+```
+
+The build scripts print a warning when the running Flutter differs from the pin.
 
 ### Build and run
 
@@ -238,12 +272,57 @@ make build
 Or target one explicitly: `make build-macos`, `make build-windows`,
 `make build-linux`.
 
+Each of those targets just calls a script, which you can run directly instead —
+the better route on Windows, where `make` is usually absent:
+
+```bash
+./scripts/build-macos.sh       # .app + zip in dist/
+./scripts/build-linux.sh       # bundle + tar.gz in dist/
+.\scripts\build-windows.ps1    # exe + zip in dist/
+```
+
+Each script fetches dependencies, runs code generation, builds, and archives the
+result under a versioned name. They read `APP_NAME` and `DIST_DIR` from `.env`,
+and take an explicit version as the first argument. Switches:
+
+| Switch | Effect |
+| --- | --- |
+| `CLEAN=1` | `flutter clean` before building |
+| `SKIP_GEN=1` | skip code generation, when the generated files are already there |
+| `SKIP_PACKAGE=1` | build only, produce no archive |
+
+In PowerShell, set them as `$env:CLEAN = 1` before the call.
+
+None of this needs a signing certificate. Builds are unsigned on Windows and
+Linux, and ad-hoc signed on macOS — enough to run on the machine that built
+them.
+
 > **macOS note** — the debug build fails with `window_manager` under Swift
 > Package Manager. Run this once before `make build-macos-debug`:
 >
 > ```bash
 > flutter config --no-enable-swift-package-manager
 > ```
+
+### Optional: macOS code signing
+
+`make build-macos` produces an ad-hoc signed app that runs on the machine that
+built it. Nothing further is needed to build and use Mergelio locally, on any
+platform — no Apple Developer account, no certificates.
+
+To produce a build other machines will accept, copy the template, fill in your
+own Apple Developer values, and run the release pipeline:
+
+```bash
+cp .env.example .env
+./scripts/release.sh
+```
+
+`.env` is gitignored and stores names only: the certificate's private key and
+the notarization password stay in the macOS keychain. See
+[RELEASING.md](RELEASING.md) for the full list of variables.
+
+Windows and Linux builds need no signing configuration.
 
 Generated sources (`*.g.dart`, `*.freezed.dart`) are **not** committed — run
 `make gen` after cloning and whenever you touch a model. `make gen-watch`
@@ -313,8 +392,7 @@ Issues and pull requests are welcome.
 3. Write a failing test first, then the implementation.
 4. `make check` must be clean — formatting, `flutter analyze` and the full test
    suite.
-5. Add a `CHANGELOG.md` entry under `## [Unreleased]` for user-visible changes.
-6. Open a PR describing the behaviour change and how you verified it.
+5. Open a PR describing the behaviour change and how you verified it.
 
 Conventions worth knowing before your first PR:
 

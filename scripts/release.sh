@@ -2,93 +2,183 @@
 #
 # release.sh — build, sign, package and notarize the macOS app.
 #
-# Usage:
-#   ./scripts/release.sh              # version taken from pubspec.yaml
-#   ./scripts/release.sh 1.4.2        # explicit version in the DMG name
-#   SKIP_NOTARIZE=1 ./scripts/release.sh   # build and DMG only, no Apple round-trip
+# Configuration is read from .env in the repository root (see .env.example).
+# Variables already set in the environment take precedence over .env.
 #
+# Usage:
+#   ./scripts/release.sh                  # version taken from pubspec.yaml
+#   ./scripts/release.sh 1.4.2            # explicit version in the DMG name
+#   CLEAN=1 ./scripts/release.sh          # flutter clean before building
+#   SKIP_NOTARIZE=1 ./scripts/release.sh  # stop right after signing the .app
+#
+# Without MACOS_SIGN_IDENTITY the script builds an ad-hoc signed .app for local
+# use and stops there — no Apple certificate required.
+
 set -euo pipefail
 
-# ─── Settings ────────────────────────────────────────────────────────────
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-APP_NAME="Mergelio"
-SIGN_IDENTITY="Developer ID Application: Jane Doe (ABCDE12345)"
-NOTARY_PROFILE="mergelio-notary"
-ENTITLEMENTS="macos/Runner/Release.entitlements"
-DIST_DIR="dist"
-
-# ─── Helpers ────────────────────────────────────────────────────────────────
+# ─── Helpers ─────────────────────────────────────────────────────────────────
 
 BOLD=$'\033[1m'; RED=$'\033[31m'; GREEN=$'\033[32m'; YELLOW=$'\033[33m'; OFF=$'\033[0m'
 
 step() { printf '\n%s▶ %s%s\n' "$BOLD" "$1" "$OFF"; }
 ok()   { printf '%s  ✓ %s%s\n' "$GREEN" "$1" "$OFF"; }
 warn() { printf '%s  ! %s%s\n' "$YELLOW" "$1" "$OFF"; }
-die()  { printf '\n%s✗ %s%s\n\n' "$RED" "$1" "$OFF" >&2; exit 1; }
+die()  { printf '\n%s✗ %b%s\n\n' "$RED" "$1" "$OFF" >&2; exit 1; }
 
-APP_PATH="build/macos/Build/Products/Release/${APP_NAME}.app"
+# ─── Configuration ───────────────────────────────────────────────────────────
 
-# ─── 0. Preflight checks ──────────────────────────────────────────────
+# Reads KEY=VALUE pairs from .env without executing anything. Values already
+# present in the environment are left alone, which allows one-off overrides
+# from the command line.
+load_env() {
+  local file=$1 line key value
+  [[ -f $file ]] || return 0
+  while IFS= read -r line || [[ -n $line ]]; do
+    line=${line%$'\r'}
+    [[ $line =~ ^[[:space:]]*(#|$) ]] && continue
+    [[ $line =~ ^[[:space:]]*(export[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]] || continue
+    key=${BASH_REMATCH[2]}
+    value=${BASH_REMATCH[3]}
+    if [[ $value =~ ^\"(.*)\"$ || $value =~ ^\'(.*)\'$ ]]; then
+      value=${BASH_REMATCH[1]}
+    fi
+    [[ -n ${!key:-} ]] && continue
+    export "$key=$value"
+  done < "$file"
+}
 
-step "Environment check"
+load_env .env
 
-[[ -d "macos" && -f "pubspec.yaml" ]] || die "Run this from the Flutter project root."
+APP_NAME=${APP_NAME:-Mergelio}
+DIST_DIR=${DIST_DIR:-dist}
+ENTITLEMENTS=${MACOS_ENTITLEMENTS:-macos/Runner/Release.entitlements}
+SIGN_IDENTITY=${MACOS_SIGN_IDENTITY:-}
+TEAM_ID=${MACOS_TEAM_ID:-}
+NOTARY_PROFILE=${MACOS_NOTARY_PROFILE:-}
+SIGNING_XCCONFIG=macos/Runner/Configs/Signing.xcconfig
 
-for tool in flutter codesign xcrun; do
-  command -v "$tool" >/dev/null 2>&1 || die "Not found: '$tool' in PATH."
-done
-
-if [[ -z "${SKIP_NOTARIZE:-}" ]]; then
-  command -v create-dmg >/dev/null 2>&1 \
-    || die "create-dmg not found. Install it: brew install create-dmg"
+# The Team ID is usually already part of the certificate name: "... (ABCDE12345)".
+if [[ -z $TEAM_ID && $SIGN_IDENTITY =~ \(([A-Z0-9]{10})\)[[:space:]]*$ ]]; then
+  TEAM_ID=${BASH_REMATCH[1]}
 fi
 
-[[ -f "$ENTITLEMENTS" ]] || die "Missing entitlements file: $ENTITLEMENTS"
+SIGNED=0
+[[ -n $SIGN_IDENTITY ]] && SIGNED=1
 
-if grep -q "get-task-allow" "$ENTITLEMENTS"; then
-  die "$ENTITLEMENTS contains get-task-allow - notarization would be rejected."
+NOTARIZE=0
+if (( SIGNED )) && [[ -z ${SKIP_NOTARIZE:-} && -n $NOTARY_PROFILE ]]; then
+  NOTARIZE=1
 fi
 
-security find-identity -v -p codesigning 2>/dev/null | grep -qF "$SIGN_IDENTITY" \
-  || die "Certificate not found in Keychain:\n  $SIGN_IDENTITY"
+# ─── 0. Preflight checks ─────────────────────────────────────────────────────
 
-if [[ -z "${SKIP_NOTARIZE:-}" ]]; then
-  xcrun notarytool history --keychain-profile "$NOTARY_PROFILE" >/dev/null 2>&1 \
-    || die "Notary profile '$NOTARY_PROFILE' is not available.\n  Create it: xcrun notarytool store-credentials"
-fi
+step "Checking environment"
 
-ok "Everything in place"
+[[ -f pubspec.yaml && -d macos ]] || die "Run this from the repository root."
+command -v flutter >/dev/null 2>&1 || die "flutter not found in PATH."
+ok "Repository root and flutter are in place"
 
-# ─── Version ──────────────────────────────────────────────────────────────────
+if (( SIGNED )); then
+  [[ -f $ENTITLEMENTS ]] || die "Entitlements file missing: $ENTITLEMENTS"
 
-if [[ $# -ge 1 ]]; then
-  VERSION="$1"
+  if grep -q "get-task-allow" "$ENTITLEMENTS"; then
+    die "$ENTITLEMENTS contains get-task-allow — remove it before releasing."
+  fi
+
+  security find-identity -v -p codesigning 2>/dev/null | grep -qF "$SIGN_IDENTITY" \
+    || die "Certificate not found in the keychain:\n  $SIGN_IDENTITY"
+
+  [[ -n $TEAM_ID ]] \
+    || die "Set MACOS_TEAM_ID in .env — it could not be derived from the certificate name."
+
+  ok "Certificate: $SIGN_IDENTITY"
+  ok "Team ID: $TEAM_ID"
+
+  if [[ -z ${SKIP_NOTARIZE:-} ]]; then
+    command -v create-dmg >/dev/null 2>&1 \
+      || die "'create-dmg' missing. Install it with: brew install create-dmg"
+  fi
 else
-  VERSION="$(grep -m1 '^version:' pubspec.yaml | sed 's/^version: *//; s/+.*//' | tr -d '[:space:]')"
+  warn "MACOS_SIGN_IDENTITY is empty — the build will be ad-hoc signed."
+  warn "That is fine for local use. For distribution, fill in .env"
+  warn "using .env.example as the template."
 fi
-[[ -n "$VERSION" ]] || die "Could not determine the version."
+
+if (( NOTARIZE )); then
+  xcrun notarytool history --keychain-profile "$NOTARY_PROFILE" >/dev/null 2>&1 \
+    || die "Notary profile '$NOTARY_PROFILE' is not available.\n  Create it with: xcrun notarytool store-credentials"
+  ok "Notary profile: $NOTARY_PROFILE"
+elif (( SIGNED )) && [[ -z ${SKIP_NOTARIZE:-} ]]; then
+  warn "MACOS_NOTARY_PROFILE is empty — the DMG will be signed but not notarized."
+fi
+
+# ─── 1. Version ──────────────────────────────────────────────────────────────
+
+if (( $# >= 1 )); then
+  VERSION=$1
+else
+  VERSION=$(grep -m1 '^version:' pubspec.yaml | sed -E 's/^version:[[:space:]]*//; s/\+.*$//')
+fi
+
+[[ -n $VERSION ]] || die "Could not determine the version."
 
 DMG_PATH="${DIST_DIR}/${APP_NAME}-${VERSION}.dmg"
 ok "Version: $VERSION"
 
-# ─── 1. Build ───────────────────────────────────────────────────────────────
+# ─── 2. Signing configuration for Xcode ──────────────────────────────────────
+# AppInfo.xcconfig includes this file optionally, so its absence in a fresh
+# clone breaks nothing — the ad-hoc values from SigningDefaults.xcconfig apply.
 
-step "Build (flutter build macos --release)"
+step "Writing signing configuration for Xcode"
 
-if [[ -n "${CLEAN:-}" ]]; then
+mkdir -p "$(dirname "$SIGNING_XCCONFIG")"
+{
+  printf '// Generated by scripts/release.sh from .env. Do not commit.\n'
+  if (( SIGNED )); then
+    printf 'MERGELIO_CODE_SIGN_IDENTITY = Developer ID Application\n'
+    printf 'MERGELIO_TEAM_ID = %s\n' "$TEAM_ID"
+  else
+    printf 'MERGELIO_CODE_SIGN_IDENTITY = -\n'
+    printf 'MERGELIO_TEAM_ID =\n'
+  fi
+} > "$SIGNING_XCCONFIG"
+
+ok "Wrote $SIGNING_XCCONFIG"
+
+# ─── 3. Build ────────────────────────────────────────────────────────────────
+
+step "Building (flutter build macos --release)"
+
+if [[ -n ${CLEAN:-} ]]; then
   flutter clean >/dev/null
   ok "flutter clean done"
 fi
 
 flutter build macos --release
 
-[[ -d "$APP_PATH" ]] || die "App did not build: $APP_PATH"
+PRODUCTS_DIR="build/macos/Build/Products/Release"
+
+# Take the name off disk rather than assuming "$APP_NAME.app": PRODUCT_NAME is
+# lowercase, and on a case-insensitive volume a guessed name would silently
+# match while a case-sensitive one would not.
+APP_PATH=$(find "$PRODUCTS_DIR" -maxdepth 1 -name '*.app' -print -quit 2>/dev/null || true)
+
+[[ -n $APP_PATH && -d $APP_PATH ]] || die "No app was produced in $PRODUCTS_DIR"
 ok "Built: $APP_PATH"
 
-# ─── 2. Re-sign ───────────────────────────────────────────────────────────
-# Xcode injects com.apple.security.get-task-allow even in Release.
-# Re-sign the outer bundle with clean entitlements.
-# No --deep: the embedded frameworks are already signed correctly, --deep breaks them.
+if (( ! SIGNED )); then
+  printf '\n%s✓ Done: %s%s\n' "$GREEN" "$APP_PATH" "$OFF"
+  printf '  The build is ad-hoc signed — fine to run locally.\n\n'
+  exit 0
+fi
+
+# ─── 4. Re-sign ──────────────────────────────────────────────────────────────
+# Xcode injects com.apple.security.get-task-allow even in Release builds, so we
+# re-sign the outer bundle with clean entitlements.
+# NOT --deep: the nested frameworks are already signed correctly and --deep
+# would break them.
 
 step "Re-signing with clean entitlements"
 
@@ -103,40 +193,39 @@ codesign --force \
 
 ok "Signed"
 
-# ─── 3. Signature validation ────────────────────────────────────────────────────
+# ─── 5. Signature validation ─────────────────────────────────────────────────
 
-step "Signature check"
+step "Validating the signature"
 
-SIGN_INFO="$(codesign -dvv "$APP_PATH" 2>&1)"
+SIGN_INFO=$(codesign -dvv "$APP_PATH" 2>&1)
 
 grep -q "Authority=Developer ID Application" <<<"$SIGN_INFO" \
   || die "Signature is not Developer ID Application:\n$(grep 'Authority=' <<<"$SIGN_INFO" | head -1)"
 ok "Authority: Developer ID Application"
 
 grep -q "flags=.*runtime" <<<"$SIGN_INFO" \
-  || die "Hardened Runtime is disabled - notarization would fail."
-ok "Hardened Runtime enabled"
+  || die "Hardened runtime is not enabled."
+ok "Hardened runtime enabled"
 
 grep -q "^Timestamp=" <<<"$SIGN_INFO" \
-  || die "No secure timestamp present."
-ok "Timestamp present"
+  || die "Secure timestamp is missing."
+ok "Secure timestamp present"
 
 if codesign -d --entitlements - "$APP_PATH" 2>&1 | grep -q "get-task-allow"; then
-  die "get-task-allow is still present in the binary."
+  die "get-task-allow is still present in the signed bundle."
 fi
-ok "get-task-allow absent"
+ok "No get-task-allow"
 
 codesign --verify --deep --strict "$APP_PATH" 2>/dev/null \
-  || die "codesign --verify failed (check the embedded frameworks)."
-ok "All embedded frameworks are valid"
+  || die "codesign --verify failed."
+ok "codesign --verify passed"
 
-# ─── 4. DMG ──────────────────────────────────────────────────────────────────
-
-if [[ -n "${SKIP_NOTARIZE:-}" ]]; then
-  warn "SKIP_NOTARIZE=1 — stopping after the app build."
-  printf '\n%s✓ Done: %s%s\n\n' "$GREEN" "$APP_PATH" "$OFF"
+if [[ -n ${SKIP_NOTARIZE:-} ]]; then
+  printf '\n%s✓ SKIP_NOTARIZE=1 — stopping after signing: %s%s\n\n' "$GREEN" "$APP_PATH" "$OFF"
   exit 0
 fi
+
+# ─── 6. DMG ──────────────────────────────────────────────────────────────────
 
 step "Packaging the DMG"
 
@@ -147,21 +236,26 @@ create-dmg \
   --volname "$APP_NAME" \
   --window-size 600 400 \
   --icon-size 100 \
-  --icon "${APP_NAME}.app" 150 200 \
+  --icon "$(basename "$APP_PATH")" 150 200 \
   --app-drop-link 450 200 \
   --no-internet-enable \
   "$DMG_PATH" \
   "$APP_PATH" \
-  || [[ -f "$DMG_PATH" ]] || die "create-dmg did not produce an image."
+  || [[ -f $DMG_PATH ]] || die "create-dmg did not produce an image."
 
 codesign --sign "$SIGN_IDENTITY" --timestamp "$DMG_PATH"
 ok "DMG created and signed: $DMG_PATH"
 
-# ─── 5. Notarization ──────────────────────────────────────────────────────────
+if (( ! NOTARIZE )); then
+  printf '\n%s✓ Done (not notarized): %s%s\n\n' "$GREEN" "$DMG_PATH" "$OFF"
+  exit 0
+fi
 
-step "Notarization (usually 1-5 minutes)"
+# ─── 7. Notarization ─────────────────────────────────────────────────────────
 
-NOTARY_LOG="$(mktemp -t notary)"
+step "Notarizing (usually 1–5 minutes)"
+
+NOTARY_LOG=$(mktemp -t notary)
 trap 'rm -f "$NOTARY_LOG"' EXIT
 
 set +e
@@ -170,38 +264,36 @@ xcrun notarytool submit "$DMG_PATH" \
   --wait 2>&1 | tee "$NOTARY_LOG"
 set -e
 
-SUBMISSION_ID="$(grep -m1 -E '^[[:space:]]*id:' "$NOTARY_LOG" | awk '{print $2}')"
-STATUS="$(grep -m1 -E '^[[:space:]]*status:' "$NOTARY_LOG" | awk '{print $2}')"
+SUBMISSION_ID=$(grep -m1 -E '^[[:space:]]*id:' "$NOTARY_LOG" | awk '{print $2}' || true)
+STATUS=$(grep -m1 -E '^[[:space:]]*status:' "$NOTARY_LOG" | awk '{print $2}' || true)
 
-if [[ "$STATUS" != "Accepted" ]]; then
-  printf '\n%s─── Failure details ───%s\n' "$YELLOW" "$OFF"
-  [[ -n "$SUBMISSION_ID" ]] && \
+if [[ $STATUS != "Accepted" ]]; then
+  printf '\n%s─── Rejection details ───%s\n' "$YELLOW" "$OFF"
+  [[ -n $SUBMISSION_ID ]] && \
     xcrun notarytool log "$SUBMISSION_ID" --keychain-profile "$NOTARY_PROFILE" || true
   die "Notarization failed (status: ${STATUS:-unknown})."
 fi
 
 ok "Status: Accepted"
 
-# ─── 6. Staple and final check ──────────────────────────────────────────
+# ─── 8. Staple and final check ───────────────────────────────────────────────
 
 step "Stapling the ticket"
 
 xcrun stapler staple "$DMG_PATH"
-xcrun stapler validate "$DMG_PATH" >/dev/null || die "stapler validate failed."
+xcrun stapler validate "$DMG_PATH" >/dev/null
 ok "Ticket stapled"
 
-step "Gatekeeper check"
+SPCTL_OUT=$(spctl -a -vvv -t install "$DMG_PATH" 2>&1)
 
-SPCTL_OUT="$(spctl -a -vvv -t install "$DMG_PATH" 2>&1)" || true
-if grep -q "source=Notarized Developer ID" <<<"$SPCTL_OUT"; then
-  ok "source=Notarized Developer ID"
+if grep -q "Developer ID" <<<"$SPCTL_OUT"; then
+  ok "Gatekeeper: Developer ID"
 else
   warn "Unexpected spctl output:"
   printf '%s\n' "$SPCTL_OUT"
 fi
 
-# ─── Done ──────────────────────────────────────────────────────────────────
+SIZE=$(du -h "$DMG_PATH" | cut -f1)
 
-SIZE="$(du -h "$DMG_PATH" | cut -f1 | tr -d '[:space:]')"
-printf '\n%s✓ Release ready%s\n' "$GREEN" "$OFF"
-printf '  %s  (%s)\n\n' "$DMG_PATH" "$SIZE"
+printf '\n%s✓ Done%s\n' "$GREEN" "$OFF"
+printf '  %s (%s)\n\n' "$DMG_PATH" "$SIZE"
