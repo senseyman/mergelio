@@ -9,21 +9,27 @@ import 'git_service.dart';
 class GitWriter {
   final GitService git;
   final String repoPath;
-  const GitWriter(this.git, this.repoPath);
+  GitWriter(this.git, this.repoPath);
 
   // Network ops can be slow (large transfers, slow links); give them room
   // well beyond the default read timeout so they are not killed mid-transfer.
   static const _netTimeout = Duration(minutes: 5);
 
+  /// Resolved once per repository: the ssh command git would use anyway, which
+  /// the watchdog options are appended to.
+  Map<String, String>? _netEnvCache;
+
   Future<GitResult> _run(
     List<String> args, {
     Duration? timeout,
     Map<String, String>? environment,
+    GitCancel? cancel,
   }) => git.run(
     args,
     repoPath: repoPath,
     timeout: timeout,
     environment: environment,
+    cancel: cancel,
   );
 
   Future<void> _ok(
@@ -31,29 +37,59 @@ class GitWriter {
     String what, {
     Duration? timeout,
     Map<String, String>? environment,
+    GitCancel? cancel,
   }) async {
-    final r = await _run(args, timeout: timeout, environment: environment);
+    final r = await _run(
+      args,
+      timeout: timeout,
+      environment: environment,
+      cancel: cancel,
+    );
     if (!r.ok) throw GitException(what, r);
   }
 
+  /// Runs a command that talks to a remote, under the network timeout and with
+  /// the ssh watchdog options in place.
+  Future<void> _net(
+    List<String> args,
+    String what, {
+    GitCancel? cancel,
+  }) async => _ok(
+    args,
+    what,
+    timeout: _netTimeout,
+    environment: await _netEnv(),
+    cancel: cancel,
+  );
+
+  /// git's own precedence: an inherited `GIT_SSH_COMMAND` first, then the
+  /// repository's `core.sshCommand`, then plain ssh. Whichever wins becomes the
+  /// base the watchdog options are added to, so a user's key or proxy survives.
+  Future<Map<String, String>> _netEnv() async {
+    if (_netEnvCache != null) return _netEnvCache!;
+    var base = Platform.environment['GIT_SSH_COMMAND'];
+    if (base == null || base.trim().isEmpty) {
+      final configured = await _run(['config', '--get', 'core.sshCommand']);
+      base = configured.ok ? configured.out : null;
+    }
+    return _netEnvCache = {'GIT_SSH_COMMAND': sshCommandWith(base)};
+  }
+
   /// Fetches [remote] (or every remote when null), pruning deleted refs.
-  Future<void> fetch({String? remote}) => _ok(
+  Future<void> fetch({String? remote, GitCancel? cancel}) => _net(
     ['fetch', '--prune', if (remote != null) remote else '--all'],
     'git fetch',
-    timeout: _netTimeout,
+    cancel: cancel,
   );
 
   /// Pulls the current branch's upstream; [rebase] replays local commits on top
   /// instead of creating a merge.
-  Future<void> pull({bool rebase = false}) =>
-      _ok(['pull', if (rebase) '--rebase'], 'git pull', timeout: _netTimeout);
+  Future<void> pull({bool rebase = false, GitCancel? cancel}) =>
+      _net(['pull', if (rebase) '--rebase'], 'git pull', cancel: cancel);
 
   /// Prunes remote-tracking refs under [remote] that no longer exist upstream.
-  Future<void> pruneRemote(String remote) => _ok(
-    ['remote', 'prune', remote],
-    'git remote prune',
-    timeout: _netTimeout,
-  );
+  Future<void> pruneRemote(String remote, {GitCancel? cancel}) =>
+      _net(['remote', 'prune', remote], 'git remote prune', cancel: cancel);
 
   /// Registers [name] pointing at [url]. Fails when [name] is already taken.
   Future<void> addRemote(String name, String url) =>
@@ -76,7 +112,7 @@ class GitWriter {
   /// `--set-upstream` to origin (or the only/first remote), so a first push
   /// works instead of failing. [force] uses `--force-with-lease`, which refuses
   /// to overwrite remote work the local ref has not seen.
-  Future<void> push({bool force = false}) async {
+  Future<void> push({bool force = false, GitCancel? cancel}) async {
     final hasUpstream = (await _run([
       'rev-parse',
       '--abbrev-ref',
@@ -99,7 +135,7 @@ class GitWriter {
       final remote = remotes.contains('origin') ? 'origin' : remotes.first;
       args.addAll(['--set-upstream', remote, branch]);
     }
-    await _ok(args, 'git push', timeout: _netTimeout);
+    await _net(args, 'git push', cancel: cancel);
   }
 
   // --- Merge ops ------------------------------------------------------------
@@ -220,10 +256,14 @@ class GitWriter {
 
   /// Deletes [branch] on [remote]. The remote-tracking ref goes with it, so
   /// the branch leaves the sidebar on the next refresh.
-  Future<void> deleteRemoteBranch(String remote, String branch) => _ok(
+  Future<void> deleteRemoteBranch(
+    String remote,
+    String branch, {
+    GitCancel? cancel,
+  }) => _net(
     ['push', remote, '--delete', branch],
     'git push --delete',
-    timeout: _netTimeout,
+    cancel: cancel,
   );
 
   Future<void> setUpstream(String branch, String upstream) => _ok([

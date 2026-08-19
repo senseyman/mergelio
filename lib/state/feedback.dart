@@ -84,10 +84,16 @@ class BusyState {
   /// from an editor has to wait for one that does; it has no reason to wait
   /// for a fetch, which only moves objects and refs.
   final bool touchesWorkingTree;
-  const BusyState(this.label, [this.progress]) : touchesWorkingTree = true;
+
+  /// Kills the git process behind the operation, for one that can stall on an
+  /// unreachable remote. Null when there is nothing to abandon.
+  final void Function()? onCancel;
+
+  const BusyState(this.label, {this.progress, this.onCancel})
+    : touchesWorkingTree = true;
 
   /// An operation that talks to a remote and leaves the working tree alone.
-  const BusyState.network(this.label, [this.progress])
+  const BusyState.network(this.label, {this.progress, this.onCancel})
     : touchesWorkingTree = false;
 }
 

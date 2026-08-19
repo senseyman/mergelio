@@ -23,6 +23,7 @@ class _FakeGit implements GitService {
     String? repoPath,
     Duration? timeout,
     Map<String, String>? environment,
+    GitCancel? cancel,
   }) async {
     if (args.contains('--no-index')) {
       return const GitResult(0, '''

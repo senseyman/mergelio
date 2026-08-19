@@ -76,7 +76,7 @@ class RepoActions {
   /// toasts the outcome. Errors never escape — they surface as a toast.
   Future<void> _network(
     String label,
-    Future<void> Function() op, {
+    Future<void> Function(GitCancel cancel) op, {
     // Background ops (auto-fetch) run silent: no success/failure toast.
     bool silent = false,
     // Fetch and push move objects and refs only. Ops that also write files —
@@ -98,14 +98,22 @@ class RepoActions {
       }
       return;
     }
+    // Handed to the UI so a stalled remote can be given up on rather than
+    // holding the lane until the network timeout expires.
+    final cancel = GitCancel();
     _ref.read(slot.notifier).state = writesWorkingTree
-        ? BusyState(label)
-        : BusyState.network(label);
+        ? BusyState(label, onCancel: cancel.cancel)
+        : BusyState.network(label, onCancel: cancel.cancel);
     final opId = await _journalBegin(label);
     try {
-      await _timed(label, op);
+      await _timed(label, () => op(cancel));
       await _journalDone(opId);
       if (!silent) toasts.show('$label complete', kind: ToastKind.success);
+    } on GitCancelledException {
+      await _journalFail(opId);
+      if (!silent) {
+        toasts.show('$label cancelled', kind: ToastKind.warning);
+      }
     } on GitException catch (e) {
       await _journalFail(opId);
       // Prefer git's own stderr; fall back to the short message.
@@ -136,7 +144,7 @@ class RepoActions {
 
   Future<void> fetch({String? remote, bool silent = false}) => _network(
     'Fetch',
-    () => _writer.fetch(remote: remote),
+    (cancel) => _writer.fetch(remote: remote, cancel: cancel),
     silent: silent,
     writesWorkingTree: false,
     lane: _Lane.fetch,
@@ -146,7 +154,7 @@ class RepoActions {
   /// fetch is writing, and nothing else cares about either.
   Future<void> pruneRemote(String remote) => _network(
     'Prune $remote',
-    () => _writer.pruneRemote(remote),
+    (cancel) => _writer.pruneRemote(remote, cancel: cancel),
     writesWorkingTree: false,
     lane: _Lane.fetch,
   );
@@ -155,35 +163,35 @@ class RepoActions {
 
   Future<void> submoduleUpdateAll({bool recursive = false}) => _network(
     'Update submodules',
-    () => _writer.submoduleUpdate(init: true, recursive: recursive),
+    (_) => _writer.submoduleUpdate(init: true, recursive: recursive),
   );
 
   Future<void> submoduleUpdate(String path) => _network(
     'Update $path',
-    () => _writer.submoduleUpdate(path: path, init: true),
+    (_) => _writer.submoduleUpdate(path: path, init: true),
   );
 
   Future<void> submoduleUpdateRemote(String path) => _network(
     'Update $path to remote',
-    () => _writer.submoduleUpdateRemote(path),
+    (_) => _writer.submoduleUpdateRemote(path),
   );
 
   Future<void> submoduleAdd(String url, String path, {String? branch}) =>
       _network(
         'Add submodule',
-        () => _writer.submoduleAdd(url, path, branch: branch),
+        (_) => _writer.submoduleAdd(url, path, branch: branch),
       );
 
   Future<void> submoduleSync([String? path]) =>
-      _network('Sync submodules', () => _writer.submoduleSync(path: path));
+      _network('Sync submodules', (_) => _writer.submoduleSync(path: path));
 
   Future<void> submoduleDeinit(String path) => _network(
     'Deinit $path',
-    () => _writer.submoduleDeinit(path, force: true),
+    (_) => _writer.submoduleDeinit(path, force: true),
   );
 
   Future<void> submoduleRemove(String path) =>
-      _network('Remove $path', () => _writer.submoduleRemove(path));
+      _network('Remove $path', (_) => _writer.submoduleRemove(path));
 
   /// Fetch URL for [remote] (read-only; empty if unset).
   Future<String> remoteUrl(String remote) =>
@@ -230,12 +238,14 @@ class RepoActions {
     await _undoable('Edit remote $from', forward, undo: back, redo: forward);
   }
 
-  Future<void> pull({bool rebase = false}) =>
-      _network('Pull', () => _writer.pull(rebase: rebase));
+  Future<void> pull({bool rebase = false}) => _network(
+    'Pull',
+    (cancel) => _writer.pull(rebase: rebase, cancel: cancel),
+  );
 
   Future<void> push({bool force = false}) => _network(
     force ? 'Force push' : 'Push',
-    () => _writer.push(force: force),
+    (cancel) => _writer.push(force: force, cancel: cancel),
     writesWorkingTree: false,
   );
 
@@ -748,7 +758,8 @@ class RepoActions {
   /// since, which is not the same thing as putting it back.
   Future<void> deleteRemoteBranch(RemoteBranch rb) => _network(
     'Delete ${rb.name}',
-    () => _writer.deleteRemoteBranch(rb.remote, rb.branch),
+    (cancel) =>
+        _writer.deleteRemoteBranch(rb.remote, rb.branch, cancel: cancel),
     writesWorkingTree: false,
   );
 
@@ -765,9 +776,10 @@ class RepoActions {
     if (await _branchExists(name)) return;
     await _network(
       'Delete $upstream',
-      () => _writer.deleteRemoteBranch(
+      (cancel) => _writer.deleteRemoteBranch(
         upstream.substring(0, slash),
         upstream.substring(slash + 1),
+        cancel: cancel,
       ),
       writesWorkingTree: false,
       failureTitle: 'Deleted $name here — $upstream is still on the remote',
