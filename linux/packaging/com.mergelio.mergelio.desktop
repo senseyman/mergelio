@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=Mergelio
+GenericName=Git Client
+Comment=Free, cross-platform visual Git client
+Exec=mergelio
+Icon=com.mergelio.mergelio
+Terminal=false
+Categories=Development;RevisionControl;
+Keywords=git;version control;vcs;
+# The runner calls g_set_prgname(APPLICATION_ID), so the window reports this
+# as its WM class. It has to match or the shell shows a generic icon in the
+# dock instead of associating the window with this entry.
+StartupWMClass=com.mergelio.mergelio
+StartupNotify=true

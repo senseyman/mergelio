@@ -97,11 +97,36 @@ host_arch() {
   esac
 }
 
+# .dart_tool/package_config.json records absolute paths to the Flutter SDK, so
+# a working copy carried between machines (scp, zip, shared volume) brings the
+# other machine's paths with it. pub skips rewriting the file when it looks
+# newer than the pubspecs, so `pub get` reports success and build_runner then
+# dies on a path that does not exist here. Drop the file rather than let that
+# happen.
+discard_foreign_package_config() {
+  local cfg=.dart_tool/package_config.json root path
+  [[ -f $cfg ]] || return 0
+
+  root=$(tr -d ' \n' < "$cfg" \
+    | grep -o '"name":"sky_engine","rootUri":"[^"]*"' \
+    | sed -E 's/.*"rootUri":"([^"]*)".*/\1/') || true
+  # A relative rootUri carries nothing machine-specific; leave it alone.
+  [[ $root == file://* ]] || return 0
+
+  path=${root#file://}
+  [[ -d $path ]] && return 0
+
+  warn "package_config.json points at $path, which does not exist here."
+  warn "Discarding .dart_tool so 'pub get' regenerates it for this machine."
+  rm -rf .dart_tool
+}
+
 # Generated sources (*.g.dart, *.freezed.dart) are not committed, so a fresh
 # clone will not compile until build_runner has run. SKIP_GEN=1 skips it once
 # the generated files are already in place.
 prepare_sources() {
   step "Fetching dependencies"
+  discard_foreign_package_config
   flutter pub get
   ok "Dependencies ready"
 

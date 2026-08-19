@@ -120,7 +120,28 @@ build-linux: ## Release build: Linux (bundle + tar.gz in dist/)
 	./scripts/build-linux.sh
 
 .PHONY: build-windows
-build-windows: ## Release build: Windows (exe + zip in dist/)
+build-windows: ## Release build: Windows (exe + zip + setup.exe in dist/)
+	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-windows.ps1
+
+# ------------------------------------------------------------
+# Installers
+# ------------------------------------------------------------
+.PHONY: installer
+installer: ## Installer for the host platform
+ifeq ($(UNAME_S),Linux)
+	$(MAKE) installer-linux
+else ifeq ($(UNAME_S),Darwin)
+	@echo "error: no macOS installer target; use 'make build-macos' for the .app + zip" && exit 1
+else
+	$(MAKE) installer-windows
+endif
+
+.PHONY: installer-linux
+installer-linux: ## Installer: Ubuntu/Debian .deb in dist/
+	./scripts/build-linux-ubuntu.sh
+
+.PHONY: installer-windows
+installer-windows: ## Installer: Windows setup.exe in dist/ (needs Inno Setup 6)
 	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-windows.ps1
 
 # ------------------------------------------------------------

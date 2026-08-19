@@ -4,9 +4,13 @@
     Build Mergelio for Windows.
 
 .DESCRIPTION
-    Produces a release build and a zip archive in DIST_DIR. Configuration is
-    read from .env in the repository root (see .env.example); values already
-    present in the environment take precedence.
+    Produces a release build, a zip archive and an Inno Setup installer in
+    DIST_DIR. Configuration is read from .env in the repository root (see
+    .env.example); values already present in the environment take precedence.
+
+    The installer puts the app in Program Files, creates Start menu and
+    optional desktop shortcuts, and registers an uninstall entry. Building it
+    needs Inno Setup 6: winget install -e --id JRSoftware.InnoSetup
 
 .PARAMETER Version
     Version used in the archive name. Defaults to the version in pubspec.yaml.
@@ -17,6 +21,7 @@
     $env:CLEAN = 1;        .\scripts\build-windows.ps1   # flutter clean first
     $env:SKIP_GEN = 1;     .\scripts\build-windows.ps1   # skip code generation
     $env:SKIP_PACKAGE = 1; .\scripts\build-windows.ps1   # build no archive
+    $env:SKIP_INSTALLER = 1; .\scripts\build-windows.ps1 # zip only, no setup.exe
 #>
 
 [CmdletBinding()]
@@ -36,6 +41,48 @@ function Stop-WithError {
     param([string]$Message)
     Write-Host "`n[x] $Message`n" -ForegroundColor Red
     exit 1
+}
+
+# Locates ISCC.exe. Its installer does not put it on PATH, winget may install
+# it per-user rather than per-machine, and the directory is named after the
+# major version - so look in every place it can legitimately be rather than
+# guessing one path.
+function Find-Iscc {
+    if ($env:ISCC -and (Test-Path -LiteralPath $env:ISCC)) { return $env:ISCC }
+
+    # A shell opened before the install still has the old PATH, so this misses
+    # a fresh install even when it is on PATH for new shells.
+    $onPath = (Get-Command 'ISCC.exe' -ErrorAction SilentlyContinue).Source
+    if ($onPath) { return $onPath }
+
+    # The uninstall entry records the install directory whatever the version
+    # and whichever scope it was installed into.
+    foreach ($key in @(
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
+        'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*',
+        'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
+    )) {
+        $hit = Get-ItemProperty -Path $key -ErrorAction SilentlyContinue |
+            Where-Object { $_.DisplayName -like 'Inno Setup*' -and $_.InstallLocation } |
+            ForEach-Object { Join-Path $_.InstallLocation 'ISCC.exe' } |
+            Where-Object { Test-Path -LiteralPath $_ } |
+            Select-Object -First 1
+        if ($hit) { return $hit }
+    }
+
+    # Default locations, any major version, machine-wide or per-user.
+    $roots = @($env:ProgramFiles, ${env:ProgramFiles(x86)},
+               (Join-Path $env:LOCALAPPDATA 'Programs')) |
+        Where-Object { $_ -and (Test-Path -LiteralPath $_) }
+    foreach ($root in $roots) {
+        $hit = Get-ChildItem -Path $root -Filter 'Inno Setup*' -Directory -ErrorAction SilentlyContinue |
+            ForEach-Object { Join-Path $_.FullName 'ISCC.exe' } |
+            Where-Object { Test-Path -LiteralPath $_ } |
+            Select-Object -First 1
+        if ($hit) { return $hit }
+    }
+
+    return $null
 }
 
 # ─── Environment ─────────────────────────────────────────────────────────────
@@ -155,6 +202,30 @@ if ($env:CLEAN) {
     Write-Ok 'flutter clean done'
 }
 
+# .dart_tool\package_config.json records absolute paths to the Flutter SDK, so
+# a working copy carried over from another machine (zip, scp, shared volume)
+# brings that machine's paths with it. pub skips rewriting the file when it
+# looks newer than the pubspecs, so 'pub get' reports success and build_runner
+# then dies on a path that does not exist here.
+$PackageConfig = '.dart_tool\package_config.json'
+if (Test-Path -LiteralPath $PackageConfig) {
+    try {
+        $cfg = Get-Content -LiteralPath $PackageConfig -Raw | ConvertFrom-Json
+        $sky = $cfg.packages | Where-Object { $_.name -eq 'sky_engine' } | Select-Object -First 1
+        if ($sky -and $sky.rootUri -like 'file:*') {
+            $skyPath = ([uri]$sky.rootUri).LocalPath
+            if (-not (Test-Path -LiteralPath $skyPath)) {
+                Write-Warn "package_config.json points at $skyPath, which does not exist here."
+                Write-Warn "Discarding .dart_tool so 'pub get' regenerates it for this machine."
+                Remove-Item -Recurse -Force '.dart_tool'
+            }
+        }
+    } catch {
+        Write-Warn 'package_config.json could not be read; discarding .dart_tool.'
+        Remove-Item -Recurse -Force '.dart_tool' -ErrorAction SilentlyContinue
+    }
+}
+
 Write-Step 'Fetching dependencies'
 flutter pub get
 if ($LASTEXITCODE -ne 0) { Stop-WithError 'flutter pub get failed.' }
@@ -204,7 +275,53 @@ Write-Ok "Archive: $Archive"
 
 $SizeMb = [math]::Round((Get-Item -LiteralPath $Archive).Length / 1MB, 1)
 
+# ─── Installer ───────────────────────────────────────────────────────────────
+
+$Installer = $null
+
+if ($env:SKIP_INSTALLER) {
+    Write-Warn 'SKIP_INSTALLER is set - building no setup.exe'
+} else {
+    Write-Step 'Building the installer'
+
+    $Iscc = Find-Iscc
+    if (-not $Iscc) {
+        Stop-WithError ("Inno Setup not found (ISCC.exe).`n" +
+            "  Install it:  winget install -e --id JRSoftware.InnoSetup`n" +
+            "  Already installed? A shell opened before the install has a stale`n" +
+            "  PATH - reopen it, or point at the binary directly:`n" +
+            "    `$env:ISCC = 'C:\Path\To\Inno Setup 6\ISCC.exe'`n" +
+            '  Or skip it:  $env:SKIP_INSTALLER = 1')
+    }
+    Write-Ok "Inno Setup: $Iscc"
+
+    # ISCC resolves relative paths against the .iss file, so hand it absolute
+    # ones for the directories that live outside windows\packaging.
+    $IssFile     = (Resolve-Path 'windows\packaging\mergelio.iss').Path
+    $SourceAbs   = (Resolve-Path $ReleaseDir).Path
+    $OutputAbs   = (Resolve-Path $DistDir).Path
+
+    & $Iscc `
+        "/DAppName=$AppName" `
+        "/DAppVersion=$Version" `
+        "/DAppArch=$Arch" `
+        "/DSourceDir=$SourceAbs" `
+        "/DOutputDir=$OutputAbs" `
+        $IssFile
+    if ($LASTEXITCODE -ne 0) { Stop-WithError 'Inno Setup failed to build the installer.' }
+
+    $Installer = Join-Path $DistDir "$AppName-$Version-windows-$Arch-setup.exe"
+    if (-not (Test-Path -LiteralPath $Installer)) {
+        Stop-WithError "Inno Setup reported success but $Installer is missing."
+    }
+    Write-Ok "Installer: $Installer"
+}
+
 Write-Host "`n[ok] Done" -ForegroundColor Green
 Write-Host "  build:   $ReleaseDir"
 Write-Host "  archive: $Archive ($SizeMb MB)"
+if ($Installer) {
+    $InstallerMb = [math]::Round((Get-Item -LiteralPath $Installer).Length / 1MB, 1)
+    Write-Host "  setup:   $Installer ($InstallerMb MB)"
+}
 Write-Host "`n  Unsigned: SmartScreen will warn on other machines.`n"

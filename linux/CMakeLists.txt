@@ -121,6 +121,13 @@ install(CODE "
 install(DIRECTORY "${PROJECT_BUILD_DIR}/${FLUTTER_ASSET_DIR_NAME}"
   DESTINATION "${INSTALL_BUNDLE_DATA_DIR}" COMPONENT Runtime)
 
+# The window icon, shipped inside the bundle so a relocatable tarball has one
+# without having to install into a system icon theme. my_application.cc looks
+# for it at this exact path, next to the executable.
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/packaging/icons/${APPLICATION_ID}.png"
+  DESTINATION "${INSTALL_BUNDLE_DATA_DIR}" RENAME "icon.png"
+  COMPONENT Runtime)
+
 # Install the AOT library on non-Debug builds only.
 if(NOT CMAKE_BUILD_TYPE MATCHES "Debug")
   install(FILES "${AOT_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
