@@ -28,6 +28,55 @@ class GitException implements Exception {
       'GitException: $message${result != null ? '\n${result!.err}' : ''}';
 }
 
+/// The operation was abandoned on purpose. Separate from a plain
+/// [GitException] so the UI can say so instead of reporting a failure.
+class GitCancelledException extends GitException {
+  GitCancelledException(super.message);
+}
+
+/// Handle on a running git command. [cancel] kills the child, so an operation
+/// stalled on an unreachable remote can be given up on immediately instead of
+/// holding its lane until the timeout runs out.
+class GitCancel {
+  Process? _proc;
+  var _cancelled = false;
+
+  bool get isCancelled => _cancelled;
+
+  void cancel() {
+    _cancelled = true;
+    _proc?.kill(ProcessSignal.sigkill);
+  }
+
+  /// Binds the child once it exists. A cancel that arrived while the process
+  /// was still starting applies the moment it does.
+  void _attach(Process proc) {
+    _proc = proc;
+    if (_cancelled) proc.kill(ProcessSignal.sigkill);
+  }
+}
+
+/// SSH options appended to every command that talks to a remote. A host that
+/// accepts the TCP connection and then goes quiet otherwise stalls until the
+/// operation's own timeout, minutes later; these give up in seconds.
+const sshWatchdogOptions = [
+  '-o',
+  'ConnectTimeout=10',
+  '-o',
+  'ServerAliveInterval=5',
+  '-o',
+  'ServerAliveCountMax=3',
+];
+
+/// [base] (whatever ssh command the user configured) followed by
+/// [sshWatchdogOptions]. ssh keeps the first value it sees for an option, so
+/// appending leaves anything the user set in charge.
+String sshCommandWith(String? base) {
+  final cmd = base?.trim();
+  return '${cmd == null || cmd.isEmpty ? 'ssh' : cmd} '
+      '${sshWatchdogOptions.join(' ')}';
+}
+
 /// Abstraction over the Git engine. UI never shells out directly; it depends
 /// on this interface. [SystemGitService] uses the system `git` binary;
 /// libgit2 FFI may be added later for fast reads.
@@ -36,12 +85,14 @@ abstract class GitService {
   Future<String> version();
 
   /// Run an arbitrary git command in [repoPath] (or cwd if null). The process
-  /// is killed and a [GitException] thrown if it exceeds [timeout].
+  /// is killed and a [GitException] thrown if it exceeds [timeout]. Passing a
+  /// [cancel] handle lets the caller kill the child before that.
   Future<GitResult> run(
     List<String> args, {
     String? repoPath,
     Duration? timeout,
     Map<String, String>? environment,
+    GitCancel? cancel,
   });
 
   /// True if [path] contains a git repository. Never throws: a missing or
@@ -87,12 +138,13 @@ class SystemGitService implements GitService {
     String? repoPath,
     Duration? timeout,
     Map<String, String>? environment,
+    GitCancel? cancel,
   }) async {
     // The queue wait deliberately sits outside the timeout below: a command
     // held back by the gate has not started, so it must not be timed out for
     // the time it spent queued.
     return (gate ?? _sharedGitGate).run(
-      () => _spawn(args, repoPath, timeout, environment),
+      () => _spawn(args, repoPath, timeout, environment, cancel),
     );
   }
 
@@ -101,6 +153,7 @@ class SystemGitService implements GitService {
     String? repoPath,
     Duration? timeout,
     Map<String, String>? environment,
+    GitCancel? cancel,
   ) async {
     final started = DateTime.now();
     // Counts this command too. Read next to the duration it tells you which
@@ -121,6 +174,8 @@ class SystemGitService implements GitService {
       throw GitException('failed to run git ${args.join(' ')}: ${e.message}');
     }
 
+    cancel?._attach(proc);
+
     // Nothing is ever written to a git child, so close the pipe immediately:
     // it releases a descriptor early and stops a command that would read stdin
     // from waiting for input that never comes.
@@ -136,6 +191,11 @@ class SystemGitService implements GitService {
       final exitCode = await proc.exitCode.timeout(timeout ?? defaultTimeout);
       final output = await Future.wait([stdoutFuture, stderrFuture]);
       _record(args, repoPath, started, inFlight, bytes: output[0].length);
+      // A killed child exits non-zero with nothing useful to say; report the
+      // abandonment rather than a failure the user did not cause.
+      if (cancel?.isCancelled ?? false) {
+        throw GitCancelledException('git ${args.join(' ')} cancelled');
+      }
       return GitResult(exitCode, output[0], output[1]);
     } on TimeoutException {
       proc.kill(ProcessSignal.sigkill);

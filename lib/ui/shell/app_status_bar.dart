@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
 import '../../domain/git/models.dart';
+import '../../state/feedback.dart';
 import '../../state/profiles.dart';
 import '../../state/repo_data.dart';
 import '../../state/settings_controller.dart';
@@ -83,6 +84,7 @@ class AppStatusBar extends ConsumerWidget {
               ],
             ],
             const Spacer(),
+            const _RunningOp(),
             // Theme toggle + zoom close the right cluster.
             InkWell(
               onTap: () => ref.read(settingsProvider.notifier).toggleTheme(),
@@ -111,3 +113,56 @@ class AppStatusBar extends ConsumerWidget {
     child: Text('·', style: TextStyle(color: t.textFaint)),
   );
 }
+
+/// Names whatever git operation is running and offers to abandon it. A fetch
+/// or push against a remote that has stopped answering would otherwise sit
+/// there for minutes with nothing to click.
+class _RunningOp extends ConsumerWidget {
+  const _RunningOp();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = context.tokens;
+    // The repository lane first: it is the one holding other actions back.
+    final busy = ref.watch(busyProvider) ?? ref.watch(fetchBusyProvider);
+    if (busy == null) return const SizedBox.shrink();
+
+    return Row(
+      children: [
+        SizedBox(
+          width: 10,
+          height: 10,
+          child: CircularProgressIndicator(strokeWidth: 1.5, color: t.accent),
+        ),
+        const SizedBox(width: 6),
+        Text(busy.label, key: runningOpLabelKey),
+        if (busy.onCancel != null)
+          Tooltip(
+            message: 'Cancel ${busy.label}',
+            child: IconButton(
+              key: cancelRunningOpKey,
+              iconSize: 12,
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              constraints: const BoxConstraints(),
+              icon: const Icon(Icons.close),
+              color: t.textMuted,
+              onPressed: busy.onCancel,
+            ),
+          ),
+        _gap(t),
+      ],
+    );
+  }
+
+  Widget _gap(AppTokens t) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 8),
+    child: Text('·', style: TextStyle(color: t.textFaint)),
+  );
+}
+
+/// Names the running operation in the status bar.
+const runningOpLabelKey = Key('status-running-op');
+
+/// Abandons the running operation.
+const cancelRunningOpKey = Key('status-cancel-op');

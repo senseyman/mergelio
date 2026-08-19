@@ -28,6 +28,7 @@ class _FakeGit implements GitService {
     String? repoPath,
     Duration? timeout,
     Map<String, String>? environment,
+    GitCancel? cancel,
   }) async => const GitResult(0, '', '');
   @override
   Future<String> version() async => 'git version 2';

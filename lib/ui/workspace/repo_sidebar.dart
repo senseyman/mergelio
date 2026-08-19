@@ -514,6 +514,29 @@ class _BranchRow extends ConsumerWidget {
           enabled: !branch.current,
           danger: true,
         ),
+        if (branch.upstream.isNotEmpty)
+          item(
+            'Delete branch and remote…',
+            () async {
+              final ok = await confirmDestructive(
+                ref,
+                context,
+                title: 'Delete ${branch.name} and ${branch.upstream}?',
+                body:
+                    'The branch will be removed here and on the remote. '
+                    'Only the local half can be undone.',
+                confirmLabel: 'Delete both',
+              );
+              if (ok) {
+                await actions.deleteBranchAndRemote(
+                  branch.name,
+                  branch.upstream,
+                );
+              }
+            },
+            enabled: !branch.current,
+            danger: true,
+          ),
       ],
     );
   }
@@ -963,6 +986,26 @@ Future<void> _remoteBranchMenu(
             style: const TextStyle(fontSize: 13),
           ),
         ),
+      const PopupMenuDivider(),
+      PopupMenuItem(
+        height: 34,
+        onTap: () async {
+          final ok = await confirmDestructive(
+            ref,
+            context,
+            title: 'Delete ${rb.name}?',
+            body:
+                'The branch will be deleted on ${rb.remote}. Any local '
+                'branch of the same name stays. This cannot be undone.',
+            confirmLabel: 'Delete',
+          );
+          if (ok) await actions.deleteRemoteBranch(rb);
+        },
+        child: Text(
+          'Delete ${rb.name}…',
+          style: TextStyle(fontSize: 13, color: context.tokens.danger),
+        ),
+      ),
     ],
   );
 }

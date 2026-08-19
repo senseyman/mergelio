@@ -17,6 +17,7 @@ class _FakeGit implements GitService {
     String? repoPath,
     Duration? timeout,
     Map<String, String>? environment,
+    GitCancel? cancel,
   }) async {
     final out = switch (args.first) {
       // name<TAB>HEAD<TAB>upstream-track

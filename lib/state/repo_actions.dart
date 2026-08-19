@@ -20,6 +20,12 @@ import 'undo_stack.dart';
 import 'workspace.dart';
 import 'worktrees.dart';
 
+/// Which shared slot an operation claims while it runs. Fetching gets its own
+/// so that the minutes it can take never turn away a commit or a branch
+/// create; everything else queues behind the repository slot to stay off git's
+/// index and ref locks.
+enum _Lane { repo, fetch }
+
 /// Mutating git operations for one repo, each followed by a refresh of
 /// [repoDataProvider] so the graph, counts and file lists update in lockstep.
 class RepoActions {
@@ -70,38 +76,51 @@ class RepoActions {
   /// toasts the outcome. Errors never escape — they surface as a toast.
   Future<void> _network(
     String label,
-    Future<void> Function() op, {
+    Future<void> Function(GitCancel cancel) op, {
     // Background ops (auto-fetch) run silent: no success/failure toast.
     bool silent = false,
     // Fetch and push move objects and refs only. Ops that also write files —
     // pull, submodule update — say so, and an editor save then waits for them.
     bool writesWorkingTree = true,
+    _Lane lane = _Lane.repo,
+    // Replaces the default '<label> failed' toast title, for an op whose
+    // failure leaves the repo in a state the label alone does not describe.
+    String? failureTitle,
   }) async {
     final toasts = _ref.read(toastProvider.notifier);
-    // One op at a time: a second network op would race the first on the busy
-    // state (the loser's `finally` clears it mid-flight) and on git's own
-    // locks. Background (silent) ops skip quietly instead of warning.
-    if (_ref.read(busyProvider) != null) {
+    final slot = lane == _Lane.fetch ? fetchBusyProvider : busyProvider;
+    // One op per lane: two ops sharing a lane would race on the busy state
+    // (the loser's `finally` clears it mid-flight) and on git's own locks.
+    // Background (silent) ops skip quietly instead of warning.
+    if (_ref.read(slot) != null) {
       if (!silent) {
         toasts.show('An operation is already running', kind: ToastKind.warning);
       }
       return;
     }
-    _ref.read(busyProvider.notifier).state = writesWorkingTree
-        ? BusyState(label)
-        : BusyState.network(label);
+    // Handed to the UI so a stalled remote can be given up on rather than
+    // holding the lane until the network timeout expires.
+    final cancel = GitCancel();
+    _ref.read(slot.notifier).state = writesWorkingTree
+        ? BusyState(label, onCancel: cancel.cancel)
+        : BusyState.network(label, onCancel: cancel.cancel);
     final opId = await _journalBegin(label);
     try {
-      await _timed(label, op);
+      await _timed(label, () => op(cancel));
       await _journalDone(opId);
       if (!silent) toasts.show('$label complete', kind: ToastKind.success);
+    } on GitCancelledException {
+      await _journalFail(opId);
+      if (!silent) {
+        toasts.show('$label cancelled', kind: ToastKind.warning);
+      }
     } on GitException catch (e) {
       await _journalFail(opId);
       // Prefer git's own stderr; fall back to the short message.
       final err = e.result?.err ?? '';
       if (!silent) {
         toasts.show(
-          '$label failed',
+          failureTitle ?? '$label failed',
           description: err.isNotEmpty ? err : e.message,
           kind: ToastKind.error,
         );
@@ -110,7 +129,7 @@ class RepoActions {
       await _journalFail(opId);
       if (!silent) {
         toasts.show(
-          '$label failed',
+          failureTitle ?? '$label failed',
           description: 'Unexpected error',
           kind: ToastKind.error,
         );
@@ -119,56 +138,60 @@ class RepoActions {
       // Refresh even on failure: a failed pull/merge can still leave the repo
       // mid-operation (conflicts, MERGING) that the UI must show.
       _refresh();
-      _ref.read(busyProvider.notifier).state = null;
+      _ref.read(slot.notifier).state = null;
     }
   }
 
   Future<void> fetch({String? remote, bool silent = false}) => _network(
     'Fetch',
-    () => _writer.fetch(remote: remote),
+    (cancel) => _writer.fetch(remote: remote, cancel: cancel),
     silent: silent,
     writesWorkingTree: false,
+    lane: _Lane.fetch,
   );
 
+  /// Shares the fetch lane: pruning rewrites the same remote-tracking refs a
+  /// fetch is writing, and nothing else cares about either.
   Future<void> pruneRemote(String remote) => _network(
     'Prune $remote',
-    () => _writer.pruneRemote(remote),
+    (cancel) => _writer.pruneRemote(remote, cancel: cancel),
     writesWorkingTree: false,
+    lane: _Lane.fetch,
   );
 
   // — Submodules —
 
   Future<void> submoduleUpdateAll({bool recursive = false}) => _network(
     'Update submodules',
-    () => _writer.submoduleUpdate(init: true, recursive: recursive),
+    (_) => _writer.submoduleUpdate(init: true, recursive: recursive),
   );
 
   Future<void> submoduleUpdate(String path) => _network(
     'Update $path',
-    () => _writer.submoduleUpdate(path: path, init: true),
+    (_) => _writer.submoduleUpdate(path: path, init: true),
   );
 
   Future<void> submoduleUpdateRemote(String path) => _network(
     'Update $path to remote',
-    () => _writer.submoduleUpdateRemote(path),
+    (_) => _writer.submoduleUpdateRemote(path),
   );
 
   Future<void> submoduleAdd(String url, String path, {String? branch}) =>
       _network(
         'Add submodule',
-        () => _writer.submoduleAdd(url, path, branch: branch),
+        (_) => _writer.submoduleAdd(url, path, branch: branch),
       );
 
   Future<void> submoduleSync([String? path]) =>
-      _network('Sync submodules', () => _writer.submoduleSync(path: path));
+      _network('Sync submodules', (_) => _writer.submoduleSync(path: path));
 
   Future<void> submoduleDeinit(String path) => _network(
     'Deinit $path',
-    () => _writer.submoduleDeinit(path, force: true),
+    (_) => _writer.submoduleDeinit(path, force: true),
   );
 
   Future<void> submoduleRemove(String path) =>
-      _network('Remove $path', () => _writer.submoduleRemove(path));
+      _network('Remove $path', (_) => _writer.submoduleRemove(path));
 
   /// Fetch URL for [remote] (read-only; empty if unset).
   Future<String> remoteUrl(String remote) =>
@@ -215,18 +238,21 @@ class RepoActions {
     await _undoable('Edit remote $from', forward, undo: back, redo: forward);
   }
 
-  Future<void> pull({bool rebase = false}) =>
-      _network('Pull', () => _writer.pull(rebase: rebase));
+  Future<void> pull({bool rebase = false}) => _network(
+    'Pull',
+    (cancel) => _writer.pull(rebase: rebase, cancel: cancel),
+  );
 
   Future<void> push({bool force = false}) => _network(
     force ? 'Force push' : 'Push',
-    () => _writer.push(force: force),
+    (cancel) => _writer.push(force: force, cancel: cancel),
     writesWorkingTree: false,
   );
 
-  /// True (and toasts) when a network op holds the repo, so an index-touching
-  /// mutation must not run concurrently and race on `.git/index.lock`.
-  bool get _blockedByNetwork {
+  /// True (and toasts) when something already holds the repository lane, so an
+  /// index-touching mutation must not run concurrently and race on
+  /// `.git/index.lock`. A running fetch is not that: it holds its own lane.
+  bool get _blockedByRepoOp {
     if (_ref.read(busyProvider) == null) return false;
     _ref
         .read(toastProvider.notifier)
@@ -246,31 +272,31 @@ class RepoActions {
   }
 
   Future<void> stageFile(String p) async {
-    if (_blockedByNetwork) return;
+    if (_blockedByRepoOp) return;
     await _timed('Stage $p', () => _writer.stageFile(p));
     _refresh();
   }
 
   Future<void> unstageFile(String p) async {
-    if (_blockedByNetwork) return;
+    if (_blockedByRepoOp) return;
     await _timed('Unstage $p', () => _writer.unstageFile(p));
     _refresh();
   }
 
   Future<void> stageAll() async {
-    if (_blockedByNetwork) return;
+    if (_blockedByRepoOp) return;
     await _timed('Stage all', _writer.stageAll);
     _refresh();
   }
 
   Future<void> unstageAll() async {
-    if (_blockedByNetwork) return;
+    if (_blockedByRepoOp) return;
     await _timed('Unstage all', _writer.unstageAll);
     _refresh();
   }
 
   Future<void> applyPatch(String patch, {bool reverse = false}) async {
-    if (_blockedByNetwork) return;
+    if (_blockedByRepoOp) return;
     await _timed(
       reverse ? 'Unstage patch' : 'Stage patch',
       () => _writer.applyToIndex(patch, reverse: reverse),
@@ -282,7 +308,7 @@ class RepoActions {
   /// tracked file, or deletion for an untracked one. Undoable: undo restores
   /// the working-tree content (and re-stages what was staged).
   Future<void> discardFile(WorkingFile f) async {
-    if (_blockedByNetwork) return;
+    if (_blockedByRepoOp) return;
     final file = File('$path/${f.path}');
     if (f.isUntracked) {
       final bytes = await file.readAsBytes();
@@ -322,7 +348,7 @@ class RepoActions {
   /// working tree back and re-stages what was staged, so the whole sweep is
   /// reversible in a single step. A clean tree records nothing.
   Future<void> discardAll({bool includeUntracked = false}) async {
-    if (_blockedByNetwork) return;
+    if (_blockedByRepoOp) return;
     final files = await GitReader(_git, path).status();
     final tracked = [
       for (final f in files)
@@ -386,7 +412,7 @@ class RepoActions {
   /// Reverts a single hunk in the working tree ([patch] is a stage-style hunk
   /// patch); undoable.
   Future<void> discardHunk(String patch) async {
-    if (_blockedByNetwork) return;
+    if (_blockedByRepoOp) return;
     await _undoable(
       'Discard hunk',
       () => _writer.applyToWorktree(patch, reverse: true),
@@ -455,7 +481,7 @@ class RepoActions {
     bool sign = false,
     List<String> coauthors = const [],
   }) async {
-    if (_blockedByNetwork) return;
+    if (_blockedByRepoOp) return;
     final profile = _ref.read(profilesProvider).active;
     // HEAD before the commit — undo soft-resets here, returning the committed
     // changes to the staging area (works for amend too: prev is the original).
@@ -515,7 +541,7 @@ class RepoActions {
     bool claimsRepo = true,
   }) async {
     if (claimsRepo) {
-      if (_blockedByNetwork) return;
+      if (_blockedByRepoOp) return;
       // Hold the shared busy flag so a second ref op (or network op) cannot
       // run concurrently and race on .git/index.lock.
       _ref.read(busyProvider.notifier).state = BusyState(label);
@@ -580,7 +606,7 @@ class RepoActions {
   }
 
   Future<void> undo() async {
-    if (_blockedByNetwork) return;
+    if (_blockedByRepoOp) return;
     _ref.read(busyProvider.notifier).state = const BusyState('Undo');
     try {
       await _timed('Undo', _ref.read(undoProvider(path).notifier).undo);
@@ -598,7 +624,7 @@ class RepoActions {
   }
 
   Future<void> redo() async {
-    if (_blockedByNetwork) return;
+    if (_blockedByRepoOp) return;
     _ref.read(busyProvider.notifier).state = const BusyState('Redo');
     try {
       await _timed('Redo', _ref.read(undoProvider(path).notifier).redo);
@@ -727,6 +753,46 @@ class RepoActions {
     );
   }
 
+  /// Deletes the branch behind [rb] on its remote. No undo entry: re-pushing
+  /// the old sha would resurrect a ref that someone else may have moved on
+  /// since, which is not the same thing as putting it back.
+  Future<void> deleteRemoteBranch(RemoteBranch rb) => _network(
+    'Delete ${rb.name}',
+    (cancel) =>
+        _writer.deleteRemoteBranch(rb.remote, rb.branch, cancel: cancel),
+    writesWorkingTree: false,
+  );
+
+  /// Deletes [name] here and then on the remote behind [upstream] (`origin/x`).
+  /// Two git commands, so the local ref can go while the push fails — the
+  /// failure then names what is left behind rather than implying nothing
+  /// happened. Only the local half lands on the undo stack.
+  Future<void> deleteBranchAndRemote(String name, String upstream) async {
+    final slash = upstream.indexOf('/');
+    if (slash <= 0) return;
+    await deleteBranch(name);
+    // deleteBranch reports its own failure. Stop when the ref survived, so a
+    // refused local delete does not still wipe the branch on the remote.
+    if (await _branchExists(name)) return;
+    await _network(
+      'Delete $upstream',
+      (cancel) => _writer.deleteRemoteBranch(
+        upstream.substring(0, slash),
+        upstream.substring(slash + 1),
+        cancel: cancel,
+      ),
+      writesWorkingTree: false,
+      failureTitle: 'Deleted $name here — $upstream is still on the remote',
+    );
+  }
+
+  Future<bool> _branchExists(String name) async => (await _git.run([
+    'rev-parse',
+    '--verify',
+    '--quiet',
+    'refs/heads/$name',
+  ], repoPath: path)).ok;
+
   Future<void> renameBranch(String from, String to) => _undoable(
     'Rename $from → $to',
     () => _writer.renameBranch(from, to),
@@ -735,7 +801,7 @@ class RepoActions {
   );
 
   Future<void> setUpstream(String branch, String upstream) async {
-    if (_blockedByNetwork) return;
+    if (_blockedByRepoOp) return;
     try {
       await _timed(
         'Set upstream $branch → $upstream',
@@ -836,7 +902,7 @@ class RepoActions {
   }
 
   Future<void> pushTag(String name) async {
-    if (_blockedByNetwork) return;
+    if (_blockedByRepoOp) return;
     try {
       await _timed('Push tag $name', () => _writer.pushTag(name));
       _ref
@@ -848,7 +914,7 @@ class RepoActions {
   }
 
   Future<void> stashPush({String? message, bool stagedOnly = false}) async {
-    if (_blockedByNetwork) return;
+    if (_blockedByRepoOp) return;
     try {
       await _timed(
         'Stash push',
@@ -861,7 +927,7 @@ class RepoActions {
   }
 
   Future<void> stashApply(String ref) async {
-    if (_blockedByNetwork) return;
+    if (_blockedByRepoOp) return;
     try {
       await _timed('Stash apply $ref', () => _writer.stashApply(ref));
       _refresh();
@@ -871,7 +937,7 @@ class RepoActions {
   }
 
   Future<void> stashPop(String ref) async {
-    if (_blockedByNetwork) return;
+    if (_blockedByRepoOp) return;
     try {
       await _timed('Stash pop $ref', () => _writer.stashPop(ref));
       _refresh();
@@ -905,7 +971,7 @@ class RepoActions {
   /// Drops a stash, offering an Undo toast that re-stores it (drop is not part
   /// of the ref undo stack because the stash index shifts).
   Future<void> stashDrop(String ref) async {
-    if (_blockedByNetwork) return;
+    if (_blockedByRepoOp) return;
     try {
       final sha = await _timed('Stash drop $ref', () => _writer.stashDrop(ref));
       _refresh();
@@ -932,7 +998,7 @@ class RepoActions {
   /// Merges [branch] into the current branch. A clean merge commits and is
   /// undoable; a conflict opens the Merge Tool via [mergeSessionProvider].
   Future<void> merge(String branch) async {
-    if (_blockedByNetwork) return;
+    if (_blockedByRepoOp) return;
     final prev = await _headSha();
     _ref.read(busyProvider.notifier).state = BusyState('Merge $branch');
     final id = _identity;
@@ -1096,7 +1162,7 @@ class RepoActions {
   }
 
   Future<void> _runRebase(Future<void> Function() op) async {
-    if (_blockedByNetwork) return;
+    if (_blockedByRepoOp) return;
     final prev = await _headSha();
     _ref.read(busyProvider.notifier).state = const BusyState('Rebase');
     try {

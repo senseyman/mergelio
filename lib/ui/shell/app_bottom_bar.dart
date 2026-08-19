@@ -30,16 +30,18 @@ class AppBottomBar extends ConsumerWidget {
               const <String>[]);
     final hasRemote = path != null && remotes.isNotEmpty;
     final busy = ref.watch(busyProvider) != null;
+    // Fetching has its own lane, so only another fetch stands in its way.
+    final fetching = ref.watch(fetchBusyProvider) != null;
     final actions = path == null ? null : ref.read(repoActionsProvider(path));
     final undo = path == null
         ? const UndoState()
         : ref.watch(undoProvider(path));
 
     // A disabled network op explains the actual reason it is unavailable.
-    void whyDisabled() {
+    void whyDisabled({bool running = false}) {
       final reason = path == null
           ? 'Open a repository first'
-          : busy
+          : running
           ? 'An operation is already running'
           : 'No remote configured';
       ref.read(toastProvider.notifier).show(reason, kind: ToastKind.warning);
@@ -92,8 +94,8 @@ class AppBottomBar extends ConsumerWidget {
                         _OpButton(
                           icon: Icons.download_outlined,
                           label: l.opFetch,
-                          enabled: hasRemote && !busy,
-                          onDisabledTap: whyDisabled,
+                          enabled: hasRemote && !fetching,
+                          onDisabledTap: () => whyDisabled(running: fetching),
                           items: () => [
                             _Op(
                               'Fetch origin',
@@ -106,7 +108,7 @@ class AppBottomBar extends ConsumerWidget {
                           icon: Icons.south_west,
                           label: l.opPull,
                           enabled: hasRemote && !busy,
-                          onDisabledTap: whyDisabled,
+                          onDisabledTap: () => whyDisabled(running: busy),
                           items: () => [
                             _Op(l.opPull, () => actions!.pull()),
                             _Op(
@@ -125,7 +127,7 @@ class AppBottomBar extends ConsumerWidget {
                           icon: Icons.north_east,
                           label: l.opPush,
                           enabled: hasRemote && !busy,
-                          onDisabledTap: whyDisabled,
+                          onDisabledTap: () => whyDisabled(running: busy),
                           items: () => [
                             _Op(l.opPushOrigin, () => actions!.push()),
                             _Op(l.opForcePush, () async {

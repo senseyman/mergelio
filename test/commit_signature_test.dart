@@ -13,6 +13,7 @@ class _CapturingGit implements GitService {
     String? repoPath,
     Duration? timeout,
     Map<String, String>? environment,
+    GitCancel? cancel,
   }) async {
     calls.add(args);
     return GitResult(0, output, '');

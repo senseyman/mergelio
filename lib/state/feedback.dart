@@ -84,11 +84,26 @@ class BusyState {
   /// from an editor has to wait for one that does; it has no reason to wait
   /// for a fetch, which only moves objects and refs.
   final bool touchesWorkingTree;
-  const BusyState(this.label, [this.progress]) : touchesWorkingTree = true;
+
+  /// Kills the git process behind the operation, for one that can stall on an
+  /// unreachable remote. Null when there is nothing to abandon.
+  final void Function()? onCancel;
+
+  const BusyState(this.label, {this.progress, this.onCancel})
+    : touchesWorkingTree = true;
 
   /// An operation that talks to a remote and leaves the working tree alone.
-  const BusyState.network(this.label, [this.progress])
+  const BusyState.network(this.label, {this.progress, this.onCancel})
     : touchesWorkingTree = false;
 }
 
+/// The operation holding the repository: anything that can rewrite the working
+/// tree or move a local ref. One at a time, so nothing races on git's index
+/// and ref locks.
 final busyProvider = StateProvider<BusyState?>((ref) => null);
+
+/// The running fetch, tracked apart from [busyProvider]. A fetch moves objects
+/// and remote-tracking refs and can run for minutes; making a commit, a branch
+/// create or a push wait that out — for an auto-fetch tick nobody asked for —
+/// is the whole reason it gets a lane of its own.
+final fetchBusyProvider = StateProvider<BusyState?>((ref) => null);

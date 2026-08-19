@@ -16,6 +16,7 @@ class _StubGit implements GitService {
     String? repoPath,
     Duration? timeout,
     Map<String, String>? environment,
+    GitCancel? cancel,
   }) async => GitResult(0, stdout, '');
 
   @override

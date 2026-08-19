@@ -24,6 +24,7 @@ class _FakeGit implements GitService {
     String? repoPath,
     Duration? timeout,
     Map<String, String>? environment,
+    GitCancel? cancel,
   }) async {
     calls++;
     argv.add(args);
@@ -47,6 +48,7 @@ class _ThrowingGit implements GitService {
     String? repoPath,
     Duration? timeout,
     Map<String, String>? environment,
+    GitCancel? cancel,
   }) async {
     throw StateError('disk unplugged');
   }
