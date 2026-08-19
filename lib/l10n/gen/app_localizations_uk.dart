@@ -216,6 +216,25 @@ class AppLocalizationsUk extends AppLocalizations {
   String get filterHideTags => 'Сховати теги';
 
   @override
+  String get filterContentRegex => 'Regex';
+
+  @override
+  String get searchContentHint => 'У змінах…';
+
+  @override
+  String get searchContentHelp => 'Коміти, які додали або видалили цей текст';
+
+  @override
+  String get searchContentRegexHelp =>
+      'Коміти з доданим або видаленим рядком, що відповідає цьому регулярному виразу';
+
+  @override
+  String get searchRunning => 'Пошук…';
+
+  @override
+  String get searchNoMatches => 'Немає збігів';
+
+  @override
   String get menuCheckout => 'Переключитися на цей коміт';
 
   @override

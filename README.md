@@ -11,7 +11,7 @@
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey.svg)](#installation)
 [![Flutter](https://img.shields.io/badge/Flutter-3.44.6-02569B.svg?logo=flutter)](https://flutter.dev)
 [![Dart SDK](https://img.shields.io/badge/Dart%20SDK-3.12.x-0175C2.svg?logo=dart)](https://dart.dev)
-[![Tests](https://img.shields.io/badge/tests-1062%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-1090%20passing-brightgreen.svg)](#testing)
 
 </div>
 
@@ -84,6 +84,7 @@ about to do to your repository. Mergelio takes the opposite position:
 - Commit details with per-file stats, and a diff for any commit.
 - **File history** and per-line **blame** for any changed file.
 - Global search with filters, plus in-graph match highlighting.
+- Content search (pickaxe): find the commits that added or removed a string, literally or by regular expression.
 - **Command palette** (`⌘K` / `Ctrl+K`) with fuzzy matching and fly-to.
 
 ### Working with changes

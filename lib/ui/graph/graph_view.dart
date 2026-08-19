@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,6 +9,7 @@ import '../../core/tokens.dart';
 import '../../domain/git/models.dart';
 import '../../domain/git/rebase_plan.dart';
 import '../../domain/search.dart';
+import '../../state/content_search.dart';
 import '../../state/graph_selection.dart';
 import '../../state/path_history.dart';
 import '../../state/repo_actions.dart';
@@ -85,6 +88,7 @@ class _GraphListState extends ConsumerState<GraphList> {
   RepoData? _matchDataFor;
   CommitQuery? _matchQueryFor;
   Set<String>? _matchPathsFor;
+  Set<String>? _matchContentFor;
   Set<String> _matchCache = const {};
 
   GraphDerived _deriveFor(RepoData d) {
@@ -100,27 +104,40 @@ class _GraphListState extends ConsumerState<GraphList> {
   /// Current match set. Small histories compute inline; big ones kick a
   /// background-isolate computation and keep showing the previous set until
   /// it lands (generation counter drops stale results).
-  Set<String> _matchesFor(RepoData d, CommitQuery? query, Set<String>? paths) {
+  Set<String> _matchesFor(
+    RepoData d,
+    CommitQuery? query,
+    Set<String>? paths,
+    Set<String>? content,
+  ) {
     if (query == null || query.isEmpty) return const {};
     if (identical(_matchDataFor, d) &&
         query == _matchQueryFor &&
-        identical(_matchPathsFor, paths)) {
+        identical(_matchPathsFor, paths) &&
+        identical(_matchContentFor, content)) {
       return _matchCache;
     }
     _matchDataFor = d;
     _matchQueryFor = query;
     _matchPathsFor = paths;
+    _matchContentFor = content;
     // Bump the generation on every recompute so any still-in-flight isolate
     // result from a previous (data, query) is dropped when it lands.
     final gen = ++_matchGen;
     if (d.commits.length < searchIsolateThreshold) {
       _matchCache = {
         for (final c in d.commits)
-          if (matchesCommit(c, query, pathShas: paths)) c.sha,
+          if (matchesCommit(c, query, pathShas: paths, contentShas: content))
+            c.sha,
       };
       return _matchCache;
     }
-    computeMatchShas(d.commits, query, pathShas: paths).then((m) {
+    computeMatchShas(
+      d.commits,
+      query,
+      pathShas: paths,
+      contentShas: content,
+    ).then((m) {
       if (mounted && gen == _matchGen) setState(() => _matchCache = m);
     });
     return _matchCache;
@@ -287,8 +304,14 @@ class _GraphListState extends ConsumerState<GraphList> {
     if (event.logicalKey == LogicalKeyboardKey.keyN) {
       final query = ref.read(searchQueryProvider);
       if (query != null && !query.isEmpty) {
-        // Reuses whatever the last build computed, path shas included.
-        final matches = _matchesFor(widget.data, query, _matchPathsFor);
+        // Reuses whatever the last build computed, path and content shas
+        // included.
+        final matches = _matchesFor(
+          widget.data,
+          query,
+          _matchPathsFor,
+          _matchContentFor,
+        );
         _jumpMatch(
           widget.data,
           matches,
@@ -374,7 +397,17 @@ class _GraphListState extends ConsumerState<GraphList> {
     final pathShas = (query == null || query.path.isEmpty || repo == null)
         ? null
         : ref.watch(pathHistoryProvider(PathKey(repo, query.path))).valueOrNull;
-    final matchShas = _matchesFor(d, query, pathShas);
+    // The commits whose diff matched the pickaxe string, on the same terms:
+    // until the read lands there are no shas and so no matches, and the search
+    // bar says so rather than reporting a false "no matches".
+    final content = (query == null || query.content.isEmpty || repo == null)
+        ? null
+        : ref.watch(
+            contentSearchProvider(
+              ContentKey(repo, query.content, query.contentMode),
+            ),
+          );
+    final matchShas = _matchesFor(d, query, pathShas, content?.valueOrNull);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -383,6 +416,7 @@ class _GraphListState extends ConsumerState<GraphList> {
           _SearchBar(
             query: query,
             matchCount: matchShas.length,
+            searching: content?.isLoading ?? false,
             currentIndex: () {
               // Position of the selected commit among ordered matches, 1-based.
               // Uses a memoized ordinal map so this is O(1) per keystroke rather
@@ -569,10 +603,19 @@ class _GraphListState extends ConsumerState<GraphList> {
   }
 }
 
+/// How long the content field waits for typing to stop before running the
+/// pickaxe. Every run reads the whole history's diffs, so a git process per
+/// keystroke would leave the machine doing nothing else.
+const _contentDebounce = Duration(milliseconds: 350);
+
 /// Global-search bar shown in place of the header while a search is open.
-class _SearchBar extends StatelessWidget {
+class _SearchBar extends StatefulWidget {
   final CommitQuery query;
   final int matchCount;
+
+  /// True while the pickaxe is still running, so an empty result reads as
+  /// "not finished yet" rather than "nothing found".
+  final bool searching;
   // 1-based position of the selected match, 0 when the selection is not a
   // match. Rendered as "current / total".
   final int currentIndex;
@@ -582,6 +625,7 @@ class _SearchBar extends StatelessWidget {
   const _SearchBar({
     required this.query,
     required this.matchCount,
+    required this.searching,
     required this.currentIndex,
     required this.onChanged,
     required this.onClose,
@@ -589,10 +633,39 @@ class _SearchBar extends StatelessWidget {
   });
 
   @override
+  State<_SearchBar> createState() => _SearchBarState();
+}
+
+class _SearchBarState extends State<_SearchBar> {
+  Timer? _debounce;
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  void _setContent(String v) {
+    _debounce?.cancel();
+    widget.onChanged(widget.query.copyWith(content: v));
+  }
+
+  void _typedContent(String v) {
+    _debounce?.cancel();
+    _debounce = Timer(_contentDebounce, () => _setContent(v));
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final query = widget.query;
+    final onChanged = widget.onChanged;
+    final onClose = widget.onClose;
+    final onJump = widget.onJump;
     final t = context.tokens;
     final l = AppLocalizations.of(context);
-    final noMatches = !query.isEmpty && matchCount == 0;
+    final noMatches =
+        !query.isEmpty && !widget.searching && widget.matchCount == 0;
+    final regex = query.contentMode == ContentSearchMode.diffText;
     return CallbackShortcuts(
       bindings: {const SingleActivator(LogicalKeyboardKey.escape): onClose},
       child: Container(
@@ -606,7 +679,11 @@ class _SearchBar extends StatelessWidget {
           children: [
             Icon(Icons.search, size: 15, color: t.textFaint),
             const SizedBox(width: 8),
+            // The two text fields share whatever the fixed filters leave, so a
+            // graph panel narrower than a wide monitor shrinks them instead of
+            // pushing the buttons off the bar.
             Expanded(
+              flex: 3,
               child: TextField(
                 autofocus: true,
                 onChanged: (v) => onChanged(query.copyWith(text: v)),
@@ -620,6 +697,46 @@ class _SearchBar extends StatelessWidget {
                 ),
               ),
             ),
+            // Content filter feeds CommitQuery.content: which commits' diffs
+            // mention the string is read from git, not from the loaded
+            // commits, so this is the only filter that can answer "which
+            // commit introduced this?".
+            Icon(Icons.code, size: 15, color: t.textFaint),
+            const SizedBox(width: 4),
+            Expanded(
+              flex: 2,
+              child: Tooltip(
+                message: regex ? l.searchContentRegexHelp : l.searchContentHelp,
+                child: TextField(
+                  key: const ValueKey('search:content'),
+                  onChanged: _typedContent,
+                  onSubmitted: _setContent,
+                  style: TextStyle(color: t.textPrimary, fontSize: 12),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    border: InputBorder.none,
+                    hintText: l.searchContentHint,
+                    hintStyle: TextStyle(color: t.textFaint, fontSize: 12),
+                    // The mode toggle rides inside the field it changes rather
+                    // than beside it: as a fixed-width chip on the row it cost
+                    // the bar enough width to overflow on a laptop.
+                    suffixIconConstraints: const BoxConstraints(minWidth: 0),
+                    suffixIcon: _RegexToggle(
+                      on: regex,
+                      label: l.filterContentRegex,
+                      onTap: () => onChanged(
+                        query.copyWith(
+                          contentMode: regex
+                              ? ContentSearchMode.occurrences
+                              : ContentSearchMode.diffText,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
             // Author filter feeds CommitQuery.author.
             SizedBox(
               width: 120,
@@ -660,11 +777,13 @@ class _SearchBar extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Text(
-              noMatches
-                  ? 'No matches'
-                  : (currentIndex > 0
-                        ? '$currentIndex / $matchCount'
-                        : '$matchCount'),
+              widget.searching
+                  ? l.searchRunning
+                  : noMatches
+                  ? l.searchNoMatches
+                  : (widget.currentIndex > 0
+                        ? '${widget.currentIndex} / ${widget.matchCount}'
+                        : '${widget.matchCount}'),
               style: TextStyle(
                 color: noMatches ? t.warning : t.textFaint,
                 fontSize: 12,
@@ -689,6 +808,45 @@ class _SearchBar extends StatelessWidget {
               onPressed: onClose,
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Switches the content search between counting occurrences of a literal
+/// string and matching diff lines as a regular expression. Drawn as `.*`
+/// inside the content field, lit when on.
+class _RegexToggle extends StatelessWidget {
+  final bool on;
+  final String label;
+  final VoidCallback onTap;
+  const _RegexToggle({
+    required this.on,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Semantics(
+      button: true,
+      toggled: on,
+      label: label,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(4),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+          child: Text(
+            '.*',
+            style: TextStyle(
+              color: on ? t.accent : t.textFaint,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ),
       ),
     );
