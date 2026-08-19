@@ -1,0 +1,30 @@
+# Normalize line endings on commit; check out with LF everywhere.
+* text=auto eol=lf
+
+# Shell scripts must be LF regardless of platform — CRLF breaks the shebang.
+*.sh text eol=lf
+Makefile text eol=lf
+
+# Windows-only scripts keep CRLF.
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary files: no conversion.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.icns binary
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+*.zip binary
+*.gz binary
+*.dmg binary
+*.exe binary
+*.dll binary
+*.so binary
+*.dylib binary

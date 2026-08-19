@@ -512,6 +512,42 @@ abstract class AppLocalizations {
   /// **'Hide tags'**
   String get filterHideTags;
 
+  /// No description provided for @filterContentRegex.
+  ///
+  /// In en, this message translates to:
+  /// **'Regex'**
+  String get filterContentRegex;
+
+  /// No description provided for @searchContentHint.
+  ///
+  /// In en, this message translates to:
+  /// **'In diffs…'**
+  String get searchContentHint;
+
+  /// No description provided for @searchContentHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Commits that added or removed this text'**
+  String get searchContentHelp;
+
+  /// No description provided for @searchContentRegexHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Commits with an added or removed line matching this regular expression'**
+  String get searchContentRegexHelp;
+
+  /// No description provided for @searchRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Searching…'**
+  String get searchRunning;
+
+  /// No description provided for @searchNoMatches.
+  ///
+  /// In en, this message translates to:
+  /// **'No matches'**
+  String get searchNoMatches;
+
   /// No description provided for @menuCheckout.
   ///
   /// In en, this message translates to:

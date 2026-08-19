@@ -216,6 +216,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get filterHideTags => 'Hide tags';
 
   @override
+  String get filterContentRegex => 'Regex';
+
+  @override
+  String get searchContentHint => 'In diffs…';
+
+  @override
+  String get searchContentHelp => 'Commits that added or removed this text';
+
+  @override
+  String get searchContentRegexHelp =>
+      'Commits with an added or removed line matching this regular expression';
+
+  @override
+  String get searchRunning => 'Searching…';
+
+  @override
+  String get searchNoMatches => 'No matches';
+
+  @override
   String get menuCheckout => 'Checkout this commit';
 
   @override
