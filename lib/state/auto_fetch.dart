@@ -12,7 +12,9 @@ import 'workspace.dart';
 /// Periodically fetches the active repository while the "Auto-fetch" preference
 /// is on, at the interval configured in settings. Ticks are best-effort: they
 /// skip when no repo is open or it has no remote, and [RepoActions.fetch]
-/// itself no-ops while another network op runs.
+/// itself no-ops while another fetch is still running. A tick never blocks the
+/// user: it holds the fetch lane only, so a commit, a branch create or a push
+/// goes through while it is in flight.
 class AutoFetchController {
   final Ref _ref;
 

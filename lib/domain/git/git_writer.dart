@@ -218,6 +218,14 @@ class GitWriter {
   Future<void> deleteBranch(String name, {bool force = false}) =>
       _ok(['branch', force ? '-D' : '-d', name], 'git branch -d');
 
+  /// Deletes [branch] on [remote]. The remote-tracking ref goes with it, so
+  /// the branch leaves the sidebar on the next refresh.
+  Future<void> deleteRemoteBranch(String remote, String branch) => _ok(
+    ['push', remote, '--delete', branch],
+    'git push --delete',
+    timeout: _netTimeout,
+  );
+
   Future<void> setUpstream(String branch, String upstream) => _ok([
     'branch',
     '--set-upstream-to=$upstream',

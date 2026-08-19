@@ -41,28 +41,20 @@ void main() {
     actions = container.read(repoActionsProvider('/r'));
   });
 
+  // Fetching runs in its own lane and is guarded in fetch_lane_test.dart;
+  // everything else still shares the one repository slot.
   test('a network op is refused and warns while another op runs', () async {
-    container.read(busyProvider.notifier).state = const BusyState('Pull');
+    container.read(busyProvider.notifier).state = const BusyState('Merge');
 
-    await actions.fetch();
+    await actions.pull();
 
-    expect(git.calls.any((c) => c.first == 'fetch'), isFalse);
+    expect(git.calls.any((c) => c.first == 'pull'), isFalse);
     expect(
       container.read(toastProvider).any((t) => t.kind == ToastKind.warning),
       isTrue,
     );
     // The refused op must not clear the busy state the running op owns.
-    expect(container.read(busyProvider), isNotNull);
-  });
-
-  test('a silent network op is refused without a toast', () async {
-    container.read(busyProvider.notifier).state = const BusyState('Pull');
-
-    await actions.fetch(silent: true);
-
-    expect(git.calls.any((c) => c.first == 'fetch'), isFalse);
-    expect(container.read(toastProvider), isEmpty);
-    expect(container.read(busyProvider), isNotNull);
+    expect(container.read(busyProvider)?.label, 'Merge');
   });
 
   test('saveFileText refuses a path that escapes the repository', () async {

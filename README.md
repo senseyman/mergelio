@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="linux/packaging/icons/mergelio.png" alt="Mergelio" width="120" />
+<img src="linux/packaging/icons/com.mergelio.mergelio.png" alt="Mergelio" width="120" />
 
 # Mergelio
 
@@ -11,7 +11,7 @@
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey.svg)](#installation)
 [![Flutter](https://img.shields.io/badge/Flutter-3.44.6-02569B.svg?logo=flutter)](https://flutter.dev)
 [![Dart SDK](https://img.shields.io/badge/Dart%20SDK-3.12.x-0175C2.svg?logo=dart)](https://dart.dev)
-[![Tests](https://img.shields.io/badge/tests-1090%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-1112%20passing-brightgreen.svg)](#testing)
 
 </div>
 
@@ -134,7 +134,11 @@ about to do to your repository. Mergelio takes the opposite position:
 
 - Branches: create, checkout, rename, delete, set upstream — organised into
   folders from `/`-separated names.
+- Delete a branch on the remote from its remote-tracking row, or take a
+  tracking branch away here and on the remote in one confirmed step.
 - Fetch, pull (merge or rebase strategy), and push with **force-with-lease**.
+  Fetching runs in its own lane, so a fetch — including an auto-fetch tick —
+  never blocks a commit, a branch create or a push.
 - Merge from the branch menu, the merge dialog or by drag-and-drop, with merge
   options. **Remote-tracking branches merge too** — drag one onto a branch, or
   drop a branch onto it and the merge lands on its local counterpart. Merging
@@ -359,7 +363,7 @@ make help
 ## Testing
 
 ```bash
-make test        # 1062 unit and widget tests
+make test        # 1112 unit and widget tests
 make coverage    # → coverage/lcov.info
 make check       # what CI runs: format check + analyze + test
 ```

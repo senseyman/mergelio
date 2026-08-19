@@ -91,4 +91,13 @@ class BusyState {
     : touchesWorkingTree = false;
 }
 
+/// The operation holding the repository: anything that can rewrite the working
+/// tree or move a local ref. One at a time, so nothing races on git's index
+/// and ref locks.
 final busyProvider = StateProvider<BusyState?>((ref) => null);
+
+/// The running fetch, tracked apart from [busyProvider]. A fetch moves objects
+/// and remote-tracking refs and can run for minutes; making a commit, a branch
+/// create or a push wait that out — for an auto-fetch tick nobody asked for —
+/// is the whole reason it gets a lane of its own.
+final fetchBusyProvider = StateProvider<BusyState?>((ref) => null);
