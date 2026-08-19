@@ -160,6 +160,30 @@ if ($env:CLEAN) {
     Write-Ok 'flutter clean done'
 }
 
+# .dart_tool\package_config.json records absolute paths to the Flutter SDK, so
+# a working copy carried over from another machine (zip, scp, shared volume)
+# brings that machine's paths with it. pub skips rewriting the file when it
+# looks newer than the pubspecs, so 'pub get' reports success and build_runner
+# then dies on a path that does not exist here.
+$PackageConfig = '.dart_tool\package_config.json'
+if (Test-Path -LiteralPath $PackageConfig) {
+    try {
+        $cfg = Get-Content -LiteralPath $PackageConfig -Raw | ConvertFrom-Json
+        $sky = $cfg.packages | Where-Object { $_.name -eq 'sky_engine' } | Select-Object -First 1
+        if ($sky -and $sky.rootUri -like 'file:*') {
+            $skyPath = ([uri]$sky.rootUri).LocalPath
+            if (-not (Test-Path -LiteralPath $skyPath)) {
+                Write-Warn "package_config.json points at $skyPath, which does not exist here."
+                Write-Warn "Discarding .dart_tool so 'pub get' regenerates it for this machine."
+                Remove-Item -Recurse -Force '.dart_tool'
+            }
+        }
+    } catch {
+        Write-Warn 'package_config.json could not be read; discarding .dart_tool.'
+        Remove-Item -Recurse -Force '.dart_tool' -ErrorAction SilentlyContinue
+    }
+}
+
 Write-Step 'Fetching dependencies'
 flutter pub get
 if ($LASTEXITCODE -ne 0) { Stop-WithError 'flutter pub get failed.' }
