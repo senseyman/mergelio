@@ -279,7 +279,8 @@ the better route on Windows, where `make` is usually absent:
 ```bash
 ./scripts/build-macos.sh       # .app + zip in dist/
 ./scripts/build-linux.sh       # bundle + tar.gz in dist/
-.\scripts\build-windows.ps1    # exe + zip in dist/
+./scripts/build-linux-ubuntu.sh # .deb installer in dist/
+.\scripts\build-windows.ps1    # exe + zip + setup.exe in dist/
 ```
 
 Each script fetches dependencies, runs code generation, builds, and archives the
@@ -349,6 +350,7 @@ make help
 | `run` | Debug build on the host platform |
 | `build` | Release build for the host platform |
 | `build-macos` / `build-windows` / `build-linux` | Per-platform release build |
+| `installer` / `installer-linux` / `installer-windows` | Installer build (.deb, setup.exe) |
 | `check` | CI gate: `lint` + `test` |
 | `ci` | Full pipeline: `deps` → `gen` → `check` |
 | `clean` / `distclean` | Remove build artifacts / also generated code |

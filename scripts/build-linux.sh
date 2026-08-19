@@ -20,6 +20,9 @@ load_env .env
 
 APP_NAME=${APP_NAME:-Mergelio}
 DIST_DIR=${DIST_DIR:-dist}
+# Matches APPLICATION_ID in linux/CMakeLists.txt: the desktop entry, the icon
+# and the window's WM class all have to agree on it.
+APP_ID=${APP_ID:-com.mergelio.mergelio}
 
 # ─── Preflight ───────────────────────────────────────────────────────────────
 
@@ -90,6 +93,18 @@ STAGE_DIR=$(mktemp -d)
 trap 'rm -rf "$STAGE_DIR"' EXIT
 
 cp -a "$BUNDLE_DIR" "${STAGE_DIR}/${STAGE_NAME}"
+
+# The bundle carries the icon it loads at runtime (installed by CMake into
+# data/icon.png). These two are for whoever installs the archive system-wide:
+# without them the app has no launcher entry and no icon in the application
+# menu.
+mkdir -p "${STAGE_DIR}/${STAGE_NAME}/share/applications" \
+  "${STAGE_DIR}/${STAGE_NAME}/share/icons/hicolor/256x256/apps"
+cp linux/packaging/${APP_ID}.desktop \
+  "${STAGE_DIR}/${STAGE_NAME}/share/applications/"
+cp linux/packaging/icons/${APP_ID}.png \
+  "${STAGE_DIR}/${STAGE_NAME}/share/icons/hicolor/256x256/apps/"
+
 tar -czf "$ARCHIVE" -C "$STAGE_DIR" "$STAGE_NAME"
 ok "Archive: $ARCHIVE"
 

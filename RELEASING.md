@@ -38,8 +38,9 @@ needs a real keychain anyway.
 | --- | --- | --- |
 | macOS, ad-hoc signed | `make build-macos` | `dist/<APP_NAME>-<version>-macos-<arch>.zip` |
 | macOS, Developer ID | `./scripts/release.sh` | `dist/<APP_NAME>-<version>.dmg` |
-| Linux | `make build-linux` | `dist/<APP_NAME>-<version>-linux-<arch>.tar.gz` |
-| Windows | `make build-windows` | `dist/<APP_NAME>-<version>-windows-<arch>.zip` |
+| Linux, portable | `make build-linux` | `dist/<APP_NAME>-<version>-linux-<arch>.tar.gz` |
+| Linux, installer | `make installer-linux` | `dist/mergelio_<version>_<debarch>.deb` |
+| Windows | `make build-windows` | `dist/<APP_NAME>-<version>-windows-<arch>.zip` and `-setup.exe` |
 
 The three `build-*` scripts accept `CLEAN=1` (`flutter clean` first),
 `SKIP_GEN=1` (skip code generation when the generated sources are current) and
@@ -51,6 +52,19 @@ $env:CLEAN = 1; .\scripts\build-windows.ps1
 ```
 
 Linux and Windows builds are unsigned and need no configuration.
+
+### Installers
+
+`make build-windows` also produces `…-setup.exe` via Inno Setup 6, which must
+be installed (`winget install -e --id JRSoftware.InnoSetup`); set
+`SKIP_INSTALLER=1` to build the zip alone. The installer writes to Program
+Files, adds Start menu and optional desktop shortcuts, and registers an
+uninstall entry.
+
+`make installer-linux` builds a `.deb` with `dpkg-deb` (`sudo apt install
+dpkg-dev`). It installs the app under `/opt/mergelio`, links
+`/usr/bin/mergelio`, and registers the desktop entry and icon so the app shows
+up in the launcher. `SKIP_BUILD=1` packages a bundle that is already built.
 
 ## Signing & notarization (macOS)
 

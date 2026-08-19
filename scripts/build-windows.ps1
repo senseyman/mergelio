@@ -4,9 +4,13 @@
     Build Mergelio for Windows.
 
 .DESCRIPTION
-    Produces a release build and a zip archive in DIST_DIR. Configuration is
-    read from .env in the repository root (see .env.example); values already
-    present in the environment take precedence.
+    Produces a release build, a zip archive and an Inno Setup installer in
+    DIST_DIR. Configuration is read from .env in the repository root (see
+    .env.example); values already present in the environment take precedence.
+
+    The installer puts the app in Program Files, creates Start menu and
+    optional desktop shortcuts, and registers an uninstall entry. Building it
+    needs Inno Setup 6: winget install -e --id JRSoftware.InnoSetup
 
 .PARAMETER Version
     Version used in the archive name. Defaults to the version in pubspec.yaml.
@@ -17,6 +21,7 @@
     $env:CLEAN = 1;        .\scripts\build-windows.ps1   # flutter clean first
     $env:SKIP_GEN = 1;     .\scripts\build-windows.ps1   # skip code generation
     $env:SKIP_PACKAGE = 1; .\scripts\build-windows.ps1   # build no archive
+    $env:SKIP_INSTALLER = 1; .\scripts\build-windows.ps1 # zip only, no setup.exe
 #>
 
 [CmdletBinding()]
@@ -204,7 +209,60 @@ Write-Ok "Archive: $Archive"
 
 $SizeMb = [math]::Round((Get-Item -LiteralPath $Archive).Length / 1MB, 1)
 
+# ─── Installer ───────────────────────────────────────────────────────────────
+
+$Installer = $null
+
+if ($env:SKIP_INSTALLER) {
+    Write-Warn 'SKIP_INSTALLER is set - building no setup.exe'
+} else {
+    Write-Step 'Building the installer'
+
+    # ISCC is not added to PATH by its own installer, so fall back to the
+    # default locations before giving up.
+    $Iscc = (Get-Command 'ISCC.exe' -ErrorAction SilentlyContinue).Source
+    if (-not $Iscc) {
+        foreach ($candidate in @(
+            (Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'),
+            (Join-Path $env:ProgramFiles 'Inno Setup 6\ISCC.exe')
+        )) {
+            if ($candidate -and (Test-Path -LiteralPath $candidate)) { $Iscc = $candidate; break }
+        }
+    }
+    if (-not $Iscc) {
+        Stop-WithError ("Inno Setup 6 not found (ISCC.exe).`n" +
+            "  Install it:  winget install -e --id JRSoftware.InnoSetup`n" +
+            '  Or skip it:  $env:SKIP_INSTALLER = 1')
+    }
+    Write-Ok "Inno Setup: $Iscc"
+
+    # ISCC resolves relative paths against the .iss file, so hand it absolute
+    # ones for the directories that live outside windows\packaging.
+    $IssFile     = (Resolve-Path 'windows\packaging\mergelio.iss').Path
+    $SourceAbs   = (Resolve-Path $ReleaseDir).Path
+    $OutputAbs   = (Resolve-Path $DistDir).Path
+
+    & $Iscc `
+        "/DAppName=$AppName" `
+        "/DAppVersion=$Version" `
+        "/DAppArch=$Arch" `
+        "/DSourceDir=$SourceAbs" `
+        "/DOutputDir=$OutputAbs" `
+        $IssFile
+    if ($LASTEXITCODE -ne 0) { Stop-WithError 'Inno Setup failed to build the installer.' }
+
+    $Installer = Join-Path $DistDir "$AppName-$Version-windows-$Arch-setup.exe"
+    if (-not (Test-Path -LiteralPath $Installer)) {
+        Stop-WithError "Inno Setup reported success but $Installer is missing."
+    }
+    Write-Ok "Installer: $Installer"
+}
+
 Write-Host "`n[ok] Done" -ForegroundColor Green
 Write-Host "  build:   $ReleaseDir"
 Write-Host "  archive: $Archive ($SizeMb MB)"
+if ($Installer) {
+    $InstallerMb = [math]::Round((Get-Item -LiteralPath $Installer).Length / 1MB, 1)
+    Write-Host "  setup:   $Installer ($InstallerMb MB)"
+}
 Write-Host "`n  Unsigned: SmartScreen will warn on other machines.`n"
