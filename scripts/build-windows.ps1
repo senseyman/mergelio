@@ -43,6 +43,48 @@ function Stop-WithError {
     exit 1
 }
 
+# Locates ISCC.exe. Its installer does not put it on PATH, winget may install
+# it per-user rather than per-machine, and the directory is named after the
+# major version - so look in every place it can legitimately be rather than
+# guessing one path.
+function Find-Iscc {
+    if ($env:ISCC -and (Test-Path -LiteralPath $env:ISCC)) { return $env:ISCC }
+
+    # A shell opened before the install still has the old PATH, so this misses
+    # a fresh install even when it is on PATH for new shells.
+    $onPath = (Get-Command 'ISCC.exe' -ErrorAction SilentlyContinue).Source
+    if ($onPath) { return $onPath }
+
+    # The uninstall entry records the install directory whatever the version
+    # and whichever scope it was installed into.
+    foreach ($key in @(
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
+        'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*',
+        'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
+    )) {
+        $hit = Get-ItemProperty -Path $key -ErrorAction SilentlyContinue |
+            Where-Object { $_.DisplayName -like 'Inno Setup*' -and $_.InstallLocation } |
+            ForEach-Object { Join-Path $_.InstallLocation 'ISCC.exe' } |
+            Where-Object { Test-Path -LiteralPath $_ } |
+            Select-Object -First 1
+        if ($hit) { return $hit }
+    }
+
+    # Default locations, any major version, machine-wide or per-user.
+    $roots = @($env:ProgramFiles, ${env:ProgramFiles(x86)},
+               (Join-Path $env:LOCALAPPDATA 'Programs')) |
+        Where-Object { $_ -and (Test-Path -LiteralPath $_) }
+    foreach ($root in $roots) {
+        $hit = Get-ChildItem -Path $root -Filter 'Inno Setup*' -Directory -ErrorAction SilentlyContinue |
+            ForEach-Object { Join-Path $_.FullName 'ISCC.exe' } |
+            Where-Object { Test-Path -LiteralPath $_ } |
+            Select-Object -First 1
+        if ($hit) { return $hit }
+    }
+
+    return $null
+}
+
 # ─── Environment ─────────────────────────────────────────────────────────────
 
 # Reads KEY=VALUE pairs from .env without executing anything. Values already
@@ -242,20 +284,13 @@ if ($env:SKIP_INSTALLER) {
 } else {
     Write-Step 'Building the installer'
 
-    # ISCC is not added to PATH by its own installer, so fall back to the
-    # default locations before giving up.
-    $Iscc = (Get-Command 'ISCC.exe' -ErrorAction SilentlyContinue).Source
+    $Iscc = Find-Iscc
     if (-not $Iscc) {
-        foreach ($candidate in @(
-            (Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'),
-            (Join-Path $env:ProgramFiles 'Inno Setup 6\ISCC.exe')
-        )) {
-            if ($candidate -and (Test-Path -LiteralPath $candidate)) { $Iscc = $candidate; break }
-        }
-    }
-    if (-not $Iscc) {
-        Stop-WithError ("Inno Setup 6 not found (ISCC.exe).`n" +
+        Stop-WithError ("Inno Setup not found (ISCC.exe).`n" +
             "  Install it:  winget install -e --id JRSoftware.InnoSetup`n" +
+            "  Already installed? A shell opened before the install has a stale`n" +
+            "  PATH - reopen it, or point at the binary directly:`n" +
+            "    `$env:ISCC = 'C:\Path\To\Inno Setup 6\ISCC.exe'`n" +
             '  Or skip it:  $env:SKIP_INSTALLER = 1')
     }
     Write-Ok "Inno Setup: $Iscc"
