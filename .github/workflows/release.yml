@@ -95,17 +95,72 @@ jobs:
           key: pub-macos-${{ hashFiles('pubspec.lock') }}
           restore-keys: pub-macos-
 
-      # Ad-hoc signed zip for now. Once the Developer ID secrets are in place
-      # this becomes scripts/build-macos-dmg.sh and ships a notarized DMG.
-      - name: Build .app + zip
-        run: ./scripts/build-macos-app.sh "${{ needs.gate.outputs.version }}"
+      - name: Install create-dmg
+        run: brew install create-dmg
+
+      # The certificate lives in a throwaway keychain for the length of the
+      # job. It has to join the search list as well as become the default one:
+      # codesign looks the identity up through the search list.
+      - name: Import Developer ID certificate
+        env:
+          MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+        run: |
+          umask 077
+          keychain="$RUNNER_TEMP/build.keychain-db"
+          password=$(openssl rand -base64 24)
+          echo "::add-mask::$password"
+
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -t 3600 -u "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          security list-keychains -d user -s "$keychain" \
+            $(security list-keychains -d user | tr -d '"')
+          security default-keychain -s "$keychain"
+
+          printf '%s' "$MACOS_CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$keychain" \
+            -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          rm -f "$RUNNER_TEMP/cert.p12"
+
+          # Without this codesign blocks on a UI prompt no one can answer.
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$password" "$keychain"
+
+          echo "KEYCHAIN_PATH=$keychain" >> "$GITHUB_ENV"
+
+      # notarytool reads its credentials from a keychain profile, so the one
+      # the build script expects is created here. This also fails early if the
+      # credentials are wrong, before a 20 minute build.
+      - name: Create notary profile
+        env:
+          MACOS_APPLE_ID: ${{ secrets.MACOS_APPLE_ID }}
+          MACOS_APP_PASSWORD: ${{ secrets.MACOS_APP_PASSWORD }}
+          MACOS_TEAM_ID: ${{ secrets.MACOS_TEAM_ID }}
+        run: |
+          xcrun notarytool store-credentials mergelio-ci \
+            --apple-id "$MACOS_APPLE_ID" \
+            --team-id "$MACOS_TEAM_ID" \
+            --password "$MACOS_APP_PASSWORD"
+
+      - name: Build signed & notarized DMG
+        env:
+          MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+          MACOS_TEAM_ID: ${{ secrets.MACOS_TEAM_ID }}
+          MACOS_NOTARY_PROFILE: mergelio-ci
+        run: ./scripts/build-macos-dmg.sh "${{ needs.gate.outputs.version }}"
 
       - uses: actions/upload-artifact@v4
         with:
           name: macos-arm64
-          path: dist/*-macos-*.zip
+          path: dist/*-macos-*.dmg
           retention-days: 7
           if-no-files-found: error
+
+      # Takes the certificate and the notary profile with it, failure or not.
+      - name: Tear down the keychain
+        if: always()
+        run: security delete-keychain "$KEYCHAIN_PATH" || true
 
   windows-x64:
     name: Windows (x64)
