@@ -6,10 +6,9 @@ Comment=Free, cross-platform visual Git client
 # Both packages install the app under /opt and link it onto PATH here. Name the
 # link outright instead of relying on a bare name: a bare Exec makes the shell
 # look the program up in whatever PATH it inherited, and it refuses to start the
-# entry when that lookup fails. TryExec hides the entry if the link is gone
-# rather than leaving a launcher that errors out.
+# entry when that lookup fails. No TryExec — a failed check would drop the entry
+# out of the launcher silently, which is harder to diagnose than a start error.
 Exec=/usr/bin/mergelio
-TryExec=/usr/bin/mergelio
 Icon=com.mergelio.mergelio
 Terminal=false
 Categories=Development;RevisionControl;
