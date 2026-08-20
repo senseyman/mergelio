@@ -9,6 +9,7 @@
 #   ./scripts/build-macos-dmg.sh                  # version taken from pubspec.yaml
 #   ./scripts/build-macos-dmg.sh 1.4.2            # explicit version in the DMG name
 #   CLEAN=1 ./scripts/build-macos-dmg.sh          # flutter clean before building
+#   SKIP_GEN=1 ./scripts/build-macos-dmg.sh       # skip code generation
 #   SKIP_NOTARIZE=1 ./scripts/build-macos-dmg.sh  # stop right after signing the .app
 #
 # Without MACOS_SIGN_IDENTITY the script builds an ad-hoc signed .app for local
@@ -16,38 +17,10 @@
 
 set -euo pipefail
 
-cd "$(dirname "${BASH_SOURCE[0]}")/.."
-
-# ─── Helpers ─────────────────────────────────────────────────────────────────
-
-BOLD=$'\033[1m'; RED=$'\033[31m'; GREEN=$'\033[32m'; YELLOW=$'\033[33m'; OFF=$'\033[0m'
-
-step() { printf '\n%s▶ %s%s\n' "$BOLD" "$1" "$OFF"; }
-ok()   { printf '%s  ✓ %s%s\n' "$GREEN" "$1" "$OFF"; }
-warn() { printf '%s  ! %s%s\n' "$YELLOW" "$1" "$OFF"; }
-die()  { printf '\n%s✗ %b%s\n\n' "$RED" "$1" "$OFF" >&2; exit 1; }
+source "$(dirname "${BASH_SOURCE[0]}")/lib/common.sh"
+enter_repo_root
 
 # ─── Configuration ───────────────────────────────────────────────────────────
-
-# Reads KEY=VALUE pairs from .env without executing anything. Values already
-# present in the environment are left alone, which allows one-off overrides
-# from the command line.
-load_env() {
-  local file=$1 line key value
-  [[ -f $file ]] || return 0
-  while IFS= read -r line || [[ -n $line ]]; do
-    line=${line%$'\r'}
-    [[ $line =~ ^[[:space:]]*(#|$) ]] && continue
-    [[ $line =~ ^[[:space:]]*(export[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]] || continue
-    key=${BASH_REMATCH[2]}
-    value=${BASH_REMATCH[3]}
-    if [[ $value =~ ^\"(.*)\"$ || $value =~ ^\'(.*)\'$ ]]; then
-      value=${BASH_REMATCH[1]}
-    fi
-    [[ -n ${!key:-} ]] && continue
-    export "$key=$value"
-  done < "$file"
-}
 
 load_env .env
 
@@ -155,12 +128,10 @@ ok "Wrote $SIGNING_XCCONFIG"
 
 # ─── 3. Build ────────────────────────────────────────────────────────────────
 
-step "Building (flutter build macos --release)"
+maybe_clean
+prepare_sources
 
-if [[ -n ${CLEAN:-} ]]; then
-  flutter clean >/dev/null
-  ok "flutter clean done"
-fi
+step "Building (flutter build macos --release)"
 
 flutter build macos --release
 
