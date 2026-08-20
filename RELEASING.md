@@ -109,7 +109,7 @@ Apple Developer account. Gatekeeper blocks them on first launch on another
 machine — open via right-click → Open, or clear the quarantine attribute:
 
 ```bash
-xattr -dr com.apple.quarantine /Applications/mergelio.app
+xattr -dr com.apple.quarantine /Applications/Mergelio.app
 ```
 
 ## Telemetry
