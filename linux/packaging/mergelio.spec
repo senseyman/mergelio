@@ -14,9 +14,20 @@
 %global __os_install_post %{nil}
 %global _build_id_links none
 
-# The bundled Flutter libraries under /opt are private to this app. Without
-# this the package would advertise them as system-wide providers.
+# The bundled Flutter libraries under /opt are private to this app. Both halves
+# of the automatic dependency machinery have to be switched off for them, and
+# leaving either one on breaks the package:
+#
+#   - provides: without this the package advertises libflutter_linux_gtk.so and
+#     friends as system-wide providers, which they are not.
+#   - requires: the executable links against those same private libraries, so
+#     rpm would demand sonames that nothing in the distribution provides and
+#     dnf would refuse to install.
+#
+# Filtering requires for the whole directory also drops the genuine system
+# dependencies rpm would have derived, so those are listed by hand below.
 %global __provides_exclude_from ^/opt/%{name}/.*$
+%global __requires_exclude_from ^/opt/%{name}/.*$
 
 %define app_id com.mergelio.mergelio
 
@@ -28,10 +39,13 @@ Summary:        Free, cross-platform visual Git client
 License:        BSD-3-Clause
 URL:            https://github.com/senseyman/mergelio
 
-# rpm derives the library dependencies from the binaries it packages, so only
-# what it cannot see is listed here: gtk3 as the toolkit behind those sonames,
-# and git, which the app runs as a subprocess.
+# Automatic dependency generation is off for everything this package ships, so
+# every runtime dependency is spelled out. glibc is deliberately absent: it is
+# guaranteed to be present and pinning it would only narrow the package.
 Requires:       gtk3
+Requires:       glib2
+Requires:       libstdc++
+Requires:       zlib
 Requires:       git
 
 %description
