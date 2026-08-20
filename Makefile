@@ -140,6 +140,10 @@ endif
 installer-linux: ## Installer: Ubuntu/Debian .deb in dist/
 	./scripts/build-linux-deb.sh
 
+.PHONY: installer-fedora
+installer-fedora: ## Installer: Fedora .rpm in dist/
+	./scripts/build-linux-rpm.sh
+
 .PHONY: installer-windows
 installer-windows: ## Installer: Windows setup.exe in dist/ (needs Inno Setup 6)
 	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-windows-installer.ps1

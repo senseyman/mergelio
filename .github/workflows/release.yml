@@ -245,9 +245,53 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
+  fedora-x64:
+    name: Fedora (x64, .rpm)
+    needs: gate
+    # An RPM built on Ubuntu resolves against the wrong libraries and its
+    # %{dist} tag would lie, so the build runs in the distribution it targets.
+    runs-on: ubuntu-22.04
+    container: fedora:41
+    timeout-minutes: 45
+    steps:
+      # Before checkout: the action needs git in the container, or it silently
+      # falls back to downloading a tarball with no repository behind it.
+      - name: Install build dependencies
+        run: |
+          dnf -y install \
+            clang cmake ninja-build pkgconf-pkg-config gtk3-devel \
+            git curl tar xz zip unzip which rpm-build glibc-devel findutils
+
+      - uses: actions/checkout@v4
+
+      # Checkout leaves the tree owned by a different user than the one running
+      # the build, and git refuses to read a repository it does not trust.
+      - name: Trust the checkout
+        run: git config --global --add safe.directory '*'
+
+      # subosito/flutter-action expects an apt-based image, so the SDK is
+      # unpacked by hand here.
+      - name: Install Flutter SDK
+        run: |
+          curl -fsSL -o /tmp/flutter.tar.xz \
+            "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz"
+          tar -xf /tmp/flutter.tar.xz -C /opt
+          rm -f /tmp/flutter.tar.xz
+          echo "/opt/flutter/bin" >> "$GITHUB_PATH"
+
+      - name: Build .rpm
+        run: ./scripts/build-linux-rpm.sh "${{ needs.gate.outputs.version }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fedora-x64
+          path: dist/*.rpm
+          retention-days: 7
+          if-no-files-found: error
+
   release:
     name: Draft release
-    needs: [macos-arm64, windows-x64, linux-x64]
+    needs: [macos-arm64, windows-x64, linux-x64, fedora-x64]
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     timeout-minutes: 15
