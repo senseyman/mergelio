@@ -124,7 +124,13 @@ fi
 
 [[ -n $VERSION ]] || die "Could not determine the version."
 
-DMG_PATH="${DIST_DIR}/${APP_NAME}-${VERSION}.dmg"
+# Named like every other artifact, so the release assets sort together.
+case "$(uname -m)" in
+  arm64|aarch64) ARCH=arm64 ;;
+  *)             ARCH=x64   ;;
+esac
+
+DMG_PATH="${DIST_DIR}/${APP_NAME}-${VERSION}-macos-${ARCH}.dmg"
 ok "Version: $VERSION"
 
 # ─── 2. Signing configuration for Xcode ──────────────────────────────────────

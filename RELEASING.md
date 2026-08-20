@@ -37,7 +37,7 @@ needs a real keychain anyway.
 | Platform | Command | Output |
 | --- | --- | --- |
 | macOS, ad-hoc signed | `make build-macos` | `dist/<APP_NAME>-<version>-macos-<arch>.zip` |
-| macOS, Developer ID | `./scripts/build-macos-dmg.sh` | `dist/<APP_NAME>-<version>.dmg` |
+| macOS, Developer ID | `./scripts/build-macos-dmg.sh` | `dist/<APP_NAME>-<version>-macos-<arch>.dmg` |
 | Linux, portable | `make build-linux` | `dist/<APP_NAME>-<version>-linux-<arch>.tar.gz` |
 | Linux, installer | `make installer-linux` | `dist/mergelio_<version>_<debarch>.deb` |
 | Windows | `make build-windows` | `dist/<APP_NAME>-<version>-windows-<arch>.zip` and `-setup.exe` |
