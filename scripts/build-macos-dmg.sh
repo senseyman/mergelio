@@ -152,14 +152,39 @@ if (( ! SIGNED )); then
 fi
 
 # ─── 4. Re-sign ──────────────────────────────────────────────────────────────
-# Xcode injects com.apple.security.get-task-allow even in Release builds, so we
-# re-sign the outer bundle with clean entitlements.
-# NOT --deep: the nested frameworks are already signed correctly and --deep
-# would break them.
+# Two things are wrong with what Xcode leaves behind. It injects
+# com.apple.security.get-task-allow even in Release builds, and not every
+# nested framework carries a secure timestamp — the notary service rejects the
+# whole archive over a single one that does not.
+#
+# Signing runs inside out: nested code first, the bundle last, because signing
+# the outer bundle seals whatever the inner signatures are at that moment.
+# Still NOT --deep, which Apple discourages: it would apply the app's
+# entitlements to every framework as well.
 
-step "Re-signing with clean entitlements"
+step "Re-signing nested code"
 
 rm -f "${APP_PATH}/Contents/embedded.provisionprofile"
+
+nested=0
+while IFS= read -r -d '' item; do
+  # Versioned frameworks are signed at Versions/A; codesign rejects the
+  # .framework wrapper for those.
+  target=$item
+  [[ -d "$item/Versions/A" ]] && target="$item/Versions/A"
+
+  codesign --force \
+    --sign "$SIGN_IDENTITY" \
+    --options runtime \
+    --timestamp \
+    "$target"
+  nested=$((nested + 1))
+done < <(find "${APP_PATH}/Contents" -depth \
+  \( -name '*.framework' -o -name '*.dylib' -o -name '*.bundle' \) -print0)
+
+ok "Re-signed $nested nested items"
+
+step "Re-signing with clean entitlements"
 
 codesign --force \
   --sign "$SIGN_IDENTITY" \

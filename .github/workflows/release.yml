@@ -98,6 +98,14 @@ jobs:
       - name: Install create-dmg
         run: brew install create-dmg
 
+      # The repository carries a Podfile and no Package.swift, so CocoaPods is
+      # what the project is actually built and tested with. Swift Package
+      # Manager is a per-machine Flutter setting, and a runner that has it on
+      # silently migrates the project and resolves a different dependency
+      # graph than any developer sees locally.
+      - name: Use CocoaPods, not Swift Package Manager
+        run: flutter config --no-enable-swift-package-manager
+
       # The certificate lives in a throwaway keychain for the length of the
       # job. It has to join the search list as well as become the default one:
       # codesign looks the identity up through the search list.
