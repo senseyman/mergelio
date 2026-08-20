@@ -5,7 +5,7 @@
 // account.
 //
 // To build a distributable, Developer ID signed app, put your values in .env
-// and run scripts/release.sh. It writes Signing.xcconfig next to this file,
+// and run scripts/build-macos-dmg.sh. It writes Signing.xcconfig next to this file,
 // which is included afterwards and overrides everything here.
 
 MERGELIO_CODE_SIGN_IDENTITY = -

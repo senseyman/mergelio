@@ -1,17 +1,18 @@
 #!/usr/bin/env bash
 #
-# build-macos.sh — build Mergelio for macOS.
+# build-macos-app.sh — build Mergelio for macOS.
 #
 # Produces an ad-hoc signed .app and a zip archive in DIST_DIR. No Apple
 # Developer account is needed. The result runs on the machine that built it;
-# for a Developer ID signed and notarized DMG use scripts/release.sh instead.
+# for a Developer ID signed and notarized DMG use
+# scripts/build-macos-dmg.sh instead.
 #
 # Usage:
-#   ./scripts/build-macos.sh                 # version from pubspec.yaml
-#   ./scripts/build-macos.sh 1.4.2           # explicit version in the archive name
-#   CLEAN=1 ./scripts/build-macos.sh         # flutter clean first
-#   SKIP_GEN=1 ./scripts/build-macos.sh      # skip code generation
-#   SKIP_PACKAGE=1 ./scripts/build-macos.sh  # leave the .app, build no archive
+#   ./scripts/build-macos-app.sh                 # version from pubspec.yaml
+#   ./scripts/build-macos-app.sh 1.4.2           # explicit version in the archive name
+#   CLEAN=1 ./scripts/build-macos-app.sh         # flutter clean first
+#   SKIP_GEN=1 ./scripts/build-macos-app.sh      # skip code generation
+#   SKIP_PACKAGE=1 ./scripts/build-macos-app.sh  # leave the .app, build no archive
 
 set -euo pipefail
 
@@ -91,7 +92,8 @@ printf '  app:     %s\n' "$APP_PATH"
 printf '  archive: %s (%s)\n' "$ARCHIVE" "$SIZE"
 if (( ADHOC )); then
   printf '\n  Ad-hoc signed: other Macs will refuse it until it is signed with a\n'
-  printf '  Developer ID and notarized. See scripts/release.sh.\n\n'
+  printf '  Developer ID and notarized. See scripts/build-macos-dmg.sh.\n\n'
 else
-  printf '\n  Signed with a Developer ID. For a notarized DMG use scripts/release.sh.\n\n'
+  printf '\n  Signed with a Developer ID. For a notarized DMG use\n'
+  printf '  scripts/build-macos-dmg.sh.\n\n'
 fi

@@ -315,10 +315,10 @@ Each of those targets just calls a script, which you can run directly instead â€
 the better route on Windows, where `make` is usually absent:
 
 ```bash
-./scripts/build-macos.sh       # .app + zip in dist/
-./scripts/build-linux.sh       # bundle + tar.gz in dist/
-./scripts/build-linux-ubuntu.sh # .deb installer in dist/
-.\scripts\build-windows.ps1    # exe + zip + setup.exe in dist/
+./scripts/build-macos-app.sh       # .app + zip in dist/
+./scripts/build-linux-tarball.sh       # bundle + tar.gz in dist/
+./scripts/build-linux-deb.sh # .deb installer in dist/
+.\scripts\build-windows-installer.ps1    # exe + zip + setup.exe in dist/
 ```
 
 Each script fetches dependencies, runs code generation, builds, and archives the
@@ -355,7 +355,7 @@ own Apple Developer values, and run the release pipeline:
 
 ```bash
 cp .env.example .env
-./scripts/release.sh
+./scripts/build-macos-dmg.sh
 ```
 
 `.env` is gitignored and stores names only: the certificate's private key and

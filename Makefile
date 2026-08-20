@@ -105,7 +105,7 @@ endif
 
 .PHONY: build-macos
 build-macos: ## Release build: macOS (.app + zip in dist/)
-	./scripts/build-macos.sh
+	./scripts/build-macos-app.sh
 
 .PHONY: build-macos-debug
 build-macos-debug: ## Debug build: macOS
@@ -117,11 +117,11 @@ endif
 
 .PHONY: build-linux
 build-linux: ## Release build: Linux (bundle + tar.gz in dist/)
-	./scripts/build-linux.sh
+	./scripts/build-linux-tarball.sh
 
 .PHONY: build-windows
 build-windows: ## Release build: Windows (exe + zip + setup.exe in dist/)
-	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-windows.ps1
+	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-windows-installer.ps1
 
 # ------------------------------------------------------------
 # Installers
@@ -138,11 +138,11 @@ endif
 
 .PHONY: installer-linux
 installer-linux: ## Installer: Ubuntu/Debian .deb in dist/
-	./scripts/build-linux-ubuntu.sh
+	./scripts/build-linux-deb.sh
 
 .PHONY: installer-windows
 installer-windows: ## Installer: Windows setup.exe in dist/ (needs Inno Setup 6)
-	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-windows.ps1
+	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-windows-installer.ps1
 
 # ------------------------------------------------------------
 # Aggregate pipelines

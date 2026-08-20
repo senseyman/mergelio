@@ -37,7 +37,7 @@ needs a real keychain anyway.
 | Platform | Command | Output |
 | --- | --- | --- |
 | macOS, ad-hoc signed | `make build-macos` | `dist/<APP_NAME>-<version>-macos-<arch>.zip` |
-| macOS, Developer ID | `./scripts/release.sh` | `dist/<APP_NAME>-<version>.dmg` |
+| macOS, Developer ID | `./scripts/build-macos-dmg.sh` | `dist/<APP_NAME>-<version>.dmg` |
 | Linux, portable | `make build-linux` | `dist/<APP_NAME>-<version>-linux-<arch>.tar.gz` |
 | Linux, installer | `make installer-linux` | `dist/mergelio_<version>_<debarch>.deb` |
 | Windows | `make build-windows` | `dist/<APP_NAME>-<version>-windows-<arch>.zip` and `-setup.exe` |
@@ -48,7 +48,7 @@ The three `build-*` scripts accept `CLEAN=1` (`flutter clean` first),
 PowerShell environment variables:
 
 ```powershell
-$env:CLEAN = 1; .\scripts\build-windows.ps1
+$env:CLEAN = 1; .\scripts\build-windows-installer.ps1
 ```
 
 Linux and Windows builds are unsigned and need no configuration.
@@ -85,14 +85,14 @@ cp .env.example .env
 password live in the macOS keychain behind the notary profile, and the private
 key lives in the keychain behind the certificate. Only names are referenced.
 
-`scripts/release.sh` then builds, re-signs the bundle with clean entitlements,
+`scripts/build-macos-dmg.sh` then builds, re-signs the bundle with clean entitlements,
 validates the signature, packages a DMG, notarizes and staples it:
 
 ```bash
-./scripts/release.sh                   # version from pubspec.yaml
-./scripts/release.sh 1.4.2             # explicit version in the DMG name
-SKIP_NOTARIZE=1 ./scripts/release.sh   # stop after signing the .app
-CLEAN=1 ./scripts/release.sh           # flutter clean first
+./scripts/build-macos-dmg.sh                   # version from pubspec.yaml
+./scripts/build-macos-dmg.sh 1.4.2             # explicit version in the DMG name
+SKIP_NOTARIZE=1 ./scripts/build-macos-dmg.sh   # stop after signing the .app
+CLEAN=1 ./scripts/build-macos-dmg.sh           # flutter clean first
 ```
 
 Each variable degrades gracefully. With `MACOS_NOTARY_PROFILE` empty you get a

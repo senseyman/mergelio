@@ -1,6 +1,6 @@
 ; Inno Setup script for Mergelio.
 ;
-; Not built by hand — scripts/build-windows.ps1 supplies the values below with
+; Not built by hand — scripts/build-windows-installer.ps1 supplies the values below with
 ; /D switches and runs ISCC. Compile it directly only for a smoke test:
 ;
 ;   ISCC.exe /DAppVersion=1.4.0 /DAppArch=x64 ^

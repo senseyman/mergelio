@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 #
-# build-linux-ubuntu.sh — build Mergelio and package it as a .deb installer.
+# build-linux-deb.sh — build Mergelio and package it as a .deb installer.
 #
 # Installs into /opt/mergelio, links the binary onto PATH, and registers the
 # desktop entry and icon so the app appears in the launcher with its icon.
 #
 # Usage:
-#   ./scripts/build-linux-ubuntu.sh                 # version from pubspec.yaml
-#   ./scripts/build-linux-ubuntu.sh 1.4.2           # explicit version
-#   CLEAN=1 ./scripts/build-linux-ubuntu.sh         # flutter clean first
-#   SKIP_GEN=1 ./scripts/build-linux-ubuntu.sh      # skip code generation
-#   SKIP_BUILD=1 ./scripts/build-linux-ubuntu.sh    # package an existing bundle
+#   ./scripts/build-linux-deb.sh                 # version from pubspec.yaml
+#   ./scripts/build-linux-deb.sh 1.4.2           # explicit version
+#   CLEAN=1 ./scripts/build-linux-deb.sh         # flutter clean first
+#   SKIP_GEN=1 ./scripts/build-linux-deb.sh      # skip code generation
+#   SKIP_BUILD=1 ./scripts/build-linux-deb.sh    # package an existing bundle
 
 set -euo pipefail
 

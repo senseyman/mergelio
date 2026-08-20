@@ -16,12 +16,13 @@
     Version used in the archive name. Defaults to the version in pubspec.yaml.
 
 .EXAMPLE
-    .\scripts\build-windows.ps1
-    .\scripts\build-windows.ps1 1.4.2
-    $env:CLEAN = 1;        .\scripts\build-windows.ps1   # flutter clean first
-    $env:SKIP_GEN = 1;     .\scripts\build-windows.ps1   # skip code generation
-    $env:SKIP_PACKAGE = 1; .\scripts\build-windows.ps1   # build no archive
-    $env:SKIP_INSTALLER = 1; .\scripts\build-windows.ps1 # zip only, no setup.exe
+    .\scripts\build-windows-installer.ps1
+    .\scripts\build-windows-installer.ps1 1.4.2
+    $env:CLEAN = 1;        .\scripts\build-windows-installer.ps1   # flutter clean first
+    $env:SKIP_GEN = 1;     .\scripts\build-windows-installer.ps1   # skip code generation
+    $env:SKIP_PACKAGE = 1; .\scripts\build-windows-installer.ps1   # stop after building
+    $env:SKIP_INSTALLER = 1; .\scripts\build-windows-installer.ps1 # zip only, no setup.exe
+    $env:SKIP_ARCHIVE = 1;   .\scripts\build-windows-installer.ps1 # setup.exe only, no zip
 #>
 
 [CmdletBinding()]
@@ -267,13 +268,20 @@ if ($env:SKIP_PACKAGE) {
 Write-Step 'Packaging'
 
 New-Item -ItemType Directory -Force -Path $DistDir | Out-Null
-$Archive = Join-Path $DistDir "$AppName-$Version-windows-$Arch.zip"
-if (Test-Path -LiteralPath $Archive) { Remove-Item -LiteralPath $Archive -Force }
 
-Compress-Archive -Path (Join-Path $ReleaseDir '*') -DestinationPath $Archive
-Write-Ok "Archive: $Archive"
+$Archive = $null
 
-$SizeMb = [math]::Round((Get-Item -LiteralPath $Archive).Length / 1MB, 1)
+if ($env:SKIP_ARCHIVE) {
+    Write-Warn 'SKIP_ARCHIVE is set - building no zip'
+} else {
+    $Archive = Join-Path $DistDir "$AppName-$Version-windows-$Arch.zip"
+    if (Test-Path -LiteralPath $Archive) { Remove-Item -LiteralPath $Archive -Force }
+
+    Compress-Archive -Path (Join-Path $ReleaseDir '*') -DestinationPath $Archive
+    Write-Ok "Archive: $Archive"
+
+    $SizeMb = [math]::Round((Get-Item -LiteralPath $Archive).Length / 1MB, 1)
+}
 
 # ─── Installer ───────────────────────────────────────────────────────────────
 
@@ -319,7 +327,9 @@ if ($env:SKIP_INSTALLER) {
 
 Write-Host "`n[ok] Done" -ForegroundColor Green
 Write-Host "  build:   $ReleaseDir"
-Write-Host "  archive: $Archive ($SizeMb MB)"
+if ($Archive) {
+    Write-Host "  archive: $Archive ($SizeMb MB)"
+}
 if ($Installer) {
     $InstallerMb = [math]::Round((Get-Item -LiteralPath $Installer).Length / 1MB, 1)
     Write-Host "  setup:   $Installer ($InstallerMb MB)"
