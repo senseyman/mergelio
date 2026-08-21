@@ -245,6 +245,33 @@ git --version
 
 On Windows, repositories inside a WSL2 distribution are supported.
 
+### Verifying a download
+
+Every release ships a `SHA256SUMS.txt` and a detached OpenPGP signature for it,
+`SHA256SUMS.txt.asc`. One signature covers every file in the release.
+
+```bash
+# once — fetch the signing key
+gpg --keyserver keys.openpgp.org --recv-keys PLACEHOLDER_FINGERPRINT
+
+# in the directory holding the downloads
+gpg --verify SHA256SUMS.txt.asc SHA256SUMS.txt
+sha256sum --check --ignore-missing SHA256SUMS.txt
+```
+
+The Fedora package carries the same signature in its header, so `rpm` can check
+it directly once the key is known to it:
+
+```bash
+gpg --export --armor PLACEHOLDER_FINGERPRINT > mergelio.asc
+sudo rpm --import mergelio.asc
+rpm --checksig mergelio-*.rpm          # digests signatures OK
+```
+
+There is no equivalent for the `.deb`: `dpkg` does not check signatures inside a
+package, only `apt` checks the repository it came from. For Debian and Ubuntu the
+checksum file above is the verification.
+
 ## Building from source
 
 ### Prerequisites

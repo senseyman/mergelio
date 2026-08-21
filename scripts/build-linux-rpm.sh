@@ -15,6 +15,9 @@
 #   CLEAN=1 ./scripts/build-linux-rpm.sh         # flutter clean first
 #   SKIP_GEN=1 ./scripts/build-linux-rpm.sh      # skip code generation
 #   SKIP_BUILD=1 ./scripts/build-linux-rpm.sh    # package an existing bundle
+#
+# With RPM_SIGN_KEY empty the package is left unsigned, which is what a local
+# build wants. Set it to a key in the local keyring to sign the result.
 
 set -euo pipefail
 
@@ -31,6 +34,7 @@ APP_ID=${APP_ID:-com.mergelio.mergelio}
 PKG_NAME=${PKG_NAME:-mergelio}
 INSTALL_ROOT=${INSTALL_ROOT:-/opt/${PKG_NAME}}
 SPEC_FILE=${SPEC_FILE:-linux/packaging/mergelio.spec}
+SIGN_KEY=${RPM_SIGN_KEY:-}
 
 # ─── Preflight ───────────────────────────────────────────────────────────────
 
@@ -39,6 +43,16 @@ step "Checking environment"
 [[ $(uname -s) == Linux ]] || die "RPM packages must be built on a Linux host."
 require_cmd rpmbuild "rpmbuild not found. Install it: sudo dnf install rpm-build"
 [[ -f $SPEC_FILE ]] || die "No spec file at $SPEC_FILE"
+
+if [[ -n $SIGN_KEY ]]; then
+  require_cmd rpmsign "rpmsign not found. Install it: sudo dnf install rpm-sign"
+  require_cmd gpg "gpg not found. Install it: sudo dnf install gnupg2"
+  gpg --list-secret-keys "$SIGN_KEY" >/dev/null 2>&1 \
+    || die "No secret key for '$SIGN_KEY' in the keyring."
+  ok "Signing key: $SIGN_KEY"
+else
+  warn "RPM_SIGN_KEY is empty — the package will not be signed."
+fi
 
 if [[ -z ${SKIP_BUILD:-} ]]; then
   require_cmd flutter "flutter not found in PATH."
@@ -153,6 +167,28 @@ RPM="${DIST_DIR}/$(basename "$BUILT_RPM")"
 rm -f "$RPM"
 cp "$BUILT_RPM" "$RPM"
 ok "Package: $RPM"
+
+if [[ -n $SIGN_KEY ]]; then
+  step "Signing the .rpm"
+
+  # rpm runs gpg itself and hands it no terminal, so a passphrase-protected key
+  # needs the passphrase passed in rather than asked for at a prompt no one can
+  # answer.
+  GPG_ARGS=(--batch --pinentry-mode loopback)
+  [[ -n ${RPM_SIGN_PASSPHRASE_FILE:-} ]] \
+    && GPG_ARGS+=(--passphrase-file "$RPM_SIGN_PASSPHRASE_FILE")
+
+  rpmsign --addsign \
+    --define "_gpg_name ${SIGN_KEY}" \
+    --define "_gpg_sign_cmd_extra_args ${GPG_ARGS[*]}" \
+    "$RPM"
+
+  # rpmsign exits 0 on some failures, so the header is read back instead of
+  # trusting the exit code.
+  rpm -qpi "$RPM" 2>/dev/null | grep -q '^Signature *: .*Key ID' \
+    || die "The package carries no signature after rpmsign."
+  ok "Signed"
+fi
 
 if command -v rpmlint >/dev/null 2>&1; then
   step "Running rpmlint"

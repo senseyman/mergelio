@@ -260,7 +260,8 @@ jobs:
         run: |
           dnf -y install \
             clang cmake ninja-build pkgconf-pkg-config gtk3-devel \
-            git curl tar xz zip unzip which rpm-build glibc-devel findutils
+            git curl tar xz zip unzip which rpm-build rpm-sign gnupg2 \
+            glibc-devel findutils
 
       - uses: actions/checkout@v4
 
@@ -279,8 +280,36 @@ jobs:
           rm -f /tmp/flutter.tar.xz
           echo "/opt/flutter/bin" >> "$GITHUB_PATH"
 
+      # The key lives in its own keyring under RUNNER_TEMP so nothing is left
+      # behind in the image, and the fingerprint is read back from the keyring
+      # rather than kept as a second secret that could drift out of sync.
+      - name: Import the package signing key
+        env:
+          LINUX_GPG_PRIVATE_KEY: ${{ secrets.LINUX_GPG_PRIVATE_KEY }}
+          LINUX_GPG_PASSPHRASE: ${{ secrets.LINUX_GPG_PASSPHRASE }}
+        run: |
+          umask 077
+          export GNUPGHOME="$RUNNER_TEMP/gnupg"
+          mkdir -p "$GNUPGHOME"
+          printf '%s' "$LINUX_GPG_PRIVATE_KEY" | gpg --batch --import
+          printf '%s' "$LINUX_GPG_PASSPHRASE" > "$RUNNER_TEMP/gpg-passphrase"
+
+          fingerprint=$(gpg --list-secret-keys --with-colons \
+            | awk -F: '/^fpr/{print $10; exit}')
+          [ -n "$fingerprint" ] || { echo "No secret key imported"; exit 1; }
+
+          echo "GNUPGHOME=$GNUPGHOME" >> "$GITHUB_ENV"
+          echo "RPM_SIGN_KEY=$fingerprint" >> "$GITHUB_ENV"
+          echo "RPM_SIGN_PASSPHRASE_FILE=$RUNNER_TEMP/gpg-passphrase" >> "$GITHUB_ENV"
+
+      # The script signs the package itself when RPM_SIGN_KEY is set, and
+      # refuses to finish if the signature did not make it into the header.
       - name: Build .rpm
         run: ./scripts/build-linux-rpm.sh "${{ needs.gate.outputs.version }}"
+
+      - name: Drop the signing key
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/gnupg" "$RUNNER_TEMP/gpg-passphrase"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -306,6 +335,32 @@ jobs:
           cd artifacts
           sha256sum * > SHA256SUMS.txt
           cat SHA256SUMS.txt
+
+      # One detached signature over the checksum file covers every artifact in
+      # the release: verify the signature, then verify the files against it.
+      # dpkg ignores signatures inside a .deb, so this is what Debian and Ubuntu
+      # users actually have to check.
+      - name: Sign the checksums
+        env:
+          LINUX_GPG_PRIVATE_KEY: ${{ secrets.LINUX_GPG_PRIVATE_KEY }}
+          LINUX_GPG_PASSPHRASE: ${{ secrets.LINUX_GPG_PASSPHRASE }}
+        run: |
+          umask 077
+          export GNUPGHOME="$RUNNER_TEMP/gnupg"
+          mkdir -p "$GNUPGHOME"
+          printf '%s' "$LINUX_GPG_PRIVATE_KEY" | gpg --batch --import
+          printf '%s' "$LINUX_GPG_PASSPHRASE" > "$RUNNER_TEMP/gpg-passphrase"
+
+          gpg --batch --pinentry-mode loopback \
+            --passphrase-file "$RUNNER_TEMP/gpg-passphrase" \
+            --armor --detach-sign \
+            --output artifacts/SHA256SUMS.txt.asc artifacts/SHA256SUMS.txt
+
+          gpg --verify artifacts/SHA256SUMS.txt.asc artifacts/SHA256SUMS.txt
+
+      - name: Drop the signing key
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/gnupg" "$RUNNER_TEMP/gpg-passphrase"
 
       # Draft on purpose, and it stays that way: publishing is a deliberate
       # click after the artifacts have been checked by hand.
