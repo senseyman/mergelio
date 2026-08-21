@@ -252,7 +252,7 @@ Every release ships a `SHA256SUMS.txt` and a detached OpenPGP signature for it,
 
 ```bash
 # once — fetch the signing key
-gpg --keyserver keys.openpgp.org --recv-keys PLACEHOLDER_FINGERPRINT
+gpg --keyserver keys.openpgp.org --recv-keys 817229DD049EDD81D4D8FB2B080226BF36A5B807
 
 # in the directory holding the downloads
 gpg --verify SHA256SUMS.txt.asc SHA256SUMS.txt
@@ -263,7 +263,7 @@ The Fedora package carries the same signature in its header, so `rpm` can check
 it directly once the key is known to it:
 
 ```bash
-gpg --export --armor PLACEHOLDER_FINGERPRINT > mergelio.asc
+gpg --export --armor 817229DD049EDD81D4D8FB2B080226BF36A5B807 > mergelio.asc
 sudo rpm --import mergelio.asc
 rpm --checksig mergelio-*.rpm          # digests signatures OK
 ```
