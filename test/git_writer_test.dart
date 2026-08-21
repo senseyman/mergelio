@@ -137,4 +137,37 @@ void main() {
     ], repoPath: dir.path)).out;
     expect(count, '1'); // amend did not add a commit
   });
+
+  test('amendMessage rewrites the summary and body of HEAD', () async {
+    await writer().amendMessage('new subject', description: 'new body');
+
+    final msg = (await svc.run([
+      'log',
+      '-1',
+      '--format=%B',
+    ], repoPath: dir.path)).out;
+    expect(msg, 'new subject\n\nnew body');
+    final count = (await svc.run([
+      'rev-list',
+      '--count',
+      'HEAD',
+    ], repoPath: dir.path)).out;
+    expect(count, '1');
+  });
+
+  test('amendMessage leaves staged changes staged', () async {
+    await write('a.txt', 'l1\nl2\nl3\nstaged\n');
+    await writer().stageFile('a.txt');
+
+    await writer().amendMessage('reworded');
+
+    // The staged edit must not have been swept into the amended commit.
+    final staged = {for (final f in await reader().status()) f.path: f};
+    expect(staged['a.txt']?.isStaged, isTrue);
+    final tree = (await svc.run([
+      'show',
+      'HEAD:a.txt',
+    ], repoPath: dir.path)).out;
+    expect(tree, isNot(contains('staged')));
+  });
 }

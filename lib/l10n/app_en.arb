@@ -90,7 +90,20 @@
   "menuRevert": "Revert",
   "menuRebaseHere": "Rebase to here…",
   "menuResetHard": "Reset here (--hard)",
+  "menuEditMessage": "Edit message…",
+  "menuCopySummary": "Copy summary",
+  "menuCopyDescription": "Copy description",
+  "menuCopyMessage": "Copy message",
   "menuCopySha": "Copy SHA",
+  "rewordTitle": "Edit commit message",
+  "rewordPushedTitle": "Rewrite a pushed commit?",
+  "rewordPushedBody": "This commit is already on {branches}. Changing its message rewrites history, so the branch will need a force push and anyone who pulled it will have to reset.",
+  "@rewordPushedBody": {
+    "placeholders": {
+      "branches": {"type": "String"}
+    }
+  },
+  "rewordPushedConfirm": "Rewrite anyway",
   "a11yCommitRow": "Commit {sha} by {author}: {message}",
   "@a11yCommitRow": {
     "placeholders": {

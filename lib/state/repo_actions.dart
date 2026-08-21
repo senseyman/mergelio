@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/logging.dart';
 import '../domain/file_edit.dart';
+import '../domain/git/commit_message.dart';
 import '../domain/git/conflict.dart';
 import '../domain/git/git_providers.dart';
 import '../domain/git/git_reader.dart';
@@ -1160,6 +1161,114 @@ class RepoActions {
           ),
     ];
   }
+
+  /// Remote-tracking branches that already contain [sha]. Empty means the
+  /// commit has never left this machine, so rewriting it costs nobody a force
+  /// push; the caller warns when it is not.
+  Future<List<String>> remoteBranchesContaining(String sha) async {
+    final out = await _out([
+      'branch',
+      '-r',
+      '--contains',
+      sha,
+      '--format=%(refname:short)',
+    ]);
+    return [
+      for (final line in out.split('\n'))
+        if (line.trim().isNotEmpty && !line.trim().endsWith('/HEAD'))
+          line.trim(),
+    ];
+  }
+
+  /// Rewrites the message of [sha], leaving its tree untouched. HEAD is amended
+  /// in place; an older commit is reworded through an interactive rebase, which
+  /// necessarily rewrites every commit above it. A commit that is not an
+  /// ancestor of HEAD cannot be reached either way, so it is refused rather
+  /// than silently rebasing the wrong branch.
+  Future<void> rewordCommit(
+    String sha,
+    String summary, {
+    String description = '',
+  }) async {
+    final toasts = _ref.read(toastProvider.notifier);
+    if (summary.trim().isEmpty) {
+      toasts.show('Commit message is empty', kind: ToastKind.warning);
+      return;
+    }
+    final target = await _out(['rev-parse', sha]);
+    // 'N' is the only status meaning "no signature at all"; every other one
+    // (including 'E', key missing locally) describes a commit that was signed,
+    // and rewriting it unsigned would quietly downgrade it.
+    final wasSigned =
+        (await _out(['log', '-1', '--format=%G?', target])) != 'N';
+    if (target == await _headSha()) {
+      if (_blockedByRepoOp) return;
+      final prev = target;
+      Future<void> amend() => _writer.amendMessage(
+        summary,
+        description: description,
+        sign: wasSigned,
+        authorName: _identity.name,
+        authorEmail: _identity.email,
+      );
+      // The tree is unchanged, so soft-resetting to the original commit puts
+      // history back exactly as it was and stages nothing extra.
+      await _undoable(
+        'Reword commit',
+        amend,
+        undo: () => _writer.resetSoft(prev),
+        redo: amend,
+      );
+      return;
+    }
+    if (!await _isAncestorOfHead(target)) {
+      toasts.show(
+        'Commit is not on the current branch',
+        kind: ToastKind.warning,
+      );
+      return;
+    }
+    // An empty parent means the root commit, which git rebases with `--root`.
+    final parent = await _out(['rev-parse', '--verify', '--quiet', '$target^']);
+    final range = parent.isEmpty ? 'HEAD' : '$parent..HEAD';
+    // A linear plan of picks cannot express a merge, and git refuses a todo
+    // that names one — mid-rebase, leaving HEAD detached on the base with no
+    // conflict for the UI to offer a way out of. Refuse before starting.
+    if ((await _out(['rev-list', '--merges', range])).isNotEmpty) {
+      toasts.show(
+        'Cannot edit this message',
+        description:
+            'Rewriting it would replay a merge commit, which would flatten '
+            'the history above it.',
+        kind: ToastKind.warning,
+      );
+      return;
+    }
+    final log = await _out(['log', '--reverse', '--format=%H', range]);
+    final message = joinCommitMessage(summary, description);
+    final steps = [
+      for (final line in log.split('\n'))
+        if (line.trim().isNotEmpty)
+          if (line.trim() == target)
+            RebaseStep(
+              line.trim(),
+              RebaseAction.reword,
+              message: message,
+              sign: wasSigned,
+            )
+          else
+            RebaseStep(line.trim(), RebaseAction.pick),
+    ];
+    if (steps.isEmpty) return;
+    await rebase(parent.isEmpty ? '--root' : parent, steps);
+  }
+
+  Future<bool> _isAncestorOfHead(String sha) async => (await _git.run([
+    'merge-base',
+    '--is-ancestor',
+    sha,
+    'HEAD',
+  ], repoPath: path)).ok;
 
   Future<void> _runRebase(Future<void> Function() op) async {
     if (_blockedByRepoOp) return;

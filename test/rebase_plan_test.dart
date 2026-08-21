@@ -16,7 +16,42 @@ void main() {
         RebaseStep('aaa', RebaseAction.reword, message: "it's new"),
       ]);
       expect(todo, contains('pick aaa'));
-      expect(todo, contains(r"exec git commit --amend -m 'it'\''s new'"));
+      expect(todo, contains(r"'it'\''s new'"));
+    });
+
+    test('a multi-line reword message stays on one todo line', () {
+      final todo = buildRebaseTodo([
+        const RebaseStep('aaa', RebaseAction.reword, message: 'sub\n\nbody'),
+      ]);
+      // A todo file is line-oriented: a literal newline inside the exec line
+      // would be read as a separate (invalid) instruction.
+      final lines = todo.trim().split('\n');
+      expect(lines, hasLength(2));
+      expect(lines.first, 'pick aaa');
+      expect(lines.last, startsWith('exec '));
+      expect(lines.last, contains(r'sub\n\nbody'));
+    });
+
+    test('backslashes in a reword message survive escaping', () {
+      final todo = buildRebaseTodo([
+        const RebaseStep('aaa', RebaseAction.reword, message: r'path\to\thing'),
+      ]);
+      expect(todo.trim().split('\n'), hasLength(2));
+      expect(todo, contains(r'path\\to\\thing'));
+    });
+
+    test('a signed reword asks git to re-sign the rewritten commit', () {
+      final todo = buildRebaseTodo([
+        const RebaseStep('aaa', RebaseAction.reword, message: 'x', sign: true),
+      ]);
+      expect(todo, contains('git commit --amend -S -F -'));
+    });
+
+    test('an unsigned reword never passes -S', () {
+      final todo = buildRebaseTodo([
+        const RebaseStep('aaa', RebaseAction.reword, message: 'x'),
+      ]);
+      expect(todo, isNot(contains('-S')));
     });
 
     test('squash and fixup map directly; drop is omitted', () {

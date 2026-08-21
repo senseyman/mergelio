@@ -90,7 +90,20 @@
   "menuRevert": "Відкотити",
   "menuRebaseHere": "Rebase сюди…",
   "menuResetHard": "Скинути сюди (--hard)",
+  "menuEditMessage": "Редагувати опис…",
+  "menuCopySummary": "Копіювати заголовок",
+  "menuCopyDescription": "Копіювати опис",
+  "menuCopyMessage": "Копіювати повідомлення",
   "menuCopySha": "Копіювати SHA",
+  "rewordTitle": "Редагувати повідомлення коміту",
+  "rewordPushedTitle": "Переписати відправлений коміт?",
+  "rewordPushedBody": "Цей коміт уже є в {branches}. Зміна повідомлення переписує історію, тож гілку доведеться відправити примусово, а всі, хто її отримав, муситимуть зробити reset.",
+  "@rewordPushedBody": {
+    "placeholders": {
+      "branches": {"type": "String"}
+    }
+  },
+  "rewordPushedConfirm": "Все одно переписати",
   "a11yCommitRow": "Коміт {sha} від {author}: {message}",
   "@a11yCommitRow": {
     "placeholders": {

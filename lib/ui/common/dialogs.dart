@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme.dart';
 import '../../core/tokens.dart';
+import '../../domain/git/commit_message.dart';
+
+export '../../domain/git/commit_message.dart' show CommitMessageParts;
 
 /// Standard modal card: header (icon · title · ✕) / body / footer actions.
 Future<T?> showAppModal<T>({
@@ -163,6 +166,116 @@ class _InputDialogBodyState extends State<_InputDialogBody> {
             labelText: widget.label.isEmpty ? null : widget.label,
             isDense: true,
             border: const OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            const SizedBox(width: 8),
+            FilledButton(onPressed: _submit, child: Text(widget.confirmLabel)),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// Commit message editor: a one-line summary over a multi-line description,
+/// mirroring how the commit composer splits them. Returns the edited parts, or
+/// null on cancel. An empty summary cannot be saved — a commit needs a subject.
+Future<CommitMessageParts?> showCommitMessageDialog(
+  BuildContext context, {
+  String title = 'Edit commit message',
+  String initialSummary = '',
+  String initialDescription = '',
+  String confirmLabel = 'Save',
+}) => showAppModal<CommitMessageParts>(
+  context: context,
+  title: title,
+  icon: Icons.edit_note_outlined,
+  width: 520,
+  body: _CommitMessageBody(
+    initialSummary: initialSummary,
+    initialDescription: initialDescription,
+    confirmLabel: confirmLabel,
+  ),
+);
+
+class _CommitMessageBody extends StatefulWidget {
+  final String initialSummary;
+  final String initialDescription;
+  final String confirmLabel;
+  const _CommitMessageBody({
+    required this.initialSummary,
+    required this.initialDescription,
+    required this.confirmLabel,
+  });
+
+  @override
+  State<_CommitMessageBody> createState() => _CommitMessageBodyState();
+}
+
+class _CommitMessageBodyState extends State<_CommitMessageBody> {
+  late final _summary = TextEditingController(text: widget.initialSummary)
+    ..selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: widget.initialSummary.length,
+    );
+  late final _description = TextEditingController(
+    text: widget.initialDescription,
+  );
+
+  @override
+  void dispose() {
+    _summary.dispose();
+    _description.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final s = _summary.text.trim();
+    if (s.isEmpty) return;
+    Navigator.of(
+      context,
+    ).pop((summary: s, description: _description.text.trim()));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final style = TextStyle(color: t.textPrimary, fontSize: 13);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          controller: _summary,
+          autofocus: true,
+          onSubmitted: (_) => _submit(),
+          style: style,
+          decoration: const InputDecoration(
+            labelText: 'Summary',
+            isDense: true,
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _description,
+          minLines: 4,
+          maxLines: 10,
+          keyboardType: TextInputType.multiline,
+          style: style,
+          decoration: const InputDecoration(
+            labelText: 'Description',
+            alignLabelWithHint: true,
+            isDense: true,
+            border: OutlineInputBorder(),
           ),
         ),
         const SizedBox(height: 16),

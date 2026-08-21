@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'commit_message.dart';
 import 'git_service.dart';
 
 /// Write-side git operations: staging the index and committing. Kept separate
@@ -474,6 +475,25 @@ class GitWriter {
       body.toString(),
     ], 'git commit');
   }
+
+  /// Rewrites the message of HEAD, leaving its tree alone. `--only` with no
+  /// paths is git's way of amending the last commit *without* folding in
+  /// whatever is already staged — a plain `--amend` would absorb it silently.
+  Future<void> amendMessage(
+    String summary, {
+    String description = '',
+    bool sign = false,
+    String? authorName,
+    String? authorEmail,
+  }) => _ok([
+    ..._identity(authorName, authorEmail),
+    'commit',
+    '--amend',
+    '--only',
+    if (sign) '-S',
+    '-m',
+    joinCommitMessage(summary, description),
+  ], 'git commit --amend');
 
   /// Reverts [path] to its committed state, dropping staged and unstaged edits.
   /// Reverts every tracked file in the repository to HEAD, index and working

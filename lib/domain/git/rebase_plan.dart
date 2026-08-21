@@ -2,12 +2,19 @@
 enum RebaseAction { pick, reword, squash, fixup, drop }
 
 /// One commit in the rebase plan, in apply order (oldest first). [message] is
-/// the new message for a [RebaseAction.reword].
+/// the new message for a [RebaseAction.reword], and [sign] re-signs the
+/// rewritten commit so a reword does not silently strip a signature.
 class RebaseStep {
   final String sha;
   final RebaseAction action;
   final String message;
-  const RebaseStep(this.sha, this.action, {this.message = ''});
+  final bool sign;
+  const RebaseStep(
+    this.sha,
+    this.action, {
+    this.message = '',
+    this.sign = false,
+  });
 }
 
 /// Builds a git rebase todo from [steps] (oldest-first). Reword is expressed as
@@ -23,7 +30,14 @@ String buildRebaseTodo(List<RebaseStep> steps) {
         lines.add('pick ${s.sha}');
       case RebaseAction.reword:
         lines.add('pick ${s.sha}');
-        lines.add('exec git commit --amend -m ${_shellQuote(s.message)}');
+        // The message is piped in rather than passed with -m: a todo file is
+        // line-oriented, so a message with a body would otherwise split the
+        // exec across lines git reads as separate instructions. `printf %b`
+        // turns the escaped one-liner back into the real multi-line message.
+        lines.add(
+          "exec printf '%b' ${_shellQuote(_escapeNewlines(s.message))} "
+          '| git commit --amend ${s.sign ? '-S ' : ''}-F -',
+        );
       case RebaseAction.squash:
         lines.add('squash ${s.sha}');
       case RebaseAction.fixup:
@@ -49,3 +63,12 @@ bool isNoOpPlan(List<RebaseStep> original, List<RebaseStep> steps) {
 }
 
 String _shellQuote(String s) => "'${s.replaceAll("'", r"'\''")}'";
+
+/// Folds a message onto one line for `printf %b`. Existing backslashes are
+/// doubled first so printf renders them literally instead of reading them as
+/// escapes of their own.
+String _escapeNewlines(String s) => s
+    .replaceAll(r'\', r'\\')
+    .replaceAll('\r\n', r'\n')
+    .replaceAll('\n', r'\n')
+    .replaceAll('\r', r'\n');

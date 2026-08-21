@@ -256,7 +256,33 @@ class AppLocalizationsUk extends AppLocalizations {
   String get menuResetHard => 'Скинути сюди (--hard)';
 
   @override
+  String get menuEditMessage => 'Редагувати опис…';
+
+  @override
+  String get menuCopySummary => 'Копіювати заголовок';
+
+  @override
+  String get menuCopyDescription => 'Копіювати опис';
+
+  @override
+  String get menuCopyMessage => 'Копіювати повідомлення';
+
+  @override
   String get menuCopySha => 'Копіювати SHA';
+
+  @override
+  String get rewordTitle => 'Редагувати повідомлення коміту';
+
+  @override
+  String get rewordPushedTitle => 'Переписати відправлений коміт?';
+
+  @override
+  String rewordPushedBody(String branches) {
+    return 'Цей коміт уже є в $branches. Зміна повідомлення переписує історію, тож гілку доведеться відправити примусово, а всі, хто її отримав, муситимуть зробити reset.';
+  }
+
+  @override
+  String get rewordPushedConfirm => 'Все одно переписати';
 
   @override
   String a11yCommitRow(String sha, String author, String message) {
