@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
+import '../../domain/git/commit_message.dart';
 import '../../domain/git/models.dart';
 import '../../domain/git/rebase_plan.dart';
 import '../../domain/search.dart';
@@ -24,6 +25,7 @@ import '../shell/remote_merge_confirm.dart';
 import '../shell/repo_op_dialogs.dart';
 import '../shell/resize_handle.dart';
 import '../workspace/branch_switch.dart';
+import '../workspace/edit_commit_message.dart';
 import '../../l10n/gen/app_localizations.dart';
 import 'commit_columns.dart';
 import 'graph_derived.dart';
@@ -1195,6 +1197,30 @@ class _CommitContextMenu extends ConsumerWidget {
           if (ok) await actions.resetHard(sha);
         }, danger: true),
         const PopupMenuDivider(),
+        item(
+          l.menuEditMessage,
+          () => editCommitMessage(context, ref, repoPath: path, commit: commit),
+        ),
+        item(
+          l.menuCopySummary,
+          () => Clipboard.setData(ClipboardData(text: commit.message)),
+        ),
+        // A commit with no body has nothing to copy under either label, and an
+        // item that silently copies an empty string reads as broken.
+        if (commit.body.trim().isNotEmpty) ...[
+          item(
+            l.menuCopyDescription,
+            () => Clipboard.setData(ClipboardData(text: commit.body)),
+          ),
+          item(
+            l.menuCopyMessage,
+            () => Clipboard.setData(
+              ClipboardData(
+                text: joinCommitMessage(commit.message, commit.body),
+              ),
+            ),
+          ),
+        ],
         item(l.menuCopySha, () => Clipboard.setData(ClipboardData(text: sha))),
       ],
     );

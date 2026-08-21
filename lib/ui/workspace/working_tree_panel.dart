@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
+import '../../domain/git/commit_message.dart';
 import '../../domain/git/git_providers.dart';
 import '../../domain/git/git_reader.dart';
 import '../../domain/git/models.dart';
@@ -471,9 +472,7 @@ class _ComposerState extends ConsumerState<_Composer> {
     // Re-check after the await: the user may have toggled amend back off or
     // started typing while `git log` ran — never overwrite that.
     if (!mounted || !_amend || msg.isEmpty || _summary.text.isNotEmpty) return;
-    final nl = msg.indexOf('\n');
-    final summary = nl == -1 ? msg : msg.substring(0, nl);
-    final description = nl == -1 ? '' : msg.substring(nl + 1).trim();
+    final (:summary, :description) = splitCommitMessage(msg);
     setState(() {
       _summary.text = summary;
       _description.text = description;

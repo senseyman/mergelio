@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/core/tokens.dart';
 import 'package:mergelio/domain/git/models.dart';
+import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/state/graph_selection.dart';
 import 'package:mergelio/state/repo_data.dart';
@@ -41,6 +42,8 @@ Widget _harness({
   ],
   child: MaterialApp(
     theme: ThemeData(extensions: [AppTokens.dark()]),
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
     home: Scaffold(
       body: CommitDetails(
         repoPath: '/repo',

@@ -256,7 +256,33 @@ class AppLocalizationsEn extends AppLocalizations {
   String get menuResetHard => 'Reset here (--hard)';
 
   @override
+  String get menuEditMessage => 'Edit message…';
+
+  @override
+  String get menuCopySummary => 'Copy summary';
+
+  @override
+  String get menuCopyDescription => 'Copy description';
+
+  @override
+  String get menuCopyMessage => 'Copy message';
+
+  @override
   String get menuCopySha => 'Copy SHA';
+
+  @override
+  String get rewordTitle => 'Edit commit message';
+
+  @override
+  String get rewordPushedTitle => 'Rewrite a pushed commit?';
+
+  @override
+  String rewordPushedBody(String branches) {
+    return 'This commit is already on $branches. Changing its message rewrites history, so the branch will need a force push and anyone who pulled it will have to reset.';
+  }
+
+  @override
+  String get rewordPushedConfirm => 'Rewrite anyway';
 
   @override
   String a11yCommitRow(String sha, String author, String message) {

@@ -590,11 +590,59 @@ abstract class AppLocalizations {
   /// **'Reset here (--hard)'**
   String get menuResetHard;
 
+  /// No description provided for @menuEditMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit message…'**
+  String get menuEditMessage;
+
+  /// No description provided for @menuCopySummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy summary'**
+  String get menuCopySummary;
+
+  /// No description provided for @menuCopyDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy description'**
+  String get menuCopyDescription;
+
+  /// No description provided for @menuCopyMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy message'**
+  String get menuCopyMessage;
+
   /// No description provided for @menuCopySha.
   ///
   /// In en, this message translates to:
   /// **'Copy SHA'**
   String get menuCopySha;
+
+  /// No description provided for @rewordTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit commit message'**
+  String get rewordTitle;
+
+  /// No description provided for @rewordPushedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Rewrite a pushed commit?'**
+  String get rewordPushedTitle;
+
+  /// No description provided for @rewordPushedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This commit is already on {branches}. Changing its message rewrites history, so the branch will need a force push and anyone who pulled it will have to reset.'**
+  String rewordPushedBody(String branches);
+
+  /// No description provided for @rewordPushedConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Rewrite anyway'**
+  String get rewordPushedConfirm;
 
   /// No description provided for @a11yCommitRow.
   ///

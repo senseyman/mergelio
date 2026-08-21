@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
+import '../../domain/git/commit_message.dart';
 import '../../domain/git/models.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../../state/diff_target.dart';
 import '../../state/graph_selection.dart';
 import '../../state/repo_data.dart';
@@ -13,6 +15,7 @@ import '../common/file_tree_view.dart';
 import '../graph/commit_columns.dart';
 import '../graph/ref_pill.dart';
 import '../insight/file_insight_dialog.dart';
+import 'edit_commit_message.dart';
 
 /// Right panel content for a selected commit: metadata, signature, the list of
 /// changed files (read-only), and a `‹ WIP` shortcut back to the working tree
@@ -31,6 +34,7 @@ class CommitDetails extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = context.tokens;
+    final l = AppLocalizations.of(context);
     final c = commit;
     final files = ref.watch(commitFilesProvider((repo: repoPath, sha: c.sha)));
     final clock = ref.watch(settingsProvider.select((s) => s.clockFormat));
@@ -77,24 +81,69 @@ class CommitDetails extends ConsumerWidget {
             child: ListView(
               padding: const EdgeInsets.all(14),
               children: [
-                Text(
-                  c.message,
-                  style: TextStyle(
-                    color: t.textPrimary,
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w600,
-                    height: 1.35,
-                  ),
-                ),
-                if (c.body.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  SelectableText(
-                    c.body,
-                    style: TextStyle(
-                      color: t.textMuted,
-                      fontSize: 12.5,
-                      height: 1.4,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        c.message,
+                        style: TextStyle(
+                          color: t.textPrimary,
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                          height: 1.35,
+                        ),
+                      ),
                     ),
+                    _MsgAction(
+                      icon: Icons.edit_outlined,
+                      tooltip: l.menuEditMessage,
+                      onTap: () => editCommitMessage(
+                        context,
+                        ref,
+                        repoPath: repoPath,
+                        commit: c,
+                      ),
+                    ),
+                    _MsgAction(
+                      icon: Icons.content_copy_outlined,
+                      tooltip: l.menuCopySummary,
+                      onTap: () =>
+                          Clipboard.setData(ClipboardData(text: c.message)),
+                    ),
+                  ],
+                ),
+                if (c.body.trim().isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: SelectableText(
+                          c.body,
+                          style: TextStyle(
+                            color: t.textMuted,
+                            fontSize: 12.5,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                      _MsgAction(
+                        icon: Icons.content_copy_outlined,
+                        tooltip: l.menuCopyDescription,
+                        onTap: () =>
+                            Clipboard.setData(ClipboardData(text: c.body)),
+                      ),
+                      _MsgAction(
+                        icon: Icons.copy_all_outlined,
+                        tooltip: l.menuCopyMessage,
+                        onTap: () => Clipboard.setData(
+                          ClipboardData(
+                            text: joinCommitMessage(c.message, c.body),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
                 if (c.refs.isNotEmpty) ...[
@@ -206,6 +255,36 @@ class CommitDetails extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Small icon affordance sitting beside the message it acts on, sized to the
+/// text rather than to a stock [IconButton]'s tap target so it does not push
+/// the message it belongs to out of the way.
+class _MsgAction extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+  const _MsgAction({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(4),
+        child: Padding(
+          padding: const EdgeInsets.all(4),
+          child: Icon(icon, size: 13, color: t.textFaint),
+        ),
       ),
     );
   }
