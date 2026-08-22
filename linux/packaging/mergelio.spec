@@ -62,6 +62,7 @@ cp -a %{stagedir}/. %{buildroot}/
 /opt/%{name}/
 %{_bindir}/%{name}
 %{_datadir}/applications/%{app_id}.desktop
+%{_datadir}/metainfo/%{app_id}.metainfo.xml
 %{_datadir}/icons/hicolor/256x256/apps/%{app_id}.png
 
 # Without these the entry and icon exist on disk but the shell keeps showing a

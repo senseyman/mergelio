@@ -140,6 +140,13 @@ mkdir -p "${STAGE_DIR}/usr/share/icons/hicolor/256x256/apps"
 cp "linux/packaging/icons/${APP_ID}.png" \
   "${STAGE_DIR}/usr/share/icons/hicolor/256x256/apps/${APP_ID}.png"
 
+# Software centres read this file rather than the desktop entry. Without it the
+# package shows up under its file name, with no icon and no author.
+mkdir -p "${STAGE_DIR}/usr/share/metainfo"
+sed -e "s/@VERSION@/${VERSION}/" -e "s/@DATE@/$(date -u +%Y-%m-%d)/" \
+  "linux/packaging/${APP_ID}.metainfo.xml" \
+  > "${STAGE_DIR}/usr/share/metainfo/${APP_ID}.metainfo.xml"
+
 mkdir -p "${STAGE_DIR}/usr/share/licenses/${PKG_NAME}"
 cp LICENSE "${STAGE_DIR}/usr/share/licenses/${PKG_NAME}/LICENSE"
 
