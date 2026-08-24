@@ -72,3 +72,26 @@ String _escapeNewlines(String s) => s
     .replaceAll('\r\n', r'\n')
     .replaceAll('\n', r'\n')
     .replaceAll('\r', r'\n');
+
+/// A whole-branch answer to "what should this rebase do?", so the common cases
+/// need one choice instead of one choice per commit.
+enum RebasePreset { asIs, squashAll, squashKeepFirst }
+
+/// Rewrites [steps] to match [preset], keeping sha order and messages. A plan
+/// of fewer than two commits has nothing to squash into, so it comes back as
+/// plain picks whichever preset is asked for.
+List<RebaseStep> applyPreset(List<RebaseStep> steps, RebasePreset preset) => [
+  for (var i = 0; i < steps.length; i++)
+    RebaseStep(
+      steps[i].sha,
+      i == 0 || steps.length < 2
+          ? RebaseAction.pick
+          : switch (preset) {
+              RebasePreset.asIs => RebaseAction.pick,
+              RebasePreset.squashAll => RebaseAction.squash,
+              RebasePreset.squashKeepFirst => RebaseAction.fixup,
+            },
+      message: steps[i].message,
+      sign: steps[i].sign,
+    ),
+];

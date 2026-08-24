@@ -86,4 +86,69 @@ void main() {
       );
     });
   });
+
+  group('applyPreset', () {
+    final steps = [
+      const RebaseStep('aaa', RebaseAction.pick, message: 'first'),
+      const RebaseStep('bbb', RebaseAction.pick, message: 'second'),
+      const RebaseStep('ccc', RebaseAction.pick, message: 'third'),
+    ];
+
+    test('asIs picks every commit in the original order', () {
+      final out = applyPreset(steps, RebasePreset.asIs);
+      expect(out.map((s) => s.sha), ['aaa', 'bbb', 'ccc']);
+      expect(out.every((s) => s.action == RebaseAction.pick), isTrue);
+    });
+
+    test('squashAll keeps the first commit and squashes the rest', () {
+      final out = applyPreset(steps, RebasePreset.squashAll);
+      expect(out.map((s) => s.action), [
+        RebaseAction.pick,
+        RebaseAction.squash,
+        RebaseAction.squash,
+      ]);
+      expect(buildRebaseTodo(out), 'pick aaa\nsquash bbb\nsquash ccc\n');
+    });
+
+    test('squashKeepFirst fixups the rest so only the first message lives', () {
+      final out = applyPreset(steps, RebasePreset.squashKeepFirst);
+      expect(out.map((s) => s.action), [
+        RebaseAction.pick,
+        RebaseAction.fixup,
+        RebaseAction.fixup,
+      ]);
+    });
+
+    test('messages and shas survive every preset', () {
+      for (final p in RebasePreset.values) {
+        final out = applyPreset(steps, p);
+        expect(out.map((s) => s.sha), ['aaa', 'bbb', 'ccc']);
+        expect(out.map((s) => s.message), ['first', 'second', 'third']);
+      }
+    });
+
+    test('a single commit is untouched by the squash presets', () {
+      final one = [const RebaseStep('aaa', RebaseAction.pick)];
+      for (final p in RebasePreset.values) {
+        expect(applyPreset(one, p).single.action, RebaseAction.pick);
+      }
+    });
+
+    test('an empty plan stays empty', () {
+      for (final p in RebasePreset.values) {
+        expect(applyPreset(const [], p), isEmpty);
+      }
+    });
+
+    test('a preset overwrites any earlier per-commit edits', () {
+      final edited = [
+        const RebaseStep('aaa', RebaseAction.drop),
+        const RebaseStep('bbb', RebaseAction.reword, message: 'x'),
+      ];
+      expect(applyPreset(edited, RebasePreset.asIs).map((s) => s.action), [
+        RebaseAction.pick,
+        RebaseAction.pick,
+      ]);
+    });
+  });
 }

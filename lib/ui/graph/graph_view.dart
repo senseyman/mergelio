@@ -1180,7 +1180,11 @@ class _CommitContextMenu extends ConsumerWidget {
           final steps = await actions.rebaseStepsFrom(sha);
           if (steps.isEmpty) return;
           if (!context.mounted) return;
-          final plan = await showRebaseEditor(context, steps: steps);
+          final plan = await showRebaseEditor(
+            context,
+            steps: steps,
+            onto: commit.shortSha,
+          );
           if (plan == null || isNoOpPlan(steps, plan)) return; // unchanged
           await actions.rebase(sha, plan);
         }),
