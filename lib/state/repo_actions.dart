@@ -1166,13 +1166,20 @@ class RepoActions {
     List<RebaseStep> plan,
   ) async {
     if (!isNoOpPlan(original, plan)) return false;
-    return (await _git.run([
-      'merge-base',
-      '--is-ancestor',
-      base,
-      'HEAD',
-    ], repoPath: path)).ok;
+    return _isAncestorOfHead(base);
   }
+
+  /// Whether replaying [base]..HEAD would have to replay a merge commit. An
+  /// empty [base] means the root, and so the whole history.
+  ///
+  /// A linear plan of picks cannot express a merge, and git refuses a todo
+  /// that names one — mid-rebase, leaving HEAD detached on the base with no
+  /// conflict for the UI to offer a way out of. Callers refuse before starting.
+  Future<bool> rebaseCrossesMerge(String base) async => (await _out([
+    'rev-list',
+    '--merges',
+    base.isEmpty ? 'HEAD' : '$base..HEAD',
+  ])).isNotEmpty;
 
   /// Commits between [base] and HEAD (oldest-first), as an initial pick plan.
   Future<List<RebaseStep>> rebaseStepsFrom(String base) async {
@@ -1263,10 +1270,7 @@ class RepoActions {
     // An empty parent means the root commit, which git rebases with `--root`.
     final parent = await _out(['rev-parse', '--verify', '--quiet', '$target^']);
     final range = parent.isEmpty ? 'HEAD' : '$parent..HEAD';
-    // A linear plan of picks cannot express a merge, and git refuses a todo
-    // that names one — mid-rebase, leaving HEAD detached on the base with no
-    // conflict for the UI to offer a way out of. Refuse before starting.
-    if ((await _out(['rev-list', '--merges', range])).isNotEmpty) {
+    if (await rebaseCrossesMerge(parent)) {
       toasts.show(
         'Cannot edit this message',
         description:
@@ -1312,8 +1316,12 @@ class RepoActions {
             description: 'Finish or abort it before starting another one.',
             kind: ToastKind.warning,
             action: ToastAction('Abort rebase', () async {
-              await _writer.rebaseAbort();
-              _refresh();
+              try {
+                await _writer.rebaseAbort();
+                _refresh();
+              } on GitException catch (e) {
+                _toastErr('Abort rebase', e);
+              }
             }),
           );
       return;

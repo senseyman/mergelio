@@ -77,14 +77,14 @@ String _escapeNewlines(String s) => s
 /// need one choice instead of one choice per commit.
 enum RebasePreset { asIs, squashAll, squashKeepFirst }
 
-/// Rewrites [steps] to match [preset], keeping sha order and messages. A plan
-/// of fewer than two commits has nothing to squash into, so it comes back as
-/// plain picks whichever preset is asked for.
+/// Rewrites [steps] to match [preset], keeping sha order and messages. The
+/// first commit is always picked — nothing above it survives to squash into —
+/// so a single-commit plan comes back as a plain pick for every preset.
 List<RebaseStep> applyPreset(List<RebaseStep> steps, RebasePreset preset) => [
   for (var i = 0; i < steps.length; i++)
     RebaseStep(
       steps[i].sha,
-      i == 0 || steps.length < 2
+      i == 0
           ? RebaseAction.pick
           : switch (preset) {
               RebasePreset.asIs => RebaseAction.pick,

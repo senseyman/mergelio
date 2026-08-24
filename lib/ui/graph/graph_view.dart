@@ -1179,6 +1179,18 @@ class _CommitContextMenu extends ConsumerWidget {
         item(l.menuRebaseHere, () async {
           final steps = await actions.rebaseStepsFrom(sha);
           if (steps.isEmpty) return;
+          if (await actions.rebaseCrossesMerge(sha)) {
+            ref
+                .read(toastProvider.notifier)
+                .show(
+                  'Cannot rebase onto this commit',
+                  description:
+                      'The commits above ${commit.shortSha} include a merge, '
+                      'which a rebase would flatten.',
+                  kind: ToastKind.warning,
+                );
+            return;
+          }
           if (!context.mounted) return;
           final plan = await showRebaseEditor(
             context,

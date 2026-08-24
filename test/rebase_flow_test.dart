@@ -222,4 +222,50 @@ void main() {
       isTrue,
     );
   });
+
+  test(
+    'a range containing a merge commit is refused before it starts',
+    () async {
+      final c = ProviderContainer();
+      addTearDown(c.dispose);
+      final actions = c.read(repoActionsProvider(dir.path));
+
+      final base = await commit('base.txt', 'base\n', 'base');
+      await g(['checkout', '-q', '-b', 'side']);
+      await commit('side.txt', 's\n', 'S1');
+      await g(['checkout', '-q', 'main']);
+      await commit('m.txt', 'm\n', 'M1');
+      await g(['merge', '--no-ff', '-m', 'Merge side', 'side']);
+
+      // A linear todo cannot express a merge; git refuses one that names it.
+      expect(await actions.rebaseCrossesMerge(base), isTrue);
+    },
+  );
+
+  test('a linear range crosses no merge', () async {
+    final c = ProviderContainer();
+    addTearDown(c.dispose);
+    final actions = c.read(repoActionsProvider(dir.path));
+
+    final base = await commit('base.txt', 'base\n', 'base');
+    await commit('f1.txt', '1\n', 'C1');
+
+    expect(await actions.rebaseCrossesMerge(base), isFalse);
+  });
+
+  test('an empty base checks the whole history for merges', () async {
+    final c = ProviderContainer();
+    addTearDown(c.dispose);
+    final actions = c.read(repoActionsProvider(dir.path));
+
+    await commit('base.txt', 'base\n', 'base');
+    await g(['checkout', '-q', '-b', 'side']);
+    await commit('side.txt', 's\n', 'S1');
+    await g(['checkout', '-q', 'main']);
+    await commit('m.txt', 'm\n', 'M1');
+    await g(['merge', '--no-ff', '-m', 'Merge side', 'side']);
+
+    // The reword path passes '' for a root commit, which git spells 'HEAD'.
+    expect(await actions.rebaseCrossesMerge(''), isTrue);
+  });
 }
