@@ -106,6 +106,7 @@ class _RebaseEditorState extends State<_RebaseEditor> {
     final t = context.tokens;
     final count = _steps.length;
     final onto = widget.onto;
+    final error = rebasePlanError(_steps);
     return Dialog(
       backgroundColor: t.bgElevated,
       shape: RoundedRectangleBorder(
@@ -181,15 +182,29 @@ class _RebaseEditorState extends State<_RebaseEditor> {
             Padding(
               padding: const EdgeInsets.all(14),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
+                  if (error != null)
+                    Expanded(
+                      child: Text(
+                        error,
+                        style: TextStyle(color: t.danger, fontSize: 12),
+                      ),
+                    )
+                  else
+                    const Spacer(),
+                  const SizedBox(width: 12),
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
                     child: const Text('Cancel'),
                   ),
                   const SizedBox(width: 10),
                   FilledButton(
-                    onPressed: () => Navigator.of(context).pop(_steps),
+                    // git rejects an unrunnable todo *after* creating its state
+                    // directory, leaving the repository mid-rebase, so the plan
+                    // has to be refused here instead.
+                    onPressed: error == null
+                        ? () => Navigator.of(context).pop(_steps)
+                        : null,
                     child: const Text('Start rebase'),
                   ),
                 ],

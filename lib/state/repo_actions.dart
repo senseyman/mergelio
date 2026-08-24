@@ -1142,6 +1142,38 @@ class RepoActions {
     );
   }
 
+  /// True while the repository sits mid-rebase. Asks git for the path rather
+  /// than assuming `.git/rebase-merge`, which is wrong inside a linked
+  /// worktree, where the state lives under `.git/worktrees/<name>/`.
+  Future<bool> isRebaseInProgress() async {
+    for (final dir in const ['rebase-merge', 'rebase-apply']) {
+      final p = (await _out(['rev-parse', '--git-path', dir])).trim();
+      if (p.isEmpty) continue;
+      final abs = p.startsWith('/') ? p : '$path/$p';
+      if (Directory(abs).existsSync()) return true;
+    }
+    return false;
+  }
+
+  /// True when running [plan] would leave history exactly as it is: the plan
+  /// still picks every commit in its original order, *and* [base] is a commit
+  /// HEAD already contains, so replaying onto it lands where we started. An
+  /// unchanged pick list onto a base off this branch is not redundant — moving
+  /// the commits there is the whole point.
+  Future<bool> isRebaseRedundant(
+    String base,
+    List<RebaseStep> original,
+    List<RebaseStep> plan,
+  ) async {
+    if (!isNoOpPlan(original, plan)) return false;
+    return (await _git.run([
+      'merge-base',
+      '--is-ancestor',
+      base,
+      'HEAD',
+    ], repoPath: path)).ok;
+  }
+
   /// Commits between [base] and HEAD (oldest-first), as an initial pick plan.
   Future<List<RebaseStep>> rebaseStepsFrom(String base) async {
     final out = await _out([
@@ -1272,6 +1304,20 @@ class RepoActions {
 
   Future<void> _runRebase(Future<void> Function() op) async {
     if (_blockedByRepoOp) return;
+    if (await isRebaseInProgress()) {
+      _ref
+          .read(toastProvider.notifier)
+          .show(
+            'A rebase is already in progress',
+            description: 'Finish or abort it before starting another one.',
+            kind: ToastKind.warning,
+            action: ToastAction('Abort rebase', () async {
+              await _writer.rebaseAbort();
+              _refresh();
+            }),
+          );
+      return;
+    }
     final prev = await _headSha();
     _ref.read(busyProvider.notifier).state = const BusyState('Rebase');
     try {
@@ -1299,6 +1345,11 @@ class RepoActions {
     } on GitException catch (e) {
       final conflicts = await GitReader(_git, path).conflictedFiles();
       if (conflicts.isEmpty) {
+        // Nothing to resolve, so there is no session to hand the user. git may
+        // still have left the repository mid-rebase (a todo it refused, a
+        // failed exec); roll that back rather than stranding the repository in
+        // a state only a terminal can escape.
+        if (await isRebaseInProgress()) await _writer.rebaseAbort();
         _toastErr('Rebase', e);
         return;
       }

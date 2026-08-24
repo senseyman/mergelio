@@ -151,4 +151,69 @@ void main() {
       ]);
     });
   });
+
+  group('rebasePlanError', () {
+    test('an all-pick plan is valid', () {
+      expect(
+        rebasePlanError([
+          const RebaseStep('a', RebaseAction.pick),
+          const RebaseStep('b', RebaseAction.pick),
+        ]),
+        isNull,
+      );
+    });
+
+    test('squashing the first commit is rejected', () {
+      // git: "Cannot 'squash' without a previous commit".
+      expect(
+        rebasePlanError([
+          const RebaseStep('a', RebaseAction.squash),
+          const RebaseStep('b', RebaseAction.fixup),
+        ]),
+        contains('first commit'),
+      );
+    });
+
+    test('fixing up the first commit is rejected', () {
+      expect(
+        rebasePlanError([const RebaseStep('a', RebaseAction.fixup)]),
+        isNotNull,
+      );
+    });
+
+    test('a squash below a dropped first commit is rejected', () {
+      // Dropping the commit above leaves nothing to merge into either.
+      expect(
+        rebasePlanError([
+          const RebaseStep('a', RebaseAction.drop),
+          const RebaseStep('b', RebaseAction.squash),
+        ]),
+        isNotNull,
+      );
+    });
+
+    test('a squash under a kept commit is fine', () {
+      expect(
+        rebasePlanError([
+          const RebaseStep('a', RebaseAction.pick),
+          const RebaseStep('b', RebaseAction.squash),
+        ]),
+        isNull,
+      );
+    });
+
+    test('every preset produces a valid plan', () {
+      final steps = [
+        const RebaseStep('a', RebaseAction.pick),
+        const RebaseStep('b', RebaseAction.pick),
+      ];
+      for (final p in RebasePreset.values) {
+        expect(rebasePlanError(applyPreset(steps, p)), isNull);
+      }
+    });
+
+    test('an empty plan is valid', () {
+      expect(rebasePlanError(const []), isNull);
+    });
+  });
 }

@@ -8,9 +8,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/tokens.dart';
 import '../../domain/git/commit_message.dart';
 import '../../domain/git/models.dart';
-import '../../domain/git/rebase_plan.dart';
 import '../../domain/search.dart';
 import '../../state/content_search.dart';
+import '../../state/feedback.dart';
 import '../../state/graph_selection.dart';
 import '../../state/path_history.dart';
 import '../../state/repo_actions.dart';
@@ -1185,7 +1185,18 @@ class _CommitContextMenu extends ConsumerWidget {
             steps: steps,
             onto: commit.shortSha,
           );
-          if (plan == null || isNoOpPlan(steps, plan)) return; // unchanged
+          if (plan == null) return;
+          if (await actions.isRebaseRedundant(sha, steps, plan)) {
+            ref
+                .read(toastProvider.notifier)
+                .show(
+                  'Nothing to rebase',
+                  description:
+                      '${commit.shortSha} is already part of this branch and '
+                      'the plan changes nothing.',
+                );
+            return;
+          }
           await actions.rebase(sha, plan);
         }),
         item(l.menuResetHard, () async {

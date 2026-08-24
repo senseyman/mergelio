@@ -95,3 +95,19 @@ List<RebaseStep> applyPreset(List<RebaseStep> steps, RebasePreset preset) => [
       sign: steps[i].sign,
     ),
 ];
+
+/// Why [steps] cannot be handed to git, or null when the plan is runnable.
+/// The first commit that survives has nothing above it to merge into, so git
+/// rejects the whole todo with "Cannot 'squash' without a previous commit"
+/// before applying anything.
+String? rebasePlanError(List<RebaseStep> steps) {
+  for (final s in steps) {
+    if (s.action == RebaseAction.drop) continue;
+    if (s.action == RebaseAction.squash || s.action == RebaseAction.fixup) {
+      return 'The first commit kept in the plan cannot be squashed or fixed '
+          'up — there is no commit above it to merge into.';
+    }
+    return null;
+  }
+  return null;
+}

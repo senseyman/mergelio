@@ -195,4 +195,52 @@ void main() {
     expect(result, isNull);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('a plan that squashes the first commit cannot be started', (
+    tester,
+  ) async {
+    await open(tester, steps(2));
+    await tester.tap(find.text('Customize per commit'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(DropdownButton<RebaseAction>).first);
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.textContaining('squash — merge into the commit above').last,
+    );
+    await tester.pumpAndSettle();
+
+    // git would reject this todo and strand the repository mid-rebase.
+    expect(find.textContaining('no commit above it'), findsOneWidget);
+    final button = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Start rebase'),
+    );
+    expect(button.onPressed, isNull);
+
+    await start(tester);
+    expect(result, isNull);
+    expect(find.text('Start rebase'), findsOneWidget); // still open
+  });
+
+  testWidgets('fixing the first action re-enables Start', (tester) async {
+    await open(tester, steps(2));
+    await tester.tap(find.text('Customize per commit'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(DropdownButton<RebaseAction>).first);
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.textContaining('squash — merge into the commit above').last,
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(DropdownButton<RebaseAction>).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('drop — remove this commit').last);
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('no commit above it'), findsNothing);
+    await start(tester);
+    expect(result?.first.action, RebaseAction.drop);
+  });
 }
