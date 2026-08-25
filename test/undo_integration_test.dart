@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/domain/git/git_reader.dart';
 import 'package:mergelio/domain/git/git_service.dart';
+import 'package:mergelio/state/merge_session.dart';
 import 'package:mergelio/state/repo_actions.dart';
 import 'package:mergelio/state/undo_stack.dart';
 
@@ -167,7 +168,7 @@ void main() {
     );
   });
 
-  test('a conflicting cherry-pick aborts, leaving a clean tree', () async {
+  test('a conflicting cherry-pick pauses for in-app resolution', () async {
     final c = container();
     final actions = c.read(repoActionsProvider(dir.path));
     // main edits a.txt; feature edits the same line → cherry-pick conflicts.
@@ -186,9 +187,10 @@ void main() {
 
     await actions.cherryPick(featureTip);
 
-    // No CHERRY_PICKING state and a clean tree (aborted, not stuck).
-    expect(await GitReader(svc, dir.path).status(), isEmpty);
-    expect(File('${dir.path}/.git/CHERRY_PICK_HEAD').existsSync(), isFalse);
+    // The pick stays paused with a session to resolve it, not aborted.
+    expect(c.read(mergeSessionProvider(dir.path))?.kind, MergeKind.cherryPick);
+    expect(File('${dir.path}/.git/CHERRY_PICK_HEAD').existsSync(), isTrue);
+    expect(await GitReader(svc, dir.path).conflictedFiles(), isNotEmpty);
   });
 
   test('undo of reset --hard returns to the prior commit', () async {

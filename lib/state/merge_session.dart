@@ -38,8 +38,9 @@ class ConflictFile {
 }
 
 /// How a conflict-resolution session completes: [merge] commits a merge,
-/// [rebase] runs `rebase --continue`, [stash] just stages the resolution.
-enum MergeKind { merge, rebase, stash }
+/// [rebase] runs `rebase --continue`, [cherryPick] and [revert] continue their
+/// sequencer op, [stash] just stages the resolution.
+enum MergeKind { merge, rebase, cherryPick, revert, stash }
 
 /// An in-progress conflict resolution for [branch] being merged in.
 class MergeSession {

@@ -592,20 +592,6 @@ class RepoActions {
     await _writer.resetHard(prev);
   }
 
-  /// Runs a cherry-pick/revert-style op that may conflict; on conflict it aborts
-  /// (leaving a clean tree) and rethrows, since there is no in-app resolver yet.
-  Future<void> _pickOrAbort(
-    Future<void> Function() op,
-    Future<void> Function() abort,
-  ) async {
-    try {
-      await op();
-    } on GitException {
-      await abort();
-      rethrow;
-    }
-  }
-
   Future<void> undo() async {
     if (_blockedByRepoOp) return;
     _ref.read(busyProvider.notifier).state = const BusyState('Undo');
@@ -836,27 +822,115 @@ class RepoActions {
     );
   }
 
-  Future<void> cherryPick(String sha) async {
+  Future<void> cherryPick(String sha) => _sequencerOp(
+    label: 'Cherry-pick ${_short(sha)}',
+    branch: _short(sha),
+    kind: MergeKind.cherryPick,
+    op: () => _writer.cherryPick(sha),
+    abort: _writer.cherryPickAbort,
+  );
+
+  Future<void> revert(String sha) => _sequencerOp(
+    label: 'Revert ${_short(sha)}',
+    branch: _short(sha),
+    kind: MergeKind.revert,
+    op: () => _writer.revert(sha),
+    abort: _writer.revertAbort,
+  );
+
+  /// Runs a cherry-pick or revert. A clean run records an undo entry; a run
+  /// that stops on conflicts hands the paused sequence to the Merge Tool, so
+  /// resolving there can continue it in-app instead of stranding the
+  /// repository. A failure that left nothing conflicted (a dirty tree, a bad
+  /// ref) backs out of any sequence git did start and toasts.
+  Future<void> _sequencerOp({
+    required String label,
+    required String branch,
+    required MergeKind kind,
+    required Future<void> Function() op,
+    required Future<void> Function() abort,
+  }) async {
+    if (_blockedByRepoOp) return;
+    // git refuses to start a pick over an unfinished one, and that refusal
+    // arrives as a failure with the *previous* op's conflicts still in the
+    // tree — which would relabel the open session with this commit. Stop here
+    // instead, and offer the way back to the resolution.
+    if (_ref.read(mergeSessionProvider(path)) != null ||
+        await _sequencerInProgress() ||
+        (await GitReader(_git, path).conflictedFiles()).isNotEmpty) {
+      _ref
+          .read(toastProvider.notifier)
+          .show(
+            'Unresolved conflicts',
+            description: 'Finish or abort the conflict resolution first.',
+            kind: ToastKind.warning,
+            action: ToastAction('Resolve', () {
+              openConflictResolution();
+            }),
+          );
+      return;
+    }
     final prev = await _headSha();
-    await _undoable(
-      'Cherry-pick ${_short(sha)}',
-      () =>
-          _pickOrAbort(() => _writer.cherryPick(sha), _writer.cherryPickAbort),
-      undo: () => _undoReset(prev),
-      redo: () =>
-          _pickOrAbort(() => _writer.cherryPick(sha), _writer.cherryPickAbort),
-    );
+    _ref.read(busyProvider.notifier).state = BusyState(label);
+    final opId = await _journalBegin(label);
+    try {
+      await _timed(label, op);
+      await _journalDone(opId);
+      _ref
+          .read(undoProvider(path).notifier)
+          .record(
+            UndoEntry(
+              label,
+              undo: () async {
+                await _undoReset(prev);
+                _refresh();
+              },
+              redo: () async {
+                await op();
+                _refresh();
+              },
+            ),
+          );
+      _refresh();
+    } on GitException catch (e) {
+      await _journalFail(opId);
+      final conflicts = await GitReader(_git, path).conflictedFiles();
+      if (conflicts.isEmpty) {
+        if (await _sequencerInProgress()) await abort();
+        _refresh();
+        _toastErr(label, e);
+        return;
+      }
+      _ref.read(mergeSessionProvider(path).notifier).state = MergeSession(
+        branch: branch,
+        prevSha: prev,
+        kind: kind,
+        files: [for (final p in conflicts) await _conflictFileFor(p)],
+      );
+      _refresh();
+    } finally {
+      _ref.read(busyProvider.notifier).state = null;
+    }
   }
 
-  Future<void> revert(String sha) async {
-    final prev = await _headSha();
-    await _undoable(
-      'Revert ${_short(sha)}',
-      () => _pickOrAbort(() => _writer.revert(sha), _writer.revertAbort),
-      undo: () => _undoReset(prev),
-      redo: () => _pickOrAbort(() => _writer.revert(sha), _writer.revertAbort),
-    );
+  /// The kind of sequencer operation the repository sits in the middle of, or
+  /// null when none. Asks git for the state file's path rather than assuming
+  /// `.git/`, which is wrong inside a linked worktree.
+  Future<MergeKind?> _sequencerKind() async {
+    const heads = {
+      'CHERRY_PICK_HEAD': MergeKind.cherryPick,
+      'REVERT_HEAD': MergeKind.revert,
+    };
+    for (final e in heads.entries) {
+      final p = (await _out(['rev-parse', '--git-path', e.key])).trim();
+      if (p.isEmpty) continue;
+      final abs = p.startsWith('/') ? p : '$path/$p';
+      if (File(abs).existsSync()) return e.value;
+    }
+    return null;
   }
+
+  Future<bool> _sequencerInProgress() async => await _sequencerKind() != null;
 
   Future<void> resetHard(String sha) =>
       _resetTo(sha, 'Reset to ${_short(sha)}');
@@ -1437,12 +1511,14 @@ class RepoActions {
   }
 
   /// Writes the resolved files and stages them, then completes the session by
-  /// its kind: a merge commits, a rebase continues, a stash just stages (and
-  /// drops its stash). Call only when the session reports all conflicts
-  /// resolved.
+  /// its kind: a merge commits, a rebase/cherry-pick/revert continues, a stash
+  /// just stages (and drops its stash). Call only when the session reports all
+  /// conflicts resolved.
   Future<void> finishMerge(MergeSession session) async {
     final label = switch (session.kind) {
       MergeKind.rebase => 'Finish rebase',
+      MergeKind.cherryPick => 'Finish cherry-pick ${session.branch}',
+      MergeKind.revert => 'Finish revert ${session.branch}',
       MergeKind.merge => 'Finish merge ${session.branch}',
       MergeKind.stash => 'Finish conflict resolution',
     };
@@ -1465,15 +1541,39 @@ class RepoActions {
           authorName: id.name,
           authorEmail: id.email,
         );
-        // The rebase may pause again on a later commit; reopen if so.
-        final more = await GitReader(_git, path).conflictedFiles();
-        if (more.isNotEmpty) {
-          _ref.read(mergeSessionProvider(path).notifier).state = session
-              .withFiles([for (final p in more) await _conflictFileFor(p)]);
-          _refresh();
-          return;
-        }
+        if (await _reopenIfStillConflicted(session)) return;
         await _recordFinishUndo(session, 'Rebase');
+      case MergeKind.cherryPick:
+      case MergeKind.revert:
+        final pick = session.kind == MergeKind.cherryPick;
+        // A resolution that matches HEAD leaves nothing to commit. git refuses
+        // `--continue` there and wants the paused commit skipped instead.
+        final empty = (await _git.run([
+          'diff',
+          '--cached',
+          '--quiet',
+        ], repoPath: path)).ok;
+        if (empty) {
+          await (pick ? _writer.cherryPickSkip() : _writer.revertSkip());
+        } else if (pick) {
+          await _writer.cherryPickContinue(
+            authorName: id.name,
+            authorEmail: id.email,
+          );
+        } else {
+          await _writer.revertContinue(
+            authorName: id.name,
+            authorEmail: id.email,
+          );
+        }
+        if (await _reopenIfStillConflicted(session)) return;
+        // A skipped commit left HEAD where it was — nothing to undo.
+        if (!empty) {
+          await _recordFinishUndo(
+            session,
+            '${pick ? 'Cherry-pick' : 'Revert'} ${session.branch}',
+          );
+        }
       case MergeKind.merge:
         await _writer.commitMerge(authorName: id.name, authorEmail: id.email);
         await _recordFinishUndo(session, 'Merge ${session.branch}');
@@ -1487,10 +1587,24 @@ class RepoActions {
     _refresh();
     final done = switch (session.kind) {
       MergeKind.rebase => 'Rebase complete',
+      MergeKind.cherryPick => 'Cherry-pick ${session.branch} complete',
+      MergeKind.revert => 'Revert ${session.branch} complete',
       MergeKind.merge => 'Merge ${session.branch} complete',
       MergeKind.stash => 'Conflicts resolved',
     };
     _ref.read(toastProvider.notifier).show(done, kind: ToastKind.success);
+  }
+
+  /// A paused sequence can stop again on its next commit: reopen the session on
+  /// the fresh conflicts and report that the finish is not done yet.
+  Future<bool> _reopenIfStillConflicted(MergeSession session) async {
+    final more = await GitReader(_git, path).conflictedFiles();
+    if (more.isEmpty) return false;
+    _ref.read(mergeSessionProvider(path).notifier).state = session.withFiles([
+      for (final p in more) await _conflictFileFor(p),
+    ]);
+    _refresh();
+    return true;
   }
 
   /// Records the undo/redo entry for a completed merge/rebase: undo resets the
@@ -1517,17 +1631,30 @@ class RepoActions {
   }
 
   /// Opens a conflict-resolution session for any conflicted files already in
-  /// the working tree (e.g. a conflicted stash apply). No-op when a session is
-  /// active or nothing is conflicted; the finish stages the resolution only.
+  /// the working tree (e.g. a conflicted stash apply, or a cherry-pick left
+  /// paused by an earlier run). No-op when a session is active or nothing is
+  /// conflicted. A paused cherry-pick/revert finishes by continuing it; any
+  /// other conflict stages the resolution only.
   Future<void> openConflictResolution() async {
     if (_ref.read(mergeSessionProvider(path)) != null) return;
     final conflicts = await GitReader(_git, path).conflictedFiles();
     if (conflicts.isEmpty) return;
+    final kind = await _sequencerKind();
     _ref.read(mergeSessionProvider(path).notifier).state = MergeSession(
-      kind: MergeKind.stash,
-      branch: '',
+      kind: kind ?? MergeKind.stash,
+      branch: kind == null ? '' : await _sequencerHeadLabel(kind),
+      prevSha: await _headSha(),
       files: [for (final p in conflicts) await _conflictFileFor(p)],
     );
+  }
+
+  /// Short sha of the commit a paused sequence stopped on, for the tool header.
+  Future<String> _sequencerHeadLabel(MergeKind kind) async {
+    final ref = kind == MergeKind.cherryPick
+        ? 'CHERRY_PICK_HEAD'
+        : 'REVERT_HEAD';
+    final r = await _git.run(['rev-parse', '--short', ref], repoPath: path);
+    return r.ok ? r.out.trim() : '';
   }
 
   Future<void> abortMerge() async {
@@ -1537,6 +1664,10 @@ class RepoActions {
         switch (kind) {
           case MergeKind.rebase:
             await _writer.rebaseAbort();
+          case MergeKind.cherryPick:
+            await _writer.cherryPickAbort();
+          case MergeKind.revert:
+            await _writer.revertAbort();
           case MergeKind.merge:
             await _writer.mergeAbort();
           case MergeKind.stash:

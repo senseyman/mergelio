@@ -285,6 +285,58 @@ class AppLocalizationsEn extends AppLocalizations {
   String get rewordPushedConfirm => 'Rewrite anyway';
 
   @override
+  String get mergeResolveConflicts => 'Resolve conflicts';
+
+  @override
+  String get mergeRebase => 'Rebase';
+
+  @override
+  String mergeCherryPick(String sha) {
+    return 'Cherry-pick $sha';
+  }
+
+  @override
+  String mergeRevert(String sha) {
+    return 'Revert $sha';
+  }
+
+  @override
+  String mergeInto(String branch, String into) {
+    return 'Merge $branch → $into';
+  }
+
+  @override
+  String mergeBranch(String branch) {
+    return 'Merge $branch';
+  }
+
+  @override
+  String mergeResolvedCount(int resolved, int total) {
+    return '$resolved / $total resolved';
+  }
+
+  @override
+  String get mergeNextUnresolved => 'Next unresolved';
+
+  @override
+  String get mergeAbort => 'Abort';
+
+  @override
+  String get mergeFinish => 'Finish';
+
+  @override
+  String get mergeFinishRebase => 'Finish rebase';
+
+  @override
+  String get mergeFinishCherryPick => 'Finish cherry-pick';
+
+  @override
+  String get mergeFinishRevert => 'Finish revert';
+
+  @override
+  String get mergeFinishMerge => 'Finish merge';
+
+  @override
   String a11yCommitRow(String sha, String author, String message) {
     return 'Commit $sha by $author: $message';
   }

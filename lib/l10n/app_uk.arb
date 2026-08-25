@@ -104,6 +104,47 @@
     }
   },
   "rewordPushedConfirm": "Все одно переписати",
+  "mergeResolveConflicts": "\u0412\u0438\u0440\u0456\u0448\u0438\u0442\u0438 \u043a\u043e\u043d\u0444\u043b\u0456\u043a\u0442\u0438",
+  "mergeRebase": "Rebase",
+  "mergeCherryPick": "Cherry-pick {sha}",
+  "@mergeCherryPick": {
+    "placeholders": {
+      "sha": {"type": "String"}
+    }
+  },
+  "mergeRevert": "\u0412\u0456\u0434\u043a\u043e\u0442\u0438\u0442\u0438 {sha}",
+  "@mergeRevert": {
+    "placeholders": {
+      "sha": {"type": "String"}
+    }
+  },
+  "mergeInto": "\u0417\u043b\u0438\u0442\u0442\u044f {branch} \u2192 {into}",
+  "@mergeInto": {
+    "placeholders": {
+      "branch": {"type": "String"},
+      "into": {"type": "String"}
+    }
+  },
+  "mergeBranch": "\u0417\u043b\u0438\u0442\u0442\u044f {branch}",
+  "@mergeBranch": {
+    "placeholders": {
+      "branch": {"type": "String"}
+    }
+  },
+  "mergeResolvedCount": "{resolved} / {total} \u0432\u0438\u0440\u0456\u0448\u0435\u043d\u043e",
+  "@mergeResolvedCount": {
+    "placeholders": {
+      "resolved": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "mergeNextUnresolved": "\u041d\u0430\u0441\u0442\u0443\u043f\u043d\u0438\u0439 \u043d\u0435\u0432\u0438\u0440\u0456\u0448\u0435\u043d\u0438\u0439",
+  "mergeAbort": "\u041f\u0435\u0440\u0435\u0440\u0432\u0430\u0442\u0438",
+  "mergeFinish": "\u0417\u0430\u0432\u0435\u0440\u0448\u0438\u0442\u0438",
+  "mergeFinishRebase": "\u0417\u0430\u0432\u0435\u0440\u0448\u0438\u0442\u0438 rebase",
+  "mergeFinishCherryPick": "\u0417\u0430\u0432\u0435\u0440\u0448\u0438\u0442\u0438 cherry-pick",
+  "mergeFinishRevert": "\u0417\u0430\u0432\u0435\u0440\u0448\u0438\u0442\u0438 \u0432\u0456\u0434\u043a\u0430\u0442",
+  "mergeFinishMerge": "\u0417\u0430\u0432\u0435\u0440\u0448\u0438\u0442\u0438 \u0437\u043b\u0438\u0442\u0442\u044f",
   "a11yCommitRow": "Коміт {sha} від {author}: {message}",
   "@a11yCommitRow": {
     "placeholders": {
