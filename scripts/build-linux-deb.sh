@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 #
-# build-linux-ubuntu.sh — build Mergelio and package it as a .deb installer.
+# build-linux-deb.sh — build Mergelio and package it as a .deb installer.
 #
 # Installs into /opt/mergelio, links the binary onto PATH, and registers the
 # desktop entry and icon so the app appears in the launcher with its icon.
 #
 # Usage:
-#   ./scripts/build-linux-ubuntu.sh                 # version from pubspec.yaml
-#   ./scripts/build-linux-ubuntu.sh 1.4.2           # explicit version
-#   CLEAN=1 ./scripts/build-linux-ubuntu.sh         # flutter clean first
-#   SKIP_GEN=1 ./scripts/build-linux-ubuntu.sh      # skip code generation
-#   SKIP_BUILD=1 ./scripts/build-linux-ubuntu.sh    # package an existing bundle
+#   ./scripts/build-linux-deb.sh                 # version from pubspec.yaml
+#   ./scripts/build-linux-deb.sh 1.4.2           # explicit version
+#   CLEAN=1 ./scripts/build-linux-deb.sh         # flutter clean first
+#   SKIP_GEN=1 ./scripts/build-linux-deb.sh      # skip code generation
+#   SKIP_BUILD=1 ./scripts/build-linux-deb.sh    # package an existing bundle
 
 set -euo pipefail
 
@@ -115,6 +115,13 @@ cp "linux/packaging/${APP_ID}.desktop" \
 mkdir -p "${PKG_DIR}/usr/share/icons/hicolor/256x256/apps"
 cp "linux/packaging/icons/${APP_ID}.png" \
   "${PKG_DIR}/usr/share/icons/hicolor/256x256/apps/${APP_ID}.png"
+
+# Software centres read this file rather than the desktop entry. Without it the
+# package shows up under its file name, with no icon and no author.
+mkdir -p "${PKG_DIR}/usr/share/metainfo"
+sed -e "s/@VERSION@/${VERSION}/" -e "s/@DATE@/$(date -u +%Y-%m-%d)/" \
+  "linux/packaging/${APP_ID}.metainfo.xml" \
+  > "${PKG_DIR}/usr/share/metainfo/${APP_ID}.metainfo.xml"
 
 mkdir -p "${PKG_DIR}/usr/share/doc/${PKG_NAME}"
 cp LICENSE "${PKG_DIR}/usr/share/doc/${PKG_NAME}/copyright"

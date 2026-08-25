@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  AppStream metadata for Mergelio.
+
+  Software centres read this, not the .desktop entry: without it GNOME Software
+  and Discover fall back to the package name and show the app as being by an
+  unknown author with a generic icon.
+
+  @VERSION@ and @DATE@ are substituted while the package tree is staged, so the
+  release entry matches the package being built.
+-->
+<component type="desktop-application">
+  <id>com.mergelio.mergelio</id>
+
+  <name>Mergelio</name>
+  <summary>Free, cross-platform visual Git client</summary>
+
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>BSD-3-Clause</project_license>
+
+  <developer id="com.mergelio">
+    <name>Neo</name>
+  </developer>
+
+  <description>
+    <p>
+      Mergelio is a desktop Git client with a commit graph, staging, diffs,
+      merge and rebase tooling, and worktree support.
+    </p>
+    <p>It drives the git binary already on your system. Among other things it lets you:</p>
+    <ul>
+      <li>Read history as a commit graph, with search and per-commit diffs</li>
+      <li>Stage and unstage whole files or individual hunks before committing</li>
+      <li>Resolve merge conflicts side by side</li>
+      <li>Rebase interactively — reorder, squash, edit and reword commits</li>
+      <li>Work on several branches at once through worktrees</li>
+    </ul>
+  </description>
+
+  <launchable type="desktop-id">com.mergelio.mergelio.desktop</launchable>
+  <icon type="stock">com.mergelio.mergelio</icon>
+
+  <url type="homepage">https://github.com/senseyman/mergelio</url>
+  <url type="bugtracker">https://github.com/senseyman/mergelio/issues</url>
+  <url type="vcs-browser">https://github.com/senseyman/mergelio</url>
+
+  <categories>
+    <category>Development</category>
+    <category>RevisionControl</category>
+  </categories>
+
+  <provides>
+    <binary>mergelio</binary>
+  </provides>
+
+  <!-- Nothing in the app falls under any of the OARS categories. An empty
+       element is how AppStream spells that; leaving it out instead makes
+       software centres warn that the app is unrated. -->
+  <content_rating type="oars-1.1" />
+
+  <releases>
+    <release version="@VERSION@" date="@DATE@">
+      <url type="details">https://github.com/senseyman/mergelio/releases</url>
+    </release>
+  </releases>
+</component>

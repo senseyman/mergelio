@@ -5,7 +5,7 @@
 // 'flutter create' template.
 
 // The application's name. By default this is also the title of the Flutter window.
-PRODUCT_NAME = mergelio
+PRODUCT_NAME = Mergelio
 
 // The application's bundle identifier
 PRODUCT_BUNDLE_IDENTIFIER = com.mergelio.mergelio
@@ -15,7 +15,7 @@ PRODUCT_COPYRIGHT = Copyright © 2026 com.mergelio. All rights reserved.
 
 // Code signing. SigningDefaults.xcconfig ships ad-hoc values so that a fresh
 // clone builds without an Apple Developer account. Signing.xcconfig is written
-// from .env by scripts/release.sh, is gitignored, and overrides them when
+// from .env by scripts/build-macos-dmg.sh, is gitignored, and overrides them when
 // present — the leading `#include?` makes its absence a no-op.
 #include "SigningDefaults.xcconfig"
 #include? "Signing.xcconfig"

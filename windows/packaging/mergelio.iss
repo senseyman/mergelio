@@ -1,6 +1,6 @@
 ; Inno Setup script for Mergelio.
 ;
-; Not built by hand — scripts/build-windows.ps1 supplies the values below with
+; Not built by hand — scripts/build-windows-installer.ps1 supplies the values below with
 ; /D switches and runs ISCC. Compile it directly only for a smoke test:
 ;
 ;   ISCC.exe /DAppVersion=1.4.0 /DAppArch=x64 ^
@@ -23,7 +23,7 @@
 #ifndef AppName
   #define AppName "Mergelio"
 #endif
-#define AppExe "mergelio.exe"
+#define AppExe "Mergelio.exe"
 #define AppPublisher "Neo"
 #define AppUrl "https://github.com/senseyman/mergelio"
 
@@ -48,7 +48,7 @@ OutputDir={#OutputDir}
 OutputBaseFilename={#AppName}-{#AppVersion}-windows-{#AppArch}-setup
 
 ; The icon on setup.exe itself, on the Start menu and desktop shortcuts, and
-; in Apps & Features. The one compiled into mergelio.exe comes from
+; in Apps & Features. The one compiled into Mergelio.exe comes from
 ; windows/runner/Runner.rc, which is a separate mechanism.
 SetupIconFile=..\runner\resources\app_icon.ico
 UninstallDisplayIcon={app}\{#AppExe}
@@ -71,7 +71,7 @@ ArchitecturesAllowed=x64
 ArchitecturesInstallIn64BitMode=x64
 #endif
 
-; Offer to close a running copy rather than failing on a locked mergelio.exe.
+; Offer to close a running copy rather than failing on a locked Mergelio.exe.
 CloseApplications=yes
 RestartApplications=no
 
@@ -80,6 +80,12 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
+
+[InstallDelete]
+; Windows keeps the existing name when a file is overwritten, so upgrading from
+; a build that shipped mergelio.exe would leave the lowercase name in place.
+; Removing it first lets Mergelio.exe land with the right casing.
+Type: files; Name: "{app}\mergelio.exe"
 
 [Files]
 ; The whole Flutter release directory: the exe, flutter_windows.dll, the

@@ -3,9 +3,11 @@
 Mergelio follows [Semantic Versioning](https://semver.org). The version lives in
 `pubspec.yaml` as `version: <semver>+<build>` (e.g. `1.4.0+14`).
 
-There is no release automation. Every artifact is built by hand on a host of the
-matching platform — the build scripts refuse to cross-compile, and Apple signing
-needs a real keychain anyway.
+Pushing a `v*` tag builds, signs and packages every platform in GitHub Actions
+and leaves a draft release to check and publish by hand — see [Release
+pipeline](#release-pipeline). The same build scripts also run locally, one
+platform at a time: they refuse to cross-compile, so a local artifact has to be
+built on a host of the matching platform.
 
 ## Checklist
 
@@ -23,11 +25,15 @@ needs a real keychain anyway.
    `lib/l10n/app_uk.arb`. After editing either, run `flutter gen-l10n` and
    commit the result: unlike freezed and drift output, `lib/l10n/gen/` is
    tracked.
-6. **Build the artifacts** — once per platform, on that platform (below).
-7. **Verify each artifact launches** from a clean unzip on a machine that did
-   not build it.
-8. **Tag**: `git tag vX.Y.Z && git push origin vX.Y.Z`. Nothing is triggered by
-   the tag; publishing the artifacts is a manual step.
+6. **Land the version bump** on `main` — the tag has to point at a commit whose
+   `pubspec.yaml` already carries the new version, or the pipeline stops on its
+   own version check.
+7. **Tag**: `git tag vX.Y.Z && git push origin vX.Y.Z`. This starts the release
+   workflow; everything below happens without further input.
+8. **Verify each artifact launches** from the draft release, on a machine that
+   did not build it — Gatekeeper, SmartScreen and the package managers only
+   show their real behaviour on a clean host.
+9. **Publish the draft** in the GitHub UI once the artifacts check out.
 
 ## Artifacts
 
@@ -37,18 +43,22 @@ needs a real keychain anyway.
 | Platform | Command | Output |
 | --- | --- | --- |
 | macOS, ad-hoc signed | `make build-macos` | `dist/<APP_NAME>-<version>-macos-<arch>.zip` |
-| macOS, Developer ID | `./scripts/release.sh` | `dist/<APP_NAME>-<version>.dmg` |
+| macOS, Developer ID | `./scripts/build-macos-dmg.sh` | `dist/<APP_NAME>-<version>-macos-<arch>.dmg` |
 | Linux, portable | `make build-linux` | `dist/<APP_NAME>-<version>-linux-<arch>.tar.gz` |
-| Linux, installer | `make installer-linux` | `dist/mergelio_<version>_<debarch>.deb` |
+| Debian / Ubuntu | `make installer-linux` | `dist/mergelio_<version>_<debarch>.deb` |
+| Fedora | `make installer-fedora` | `dist/mergelio-<version>-<release>.<dist>.<rpmarch>.rpm` |
 | Windows | `make build-windows` | `dist/<APP_NAME>-<version>-windows-<arch>.zip` and `-setup.exe` |
 
-The three `build-*` scripts accept `CLEAN=1` (`flutter clean` first),
+The package formats name their own files: `_` separated with `amd64` for Debian,
+`-` separated with `x86_64` for RPM. Both are canonical for their tooling.
+
+The `build-*` scripts accept `CLEAN=1` (`flutter clean` first),
 `SKIP_GEN=1` (skip code generation when the generated sources are current) and
 `SKIP_PACKAGE=1` (build without producing an archive). Windows takes them as
 PowerShell environment variables:
 
 ```powershell
-$env:CLEAN = 1; .\scripts\build-windows.ps1
+$env:CLEAN = 1; .\scripts\build-windows-installer.ps1
 ```
 
 Linux and Windows builds are unsigned and need no configuration.
@@ -63,8 +73,16 @@ uninstall entry.
 
 `make installer-linux` builds a `.deb` with `dpkg-deb` (`sudo apt install
 dpkg-dev`). It installs the app under `/opt/mergelio`, links
-`/usr/bin/mergelio`, and registers the desktop entry and icon so the app shows
-up in the launcher. `SKIP_BUILD=1` packages a bundle that is already built.
+`/usr/bin/mergelio`, and registers the desktop entry, the icon and the AppStream
+metadata so the app shows up in the launcher and in software centres.
+`SKIP_BUILD=1` packages a bundle that is already built.
+
+`make installer-fedora` builds the same layout as an `.rpm` with `rpmbuild`
+(`sudo dnf install rpm-build`). Run it on Fedora, or in a `fedora:` container:
+the package carries a `%{dist}` tag and resolves its dependencies against the
+distribution it was built on. Set `RPM_SIGN_KEY` to a key in the local keyring
+to sign the result; left empty the package is unsigned, which is all a local
+install needs.
 
 ## Signing & notarization (macOS)
 
@@ -85,19 +103,61 @@ cp .env.example .env
 password live in the macOS keychain behind the notary profile, and the private
 key lives in the keychain behind the certificate. Only names are referenced.
 
-`scripts/release.sh` then builds, re-signs the bundle with clean entitlements,
+`scripts/build-macos-dmg.sh` then builds, re-signs the bundle with clean entitlements,
 validates the signature, packages a DMG, notarizes and staples it:
 
 ```bash
-./scripts/release.sh                   # version from pubspec.yaml
-./scripts/release.sh 1.4.2             # explicit version in the DMG name
-SKIP_NOTARIZE=1 ./scripts/release.sh   # stop after signing the .app
-CLEAN=1 ./scripts/release.sh           # flutter clean first
+./scripts/build-macos-dmg.sh                   # version from pubspec.yaml
+./scripts/build-macos-dmg.sh 1.4.2             # explicit version in the DMG name
+SKIP_NOTARIZE=1 ./scripts/build-macos-dmg.sh   # stop after signing the .app
+CLEAN=1 ./scripts/build-macos-dmg.sh           # flutter clean first
 ```
 
 Each variable degrades gracefully. With `MACOS_NOTARY_PROFILE` empty you get a
 signed but un-notarized DMG. With `MACOS_SIGN_IDENTITY` empty you get an ad-hoc
 signed `.app` — enough to run locally, not enough to hand to someone else.
+
+## Release pipeline
+
+`.github/workflows/release.yml` runs on every pushed `v*` tag, and can also be
+started by hand from the Actions tab to exercise the build without tagging (no
+release is drafted in that case — a GitHub release needs a tag to hang off).
+
+| Job | Runner | Produces |
+| --- | --- | --- |
+| Gate | ubuntu-latest | version check, formatting, `flutter analyze`, tests |
+| macOS (arm64) | macos-15 | signed, notarized `.dmg` |
+| Windows (x64) | windows-2022 | `…-setup.exe` |
+| Linux (x64) | ubuntu-22.04 | `.deb` |
+| Fedora (x64) | `fedora:41` container | signed `.rpm` |
+| Draft release | ubuntu-latest | `SHA256SUMS.txt`, its signature, the draft |
+
+Ubuntu 22.04 rather than latest on purpose: its glibc 2.35 keeps the binary
+usable on Debian 12 and older Ubuntu. Building on 24.04 would not.
+
+The gate refuses a tag whose version disagrees with `pubspec.yaml`, since the
+artifacts are named after `pubspec.yaml` while the release hangs off the tag.
+Tags starting with `v0.0.0` are exempt: they exist to exercise the pipeline and
+their draft is meant to be deleted afterwards.
+
+The release is left as a **draft** deliberately. Nothing reaches users until
+someone has looked at the artifacts and pressed publish.
+
+### Secrets
+
+Each is optional and degrades on its own; the pipeline never fails for a
+missing one, it publishes something less trustworthy and says so in the log.
+
+| Secret | Missing means |
+| --- | --- |
+| `MACOS_CERT_P12`, `MACOS_CERT_PASSWORD` | an ad-hoc signed zip instead of a signed DMG |
+| `MACOS_APPLE_ID`, `MACOS_APP_PASSWORD`, `MACOS_TEAM_ID`, `MACOS_SIGN_IDENTITY` | needed alongside the certificate for notarization |
+| `LINUX_GPG_PRIVATE_KEY`, `LINUX_GPG_PASSPHRASE` | an unsigned `.rpm` and unsigned checksums |
+| `WINDOWS_SIGN_TOKEN` | an unsigned `setup.exe` — SmartScreen warns on first run |
+
+`WINDOWS_SIGN_TOKEN` is a switch, not yet an implementation: setting it turns
+on a two-pass signing branch whose signing steps are still placeholders and
+fail on purpose. Leave it unset until a certificate has been chosen.
 
 ## Distribution
 
@@ -109,7 +169,7 @@ Apple Developer account. Gatekeeper blocks them on first launch on another
 machine — open via right-click → Open, or clear the quarantine attribute:
 
 ```bash
-xattr -dr com.apple.quarantine /Applications/mergelio.app
+xattr -dr com.apple.quarantine /Applications/Mergelio.app
 ```
 
 ## Telemetry

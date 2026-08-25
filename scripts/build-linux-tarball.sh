@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 #
-# build-linux.sh — build Mergelio for Linux.
+# build-linux-tarball.sh — build Mergelio for Linux.
 #
 # Produces a release bundle and a tar.gz archive in DIST_DIR.
 #
 # Usage:
-#   ./scripts/build-linux.sh                 # version from pubspec.yaml
-#   ./scripts/build-linux.sh 1.4.2           # explicit version in the archive name
-#   CLEAN=1 ./scripts/build-linux.sh         # flutter clean first
-#   SKIP_GEN=1 ./scripts/build-linux.sh      # skip code generation
-#   SKIP_PACKAGE=1 ./scripts/build-linux.sh  # leave the bundle, build no archive
+#   ./scripts/build-linux-tarball.sh                 # version from pubspec.yaml
+#   ./scripts/build-linux-tarball.sh 1.4.2           # explicit version in the archive name
+#   CLEAN=1 ./scripts/build-linux-tarball.sh         # flutter clean first
+#   SKIP_GEN=1 ./scripts/build-linux-tarball.sh      # skip code generation
+#   SKIP_PACKAGE=1 ./scripts/build-linux-tarball.sh  # leave the bundle, build no archive
 
 set -euo pipefail
 

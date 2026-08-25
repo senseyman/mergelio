@@ -16,12 +16,14 @@
     Version used in the archive name. Defaults to the version in pubspec.yaml.
 
 .EXAMPLE
-    .\scripts\build-windows.ps1
-    .\scripts\build-windows.ps1 1.4.2
-    $env:CLEAN = 1;        .\scripts\build-windows.ps1   # flutter clean first
-    $env:SKIP_GEN = 1;     .\scripts\build-windows.ps1   # skip code generation
-    $env:SKIP_PACKAGE = 1; .\scripts\build-windows.ps1   # build no archive
-    $env:SKIP_INSTALLER = 1; .\scripts\build-windows.ps1 # zip only, no setup.exe
+    .\scripts\build-windows-installer.ps1
+    .\scripts\build-windows-installer.ps1 1.4.2
+    $env:CLEAN = 1;        .\scripts\build-windows-installer.ps1   # flutter clean first
+    $env:SKIP_GEN = 1;     .\scripts\build-windows-installer.ps1   # skip code generation
+    $env:SKIP_PACKAGE = 1; .\scripts\build-windows-installer.ps1   # stop after building
+    $env:SKIP_INSTALLER = 1; .\scripts\build-windows-installer.ps1 # zip only, no setup.exe
+    $env:SKIP_ARCHIVE = 1;   .\scripts\build-windows-installer.ps1 # setup.exe only, no zip
+    $env:SKIP_BUILD = 1;     .\scripts\build-windows-installer.ps1   # package an existing build
 #>
 
 [CmdletBinding()]
@@ -195,56 +197,60 @@ Write-Ok "Architecture: $Arch"
 
 # ─── Build ───────────────────────────────────────────────────────────────────
 
-if ($env:CLEAN) {
-    Write-Step 'Cleaning'
-    flutter clean | Out-Null
-    if ($LASTEXITCODE -ne 0) { Stop-WithError 'flutter clean failed.' }
-    Write-Ok 'flutter clean done'
-}
-
-# .dart_tool\package_config.json records absolute paths to the Flutter SDK, so
-# a working copy carried over from another machine (zip, scp, shared volume)
-# brings that machine's paths with it. pub skips rewriting the file when it
-# looks newer than the pubspecs, so 'pub get' reports success and build_runner
-# then dies on a path that does not exist here.
-$PackageConfig = '.dart_tool\package_config.json'
-if (Test-Path -LiteralPath $PackageConfig) {
-    try {
-        $cfg = Get-Content -LiteralPath $PackageConfig -Raw | ConvertFrom-Json
-        $sky = $cfg.packages | Where-Object { $_.name -eq 'sky_engine' } | Select-Object -First 1
-        if ($sky -and $sky.rootUri -like 'file:*') {
-            $skyPath = ([uri]$sky.rootUri).LocalPath
-            if (-not (Test-Path -LiteralPath $skyPath)) {
-                Write-Warn "package_config.json points at $skyPath, which does not exist here."
-                Write-Warn "Discarding .dart_tool so 'pub get' regenerates it for this machine."
-                Remove-Item -Recurse -Force '.dart_tool'
-            }
-        }
-    } catch {
-        Write-Warn 'package_config.json could not be read; discarding .dart_tool.'
-        Remove-Item -Recurse -Force '.dart_tool' -ErrorAction SilentlyContinue
-    }
-}
-
-Write-Step 'Fetching dependencies'
-flutter pub get
-if ($LASTEXITCODE -ne 0) { Stop-WithError 'flutter pub get failed.' }
-Write-Ok 'Dependencies ready'
-
-# Generated sources (*.g.dart, *.freezed.dart) are not committed, so a fresh
-# clone will not compile until build_runner has run.
-if ($env:SKIP_GEN) {
-    Write-Warn 'SKIP_GEN is set - skipping code generation'
+if ($env:SKIP_BUILD) {
+    Write-Warn 'SKIP_BUILD is set - packaging the build that is already there'
 } else {
-    Write-Step 'Generating sources (freezed / json / drift)'
-    dart run build_runner build --delete-conflicting-outputs
-    if ($LASTEXITCODE -ne 0) { Stop-WithError 'Code generation failed.' }
-    Write-Ok 'Generated sources up to date'
-}
+    if ($env:CLEAN) {
+        Write-Step 'Cleaning'
+        flutter clean | Out-Null
+        if ($LASTEXITCODE -ne 0) { Stop-WithError 'flutter clean failed.' }
+        Write-Ok 'flutter clean done'
+    }
 
-Write-Step 'Building (flutter build windows --release)'
-flutter build windows --release
-if ($LASTEXITCODE -ne 0) { Stop-WithError 'flutter build windows failed.' }
+    # .dart_tool\package_config.json records absolute paths to the Flutter SDK, so
+    # a working copy carried over from another machine (zip, scp, shared volume)
+    # brings that machine's paths with it. pub skips rewriting the file when it
+    # looks newer than the pubspecs, so 'pub get' reports success and build_runner
+    # then dies on a path that does not exist here.
+    $PackageConfig = '.dart_tool\package_config.json'
+    if (Test-Path -LiteralPath $PackageConfig) {
+        try {
+            $cfg = Get-Content -LiteralPath $PackageConfig -Raw | ConvertFrom-Json
+            $sky = $cfg.packages | Where-Object { $_.name -eq 'sky_engine' } | Select-Object -First 1
+            if ($sky -and $sky.rootUri -like 'file:*') {
+                $skyPath = ([uri]$sky.rootUri).LocalPath
+                if (-not (Test-Path -LiteralPath $skyPath)) {
+                    Write-Warn "package_config.json points at $skyPath, which does not exist here."
+                    Write-Warn "Discarding .dart_tool so 'pub get' regenerates it for this machine."
+                    Remove-Item -Recurse -Force '.dart_tool'
+                }
+            }
+        } catch {
+            Write-Warn 'package_config.json could not be read; discarding .dart_tool.'
+            Remove-Item -Recurse -Force '.dart_tool' -ErrorAction SilentlyContinue
+        }
+    }
+
+    Write-Step 'Fetching dependencies'
+    flutter pub get
+    if ($LASTEXITCODE -ne 0) { Stop-WithError 'flutter pub get failed.' }
+    Write-Ok 'Dependencies ready'
+
+    # Generated sources (*.g.dart, *.freezed.dart) are not committed, so a fresh
+    # clone will not compile until build_runner has run.
+    if ($env:SKIP_GEN) {
+        Write-Warn 'SKIP_GEN is set - skipping code generation'
+    } else {
+        Write-Step 'Generating sources (freezed / json / drift)'
+        dart run build_runner build --delete-conflicting-outputs
+        if ($LASTEXITCODE -ne 0) { Stop-WithError 'Code generation failed.' }
+        Write-Ok 'Generated sources up to date'
+    }
+
+    Write-Step 'Building (flutter build windows --release)'
+    flutter build windows --release
+    if ($LASTEXITCODE -ne 0) { Stop-WithError 'flutter build windows failed.' }
+}
 
 $ReleaseDir = Join-Path 'build' "windows\$Arch\runner\Release"
 if (-not (Test-Path -LiteralPath $ReleaseDir)) {
@@ -253,6 +259,9 @@ if (-not (Test-Path -LiteralPath $ReleaseDir)) {
     if ($found) { $ReleaseDir = $found.FullName }
 }
 if (-not (Test-Path -LiteralPath $ReleaseDir)) {
+    if ($env:SKIP_BUILD) {
+        Stop-WithError 'SKIP_BUILD is set, but there is no build under build\windows to package.'
+    }
     Stop-WithError 'No release output was produced under build\windows'
 }
 Write-Ok "Built: $ReleaseDir"
@@ -267,13 +276,20 @@ if ($env:SKIP_PACKAGE) {
 Write-Step 'Packaging'
 
 New-Item -ItemType Directory -Force -Path $DistDir | Out-Null
-$Archive = Join-Path $DistDir "$AppName-$Version-windows-$Arch.zip"
-if (Test-Path -LiteralPath $Archive) { Remove-Item -LiteralPath $Archive -Force }
 
-Compress-Archive -Path (Join-Path $ReleaseDir '*') -DestinationPath $Archive
-Write-Ok "Archive: $Archive"
+$Archive = $null
 
-$SizeMb = [math]::Round((Get-Item -LiteralPath $Archive).Length / 1MB, 1)
+if ($env:SKIP_ARCHIVE) {
+    Write-Warn 'SKIP_ARCHIVE is set - building no zip'
+} else {
+    $Archive = Join-Path $DistDir "$AppName-$Version-windows-$Arch.zip"
+    if (Test-Path -LiteralPath $Archive) { Remove-Item -LiteralPath $Archive -Force }
+
+    Compress-Archive -Path (Join-Path $ReleaseDir '*') -DestinationPath $Archive
+    Write-Ok "Archive: $Archive"
+
+    $SizeMb = [math]::Round((Get-Item -LiteralPath $Archive).Length / 1MB, 1)
+}
 
 # ─── Installer ───────────────────────────────────────────────────────────────
 
@@ -319,9 +335,22 @@ if ($env:SKIP_INSTALLER) {
 
 Write-Host "`n[ok] Done" -ForegroundColor Green
 Write-Host "  build:   $ReleaseDir"
-Write-Host "  archive: $Archive ($SizeMb MB)"
+if ($Archive) {
+    Write-Host "  archive: $Archive ($SizeMb MB)"
+}
 if ($Installer) {
     $InstallerMb = [math]::Round((Get-Item -LiteralPath $Installer).Length / 1MB, 1)
     Write-Host "  setup:   $Installer ($InstallerMb MB)"
 }
-Write-Host "`n  Unsigned: SmartScreen will warn on other machines.`n"
+# Whether the installer ends up signed is decided by the pipeline that calls
+# this script, so report what the file actually carries rather than assuming.
+if ($Installer) {
+    $Signature = Get-AuthenticodeSignature -LiteralPath $Installer
+    if ($Signature.Status -eq 'Valid') {
+        Write-Host "`n  Signed by: $($Signature.SignerCertificate.Subject)`n" -ForegroundColor Green
+    } else {
+        Write-Host "`n  Unsigned: SmartScreen will warn on other machines.`n" -ForegroundColor Yellow
+    }
+} else {
+    Write-Host ''
+}

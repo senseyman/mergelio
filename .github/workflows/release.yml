@@ -1,0 +1,510 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  # Lets the pipeline be exercised without creating a tag. The release job is
+  # skipped in that case — GitHub releases need a tag to hang off.
+  workflow_dispatch:
+
+# Only the release job writes anything; the build jobs run third-party actions
+# and package managers and have no business holding a write token.
+permissions:
+  contents: read
+
+# A release must never be cancelled halfway: signing and notarization leave
+# state behind on Apple's side.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  # Keep in sync with .fvmrc
+  FLUTTER_VERSION: 3.44.6
+
+jobs:
+  gate:
+    name: Gate (version + lint + tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: version
+        run: |
+          pubspec=$(grep -m1 '^version:' pubspec.yaml \
+            | sed -E 's/^version:[[:space:]]*//; s/\+.*$//')
+
+          # Artifacts are named after pubspec.yaml while the release hangs off
+          # the tag, so a disagreement between the two ships a release whose
+          # files claim a different version than its title.
+          case "$GITHUB_REF" in
+            refs/tags/*)
+              tag="${GITHUB_REF_NAME#v}"
+              case "$tag" in
+                # Reserved for exercising the pipeline: such a tag is not meant
+                # to match pubspec.yaml, and its release is thrown away.
+                0.0.0*)
+                  echo "::warning::$GITHUB_REF_NAME is a pipeline test tag - version check skipped"
+                  ;;
+                "$pubspec")
+                  ;;
+                *)
+                  echo "::error::tag $GITHUB_REF_NAME does not match pubspec version $pubspec"
+                  exit 1
+                  ;;
+              esac
+              ;;
+            *)
+              echo "Not a tag - version check skipped"
+              ;;
+          esac
+
+          echo "version=$pubspec" >> "$GITHUB_OUTPUT"
+          echo "Building $pubspec from ref $GITHUB_REF_NAME"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: pub-ubuntu-${{ hashFiles('pubspec.lock') }}
+          restore-keys: pub-ubuntu-
+
+      - name: Fetch dependencies
+        run: flutter pub get
+
+      - name: Code generation (freezed / json / drift)
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Check formatting
+        run: dart format --output=none --set-exit-if-changed lib test
+
+      - name: Static analysis
+        run: flutter analyze
+
+      - name: Run unit & widget tests
+        run: flutter test --reporter expanded
+
+  macos-arm64:
+    name: macOS (arm64)
+    needs: gate
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: pub-macos-${{ hashFiles('pubspec.lock') }}
+          restore-keys: pub-macos-
+
+      # A step's if: cannot read the secrets context, so the decision is turned
+      # into an output here and the steps below branch on that.
+      - name: Look for a signing certificate
+        id: signing
+        env:
+          MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+        run: |
+          if [ -n "$MACOS_CERT_P12" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "Certificate present - building a signed, notarized DMG."
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::No Developer ID certificate - publishing an ad-hoc signed zip instead of a DMG. Other Macs will refuse it."
+          fi
+
+      - name: Install create-dmg
+        if: steps.signing.outputs.enabled == 'true'
+        run: brew install create-dmg
+
+      # The repository carries a Podfile and no Package.swift, so CocoaPods is
+      # what the project is actually built and tested with. Swift Package
+      # Manager is a per-machine Flutter setting, and a runner that has it on
+      # silently migrates the project and resolves a different dependency
+      # graph than any developer sees locally.
+      - name: Use CocoaPods, not Swift Package Manager
+        run: flutter config --no-enable-swift-package-manager
+
+      # The certificate lives in a throwaway keychain for the length of the
+      # job. It has to join the search list as well as become the default one:
+      # codesign looks the identity up through the search list.
+      - name: Import Developer ID certificate
+        if: steps.signing.outputs.enabled == 'true'
+        env:
+          MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+        run: |
+          umask 077
+          keychain="$RUNNER_TEMP/build.keychain-db"
+          password=$(openssl rand -base64 24)
+          echo "::add-mask::$password"
+
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -t 3600 -u "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          # The substitution has to split into one argument per keychain, so
+          # the usual quoting would be wrong here.
+          # shellcheck disable=SC2046
+          security list-keychains -d user -s "$keychain" \
+            $(security list-keychains -d user | tr -d '"')
+          security default-keychain -s "$keychain"
+
+          printf '%s' "$MACOS_CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$keychain" \
+            -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          rm -f "$RUNNER_TEMP/cert.p12"
+
+          # Without this codesign blocks on a UI prompt no one can answer.
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$password" "$keychain"
+
+          echo "KEYCHAIN_PATH=$keychain" >> "$GITHUB_ENV"
+
+      # notarytool reads its credentials from a keychain profile, so the one
+      # the build script expects is created here. This also fails early if the
+      # credentials are wrong, before a 20 minute build.
+      - name: Create notary profile
+        if: steps.signing.outputs.enabled == 'true'
+        env:
+          MACOS_APPLE_ID: ${{ secrets.MACOS_APPLE_ID }}
+          MACOS_APP_PASSWORD: ${{ secrets.MACOS_APP_PASSWORD }}
+          MACOS_TEAM_ID: ${{ secrets.MACOS_TEAM_ID }}
+        run: |
+          xcrun notarytool store-credentials mergelio-ci \
+            --apple-id "$MACOS_APPLE_ID" \
+            --team-id "$MACOS_TEAM_ID" \
+            --password "$MACOS_APP_PASSWORD"
+
+      - name: Build signed & notarized DMG
+        if: steps.signing.outputs.enabled == 'true'
+        env:
+          MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+          MACOS_TEAM_ID: ${{ secrets.MACOS_TEAM_ID }}
+          MACOS_NOTARY_PROFILE: mergelio-ci
+        run: ./scripts/build-macos-dmg.sh "${{ needs.gate.outputs.version }}"
+
+      # Without a certificate build-macos-dmg.sh stops after the .app and never
+      # reaches the DMG, so the zip script is what produces something to ship.
+      - name: Build ad-hoc signed zip
+        if: steps.signing.outputs.enabled != 'true'
+        run: ./scripts/build-macos-app.sh "${{ needs.gate.outputs.version }}"
+
+      # Matches the DMG and the zip alike, whichever of the two was built.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-arm64
+          path: dist/*-macos-*
+          retention-days: 7
+          if-no-files-found: error
+
+      # Takes the certificate and the notary profile with it, failure or not.
+      - name: Tear down the keychain
+        if: always() && steps.signing.outputs.enabled == 'true'
+        run: security delete-keychain "$KEYCHAIN_PATH" || true
+
+  windows-x64:
+    name: Windows (x64)
+    needs: gate
+    runs-on: windows-2022
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - uses: actions/cache@v4
+        with:
+          path: ~\AppData\Local\Pub\Cache
+          key: pub-windows-${{ hashFiles('pubspec.lock') }}
+          restore-keys: pub-windows-
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y --no-progress
+
+      # A step's if: cannot read the secrets context, so the decision is turned
+      # into an output here and the build steps branch on that.
+      - name: Look for a signing credential
+        id: signing
+        shell: bash
+        env:
+          WINDOWS_SIGN_TOKEN: ${{ secrets.WINDOWS_SIGN_TOKEN }}
+        run: |
+          if [ -n "$WINDOWS_SIGN_TOKEN" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "Signing credential present - building the signed way."
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "No signing credential - building an unsigned installer."
+          fi
+
+      # Only the installer is published, so the zip is not worth building.
+      - name: Build setup.exe
+        if: steps.signing.outputs.enabled != 'true'
+        shell: pwsh
+        env:
+          SKIP_ARCHIVE: 1
+        run: .\scripts\build-windows-installer.ps1 "${{ needs.gate.outputs.version }}"
+
+      # Signing takes two passes. Inno Setup packs mergelio.exe inside
+      # setup.exe, so the app has to be signed before the installer is built
+      # and the installer signed after it - one pass would leave an unsigned
+      # binary inside a signed wrapper.
+      - name: Build the app
+        if: steps.signing.outputs.enabled == 'true'
+        shell: pwsh
+        env:
+          SKIP_PACKAGE: 1
+        run: .\scripts\build-windows-installer.ps1 "${{ needs.gate.outputs.version }}"
+
+      - name: Sign the app
+        if: steps.signing.outputs.enabled == 'true'
+        shell: bash
+        run: |
+          echo "::error::WINDOWS_SIGN_TOKEN is set, but the signing steps are still"
+          echo "::error::placeholders: no certificate has been chosen yet."
+          echo "::error::Fill these two steps in, or unset the secret to publish"
+          echo "::error::an unsigned installer as before."
+          exit 1
+
+      - name: Build setup.exe around the signed app
+        if: steps.signing.outputs.enabled == 'true'
+        shell: pwsh
+        env:
+          SKIP_BUILD: 1
+          SKIP_ARCHIVE: 1
+        run: .\scripts\build-windows-installer.ps1 "${{ needs.gate.outputs.version }}"
+
+      - name: Sign setup.exe
+        if: steps.signing.outputs.enabled == 'true'
+        shell: bash
+        run: |
+          echo "::error::Signing setup.exe is not implemented yet."
+          exit 1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64
+          path: dist/*-setup.exe
+          retention-days: 7
+          if-no-files-found: error
+
+  linux-x64:
+    name: Linux (x64, .deb)
+    needs: gate
+    # Not ubuntu-latest on purpose: 22.04 ships glibc 2.35, so the binary also
+    # runs on Debian 12 and older Ubuntu. Built on 24.04 it would not.
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            clang cmake ninja-build pkg-config libgtk-3-dev dpkg-dev
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: pub-ubuntu-${{ hashFiles('pubspec.lock') }}
+          restore-keys: pub-ubuntu-
+
+      - name: Build .deb
+        run: ./scripts/build-linux-deb.sh "${{ needs.gate.outputs.version }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-x64
+          path: dist/*.deb
+          retention-days: 7
+          if-no-files-found: error
+
+  fedora-x64:
+    name: Fedora (x64, .rpm)
+    needs: gate
+    # An RPM built on Ubuntu resolves against the wrong libraries and its
+    # %{dist} tag would lie, so the build runs in the distribution it targets.
+    runs-on: ubuntu-22.04
+    container: fedora:41
+    timeout-minutes: 45
+    steps:
+      # Before checkout: the action needs git in the container, or it silently
+      # falls back to downloading a tarball with no repository behind it.
+      - name: Install build dependencies
+        run: |
+          dnf -y install \
+            clang cmake ninja-build pkgconf-pkg-config gtk3-devel \
+            git curl tar xz zip unzip which rpm-build rpm-sign gnupg2 \
+            glibc-devel findutils
+
+      - uses: actions/checkout@v4
+
+      # Checkout leaves the tree owned by a different user than the one running
+      # the build, and git refuses to read a repository it does not trust.
+      - name: Trust the checkout
+        run: git config --global --add safe.directory '*'
+
+      # subosito/flutter-action expects an apt-based image, so the SDK is
+      # unpacked by hand here.
+      - name: Install Flutter SDK
+        run: |
+          curl -fsSL -o /tmp/flutter.tar.xz \
+            "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz"
+          tar -xf /tmp/flutter.tar.xz -C /opt
+          rm -f /tmp/flutter.tar.xz
+          echo "/opt/flutter/bin" >> "$GITHUB_PATH"
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: pub-fedora-${{ hashFiles('pubspec.lock') }}
+          restore-keys: pub-fedora-
+
+      - name: Look for a package signing key
+        id: signing
+        env:
+          LINUX_GPG_PRIVATE_KEY: ${{ secrets.LINUX_GPG_PRIVATE_KEY }}
+        run: |
+          if [ -n "$LINUX_GPG_PRIVATE_KEY" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "Signing key present - the .rpm will carry a signature."
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::No signing key - publishing an unsigned .rpm."
+          fi
+
+      # The key lives in its own keyring under RUNNER_TEMP so nothing is left
+      # behind in the image, and the fingerprint is read back from the keyring
+      # rather than kept as a second secret that could drift out of sync.
+      - name: Import the package signing key
+        if: steps.signing.outputs.enabled == 'true'
+        env:
+          LINUX_GPG_PRIVATE_KEY: ${{ secrets.LINUX_GPG_PRIVATE_KEY }}
+          LINUX_GPG_PASSPHRASE: ${{ secrets.LINUX_GPG_PASSPHRASE }}
+        run: |
+          umask 077
+          export GNUPGHOME="$RUNNER_TEMP/gnupg"
+          mkdir -p "$GNUPGHOME"
+          printf '%s' "$LINUX_GPG_PRIVATE_KEY" | gpg --batch --import
+          printf '%s' "$LINUX_GPG_PASSPHRASE" > "$RUNNER_TEMP/gpg-passphrase"
+
+          fingerprint=$(gpg --list-secret-keys --with-colons \
+            | awk -F: '/^fpr/{print $10; exit}')
+          [ -n "$fingerprint" ] || { echo "No secret key imported"; exit 1; }
+
+          {
+            echo "GNUPGHOME=$GNUPGHOME"
+            echo "RPM_SIGN_KEY=$fingerprint"
+            echo "RPM_SIGN_PASSPHRASE_FILE=$RUNNER_TEMP/gpg-passphrase"
+          } >> "$GITHUB_ENV"
+
+      # The script signs the package itself when RPM_SIGN_KEY is set, and
+      # refuses to finish if the signature did not make it into the header.
+      - name: Build .rpm
+        run: ./scripts/build-linux-rpm.sh "${{ needs.gate.outputs.version }}"
+
+      - name: Drop the signing key
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/gnupg" "$RUNNER_TEMP/gpg-passphrase"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fedora-x64
+          path: dist/*.rpm
+          retention-days: 7
+          if-no-files-found: error
+
+  release:
+    name: Draft release
+    needs: [macos-arm64, windows-x64, linux-x64, fedora-x64]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Checksums
+        run: |
+          cd artifacts
+          sha256sum -- * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      # One detached signature over the checksum file covers every artifact in
+      # the release: verify the signature, then verify the files against it.
+      # dpkg ignores signatures inside a .deb, so this is what Debian and Ubuntu
+      # users actually have to check.
+      - name: Look for a signing key
+        id: signing
+        env:
+          LINUX_GPG_PRIVATE_KEY: ${{ secrets.LINUX_GPG_PRIVATE_KEY }}
+        run: |
+          if [ -n "$LINUX_GPG_PRIVATE_KEY" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::No signing key - the release ships checksums with no signature over them."
+          fi
+
+      - name: Sign the checksums
+        if: steps.signing.outputs.enabled == 'true'
+        env:
+          LINUX_GPG_PRIVATE_KEY: ${{ secrets.LINUX_GPG_PRIVATE_KEY }}
+          LINUX_GPG_PASSPHRASE: ${{ secrets.LINUX_GPG_PASSPHRASE }}
+        run: |
+          umask 077
+          export GNUPGHOME="$RUNNER_TEMP/gnupg"
+          mkdir -p "$GNUPGHOME"
+          printf '%s' "$LINUX_GPG_PRIVATE_KEY" | gpg --batch --import
+          printf '%s' "$LINUX_GPG_PASSPHRASE" > "$RUNNER_TEMP/gpg-passphrase"
+
+          gpg --batch --pinentry-mode loopback \
+            --passphrase-file "$RUNNER_TEMP/gpg-passphrase" \
+            --armor --detach-sign \
+            --output artifacts/SHA256SUMS.txt.asc artifacts/SHA256SUMS.txt
+
+          gpg --verify artifacts/SHA256SUMS.txt.asc artifacts/SHA256SUMS.txt
+
+      - name: Drop the signing key
+        if: always() && steps.signing.outputs.enabled == 'true'
+        run: rm -rf "$RUNNER_TEMP/gnupg" "$RUNNER_TEMP/gpg-passphrase"
+
+      # Draft on purpose, and it stays that way: publishing is a deliberate
+      # click after the artifacts have been checked by hand.
+      - uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          prerelease: ${{ contains(github.ref_name, '-rc') }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: artifacts/*
