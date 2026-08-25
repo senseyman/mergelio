@@ -304,16 +304,39 @@ class GitWriter {
   Future<void> cherryPick(String sha) =>
       _ok(['cherry-pick', sha], 'git cherry-pick');
 
-  /// Aborts an in-progress cherry-pick (used to back out of a conflict until
-  /// the Merge Tool lands).
+  /// Aborts an in-progress cherry-pick, restoring the pre-pick HEAD and tree.
   Future<void> cherryPickAbort() =>
       _ok(['cherry-pick', '--abort'], 'git cherry-pick --abort');
+
+  /// Commits a cherry-pick that paused on conflicts, once the resolution is
+  /// staged. `GIT_EDITOR=true` keeps the picked message without prompting.
+  Future<void> cherryPickContinue({String? authorName, String? authorEmail}) =>
+      _ok(
+        [..._identity(authorName, authorEmail), 'cherry-pick', '--continue'],
+        'git cherry-pick --continue',
+        environment: {'GIT_EDITOR': 'true'},
+      );
+
+  /// Drops the paused commit from the cherry-pick sequence — the way out when
+  /// the resolution left nothing to commit.
+  Future<void> cherryPickSkip() =>
+      _ok(['cherry-pick', '--skip'], 'git cherry-pick --skip');
 
   Future<void> revert(String sha) =>
       _ok(['revert', '--no-edit', sha], 'git revert');
 
   Future<void> revertAbort() =>
       _ok(['revert', '--abort'], 'git revert --abort');
+
+  /// Commits a revert that paused on conflicts, once the resolution is staged.
+  Future<void> revertContinue({String? authorName, String? authorEmail}) => _ok(
+    [..._identity(authorName, authorEmail), 'revert', '--continue'],
+    'git revert --continue',
+    environment: {'GIT_EDITOR': 'true'},
+  );
+
+  /// Drops the paused commit from the revert sequence (empty resolution).
+  Future<void> revertSkip() => _ok(['revert', '--skip'], 'git revert --skip');
 
   // — Submodules —
 

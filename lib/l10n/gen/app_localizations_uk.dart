@@ -285,6 +285,58 @@ class AppLocalizationsUk extends AppLocalizations {
   String get rewordPushedConfirm => 'Все одно переписати';
 
   @override
+  String get mergeResolveConflicts => 'Вирішити конфлікти';
+
+  @override
+  String get mergeRebase => 'Rebase';
+
+  @override
+  String mergeCherryPick(String sha) {
+    return 'Cherry-pick $sha';
+  }
+
+  @override
+  String mergeRevert(String sha) {
+    return 'Відкотити $sha';
+  }
+
+  @override
+  String mergeInto(String branch, String into) {
+    return 'Злиття $branch → $into';
+  }
+
+  @override
+  String mergeBranch(String branch) {
+    return 'Злиття $branch';
+  }
+
+  @override
+  String mergeResolvedCount(int resolved, int total) {
+    return '$resolved / $total вирішено';
+  }
+
+  @override
+  String get mergeNextUnresolved => 'Наступний невирішений';
+
+  @override
+  String get mergeAbort => 'Перервати';
+
+  @override
+  String get mergeFinish => 'Завершити';
+
+  @override
+  String get mergeFinishRebase => 'Завершити rebase';
+
+  @override
+  String get mergeFinishCherryPick => 'Завершити cherry-pick';
+
+  @override
+  String get mergeFinishRevert => 'Завершити відкат';
+
+  @override
+  String get mergeFinishMerge => 'Завершити злиття';
+
+  @override
   String a11yCommitRow(String sha, String author, String message) {
     return 'Коміт $sha від $author: $message';
   }

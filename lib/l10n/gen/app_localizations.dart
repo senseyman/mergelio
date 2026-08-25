@@ -644,6 +644,90 @@ abstract class AppLocalizations {
   /// **'Rewrite anyway'**
   String get rewordPushedConfirm;
 
+  /// No description provided for @mergeResolveConflicts.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolve conflicts'**
+  String get mergeResolveConflicts;
+
+  /// No description provided for @mergeRebase.
+  ///
+  /// In en, this message translates to:
+  /// **'Rebase'**
+  String get mergeRebase;
+
+  /// No description provided for @mergeCherryPick.
+  ///
+  /// In en, this message translates to:
+  /// **'Cherry-pick {sha}'**
+  String mergeCherryPick(String sha);
+
+  /// No description provided for @mergeRevert.
+  ///
+  /// In en, this message translates to:
+  /// **'Revert {sha}'**
+  String mergeRevert(String sha);
+
+  /// No description provided for @mergeInto.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge {branch} → {into}'**
+  String mergeInto(String branch, String into);
+
+  /// No description provided for @mergeBranch.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge {branch}'**
+  String mergeBranch(String branch);
+
+  /// No description provided for @mergeResolvedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{resolved} / {total} resolved'**
+  String mergeResolvedCount(int resolved, int total);
+
+  /// No description provided for @mergeNextUnresolved.
+  ///
+  /// In en, this message translates to:
+  /// **'Next unresolved'**
+  String get mergeNextUnresolved;
+
+  /// No description provided for @mergeAbort.
+  ///
+  /// In en, this message translates to:
+  /// **'Abort'**
+  String get mergeAbort;
+
+  /// No description provided for @mergeFinish.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish'**
+  String get mergeFinish;
+
+  /// No description provided for @mergeFinishRebase.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish rebase'**
+  String get mergeFinishRebase;
+
+  /// No description provided for @mergeFinishCherryPick.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish cherry-pick'**
+  String get mergeFinishCherryPick;
+
+  /// No description provided for @mergeFinishRevert.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish revert'**
+  String get mergeFinishRevert;
+
+  /// No description provided for @mergeFinishMerge.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish merge'**
+  String get mergeFinishMerge;
+
   /// No description provided for @a11yCommitRow.
   ///
   /// In en, this message translates to:

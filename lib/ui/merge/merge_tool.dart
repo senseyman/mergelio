@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/tokens.dart';
 import '../../domain/git/conflict.dart';
 import '../../domain/git/diff.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../../state/merge_session.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
@@ -160,6 +161,7 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
+    final l = AppLocalizations.of(context);
     return Container(
       height: 44,
       padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -174,10 +176,14 @@ class _Header extends StatelessWidget {
           Flexible(
             child: Text(
               switch (kind) {
-                MergeKind.stash => 'Resolve conflicts',
-                MergeKind.rebase => 'Rebase',
+                MergeKind.stash => l.mergeResolveConflicts,
+                MergeKind.rebase => l.mergeRebase,
+                MergeKind.cherryPick => l.mergeCherryPick(branch),
+                MergeKind.revert => l.mergeRevert(branch),
                 MergeKind.merge =>
-                  into == null ? 'Merge $branch' : 'Merge $branch → $into',
+                  into == null
+                      ? l.mergeBranch(branch)
+                      : l.mergeInto(branch, into!),
               },
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
@@ -188,21 +194,28 @@ class _Header extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          Text(
-            '$resolved / $total resolved',
-            style: TextStyle(color: t.textFaint, fontSize: 12),
+          // Both texts give way before the buttons do: at the minimum window
+          // width the title and the count together are wider than the row.
+          Flexible(
+            child: Text(
+              l.mergeResolvedCount(resolved, total),
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: t.textFaint, fontSize: 12),
+            ),
           ),
           const Spacer(),
-          TextButton(onPressed: onNext, child: const Text('Next unresolved')),
+          TextButton(onPressed: onNext, child: Text(l.mergeNextUnresolved)),
           const SizedBox(width: 8),
-          TextButton(onPressed: onAbort, child: const Text('Abort')),
+          TextButton(onPressed: onAbort, child: Text(l.mergeAbort)),
           const SizedBox(width: 8),
           FilledButton(
             onPressed: canFinish ? onFinish : null,
             child: Text(switch (kind) {
-              MergeKind.stash => 'Finish',
-              MergeKind.rebase => 'Finish rebase',
-              MergeKind.merge => 'Finish merge',
+              MergeKind.stash => l.mergeFinish,
+              MergeKind.rebase => l.mergeFinishRebase,
+              MergeKind.cherryPick => l.mergeFinishCherryPick,
+              MergeKind.revert => l.mergeFinishRevert,
+              MergeKind.merge => l.mergeFinishMerge,
             }),
           ),
         ],
