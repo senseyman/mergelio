@@ -193,12 +193,65 @@ jobs:
       - name: Install Inno Setup
         run: choco install innosetup -y --no-progress
 
+      # A step's if: cannot read the secrets context, so the decision is turned
+      # into an output here and the build steps branch on that.
+      - name: Look for a signing credential
+        id: signing
+        shell: bash
+        env:
+          WINDOWS_SIGN_TOKEN: ${{ secrets.WINDOWS_SIGN_TOKEN }}
+        run: |
+          if [ -n "$WINDOWS_SIGN_TOKEN" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "Signing credential present - building the signed way."
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "No signing credential - building an unsigned installer."
+          fi
+
       # Only the installer is published, so the zip is not worth building.
       - name: Build setup.exe
+        if: steps.signing.outputs.enabled != 'true'
         shell: pwsh
         env:
           SKIP_ARCHIVE: 1
         run: .\scripts\build-windows-installer.ps1 "${{ needs.gate.outputs.version }}"
+
+      # Signing takes two passes. Inno Setup packs mergelio.exe inside
+      # setup.exe, so the app has to be signed before the installer is built
+      # and the installer signed after it - one pass would leave an unsigned
+      # binary inside a signed wrapper.
+      - name: Build the app
+        if: steps.signing.outputs.enabled == 'true'
+        shell: pwsh
+        env:
+          SKIP_PACKAGE: 1
+        run: .\scripts\build-windows-installer.ps1 "${{ needs.gate.outputs.version }}"
+
+      - name: Sign the app
+        if: steps.signing.outputs.enabled == 'true'
+        shell: bash
+        run: |
+          echo "::error::WINDOWS_SIGN_TOKEN is set, but the signing steps are still"
+          echo "::error::placeholders: no certificate has been chosen yet."
+          echo "::error::Fill these two steps in, or unset the secret to publish"
+          echo "::error::an unsigned installer as before."
+          exit 1
+
+      - name: Build setup.exe around the signed app
+        if: steps.signing.outputs.enabled == 'true'
+        shell: pwsh
+        env:
+          SKIP_BUILD: 1
+          SKIP_ARCHIVE: 1
+        run: .\scripts\build-windows-installer.ps1 "${{ needs.gate.outputs.version }}"
+
+      - name: Sign setup.exe
+        if: steps.signing.outputs.enabled == 'true'
+        shell: bash
+        run: |
+          echo "::error::Signing setup.exe is not implemented yet."
+          exit 1
 
       - uses: actions/upload-artifact@v4
         with:
