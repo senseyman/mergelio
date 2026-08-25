@@ -175,20 +175,28 @@ class GitWriter {
 
   /// Runs an interactive rebase onto [onto], driving the sequence editor with
   /// [todo] (so no terminal editor is needed). GIT_EDITOR is a no-op so squash
-  /// messages auto-accept; reword is handled by exec lines in [todo]. Throws on
-  /// conflict (the caller inspects [GitReader.conflictedFiles]).
+  /// messages auto-accept; reword is handled by exec lines in [todo]. [sign]
+  /// signs every replayed commit. Throws on conflict (the caller inspects
+  /// [GitReader.conflictedFiles]).
   Future<void> rebase(
     String onto,
     String todo, {
     String? authorName,
     String? authorEmail,
+    bool sign = false,
   }) async {
     final tmp = await Directory.systemTemp.createTemp('mergelio_rebase_');
     final todoFile = File('${tmp.path}/todo');
     try {
       await todoFile.writeAsString(todo);
       await _ok(
-        [..._identity(authorName, authorEmail), 'rebase', '-i', onto],
+        [
+          ..._identity(authorName, authorEmail),
+          'rebase',
+          if (sign) '-S',
+          '-i',
+          onto,
+        ],
         'git rebase',
         environment: {
           // Quoted: the editor line is run by a shell, and the temp path can
@@ -203,12 +211,14 @@ class GitWriter {
   }
 
   /// Straight (non-interactive) rebase of the current branch onto [onto].
+  /// [sign] signs every replayed commit.
   Future<void> rebaseOnto(
     String onto, {
     String? authorName,
     String? authorEmail,
+    bool sign = false,
   }) => _ok(
-    [..._identity(authorName, authorEmail), 'rebase', onto],
+    [..._identity(authorName, authorEmail), 'rebase', if (sign) '-S', onto],
     'git rebase',
     environment: {'GIT_EDITOR': 'true'},
   );

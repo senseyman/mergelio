@@ -1121,24 +1121,66 @@ class RepoActions {
   );
 
   /// Runs an interactive rebase of the plan [steps] onto [base].
-  Future<void> rebase(String base, List<RebaseStep> steps) => _runRebase(
-    () => _writer.rebase(
-      base,
-      buildRebaseTodo(steps),
-      authorName: _identity.name,
-      authorEmail: _identity.email,
-    ),
-  );
+  Future<void> rebase(String base, List<RebaseStep> steps) async {
+    // Replaying a signed commit without -S would quietly drop its signature.
+    // Signing needs a configured key, though, and a rebase that dies on its
+    // first commit strands the repository mid-rebase — so an unsignable branch
+    // is replayed as-is rather than asked to sign.
+    final sign =
+        steps.any((s) => s.sign && s.action != RebaseAction.drop) &&
+        await _canSign();
+    await _runRebase(
+      () => _writer.rebase(
+        base,
+        buildRebaseTodo(steps),
+        authorName: _identity.name,
+        authorEmail: _identity.email,
+        sign: sign,
+      ),
+    );
+  }
+
+  /// Whether a `%G?` status describes a signed commit. 'N' is the only status
+  /// meaning "no signature at all"; every other one (including 'E', key missing
+  /// locally) describes a commit that was signed, and replaying it unsigned
+  /// would quietly downgrade it.
+  static bool _isSigned(String status) => status.isNotEmpty && status != 'N';
+
+  /// Whether any commit in [base]..HEAD carries a signature.
+  Future<bool> _rangeIsSigned(String base) async => (await _out([
+    'log',
+    '--format=%G?',
+    '$base..HEAD',
+  ])).split('\n').any(_isSigned);
+
+  /// Whether this repository can produce a signature: an explicit key, or the
+  /// blanket setting that has git pick one for every commit.
+  Future<bool> _canSign() async =>
+      (await _out(['config', '--get', 'user.signingkey'])).isNotEmpty ||
+      // --bool because git accepts '1', 'yes' and 'on' for it too.
+      (await _out(['config', '--get', '--bool', 'commit.gpgsign'])) == 'true';
 
   /// Straight rebase of [source] onto [target] (drag-and-drop rebase).
   Future<void> rebaseOnto(String source, String target) async {
     if (!await _switchTo(source)) return;
+    // The range is only known once HEAD is on [source]; see [rebase] for why an
+    // unsignable branch is replayed as-is rather than asked to sign.
+    final sign = await _rangeIsSigned(target) && await _canSign();
+    // A straight rebase replays the range without its merges rather than
+    // refusing like an interactive one does, so the branch silently comes out
+    // linear. Count them first — afterwards they are gone — and say so.
+    final merges = await _mergeCount(target);
     await _runRebase(
       () => _writer.rebaseOnto(
         target,
         authorName: _identity.name,
         authorEmail: _identity.email,
+        sign: sign,
       ),
+      note: merges == 0
+          ? null
+          : '${merges == 1 ? 'A merge commit was' : '$merges merge commits were'} '
+                'flattened into a linear history. Undo restores them.',
     );
   }
 
@@ -1175,30 +1217,51 @@ class RepoActions {
   /// A linear plan of picks cannot express a merge, and git refuses a todo
   /// that names one — mid-rebase, leaving HEAD detached on the base with no
   /// conflict for the UI to offer a way out of. Callers refuse before starting.
-  Future<bool> rebaseCrossesMerge(String base) async => (await _out([
-    'rev-list',
-    '--merges',
-    base.isEmpty ? 'HEAD' : '$base..HEAD',
-  ])).isNotEmpty;
+  Future<bool> rebaseCrossesMerge(String base) async =>
+      await _mergeCount(base) > 0;
+
+  /// How many merge commits are in [base]..HEAD, or the whole history when
+  /// [base] is empty.
+  Future<int> _mergeCount(String base) async =>
+      int.tryParse(
+        await _out([
+          'rev-list',
+          '--count',
+          '--merges',
+          base.isEmpty ? 'HEAD' : '$base..HEAD',
+        ]),
+      ) ??
+      0;
 
   /// Commits between [base] and HEAD (oldest-first), as an initial pick plan.
+  /// Each step records whether its commit was signed, so replaying it can keep
+  /// the signature. Asking for `%G?` makes git verify the signed commits in the
+  /// range, which is a gpg call each — fine for a rebase range, which is the
+  /// handful of commits a branch is ahead by.
   Future<List<RebaseStep>> rebaseStepsFrom(String base) async {
     final out = await _out([
       'log',
       '--reverse',
-      '--format=%H%x1f%s',
+      '--format=%H%x1f%s%x1f%G?',
       '$base..HEAD',
     ]);
     if (out.isEmpty) return const [];
-    return [
-      for (final line in out.split('\n'))
-        if (line.contains('\x1f'))
-          RebaseStep(
-            line.split('\x1f')[0],
-            RebaseAction.pick,
-            message: line.split('\x1f')[1],
-          ),
-    ];
+    final steps = <RebaseStep>[];
+    for (final line in out.split('\n')) {
+      final parts = line.split('\x1f');
+      if (parts.length < 3) continue;
+      steps.add(
+        RebaseStep(
+          parts[0],
+          RebaseAction.pick,
+          // The sha and the status are fixed width, so a summary that holds
+          // the separator itself is the middle rather than a lost field.
+          message: parts.sublist(1, parts.length - 1).join('\x1f'),
+          sign: _isSigned(parts.last),
+        ),
+      );
+    }
+    return steps;
   }
 
   /// Remote-tracking branches that already contain [sha]. Empty means the
@@ -1235,11 +1298,9 @@ class RepoActions {
       return;
     }
     final target = await _out(['rev-parse', sha]);
-    // 'N' is the only status meaning "no signature at all"; every other one
-    // (including 'E', key missing locally) describes a commit that was signed,
-    // and rewriting it unsigned would quietly downgrade it.
-    final wasSigned =
-        (await _out(['log', '-1', '--format=%G?', target])) != 'N';
+    final wasSigned = _isSigned(
+      await _out(['log', '-1', '--format=%G?', target]),
+    );
     if (target == await _headSha()) {
       if (_blockedByRepoOp) return;
       final prev = target;
@@ -1306,7 +1367,9 @@ class RepoActions {
     'HEAD',
   ], repoPath: path)).ok;
 
-  Future<void> _runRebase(Future<void> Function() op) async {
+  /// Runs [op] as a rebase, with [note] added to the success toast when the
+  /// result needs explaining.
+  Future<void> _runRebase(Future<void> Function() op, {String? note}) async {
     if (_blockedByRepoOp) return;
     if (await isRebaseInProgress()) {
       _ref
@@ -1349,7 +1412,7 @@ class RepoActions {
       _refresh();
       _ref
           .read(toastProvider.notifier)
-          .show('Rebase complete', kind: ToastKind.success);
+          .show('Rebase complete', description: note, kind: ToastKind.success);
     } on GitException catch (e) {
       final conflicts = await GitReader(_git, path).conflictedFiles();
       if (conflicts.isEmpty) {

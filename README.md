@@ -11,7 +11,7 @@
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey.svg)](#installation)
 [![Flutter](https://img.shields.io/badge/Flutter-3.44.6-02569B.svg?logo=flutter)](https://flutter.dev)
 [![Dart SDK](https://img.shields.io/badge/Dart%20SDK-3.12.x-0175C2.svg?logo=dart)](https://dart.dev)
-[![Tests](https://img.shields.io/badge/tests-1215%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-1229%20passing-brightgreen.svg)](#testing)
 
 <img src=".github/screenshots/mergelio-demo.gif" alt="Mergelio in action: browsing history, editing a file, reviewing the diff and committing" width="900" />
 
@@ -397,7 +397,7 @@ make help
 ## Testing
 
 ```bash
-make test        # 1215 unit and widget tests
+make test        # 1229 unit and widget tests
 make coverage    # → coverage/lcov.info
 make check       # what CI runs: format check + analyze + test
 ```
