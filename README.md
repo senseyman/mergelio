@@ -11,7 +11,9 @@
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey.svg)](#installation)
 [![Flutter](https://img.shields.io/badge/Flutter-3.44.6-02569B.svg?logo=flutter)](https://flutter.dev)
 [![Dart SDK](https://img.shields.io/badge/Dart%20SDK-3.12.x-0175C2.svg?logo=dart)](https://dart.dev)
-[![Tests](https://img.shields.io/badge/tests-1132%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-1229%20passing-brightgreen.svg)](#testing)
+
+<img src=".github/screenshots/mergelio-demo.gif" alt="Mergelio in action: browsing history, editing a file, reviewing the diff and committing" width="900" />
 
 </div>
 
@@ -20,6 +22,7 @@
 ## Contents
 
 - [Why Mergelio](#why-mergelio)
+- [Screenshots](#screenshots)
 - [Features](#features)
 - [Keyboard shortcuts](#keyboard-shortcuts)
 - [Installation](#installation)
@@ -48,6 +51,32 @@ about to do to your repository. Mergelio takes the opposite position:
   reports interrupted operations on the next launch.
 - **Native desktop, not a web app in a shell** — one compiled binary per
   platform, no bundled browser runtime.
+
+## Screenshots
+
+<div align="center">
+
+<img src=".github/screenshots/mergelio-view.png" alt="Commit graph with the branch sidebar and commit details panel" width="900" />
+
+*Commit graph, with branches, remotes, tags, stashes and worktrees in the
+sidebar, and the selected commit's message, metadata and changed files on the
+right.*
+
+<br />
+
+<img src=".github/screenshots/mergelio-diff-view.png" alt="Split diff of a file inside a commit" width="900" />
+
+*Side-by-side diff with syntax highlighting, inline/split toggle, and per-hunk
+actions.*
+
+<br />
+
+<img src=".github/screenshots/mergelio-file-edit.png" alt="Project file browser, editor tabs and the built-in terminal" width="900" />
+
+*Project file browser with tabbed editing and the built-in terminal, so a quick
+change never needs a second window.*
+
+</div>
 
 ## Features
 
@@ -368,7 +397,7 @@ make help
 ## Testing
 
 ```bash
-make test        # 1132 unit and widget tests
+make test        # 1229 unit and widget tests
 make coverage    # → coverage/lcov.info
 make check       # what CI runs: format check + analyze + test
 ```

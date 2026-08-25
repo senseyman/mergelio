@@ -8,9 +8,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/tokens.dart';
 import '../../domain/git/commit_message.dart';
 import '../../domain/git/models.dart';
-import '../../domain/git/rebase_plan.dart';
 import '../../domain/search.dart';
 import '../../state/content_search.dart';
+import '../../state/feedback.dart';
 import '../../state/graph_selection.dart';
 import '../../state/path_history.dart';
 import '../../state/repo_actions.dart';
@@ -1179,9 +1179,36 @@ class _CommitContextMenu extends ConsumerWidget {
         item(l.menuRebaseHere, () async {
           final steps = await actions.rebaseStepsFrom(sha);
           if (steps.isEmpty) return;
+          if (await actions.rebaseCrossesMerge(sha)) {
+            ref
+                .read(toastProvider.notifier)
+                .show(
+                  'Cannot rebase onto this commit',
+                  description:
+                      'The commits above ${commit.shortSha} include a merge, '
+                      'which a rebase would flatten.',
+                  kind: ToastKind.warning,
+                );
+            return;
+          }
           if (!context.mounted) return;
-          final plan = await showRebaseEditor(context, steps: steps);
-          if (plan == null || isNoOpPlan(steps, plan)) return; // unchanged
+          final plan = await showRebaseEditor(
+            context,
+            steps: steps,
+            onto: commit.shortSha,
+          );
+          if (plan == null) return;
+          if (await actions.isRebaseRedundant(sha, steps, plan)) {
+            ref
+                .read(toastProvider.notifier)
+                .show(
+                  'Nothing to rebase',
+                  description:
+                      '${commit.shortSha} is already part of this branch and '
+                      'the plan changes nothing.',
+                );
+            return;
+          }
           await actions.rebase(sha, plan);
         }),
         item(l.menuResetHard, () async {

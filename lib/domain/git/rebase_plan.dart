@@ -72,3 +72,42 @@ String _escapeNewlines(String s) => s
     .replaceAll('\r\n', r'\n')
     .replaceAll('\n', r'\n')
     .replaceAll('\r', r'\n');
+
+/// A whole-branch answer to "what should this rebase do?", so the common cases
+/// need one choice instead of one choice per commit.
+enum RebasePreset { asIs, squashAll, squashKeepFirst }
+
+/// Rewrites [steps] to match [preset], keeping sha order and messages. The
+/// first commit is always picked — nothing above it survives to squash into —
+/// so a single-commit plan comes back as a plain pick for every preset.
+List<RebaseStep> applyPreset(List<RebaseStep> steps, RebasePreset preset) => [
+  for (var i = 0; i < steps.length; i++)
+    RebaseStep(
+      steps[i].sha,
+      i == 0
+          ? RebaseAction.pick
+          : switch (preset) {
+              RebasePreset.asIs => RebaseAction.pick,
+              RebasePreset.squashAll => RebaseAction.squash,
+              RebasePreset.squashKeepFirst => RebaseAction.fixup,
+            },
+      message: steps[i].message,
+      sign: steps[i].sign,
+    ),
+];
+
+/// Why [steps] cannot be handed to git, or null when the plan is runnable.
+/// The first commit that survives has nothing above it to merge into, so git
+/// rejects the whole todo with "Cannot 'squash' without a previous commit"
+/// before applying anything.
+String? rebasePlanError(List<RebaseStep> steps) {
+  for (final s in steps) {
+    if (s.action == RebaseAction.drop) continue;
+    if (s.action == RebaseAction.squash || s.action == RebaseAction.fixup) {
+      return 'The first commit kept in the plan cannot be squashed or fixed '
+          'up — there is no commit above it to merge into.';
+    }
+    return null;
+  }
+  return null;
+}
