@@ -234,6 +234,29 @@ The full list lives in **Preferences → Shortcuts**.
 
 ## Installation
 
+### Downloads
+
+Builds for every platform are attached to each entry on the
+[Releases page](https://github.com/senseyman/mergelio/releases). There is no
+updater — Mergelio never phones home, so a new version arrives only when you
+download it.
+
+| Platform | File | Install |
+| --- | --- | --- |
+| macOS (Apple silicon) | `Mergelio-<version>-macos-arm64.dmg` | Open it and drag Mergelio to Applications |
+| Windows (x64) | `Mergelio-<version>-windows-x64-setup.exe` | Run it |
+| Debian, Ubuntu (x64) | `mergelio_<version>_amd64.deb` | `sudo apt install ./mergelio_<version>_amd64.deb` |
+| Fedora (x64) | `mergelio-<version>-1.fc41.x86_64.rpm` | `sudo dnf install ./mergelio-<version>-1.fc41.x86_64.rpm` |
+
+Both Linux packages put the app in `/opt/mergelio`, link `/usr/bin/mergelio`
+onto your `PATH`, and register a launcher entry with its icon. Remove them with
+`sudo apt remove mergelio` or `sudo dnf remove mergelio`.
+
+The installer is not yet signed on Windows, so SmartScreen shows a warning on
+first run: **More info → Run anyway**. Check the download against
+[SHA256SUMS.txt](#verifying-a-download) first — that is what the checksum file
+is for.
+
 ### Runtime requirement
 
 Mergelio drives the `git` binary on your `PATH` — install
@@ -342,9 +365,10 @@ Each of those targets just calls a script, which you can run directly instead �
 the better route on Windows, where `make` is usually absent:
 
 ```bash
-./scripts/build-macos-app.sh       # .app + zip in dist/
-./scripts/build-linux-tarball.sh       # bundle + tar.gz in dist/
-./scripts/build-linux-deb.sh # .deb installer in dist/
+./scripts/build-macos-app.sh             # .app + zip in dist/
+./scripts/build-linux-tarball.sh         # bundle + tar.gz in dist/
+./scripts/build-linux-deb.sh             # .deb installer in dist/
+./scripts/build-linux-rpm.sh             # .rpm installer in dist/
 .\scripts\build-windows-installer.ps1    # exe + zip + setup.exe in dist/
 ```
 
@@ -415,7 +439,7 @@ make help
 | `run` | Debug build on the host platform |
 | `build` | Release build for the host platform |
 | `build-macos` / `build-windows` / `build-linux` | Per-platform release build |
-| `installer` / `installer-linux` / `installer-windows` | Installer build (.deb, setup.exe) |
+| `installer` / `installer-linux` / `installer-fedora` / `installer-windows` | Installer build (.deb, .rpm, setup.exe) |
 | `check` | CI gate: `lint` + `test` |
 | `ci` | Full pipeline: `deps` → `gen` → `check` |
 | `clean` / `distclean` | Remove build artifacts / also generated code |

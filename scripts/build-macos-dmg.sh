@@ -137,9 +137,11 @@ flutter build macos --release
 
 PRODUCTS_DIR="build/macos/Build/Products/Release"
 
-# Take the name off disk rather than assuming "$APP_NAME.app": PRODUCT_NAME is
-# lowercase, and on a case-insensitive volume a guessed name would silently
-# match while a case-sensitive one would not.
+# Take the name off disk rather than assuming "$APP_NAME.app". A wrong-cased
+# literal still matches on the default case-insensitive volume, so that class of
+# bug never surfaces here and only breaks on a case-sensitive one — and a build
+# directory carried over from before a rename keeps its old casing until it is
+# deleted.
 APP_PATH=$(find "$PRODUCTS_DIR" -maxdepth 1 -name '*.app' -print -quit 2>/dev/null || true)
 
 [[ -n $APP_PATH && -d $APP_PATH ]] || die "No app was produced in $PRODUCTS_DIR"

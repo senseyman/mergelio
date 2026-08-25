@@ -7,8 +7,10 @@ on:
   # skipped in that case — GitHub releases need a tag to hang off.
   workflow_dispatch:
 
+# Only the release job writes anything; the build jobs run third-party actions
+# and package managers and have no business holding a write token.
 permissions:
-  contents: write
+  contents: read
 
 # A release must never be cancelled halfway: signing and notarization leave
 # state behind on Apple's side.
@@ -33,17 +35,33 @@ jobs:
       - name: Resolve version
         id: version
         run: |
-          tag="${GITHUB_REF_NAME#v}"
           pubspec=$(grep -m1 '^version:' pubspec.yaml \
             | sed -E 's/^version:[[:space:]]*//; s/\+.*$//')
 
-          # TODO: re-enable once the workflow has been exercised on a throwaway
-          # v0.0.0-ci tag. Until then the tag is free to disagree with
-          # pubspec.yaml so the pipeline can be tested without a version bump.
-          # if [ "$tag" != "$pubspec" ]; then
-          #   echo "::error::tag $tag does not match pubspec version $pubspec"
-          #   exit 1
-          # fi
+          # Artifacts are named after pubspec.yaml while the release hangs off
+          # the tag, so a disagreement between the two ships a release whose
+          # files claim a different version than its title.
+          case "$GITHUB_REF" in
+            refs/tags/*)
+              tag="${GITHUB_REF_NAME#v}"
+              case "$tag" in
+                # Reserved for exercising the pipeline: such a tag is not meant
+                # to match pubspec.yaml, and its release is thrown away.
+                0.0.0*)
+                  echo "::warning::$GITHUB_REF_NAME is a pipeline test tag - version check skipped"
+                  ;;
+                "$pubspec")
+                  ;;
+                *)
+                  echo "::error::tag $GITHUB_REF_NAME does not match pubspec version $pubspec"
+                  exit 1
+                  ;;
+              esac
+              ;;
+            *)
+              echo "Not a tag - version check skipped"
+              ;;
+          esac
 
           echo "version=$pubspec" >> "$GITHUB_OUTPUT"
           echo "Building $pubspec from ref $GITHUB_REF_NAME"
@@ -95,7 +113,23 @@ jobs:
           key: pub-macos-${{ hashFiles('pubspec.lock') }}
           restore-keys: pub-macos-
 
+      # A step's if: cannot read the secrets context, so the decision is turned
+      # into an output here and the steps below branch on that.
+      - name: Look for a signing certificate
+        id: signing
+        env:
+          MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+        run: |
+          if [ -n "$MACOS_CERT_P12" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "Certificate present - building a signed, notarized DMG."
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::No Developer ID certificate - publishing an ad-hoc signed zip instead of a DMG. Other Macs will refuse it."
+          fi
+
       - name: Install create-dmg
+        if: steps.signing.outputs.enabled == 'true'
         run: brew install create-dmg
 
       # The repository carries a Podfile and no Package.swift, so CocoaPods is
@@ -110,6 +144,7 @@ jobs:
       # job. It has to join the search list as well as become the default one:
       # codesign looks the identity up through the search list.
       - name: Import Developer ID certificate
+        if: steps.signing.outputs.enabled == 'true'
         env:
           MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
           MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
@@ -122,6 +157,9 @@ jobs:
           security create-keychain -p "$password" "$keychain"
           security set-keychain-settings -t 3600 -u "$keychain"
           security unlock-keychain -p "$password" "$keychain"
+          # The substitution has to split into one argument per keychain, so
+          # the usual quoting would be wrong here.
+          # shellcheck disable=SC2046
           security list-keychains -d user -s "$keychain" \
             $(security list-keychains -d user | tr -d '"')
           security default-keychain -s "$keychain"
@@ -141,6 +179,7 @@ jobs:
       # the build script expects is created here. This also fails early if the
       # credentials are wrong, before a 20 minute build.
       - name: Create notary profile
+        if: steps.signing.outputs.enabled == 'true'
         env:
           MACOS_APPLE_ID: ${{ secrets.MACOS_APPLE_ID }}
           MACOS_APP_PASSWORD: ${{ secrets.MACOS_APP_PASSWORD }}
@@ -152,22 +191,30 @@ jobs:
             --password "$MACOS_APP_PASSWORD"
 
       - name: Build signed & notarized DMG
+        if: steps.signing.outputs.enabled == 'true'
         env:
           MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
           MACOS_TEAM_ID: ${{ secrets.MACOS_TEAM_ID }}
           MACOS_NOTARY_PROFILE: mergelio-ci
         run: ./scripts/build-macos-dmg.sh "${{ needs.gate.outputs.version }}"
 
+      # Without a certificate build-macos-dmg.sh stops after the .app and never
+      # reaches the DMG, so the zip script is what produces something to ship.
+      - name: Build ad-hoc signed zip
+        if: steps.signing.outputs.enabled != 'true'
+        run: ./scripts/build-macos-app.sh "${{ needs.gate.outputs.version }}"
+
+      # Matches the DMG and the zip alike, whichever of the two was built.
       - uses: actions/upload-artifact@v4
         with:
           name: macos-arm64
-          path: dist/*-macos-*.dmg
+          path: dist/*-macos-*
           retention-days: 7
           if-no-files-found: error
 
       # Takes the certificate and the notary profile with it, failure or not.
       - name: Tear down the keychain
-        if: always()
+        if: always() && steps.signing.outputs.enabled == 'true'
         run: security delete-keychain "$KEYCHAIN_PATH" || true
 
   windows-x64:
@@ -333,10 +380,30 @@ jobs:
           rm -f /tmp/flutter.tar.xz
           echo "/opt/flutter/bin" >> "$GITHUB_PATH"
 
+      - uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: pub-fedora-${{ hashFiles('pubspec.lock') }}
+          restore-keys: pub-fedora-
+
+      - name: Look for a package signing key
+        id: signing
+        env:
+          LINUX_GPG_PRIVATE_KEY: ${{ secrets.LINUX_GPG_PRIVATE_KEY }}
+        run: |
+          if [ -n "$LINUX_GPG_PRIVATE_KEY" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "Signing key present - the .rpm will carry a signature."
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::No signing key - publishing an unsigned .rpm."
+          fi
+
       # The key lives in its own keyring under RUNNER_TEMP so nothing is left
       # behind in the image, and the fingerprint is read back from the keyring
       # rather than kept as a second secret that could drift out of sync.
       - name: Import the package signing key
+        if: steps.signing.outputs.enabled == 'true'
         env:
           LINUX_GPG_PRIVATE_KEY: ${{ secrets.LINUX_GPG_PRIVATE_KEY }}
           LINUX_GPG_PASSPHRASE: ${{ secrets.LINUX_GPG_PASSPHRASE }}
@@ -351,9 +418,11 @@ jobs:
             | awk -F: '/^fpr/{print $10; exit}')
           [ -n "$fingerprint" ] || { echo "No secret key imported"; exit 1; }
 
-          echo "GNUPGHOME=$GNUPGHOME" >> "$GITHUB_ENV"
-          echo "RPM_SIGN_KEY=$fingerprint" >> "$GITHUB_ENV"
-          echo "RPM_SIGN_PASSPHRASE_FILE=$RUNNER_TEMP/gpg-passphrase" >> "$GITHUB_ENV"
+          {
+            echo "GNUPGHOME=$GNUPGHOME"
+            echo "RPM_SIGN_KEY=$fingerprint"
+            echo "RPM_SIGN_PASSPHRASE_FILE=$RUNNER_TEMP/gpg-passphrase"
+          } >> "$GITHUB_ENV"
 
       # The script signs the package itself when RPM_SIGN_KEY is set, and
       # refuses to finish if the signature did not make it into the header.
@@ -377,6 +446,8 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: write
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -386,14 +457,27 @@ jobs:
       - name: Checksums
         run: |
           cd artifacts
-          sha256sum * > SHA256SUMS.txt
+          sha256sum -- * > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
       # One detached signature over the checksum file covers every artifact in
       # the release: verify the signature, then verify the files against it.
       # dpkg ignores signatures inside a .deb, so this is what Debian and Ubuntu
       # users actually have to check.
+      - name: Look for a signing key
+        id: signing
+        env:
+          LINUX_GPG_PRIVATE_KEY: ${{ secrets.LINUX_GPG_PRIVATE_KEY }}
+        run: |
+          if [ -n "$LINUX_GPG_PRIVATE_KEY" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::No signing key - the release ships checksums with no signature over them."
+          fi
+
       - name: Sign the checksums
+        if: steps.signing.outputs.enabled == 'true'
         env:
           LINUX_GPG_PRIVATE_KEY: ${{ secrets.LINUX_GPG_PRIVATE_KEY }}
           LINUX_GPG_PASSPHRASE: ${{ secrets.LINUX_GPG_PASSPHRASE }}
@@ -412,7 +496,7 @@ jobs:
           gpg --verify artifacts/SHA256SUMS.txt.asc artifacts/SHA256SUMS.txt
 
       - name: Drop the signing key
-        if: always()
+        if: always() && steps.signing.outputs.enabled == 'true'
         run: rm -rf "$RUNNER_TEMP/gnupg" "$RUNNER_TEMP/gpg-passphrase"
 
       # Draft on purpose, and it stays that way: publishing is a deliberate
