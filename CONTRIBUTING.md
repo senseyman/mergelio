@@ -3,6 +3,9 @@
 Thanks for taking the time. Issues and pull requests are both welcome, and a
 small, well-described change is easier to land than a large one.
 
+Taking part in this project means following its
+[Code of Conduct](CODE_OF_CONDUCT.md).
+
 ## Contents
 
 - [Ways to contribute](#ways-to-contribute)
