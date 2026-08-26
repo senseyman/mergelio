@@ -1,0 +1,135 @@
+name: Bug report
+description: Something in Mergelio behaves incorrectly
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report.
+
+        **Found a security issue?** Do not file it here — report it privately
+        through [Security → Report a vulnerability](https://github.com/senseyman/mergelio/security/advisories/new).
+        See [SECURITY.md](https://github.com/senseyman/mergelio/blob/main/SECURITY.md).
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Before you file
+      options:
+        - label: I searched the existing issues and this is not a duplicate.
+          required: true
+        - label: I am on the latest [release](https://github.com/senseyman/mergelio/releases), or I checked that the latest release still has the problem.
+          required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Mergelio version
+      description: Preferences → About, or the version in the filename you downloaded.
+      placeholder: "1.4.1"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - macOS (Apple silicon)
+        - macOS (Intel)
+        - Windows (x64)
+        - Debian / Ubuntu (x64)
+        - Fedora (x64)
+        - Other Linux
+    validations:
+      required: true
+
+  - type: input
+    id: os_version
+    attributes:
+      label: OS version
+      placeholder: "macOS 15.6 / Windows 11 23H2 / Ubuntu 24.04"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install_source
+    attributes:
+      label: How you installed it
+      options:
+        - .dmg (macOS)
+        - setup.exe (Windows)
+        - .deb (Debian / Ubuntu)
+        - .rpm (Fedora)
+        - Tarball
+        - Built from source
+    validations:
+      required: true
+
+  - type: input
+    id: git_version
+    attributes:
+      label: git version
+      description: Output of `git --version`. Mergelio drives the git binary on your PATH.
+      placeholder: "git version 2.47.1"
+    validations:
+      required: true
+
+  - type: textarea
+    id: what_happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps someone else can follow. A public repository that reproduces it is the fastest path to a fix.
+      placeholder: |
+        1. Open a repository with …
+        2. Right-click …
+        3. …
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: repo_state
+    attributes:
+      label: Repository state
+      description: These are where the interesting bugs live. Tick anything that applied.
+      options:
+        - label: Detached HEAD
+        - label: Mid-rebase, mid-merge, or mid-cherry-pick
+        - label: Unresolved conflicts
+        - label: Submodules
+        - label: A linked worktree
+        - label: Git LFS
+        - label: Very large repository or very large files
+        - label: A repository inside WSL2 (Windows)
+        - label: Non-ASCII paths, branch names, or filenames
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log excerpt
+      description: |
+        The relevant slice of `logs/mergelio.log` — Preferences → General shows the path
+        and reveals it in your file manager. **Redact anything private first**; logs can
+        contain repository paths, branch names and remote URLs. Nothing is uploaded
+        automatically.
+      render: shell
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: For anything visual. Drag images in here.
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Workarounds you found, when it started, whether it is intermittent.

@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/senseyman/mergelio/security/advisories/new
+    about: Never file a vulnerability as a public issue. Report it privately here.
+  - name: Contributing guide
+    url: https://github.com/senseyman/mergelio/blob/main/CONTRIBUTING.md
+    about: Setup, conventions, testing and how to open a pull request.
+  - name: Installing and verifying a download
+    url: https://github.com/senseyman/mergelio/blob/main/README.md#installation
+    about: Install steps per platform, the git runtime requirement, and checksum verification.

@@ -1,0 +1,91 @@
+name: Feature request
+description: Suggest a capability or an improvement
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Open an issue before writing code for anything larger than a fix — it is
+        cheaper to agree on the shape here than in review.
+
+        Mergelio drives the `git` binary rather than reimplementing it. A proposal
+        that maps onto real git commands is much easier to accept.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Before you file
+      options:
+        - label: I searched the existing issues and this is not a duplicate.
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What you are trying to do, and where Mergelio gets in the way today. Describe the situation, not the solution.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like instead
+      description: The behaviour you want. Where it lives in the UI, what it does, what it does not do.
+    validations:
+      required: true
+
+  - type: textarea
+    id: git_backing
+    attributes:
+      label: Which git commands back it
+      description: |
+        The git invocation(s) this maps onto, if you know them — for example
+        `git worktree move`, `git rebase --update-refs`. Leave blank if unsure.
+      render: shell
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Commit graph and history
+        - Diff and staging
+        - Files mode and editor
+        - Merge tool and conflicts
+        - Branches, remotes, tags
+        - Rebase, cherry-pick, revert
+        - Worktrees and submodules
+        - Stashes
+        - Terminal
+        - Preferences, themes, accessibility
+        - Localization
+        - Packaging, installers, releases
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+      description: Other ways to solve it, including doing it in the terminal today, and why they fall short.
+
+  - type: dropdown
+    id: destructive
+    attributes:
+      label: Can this lose work?
+      description: Anything that rewrites history or touches the working tree needs a confirmation gate and an undo path.
+      options:
+        - "No — read-only or additive"
+        - "Yes — it can discard or rewrite work"
+        - "Not sure"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      options:
+        - label: I am willing to open a pull request for this.

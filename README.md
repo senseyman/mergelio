@@ -477,7 +477,8 @@ Mergelio has no accounts and phones home to nothing by default.
 
 ## Contributing
 
-Issues and pull requests are welcome.
+Issues and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) has the
+full guide — setup, conventions, testing and localization. The short version:
 
 1. Fork and branch off `main`.
 2. `make deps && make gen`.
