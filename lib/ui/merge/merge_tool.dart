@@ -103,7 +103,7 @@ class _MergeToolState extends ConsumerState<MergeTool> {
                     ? null
                     : () => _nextUnresolved(session),
                 onAbort: actions.abortMerge,
-                onFinish: () => actions.finishMerge(session),
+                onResolve: () => actions.resolveConflicts(session),
               ),
               Expanded(
                 child: Row(
@@ -145,7 +145,7 @@ class _Header extends StatelessWidget {
   final bool canFinish;
   final VoidCallback? onNext;
   final VoidCallback onAbort;
-  final VoidCallback onFinish;
+  final VoidCallback onResolve;
   const _Header({
     required this.kind,
     required this.branch,
@@ -155,7 +155,7 @@ class _Header extends StatelessWidget {
     required this.canFinish,
     required this.onNext,
     required this.onAbort,
-    required this.onFinish,
+    required this.onResolve,
   });
 
   @override
@@ -208,15 +208,11 @@ class _Header extends StatelessWidget {
           const SizedBox(width: 8),
           TextButton(onPressed: onAbort, child: Text(l.mergeAbort)),
           const SizedBox(width: 8),
+          // Resolving stages the result and stops there — committing it, or
+          // continuing the sequence, is the user's next move in the panel.
           FilledButton(
-            onPressed: canFinish ? onFinish : null,
-            child: Text(switch (kind) {
-              MergeKind.stash => l.mergeFinish,
-              MergeKind.rebase => l.mergeFinishRebase,
-              MergeKind.cherryPick => l.mergeFinishCherryPick,
-              MergeKind.revert => l.mergeFinishRevert,
-              MergeKind.merge => l.mergeFinishMerge,
-            }),
+            onPressed: canFinish ? onResolve : null,
+            child: Text(l.mergeResolve),
           ),
         ],
       ),

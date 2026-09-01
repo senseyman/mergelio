@@ -43,7 +43,7 @@ void main() {
   });
 
   test(
-    'conflicting merge opens a session; finish commits the resolution',
+    'conflicting merge opens a session; resolving stages it for review',
     () async {
       final c = ProviderContainer();
       addTearDown(c.dispose);
@@ -56,7 +56,7 @@ void main() {
       expect(session!.files.single.path, 'a.txt');
       expect(session.allResolved, isFalse);
 
-      // Resolve every hunk to theirs, then finish.
+      // Resolve every hunk to theirs, then hand the session back.
       var file = session.files.single;
       for (final h in file.hunkIndices) {
         file = file.withResolution(h, Resolution.theirs);
@@ -65,16 +65,18 @@ void main() {
       c.read(mergeSessionProvider(dir.path).notifier).state = session;
       expect(session.allResolved, isTrue);
 
-      await actions.finishMerge(session);
+      await actions.resolveConflicts(session);
 
       expect(c.read(mergeSessionProvider(dir.path)), isNull);
       expect(await GitReader(svc, dir.path).conflictedFiles(), isEmpty);
-      // Merge commit (two parents) with the "theirs" content.
+      expect(await File('${dir.path}/a.txt').readAsString(), 'feature\n');
+
+      // The merge is staged, not committed — the user commits it.
+      await actions.commit('Merge feature');
       expect(
         (await svc.run(['rev-parse', 'HEAD^2'], repoPath: dir.path)).ok,
         isTrue,
       );
-      expect(await File('${dir.path}/a.txt').readAsString(), 'feature\n');
     },
   );
 
@@ -109,7 +111,8 @@ void main() {
     for (final h in file.hunkIndices) {
       file = file.withResolution(h, Resolution.theirs);
     }
-    await actions.finishMerge(session.replaceFile(0, file));
+    await actions.resolveConflicts(session.replaceFile(0, file));
+    await actions.commit('Merge feature');
 
     final author = (await svc.run([
       'log',

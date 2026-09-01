@@ -95,7 +95,7 @@ void main() {
   });
 
   test(
-    'a conflicting rebase opens the tool in rebase mode; finish continues',
+    'a conflicting rebase opens the tool in rebase mode; continue finishes it',
     () async {
       final c = ProviderContainer();
       addTearDown(c.dispose);
@@ -125,7 +125,8 @@ void main() {
           }
           session = session.replaceFile(i, file);
         }
-        await actions.finishMerge(session);
+        await actions.resolveConflicts(session);
+        await actions.continueOp();
       }
 
       // Rebase completed: session cleared and no rebase is in progress.

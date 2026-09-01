@@ -140,11 +140,7 @@
   },
   "mergeNextUnresolved": "Next unresolved",
   "mergeAbort": "Abort",
-  "mergeFinish": "Finish",
-  "mergeFinishRebase": "Finish rebase",
-  "mergeFinishCherryPick": "Finish cherry-pick",
-  "mergeFinishRevert": "Finish revert",
-  "mergeFinishMerge": "Finish merge",
+  "mergeResolve": "Resolve",
   "a11yCommitRow": "Commit {sha} by {author}: {message}",
   "@a11yCommitRow": {
     "placeholders": {

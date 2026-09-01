@@ -163,14 +163,6 @@ class GitWriter {
     if (email != null) ...['-c', 'user.email=$email'],
   ];
 
-  /// Completes an in-progress merge once conflicts are resolved and staged,
-  /// attributing the merge commit to the active profile identity.
-  Future<void> commitMerge({String? authorName, String? authorEmail}) => _ok([
-    ..._identity(authorName, authorEmail),
-    'commit',
-    '--no-edit',
-  ], 'git commit (merge)');
-
   // --- Interactive rebase ---------------------------------------------------
 
   /// Runs an interactive rebase onto [onto], driving the sequence editor with

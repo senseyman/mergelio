@@ -187,7 +187,10 @@ change never needs a second window.*
 ### Merge tool
 
 - Three-zone conflict resolution (ours / result / theirs) with word-level diff
-  and gated completion — you cannot finish a merge with conflicts left behind.
+  and gated completion — you cannot resolve a merge with conflicts left behind.
+- Resolving only stages the result. Nothing is committed behind your back: you
+  review the staged files, then commit the merge yourself or continue the paused
+  rebase / cherry-pick / revert from the working-tree panel.
 
 ### Safety net
 

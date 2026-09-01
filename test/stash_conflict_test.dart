@@ -76,7 +76,7 @@ void main() {
   });
 
   test(
-    'finishMerge on a stash session stages, drops the stash, no commit',
+    'resolveConflicts on a stash session stages and drops the stash',
     () async {
       await makeStashConflict();
       final c = ProviderContainer();
@@ -104,7 +104,7 @@ void main() {
         ],
       );
 
-      await actions.finishMerge(session);
+      await actions.resolveConflicts(session);
 
       expect(c.read(mergeSessionProvider(dir.path)), isNull);
       expect(await GitReader(svc, dir.path).stashes(), isEmpty); // dropped

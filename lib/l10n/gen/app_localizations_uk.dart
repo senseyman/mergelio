@@ -322,19 +322,7 @@ class AppLocalizationsUk extends AppLocalizations {
   String get mergeAbort => 'Перервати';
 
   @override
-  String get mergeFinish => 'Завершити';
-
-  @override
-  String get mergeFinishRebase => 'Завершити rebase';
-
-  @override
-  String get mergeFinishCherryPick => 'Завершити cherry-pick';
-
-  @override
-  String get mergeFinishRevert => 'Завершити відкат';
-
-  @override
-  String get mergeFinishMerge => 'Завершити злиття';
+  String get mergeResolve => 'Вирішити';
 
   @override
   String a11yCommitRow(String sha, String author, String message) {

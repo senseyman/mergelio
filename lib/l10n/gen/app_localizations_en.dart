@@ -322,19 +322,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mergeAbort => 'Abort';
 
   @override
-  String get mergeFinish => 'Finish';
-
-  @override
-  String get mergeFinishRebase => 'Finish rebase';
-
-  @override
-  String get mergeFinishCherryPick => 'Finish cherry-pick';
-
-  @override
-  String get mergeFinishRevert => 'Finish revert';
-
-  @override
-  String get mergeFinishMerge => 'Finish merge';
+  String get mergeResolve => 'Resolve';
 
   @override
   String a11yCommitRow(String sha, String author, String message) {
