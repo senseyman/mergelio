@@ -26,7 +26,8 @@ void main() {
     return out(['rev-parse', 'HEAD']);
   }
 
-  /// Resolves every hunk of every file in the session to [r] and finishes it.
+  /// Resolves every hunk of every file in the session to [r], stages it, then
+  /// continues the paused sequence — what the user does across two clicks.
   Future<void> resolveAll(
     ProviderContainer c,
     RepoActions actions,
@@ -40,7 +41,8 @@ void main() {
       }
       session = session.replaceFile(i, file);
     }
-    await actions.finishMerge(session);
+    await actions.resolveConflicts(session);
+    await actions.continueOp();
   }
 
   /// Builds base → main-change on main, plus a `feature` commit off base that

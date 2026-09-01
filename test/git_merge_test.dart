@@ -69,7 +69,8 @@ void main() {
       final resolved = resolveConflicts(parts, res);
       await write('a.txt', resolved);
       await g(['add', 'a.txt']);
-      await writer().commitMerge();
+      // Committing with MERGE_HEAD still set is what makes it a merge commit.
+      await writer().commit('Merge feature');
 
       // Merge commit created, tree resolved, no conflicts remain.
       expect(await reader().conflictedFiles(), isEmpty);

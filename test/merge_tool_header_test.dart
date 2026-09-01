@@ -83,14 +83,14 @@ void main() {
     await pumpSession(tester, kind: MergeKind.cherryPick, branch: 'abc1234');
 
     expect(find.text('Cherry-pick abc1234'), findsOneWidget);
-    expect(find.text('Finish cherry-pick'), findsOneWidget);
+    expect(find.text('Resolve'), findsOneWidget);
   });
 
   testWidgets('a revert session names the commit it paused on', (tester) async {
     await pumpSession(tester, kind: MergeKind.revert, branch: 'abc1234');
 
     expect(find.text('Revert abc1234'), findsOneWidget);
-    expect(find.text('Finish revert'), findsOneWidget);
+    expect(find.text('Resolve'), findsOneWidget);
   });
 
   testWidgets('the header translates with the locale', (tester) async {
@@ -102,7 +102,7 @@ void main() {
     );
 
     expect(find.text('Відкотити abc1234'), findsOneWidget);
-    expect(find.text('Завершити відкат'), findsOneWidget);
+    expect(find.text('Вирішити'), findsOneWidget);
     expect(find.text('Перервати'), findsOneWidget);
   });
 }

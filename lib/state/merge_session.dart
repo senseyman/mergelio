@@ -37,10 +37,26 @@ class ConflictFile {
       );
 }
 
-/// How a conflict-resolution session completes: [merge] commits a merge,
-/// [rebase] runs `rebase --continue`, [cherryPick] and [revert] continue their
-/// sequencer op, [stash] just stages the resolution.
+/// What produced the conflicts being resolved. Resolving only ever stages the
+/// result; how the operation is then closed differs by kind — [merge] waits for
+/// an ordinary commit, [rebase], [cherryPick] and [revert] wait for a
+/// `--continue`, and [stash] is already done once staged.
 enum MergeKind { merge, rebase, cherryPick, revert, stash }
+
+/// An operation git is in the middle of, still owed a commit or a `--continue`.
+/// Read back from git's own state files, so it survives the app restarting
+/// halfway through a merge.
+class PendingOp {
+  final MergeKind kind;
+
+  /// The branch or short sha the operation is bringing in, when git records
+  /// one. Empty for a rebase, which has no single source to name.
+  final String branch;
+  const PendingOp({required this.kind, this.branch = ''});
+
+  /// Whether finishing this means `--continue` rather than a plain commit.
+  bool get continues => kind != MergeKind.merge && kind != MergeKind.stash;
+}
 
 /// An in-progress conflict resolution for [branch] being merged in.
 class MergeSession {

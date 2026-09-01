@@ -40,6 +40,7 @@ class WorkingTreePanel extends ConsumerWidget {
     final tree = ref.watch(settingsProvider.select((s) => s.filesAsTree));
     final hasConflicts = data.working.any((f) => f.isConflicted);
     final resolving = ref.watch(mergeSessionProvider(repoPath)) != null;
+    final pending = ref.watch(pendingOpProvider(repoPath)).valueOrNull;
 
     return Container(
       color: t.bgPanel,
@@ -82,7 +83,9 @@ class WorkingTreePanel extends ConsumerWidget {
                   label: const Text('Resolve conflicts'),
                 ),
               ),
-            ),
+            )
+          else if (!resolving && pending != null)
+            _PendingOpBar(repoPath: repoPath, pending: pending),
           Expanded(
             child: clean
                 ? _CleanState()
@@ -118,7 +121,17 @@ class WorkingTreePanel extends ConsumerWidget {
                     ],
                   ),
           ),
-          if (!clean) _Composer(repoPath: repoPath, stagedCount: staged.length),
+          // A merge whose resolution matched HEAD leaves a clean tree, and the
+          // merge commit is still owed — the composer has to stay reachable.
+          if (!clean || pending?.kind == MergeKind.merge)
+            _Composer(
+              repoPath: repoPath,
+              stagedCount: staged.length,
+              // A paused sequence commits through its own --continue; a stray
+              // commit here would strand the rest of the sequence.
+              sequencePaused: pending?.continues ?? false,
+              merging: pending?.kind == MergeKind.merge,
+            ),
         ],
       ),
     );
@@ -130,6 +143,97 @@ class WorkingTreePanel extends ConsumerWidget {
         path: path,
         staged: staged,
       );
+}
+
+/// Sits above the file lists while git is still in the middle of an operation
+/// whose conflicts are already resolved and staged. It names what is waiting
+/// and offers the one action that closes it — except for a merge, which closes
+/// through an ordinary commit, so that one only explains itself.
+class _PendingOpBar extends ConsumerWidget {
+  final String repoPath;
+  final PendingOp pending;
+  const _PendingOpBar({required this.repoPath, required this.pending});
+
+  static String _name(MergeKind kind) => switch (kind) {
+    MergeKind.rebase => 'rebase',
+    MergeKind.cherryPick => 'cherry-pick',
+    MergeKind.revert => 'revert',
+    _ => 'merge',
+  };
+
+  Future<void> _abort(WidgetRef ref, BuildContext context) async {
+    final name = _name(pending.kind);
+    final ok = await confirmDestructive(
+      ref,
+      context,
+      title: 'Abort $name?',
+      body:
+          'The staged resolution is discarded and the repository goes back '
+          'to where the $name started.',
+      confirmLabel: 'Abort',
+    );
+    if (ok) await ref.read(repoActionsProvider(repoPath)).abortMerge();
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = context.tokens;
+    final name = _name(pending.kind);
+    return Container(
+      margin: const EdgeInsets.fromLTRB(8, 6, 8, 2),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: t.bgApp,
+        border: Border.all(color: t.border),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.pending_outlined, size: 14, color: t.warning),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  // Not always a resolution the app just staged: a merge or
+                  // rebase started in a terminal lands here the same way.
+                  pending.continues
+                      ? 'A $name is paused. Review the staged files, then '
+                            'continue it.'
+                      : 'A merge is open. Review the staged files, then '
+                            'commit it.',
+                  style: TextStyle(color: t.textMuted, fontSize: 11.5),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              if (pending.continues) ...[
+                Expanded(
+                  child: FilledButton(
+                    onPressed: ref
+                        .read(repoActionsProvider(repoPath))
+                        .continueOp,
+                    child: Text('Continue $name'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => _abort(ref, context),
+                  child: const Text('Abort'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _Header extends StatelessWidget {
@@ -410,7 +514,19 @@ class _FileRow extends StatelessWidget {
 class _Composer extends ConsumerStatefulWidget {
   final String repoPath;
   final int stagedCount;
-  const _Composer({required this.repoPath, required this.stagedCount});
+
+  /// A rebase/cherry-pick/revert is paused: committing is not the way to
+  /// finish it, so the composer is held shut until it is continued or aborted.
+  final bool sequencePaused;
+
+  /// A merge is open, so this commit closes it — and git has a message ready.
+  final bool merging;
+  const _Composer({
+    required this.repoPath,
+    required this.stagedCount,
+    required this.sequencePaused,
+    required this.merging,
+  });
 
   @override
   ConsumerState<_Composer> createState() => _ComposerState();
@@ -427,6 +543,35 @@ class _ComposerState extends ConsumerState<_Composer> {
   // it off can clear each field only if the user hasn't since edited it.
   String? _amendPrefillSummary;
   String? _amendPrefillDescription;
+
+  @override
+  void didUpdateWidget(_Composer old) {
+    super.didUpdateWidget(old);
+    if (widget.merging && !old.merging) _prefillMergeMessage();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.merging) _prefillMergeMessage();
+  }
+
+  /// Offers git's prepared merge message ("Merge branch 'x'") once a merge is
+  /// waiting to be committed, so the user edits real text instead of retyping
+  /// it. Never overwrites anything already in the field.
+  Future<void> _prefillMergeMessage() async {
+    if (_summary.text.trim().isNotEmpty) return;
+    final msg = await ref
+        .read(repoActionsProvider(widget.repoPath))
+        .pendingMergeMessage();
+    // Re-check after the await: the user may have started typing meanwhile.
+    if (!mounted || msg.isEmpty || _summary.text.isNotEmpty) return;
+    final (:summary, :description) = splitCommitMessage(msg);
+    setState(() {
+      _summary.text = summary;
+      _description.text = description;
+    });
+  }
 
   @override
   void dispose() {
@@ -483,12 +628,24 @@ class _ComposerState extends ConsumerState<_Composer> {
 
   Future<void> _commit() async {
     final toasts = ref.read(toastProvider.notifier);
+    if (widget.sequencePaused) {
+      toasts.show(
+        'Finish the operation first',
+        description:
+            'Continue or abort it above; committing here would '
+            'strand the rest of the sequence.',
+        kind: ToastKind.warning,
+      );
+      return;
+    }
     final summary = _summary.text.trim();
     if (summary.isEmpty) {
       toasts.show('Commit message is empty', kind: ToastKind.warning);
       return;
     }
-    if (!_amend && widget.stagedCount == 0) {
+    // A merge commit is worth making even with nothing staged: it records the
+    // merge itself, which is not otherwise in the history.
+    if (!_amend && !widget.merging && widget.stagedCount == 0) {
       toasts.show('Nothing staged to commit', kind: ToastKind.warning);
       return;
     }
@@ -624,7 +781,7 @@ class _ComposerState extends ConsumerState<_Composer> {
                 Tooltip(
                   message: '⌘⏎',
                   child: FilledButton(
-                    onPressed: _commit,
+                    onPressed: widget.sequencePaused ? null : _commit,
                     child: Text(_amend ? 'Amend' : 'Commit'),
                   ),
                 ),

@@ -698,35 +698,11 @@ abstract class AppLocalizations {
   /// **'Abort'**
   String get mergeAbort;
 
-  /// No description provided for @mergeFinish.
+  /// No description provided for @mergeResolve.
   ///
   /// In en, this message translates to:
-  /// **'Finish'**
-  String get mergeFinish;
-
-  /// No description provided for @mergeFinishRebase.
-  ///
-  /// In en, this message translates to:
-  /// **'Finish rebase'**
-  String get mergeFinishRebase;
-
-  /// No description provided for @mergeFinishCherryPick.
-  ///
-  /// In en, this message translates to:
-  /// **'Finish cherry-pick'**
-  String get mergeFinishCherryPick;
-
-  /// No description provided for @mergeFinishRevert.
-  ///
-  /// In en, this message translates to:
-  /// **'Finish revert'**
-  String get mergeFinishRevert;
-
-  /// No description provided for @mergeFinishMerge.
-  ///
-  /// In en, this message translates to:
-  /// **'Finish merge'**
-  String get mergeFinishMerge;
+  /// **'Resolve'**
+  String get mergeResolve;
 
   /// No description provided for @a11yCommitRow.
   ///
