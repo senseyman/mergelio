@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mergelio/data/update/installer_factory.dart';
+import 'package:mergelio/data/update/installer_linux.dart';
 import 'package:mergelio/data/update/installer_macos.dart';
 import 'package:mergelio/data/update/installer_windows.dart';
 import 'package:mergelio/data/update/update_installer.dart';
@@ -148,5 +150,27 @@ void main() {
       );
       expect(launcher.detached, isEmpty);
     });
+  });
+
+  group('linux', () {
+    test('never installs in place', () async {
+      const installer = LinuxInstaller();
+      expect(installer.canInstallInPlace, isFalse);
+      await expectLater(
+        installer.handOff(File('/tmp/whatever.deb')),
+        throwsA(isA<UpdateInstallError>()),
+      );
+    });
+  });
+
+  test('the factory picks the installer this host can actually use', () {
+    final installer = installerForHost(launcher: FakeLauncher());
+    if (Platform.isMacOS) {
+      expect(installer, isA<MacosInstaller>());
+    } else if (Platform.isWindows) {
+      expect(installer, isA<WindowsInstaller>());
+    } else {
+      expect(installer, isA<LinuxInstaller>());
+    }
   });
 }
