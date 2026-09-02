@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/tokens.dart';
 import '../../domain/git/models.dart';
 import '../../domain/path_key.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../../state/graph_selection.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
@@ -20,7 +21,6 @@ import 'branch_tree.dart';
 import 'remote_dialog.dart';
 import 'sidebar_section.dart';
 import 'worktrees_section.dart';
-import '../../l10n/gen/app_localizations.dart';
 
 /// Left panel for the active repo: Branches (folder-grouped) · Remotes · Tags ·
 /// Stashes. Read-only rows; sections collapse and their state persists.

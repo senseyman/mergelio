@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../core/tokens.dart';
 import '../../domain/git/remote_spec.dart';
-import '../common/dialogs.dart';
 import '../../l10n/gen/app_localizations.dart';
+import '../common/dialogs.dart';
 
 /// The name and URL a user entered for a remote.
 typedef RemoteEdit = ({String name, String url});

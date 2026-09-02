@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../core/tokens.dart';
-import '../common/dialogs.dart';
 import '../../l10n/gen/app_localizations.dart';
+import '../common/dialogs.dart';
 
 typedef AddSubmoduleData = ({String url, String path, String? branch});
 

@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
-import '../../state/diagnostics.dart';
 import '../../l10n/gen/app_localizations.dart';
+import '../../state/diagnostics.dart';
 
 /// Preferences row pointing at the diagnostic log, with a button that opens it
 /// in the file manager. The path is shown in full so it can still be found by

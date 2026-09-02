@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../../state/profiles.dart';
 import '../common/dialogs.dart';
 import 'profile_form.dart';
-import '../../l10n/gen/app_localizations.dart';
 
 /// Manage commit-identity profiles: list, add, edit, delete, and pick the
 /// active one (which drives commit author name/email).

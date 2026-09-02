@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../../state/repo_bootstrap.dart';
 import '../common/dialogs.dart';
-import '../../l10n/gen/app_localizations.dart';
 
 /// Clone-repository dialog: source URL, a folder name derived live from the
 /// URL (editable), and a destination parent folder. Clone runs for real and

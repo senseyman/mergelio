@@ -3,10 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:xterm/xterm.dart';
 
 import '../../core/tokens.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../../state/settings_controller.dart';
 import '../../state/terminal.dart';
 import '../../state/workspace.dart';
-import '../../l10n/gen/app_localizations.dart';
 
 /// The dockable terminal: a header with the repo path + close button, and an
 /// xterm view bound to the active repo's PTY session. Shown only when a repo is

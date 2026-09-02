@@ -5,6 +5,7 @@ import '../../core/tokens.dart';
 import '../../domain/git/worktree.dart';
 import '../../domain/path_key.dart';
 import '../../domain/reveal.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
 import '../../state/settings_controller.dart';
@@ -13,7 +14,6 @@ import '../../state/worktrees.dart';
 import '../common/dialogs.dart';
 import 'sidebar_section.dart';
 import 'worktree_dialogs.dart';
-import '../../l10n/gen/app_localizations.dart';
 
 /// Sidebar section listing every worktree of the active repository, so a
 /// branch checked out elsewhere — or a worktree that is locked, prunable, or

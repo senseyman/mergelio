@@ -6,6 +6,7 @@ import '../../core/tokens.dart';
 import '../../domain/git/diff.dart';
 import '../../domain/git/models.dart';
 import '../../domain/git/stage_patch.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../../state/diff_document.dart';
 import '../../state/diff_target.dart';
 import '../../state/feedback.dart';
@@ -20,7 +21,6 @@ import 'diff_selection.dart';
 import 'line_selection.dart';
 import 'linked_scroll.dart';
 import 'syntax_style.dart';
-import '../../l10n/gen/app_localizations.dart';
 
 /// Slide-up diff sheet over the graph. Occupies [settings.diffHeight] of the
 /// available height; the grip resizes it. Renders inline/split with word-level

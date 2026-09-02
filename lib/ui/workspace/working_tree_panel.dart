@@ -7,6 +7,7 @@ import '../../domain/git/commit_message.dart';
 import '../../domain/git/git_providers.dart';
 import '../../domain/git/git_reader.dart';
 import '../../domain/git/models.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../../state/diff_target.dart';
 import '../../state/feedback.dart';
 import '../../state/merge_session.dart';
@@ -18,7 +19,6 @@ import '../common/confirm.dart';
 import '../common/dialogs.dart';
 import '../common/file_tree_view.dart';
 import '../insight/file_insight_dialog.dart';
-import '../../l10n/gen/app_localizations.dart';
 
 /// Right panel shown when no commit is selected: STAGED / UNSTAGED file lists
 /// and the commit composer. A partially-staged file appears in both lists.

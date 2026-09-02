@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../../state/diff_target.dart';
 import '../../state/file_insight.dart';
 import '../../state/settings_controller.dart';
 import '../common/dialogs.dart';
 import '../graph/commit_columns.dart';
-import '../../l10n/gen/app_localizations.dart';
 
 /// File History / Blame modal with two tabs. History rows open the file's diff
 /// at that commit; Blame annotates each line with its last-touching commit.

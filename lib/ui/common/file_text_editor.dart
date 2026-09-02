@@ -8,12 +8,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/tokens.dart';
 import '../../domain/file_edit.dart';
 import '../../domain/text_find.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../../state/file_editor.dart';
 import '../../state/repo_actions.dart';
 import '../common/confirm.dart';
 import '../diff/linked_scroll.dart';
 import '../diff/syntax_style.dart';
-import '../../l10n/gen/app_localizations.dart';
 
 /// What a host's footer may do with the editor above it.
 class FileEditorControls {

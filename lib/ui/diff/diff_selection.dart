@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
-import '../common/dialogs.dart';
 import '../../l10n/gen/app_localizations.dart';
+import '../common/dialogs.dart';
 
 /// Right-click menu for the diff body.
 ///

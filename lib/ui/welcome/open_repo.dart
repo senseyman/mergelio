@@ -3,10 +3,10 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/git/git_providers.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../../state/feedback.dart';
 import '../../state/recents.dart';
 import '../../state/workspace.dart';
-import '../../l10n/gen/app_localizations.dart';
 
 /// Native "open folder" dialog → validate it's a git repo → open a tab and
 /// record it in recents. Surfaces a toast on any failure. No-op if cancelled.

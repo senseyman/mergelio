@@ -3,11 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
 import '../../domain/git/models.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
 import '../common/dialogs.dart';
 import 'remote_merge_confirm.dart';
-import '../../l10n/gen/app_localizations.dart';
 
 /// Create-branch dialog: name, the branch to start from (defaults to the
 /// current one) and a checkout-after toggle.

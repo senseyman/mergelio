@@ -6,8 +6,8 @@ import 'package:flutter/material.dart';
 import '../../core/tokens.dart';
 import '../../domain/git/worktree.dart';
 import '../../domain/path_key.dart';
-import '../common/dialogs.dart';
 import '../../l10n/gen/app_localizations.dart';
+import '../common/dialogs.dart';
 
 /// What the Add dialog collected. Exactly one of [newBranch], [existingBranch]
 /// or [detach] describes what the new worktree checks out.

@@ -1,9 +1,9 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../l10n/gen/app_localizations.dart';
 import '../../state/settings_controller.dart';
 import 'dialogs.dart';
-import '../../l10n/gen/app_localizations.dart';
 
 /// Confirms a destructive action, honouring the "Confirm destructive actions"
 /// preference: when the user has turned confirmations off, this returns true

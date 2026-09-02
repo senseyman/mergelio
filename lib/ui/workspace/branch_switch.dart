@@ -3,13 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/git/models.dart';
 import '../../domain/path_key.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
 import '../../state/workspace.dart';
 import '../../state/worktrees.dart';
 import '../common/confirm.dart';
 import 'worktree_dialogs.dart';
-import '../../l10n/gen/app_localizations.dart';
 
 /// Whether switching remote [rb] would reset existing local branch:
 /// true only when local branch with same name exists with different tip.

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/search.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../../state/graph_selection.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
@@ -10,7 +11,6 @@ import '../../state/workspace.dart';
 import '../palette/command_palette.dart';
 import '../workspace/branch_switch.dart';
 import '../workspace/remote_dialog.dart';
-import '../../l10n/gen/app_localizations.dart';
 
 /// App-wide actions shared by the keyboard dispatcher and toolbar buttons, so
 /// clicking the toolbar and pressing the shortcut do exactly the same thing.

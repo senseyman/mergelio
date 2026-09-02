@@ -5,10 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
 import '../../domain/git/remote_ref.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
 import '../common/dialogs.dart';
-import '../../l10n/gen/app_localizations.dart';
 
 /// What to do about a merge whose source is a remote-tracking ref.
 enum _RemoteMergeChoice { cancel, mergeAsIs, fetchThenMerge }

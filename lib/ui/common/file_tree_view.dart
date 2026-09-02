@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
 import '../../domain/file_tree.dart';
-import '../../state/settings_controller.dart';
 import '../../l10n/gen/app_localizations.dart';
+import '../../state/settings_controller.dart';
 
 /// Icon toggle between a flat file list and a directory tree, bound to the
 /// shared filesAsTree preference. Shared by every changed-file list.

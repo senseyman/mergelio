@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../../state/diff_document.dart';
 import '../../state/diff_target.dart';
 import '../../state/file_editor.dart';
 import '../../state/repo_actions.dart';
 import '../common/confirm.dart';
 import '../common/file_text_editor.dart';
-import '../../l10n/gen/app_localizations.dart';
 
 /// Full-text editor for an uncommitted file, shown in place of the diff body.
 /// Saving writes the working tree and returns to the diff; the result is left

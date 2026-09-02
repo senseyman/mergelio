@@ -3,12 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../../state/open_files.dart';
 import '../../state/unsaved_guard.dart';
 import '../common/dialogs.dart';
 import '../common/file_text_editor.dart';
 import '../workspace/panel_placeholder.dart';
-import '../../l10n/gen/app_localizations.dart';
 
 /// Right side of Files mode: a strip of open files over the editor for
 /// whichever one is on top. Every open file stays mounted, so switching tabs

@@ -3,13 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
 import '../../domain/git/models.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../../state/feedback.dart';
 import '../../state/profiles.dart';
 import '../../state/repo_data.dart';
 import '../../state/settings_controller.dart';
 import '../../state/workspace.dart';
 import '../profiles/profiles_dialog.dart';
-import '../../l10n/gen/app_localizations.dart';
 
 /// Bottom status strip. Left: active profile, repo, branch + live
 /// ahead/behind. Right: theme toggle and the current zoom level.
