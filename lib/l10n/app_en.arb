@@ -192,5 +192,58 @@
     "placeholders": {
       "parent": {"type": "String"}
     }
-  }
+  },
+
+  "wtAdd": "Add worktree",
+  "wtLocation": "Location",
+  "wtBrowse": "Browse…",
+  "wtNewBranch": "New branch",
+  "wtFrom": "from",
+  "wtExistingBranch": "Existing branch",
+  "wtDetachedAt": "Detached at",
+  "wtHeldBy": "— in {name}",
+  "@wtHeldBy": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "wtBranchExists": "That branch already exists",
+  "wtDirNotEmpty": "That directory is not empty",
+  "wtSubmodulesNote": "Submodules are not checked out in a new worktree; initialise them there yourself.",
+  "wtOpenInNewTab": "Open in a new tab",
+  "wtRemoveTitle": "Remove worktree?",
+  "wtCheckedOutBranch": "Checked out: {branch}",
+  "@wtCheckedOutBranch": {
+    "placeholders": {
+      "branch": {"type": "String"}
+    }
+  },
+  "wtDirDeleted": "The directory will be deleted.",
+  "wtRemove": "Remove",
+  "wtHasChangesTitle": "Worktree has changes",
+  "wtForcingDiscards": "Forcing discards those changes.",
+  "wtForceRemove": "Force remove",
+  "wtMoveTitle": "Move worktree",
+  "wtAlreadyThere": "That is where it already is",
+  "wtNewLocationFor": "New location for {name}",
+  "@wtNewLocationFor": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "wtMove": "Move",
+  "wtAlreadyCheckedOut": "Already checked out",
+  "wtCheckedOutInWorktreeAt": "{branch} is checked out in the worktree at",
+  "@wtCheckedOutInWorktreeAt": {
+    "placeholders": {
+      "branch": {"type": "String"}
+    }
+  },
+  "wtTwoPlacesWarning": "Checking out anyway puts the branch in two places at once; commits made in one leave the other behind.",
+  "wtCheckoutAnyway": "Checkout anyway",
+  "wtOpenWorktree": "Open worktree",
+  "wtPruneTitle": "Prune stale worktrees",
+  "wtNothingToPrune": "Nothing to prune.",
+  "wtEntriesWillBeRemoved": "These entries will be removed:",
+  "wtPrune": "Prune"
 }

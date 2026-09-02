@@ -405,4 +405,110 @@ class AppLocalizationsUk extends AppLocalizations {
   String tabWorktreeOf(String parent) {
     return 'Робоче дерево $parent';
   }
+
+  @override
+  String get wtAdd => 'Додати робоче дерево';
+
+  @override
+  String get wtLocation => 'Розташування';
+
+  @override
+  String get wtBrowse => 'Огляд…';
+
+  @override
+  String get wtNewBranch => 'Нова гілка';
+
+  @override
+  String get wtFrom => 'від';
+
+  @override
+  String get wtExistingBranch => 'Наявна гілка';
+
+  @override
+  String get wtDetachedAt => 'Відокремлено на';
+
+  @override
+  String wtHeldBy(String name) {
+    return '— у $name';
+  }
+
+  @override
+  String get wtBranchExists => 'Така гілка вже існує';
+
+  @override
+  String get wtDirNotEmpty => 'Ця тека не порожня';
+
+  @override
+  String get wtSubmodulesNote =>
+      'Підмодулі не отримуються в новому робочому дереві; ініціалізуйте їх там самостійно.';
+
+  @override
+  String get wtOpenInNewTab => 'Відкрити в новій вкладці';
+
+  @override
+  String get wtRemoveTitle => 'Видалити робоче дерево?';
+
+  @override
+  String wtCheckedOutBranch(String branch) {
+    return 'Переключено на: $branch';
+  }
+
+  @override
+  String get wtDirDeleted => 'Теку буде видалено.';
+
+  @override
+  String get wtRemove => 'Видалити';
+
+  @override
+  String get wtHasChangesTitle => 'Робоче дерево має зміни';
+
+  @override
+  String get wtForcingDiscards => 'Примусове видалення відкине ці зміни.';
+
+  @override
+  String get wtForceRemove => 'Видалити примусово';
+
+  @override
+  String get wtMoveTitle => 'Перемістити робоче дерево';
+
+  @override
+  String get wtAlreadyThere => 'Воно вже там';
+
+  @override
+  String wtNewLocationFor(String name) {
+    return 'Нове розташування для $name';
+  }
+
+  @override
+  String get wtMove => 'Перемістити';
+
+  @override
+  String get wtAlreadyCheckedOut => 'Уже переключено';
+
+  @override
+  String wtCheckedOutInWorktreeAt(String branch) {
+    return 'Гілку $branch використовує робоче дерево за шляхом';
+  }
+
+  @override
+  String get wtTwoPlacesWarning =>
+      'Перемикання попри це розмістить гілку у двох місцях одночасно; коміти, зроблені в одному, залишать інше позаду.';
+
+  @override
+  String get wtCheckoutAnyway => 'Усе одно переключитися';
+
+  @override
+  String get wtOpenWorktree => 'Відкрити робоче дерево';
+
+  @override
+  String get wtPruneTitle => 'Очистити застарілі робочі дерева';
+
+  @override
+  String get wtNothingToPrune => 'Нема чого очищати.';
+
+  @override
+  String get wtEntriesWillBeRemoved => 'Ці записи буде видалено:';
+
+  @override
+  String get wtPrune => 'Очистити';
 }

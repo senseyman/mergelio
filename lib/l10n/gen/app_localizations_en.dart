@@ -405,4 +405,110 @@ class AppLocalizationsEn extends AppLocalizations {
   String tabWorktreeOf(String parent) {
     return 'Worktree of $parent';
   }
+
+  @override
+  String get wtAdd => 'Add worktree';
+
+  @override
+  String get wtLocation => 'Location';
+
+  @override
+  String get wtBrowse => 'Browse…';
+
+  @override
+  String get wtNewBranch => 'New branch';
+
+  @override
+  String get wtFrom => 'from';
+
+  @override
+  String get wtExistingBranch => 'Existing branch';
+
+  @override
+  String get wtDetachedAt => 'Detached at';
+
+  @override
+  String wtHeldBy(String name) {
+    return '— in $name';
+  }
+
+  @override
+  String get wtBranchExists => 'That branch already exists';
+
+  @override
+  String get wtDirNotEmpty => 'That directory is not empty';
+
+  @override
+  String get wtSubmodulesNote =>
+      'Submodules are not checked out in a new worktree; initialise them there yourself.';
+
+  @override
+  String get wtOpenInNewTab => 'Open in a new tab';
+
+  @override
+  String get wtRemoveTitle => 'Remove worktree?';
+
+  @override
+  String wtCheckedOutBranch(String branch) {
+    return 'Checked out: $branch';
+  }
+
+  @override
+  String get wtDirDeleted => 'The directory will be deleted.';
+
+  @override
+  String get wtRemove => 'Remove';
+
+  @override
+  String get wtHasChangesTitle => 'Worktree has changes';
+
+  @override
+  String get wtForcingDiscards => 'Forcing discards those changes.';
+
+  @override
+  String get wtForceRemove => 'Force remove';
+
+  @override
+  String get wtMoveTitle => 'Move worktree';
+
+  @override
+  String get wtAlreadyThere => 'That is where it already is';
+
+  @override
+  String wtNewLocationFor(String name) {
+    return 'New location for $name';
+  }
+
+  @override
+  String get wtMove => 'Move';
+
+  @override
+  String get wtAlreadyCheckedOut => 'Already checked out';
+
+  @override
+  String wtCheckedOutInWorktreeAt(String branch) {
+    return '$branch is checked out in the worktree at';
+  }
+
+  @override
+  String get wtTwoPlacesWarning =>
+      'Checking out anyway puts the branch in two places at once; commits made in one leave the other behind.';
+
+  @override
+  String get wtCheckoutAnyway => 'Checkout anyway';
+
+  @override
+  String get wtOpenWorktree => 'Open worktree';
+
+  @override
+  String get wtPruneTitle => 'Prune stale worktrees';
+
+  @override
+  String get wtNothingToPrune => 'Nothing to prune.';
+
+  @override
+  String get wtEntriesWillBeRemoved => 'These entries will be removed:';
+
+  @override
+  String get wtPrune => 'Prune';
 }

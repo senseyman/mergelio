@@ -847,6 +847,198 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Worktree of {parent}'**
   String tabWorktreeOf(String parent);
+
+  /// No description provided for @wtAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add worktree'**
+  String get wtAdd;
+
+  /// No description provided for @wtLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Location'**
+  String get wtLocation;
+
+  /// No description provided for @wtBrowse.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse…'**
+  String get wtBrowse;
+
+  /// No description provided for @wtNewBranch.
+  ///
+  /// In en, this message translates to:
+  /// **'New branch'**
+  String get wtNewBranch;
+
+  /// No description provided for @wtFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'from'**
+  String get wtFrom;
+
+  /// No description provided for @wtExistingBranch.
+  ///
+  /// In en, this message translates to:
+  /// **'Existing branch'**
+  String get wtExistingBranch;
+
+  /// No description provided for @wtDetachedAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Detached at'**
+  String get wtDetachedAt;
+
+  /// No description provided for @wtHeldBy.
+  ///
+  /// In en, this message translates to:
+  /// **'— in {name}'**
+  String wtHeldBy(String name);
+
+  /// No description provided for @wtBranchExists.
+  ///
+  /// In en, this message translates to:
+  /// **'That branch already exists'**
+  String get wtBranchExists;
+
+  /// No description provided for @wtDirNotEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'That directory is not empty'**
+  String get wtDirNotEmpty;
+
+  /// No description provided for @wtSubmodulesNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Submodules are not checked out in a new worktree; initialise them there yourself.'**
+  String get wtSubmodulesNote;
+
+  /// No description provided for @wtOpenInNewTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in a new tab'**
+  String get wtOpenInNewTab;
+
+  /// No description provided for @wtRemoveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove worktree?'**
+  String get wtRemoveTitle;
+
+  /// No description provided for @wtCheckedOutBranch.
+  ///
+  /// In en, this message translates to:
+  /// **'Checked out: {branch}'**
+  String wtCheckedOutBranch(String branch);
+
+  /// No description provided for @wtDirDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'The directory will be deleted.'**
+  String get wtDirDeleted;
+
+  /// No description provided for @wtRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get wtRemove;
+
+  /// No description provided for @wtHasChangesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Worktree has changes'**
+  String get wtHasChangesTitle;
+
+  /// No description provided for @wtForcingDiscards.
+  ///
+  /// In en, this message translates to:
+  /// **'Forcing discards those changes.'**
+  String get wtForcingDiscards;
+
+  /// No description provided for @wtForceRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Force remove'**
+  String get wtForceRemove;
+
+  /// No description provided for @wtMoveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Move worktree'**
+  String get wtMoveTitle;
+
+  /// No description provided for @wtAlreadyThere.
+  ///
+  /// In en, this message translates to:
+  /// **'That is where it already is'**
+  String get wtAlreadyThere;
+
+  /// No description provided for @wtNewLocationFor.
+  ///
+  /// In en, this message translates to:
+  /// **'New location for {name}'**
+  String wtNewLocationFor(String name);
+
+  /// No description provided for @wtMove.
+  ///
+  /// In en, this message translates to:
+  /// **'Move'**
+  String get wtMove;
+
+  /// No description provided for @wtAlreadyCheckedOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Already checked out'**
+  String get wtAlreadyCheckedOut;
+
+  /// No description provided for @wtCheckedOutInWorktreeAt.
+  ///
+  /// In en, this message translates to:
+  /// **'{branch} is checked out in the worktree at'**
+  String wtCheckedOutInWorktreeAt(String branch);
+
+  /// No description provided for @wtTwoPlacesWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking out anyway puts the branch in two places at once; commits made in one leave the other behind.'**
+  String get wtTwoPlacesWarning;
+
+  /// No description provided for @wtCheckoutAnyway.
+  ///
+  /// In en, this message translates to:
+  /// **'Checkout anyway'**
+  String get wtCheckoutAnyway;
+
+  /// No description provided for @wtOpenWorktree.
+  ///
+  /// In en, this message translates to:
+  /// **'Open worktree'**
+  String get wtOpenWorktree;
+
+  /// No description provided for @wtPruneTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Prune stale worktrees'**
+  String get wtPruneTitle;
+
+  /// No description provided for @wtNothingToPrune.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to prune.'**
+  String get wtNothingToPrune;
+
+  /// No description provided for @wtEntriesWillBeRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'These entries will be removed:'**
+  String get wtEntriesWillBeRemoved;
+
+  /// No description provided for @wtPrune.
+  ///
+  /// In en, this message translates to:
+  /// **'Prune'**
+  String get wtPrune;
 }
 
 class _AppLocalizationsDelegate
