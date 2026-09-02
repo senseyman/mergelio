@@ -60,16 +60,16 @@ class AppLocalizationsUk extends AppLocalizations {
   String get opPull => 'Стягнути';
 
   @override
-  String get opPullRebase => 'Стягнути (rebase)';
+  String get opPullRebase => 'Стягнути (перебазувати)';
 
   @override
-  String get opPush => 'Надіслати';
+  String get opPush => 'Відправити';
 
   @override
-  String get opPushOrigin => 'Надіслати origin';
+  String get opPushOrigin => 'Відправити в origin';
 
   @override
-  String get opForcePush => 'Примусово надіслати (with lease)';
+  String get opForcePush => 'Примусово відправити (with lease)';
 
   @override
   String get welcomeOpen => 'Відкрити';
@@ -153,7 +153,7 @@ class AppLocalizationsUk extends AppLocalizations {
   String get strategyMerge => 'злиття';
 
   @override
-  String get strategyRebase => 'rebase';
+  String get strategyRebase => 'перебазування';
 
   @override
   String get dateMedium => 'середній';
@@ -238,7 +238,7 @@ class AppLocalizationsUk extends AppLocalizations {
   String get menuRevert => 'Відкотити';
 
   @override
-  String get menuRebaseHere => 'Rebase сюди…';
+  String get menuRebaseHere => 'Перебазувати сюди…';
 
   @override
   String get menuResetHard => 'Скинути сюди (--hard)';
@@ -276,7 +276,7 @@ class AppLocalizationsUk extends AppLocalizations {
   String get mergeResolveConflicts => 'Вирішити конфлікти';
 
   @override
-  String get mergeRebase => 'Rebase';
+  String get mergeRebase => 'Перебазувати';
 
   @override
   String mergeCherryPick(String sha) {
@@ -680,7 +680,7 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String sbTipCheckoutHint(String name) {
-    return 'Клацніть, щоб показати вершину · подвійне клацання — отримати $name';
+    return 'Клацніть, щоб показати вершину · подвійне клацання — переключитися на $name';
   }
 
   @override
@@ -693,7 +693,7 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String sbCheckOutNamed(String name) {
-    return 'Отримати $name';
+    return 'Переключитися на $name';
   }
 
   @override
@@ -773,7 +773,7 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String sbDropStashTitle(String ref) {
-    return 'Відкинути $ref?';
+    return 'Вилучити $ref?';
   }
 
   @override
@@ -781,7 +781,7 @@ class AppLocalizationsUk extends AppLocalizations {
       'Схованку буде видалено. Спливне сповіщення дозволить її відновити.';
 
   @override
-  String get sbDrop => 'Відкинути';
+  String get sbDrop => 'Вилучити';
 
   @override
   String sbRemoveSubmoduleTitle(String name) {
