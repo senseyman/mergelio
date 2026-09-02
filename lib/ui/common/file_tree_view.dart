@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/tokens.dart';
 import '../../domain/file_tree.dart';
 import '../../state/settings_controller.dart';
+import '../../l10n/gen/app_localizations.dart';
 
 /// Icon toggle between a flat file list and a directory tree, bound to the
 /// shared filesAsTree preference. Shared by every changed-file list.
@@ -12,10 +13,11 @@ class FileViewToggle extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final tree = ref.watch(settingsProvider.select((s) => s.filesAsTree));
     return Tooltip(
-      message: tree ? 'Show as flat list' : 'Group by folder',
+      message: tree ? l.ftvFlatList : l.ftvGroupByFolder,
       child: InkWell(
         borderRadius: BorderRadius.circular(4),
         onTap: () => ref.read(settingsProvider.notifier).toggleFilesAsTree(),

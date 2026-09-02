@@ -2413,6 +2413,294 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Working tree · staging · commit'**
   String get wvChangesSub;
+
+  /// No description provided for @rdlgCloneTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Clone repository'**
+  String get rdlgCloneTitle;
+
+  /// No description provided for @rdlgCreateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Create repository'**
+  String get rdlgCreateTitle;
+
+  /// No description provided for @rdlgFolderName.
+  ///
+  /// In en, this message translates to:
+  /// **'Folder name'**
+  String get rdlgFolderName;
+
+  /// No description provided for @rdlgFolderHint.
+  ///
+  /// In en, this message translates to:
+  /// **'derived from the URL'**
+  String get rdlgFolderHint;
+
+  /// No description provided for @rdlgDestFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Destination folder'**
+  String get rdlgDestFolder;
+
+  /// No description provided for @rdlgCloning.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloning…'**
+  String get rdlgCloning;
+
+  /// No description provided for @rdlgClone.
+  ///
+  /// In en, this message translates to:
+  /// **'Clone'**
+  String get rdlgClone;
+
+  /// No description provided for @rdlgRepoName.
+  ///
+  /// In en, this message translates to:
+  /// **'Repository name'**
+  String get rdlgRepoName;
+
+  /// No description provided for @rdlgParentFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Parent folder'**
+  String get rdlgParentFolder;
+
+  /// No description provided for @rdlgDefaultBranch.
+  ///
+  /// In en, this message translates to:
+  /// **'Default branch'**
+  String get rdlgDefaultBranch;
+
+  /// No description provided for @rdlgInitReadme.
+  ///
+  /// In en, this message translates to:
+  /// **'Initialise with README.md'**
+  String get rdlgInitReadme;
+
+  /// No description provided for @rdlgAddGitignore.
+  ///
+  /// In en, this message translates to:
+  /// **'Add an empty .gitignore'**
+  String get rdlgAddGitignore;
+
+  /// No description provided for @rdlgCreating.
+  ///
+  /// In en, this message translates to:
+  /// **'Creating…'**
+  String get rdlgCreating;
+
+  /// No description provided for @rdlgChooseFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a folder…'**
+  String get rdlgChooseFolder;
+
+  /// No description provided for @rdlgBrowse.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse'**
+  String get rdlgBrowse;
+
+  /// No description provided for @welTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome to Mergelio'**
+  String get welTitle;
+
+  /// No description provided for @welSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Free visual Git client. Get started:'**
+  String get welSubtitle;
+
+  /// No description provided for @welCloneSub.
+  ///
+  /// In en, this message translates to:
+  /// **'From a URL (HTTPS/SSH) into a folder'**
+  String get welCloneSub;
+
+  /// No description provided for @welCreateSub.
+  ///
+  /// In en, this message translates to:
+  /// **'New local repository with README/.gitignore'**
+  String get welCreateSub;
+
+  /// No description provided for @welOpenTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Open repository'**
+  String get welOpenTitle;
+
+  /// No description provided for @welOpenSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose an existing folder with .git'**
+  String get welOpenSub;
+
+  /// No description provided for @welUnpin.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpin'**
+  String get welUnpin;
+
+  /// No description provided for @welPin.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin'**
+  String get welPin;
+
+  /// No description provided for @welRemoveRecent.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from recents'**
+  String get welRemoveRecent;
+
+  /// No description provided for @welNotARepo.
+  ///
+  /// In en, this message translates to:
+  /// **'Not a git repository'**
+  String get welNotARepo;
+
+  /// No description provided for @gvSearchCommits.
+  ///
+  /// In en, this message translates to:
+  /// **'Search commits…'**
+  String get gvSearchCommits;
+
+  /// No description provided for @gvAuthorFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'Author…'**
+  String get gvAuthorFilter;
+
+  /// No description provided for @gvPrevMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous (⇧N)'**
+  String get gvPrevMatch;
+
+  /// No description provided for @gvNextMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Next (N)'**
+  String get gvNextMatch;
+
+  /// No description provided for @gvCloseSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Close (Esc)'**
+  String get gvCloseSearch;
+
+  /// No description provided for @gvColumns.
+  ///
+  /// In en, this message translates to:
+  /// **'Columns'**
+  String get gvColumns;
+
+  /// No description provided for @gvUncommittedFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{Uncommitted changes · {count} file} other{Uncommitted changes · {count} files}}'**
+  String gvUncommittedFiles(int count);
+
+  /// No description provided for @gvCannotRebaseTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot rebase onto this commit'**
+  String get gvCannotRebaseTitle;
+
+  /// No description provided for @gvCannotRebaseBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The commits above {sha} include a merge, which a rebase would flatten.'**
+  String gvCannotRebaseBody(String sha);
+
+  /// No description provided for @gvNothingToRebaseTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to rebase'**
+  String get gvNothingToRebaseTitle;
+
+  /// No description provided for @gvNothingToRebaseBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{sha} is already part of this branch and the plan changes nothing.'**
+  String gvNothingToRebaseBody(String sha);
+
+  /// No description provided for @gvResetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset to {sha}?'**
+  String gvResetTitle(String sha);
+
+  /// No description provided for @gvResetBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Moves the current branch to this commit and discards all uncommitted changes. This cannot be undone from disk.'**
+  String get gvResetBody;
+
+  /// No description provided for @gvResetHard.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset --hard'**
+  String get gvResetHard;
+
+  /// No description provided for @ccBranch.
+  ///
+  /// In en, this message translates to:
+  /// **'Branch'**
+  String get ccBranch;
+
+  /// No description provided for @cpTypeCommand.
+  ///
+  /// In en, this message translates to:
+  /// **'Type a command…'**
+  String get cpTypeCommand;
+
+  /// No description provided for @termClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Close terminal (⌘`)'**
+  String get termClose;
+
+  /// No description provided for @fiHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'History'**
+  String get fiHistory;
+
+  /// No description provided for @fiCouldNotLoad.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load history'**
+  String get fiCouldNotLoad;
+
+  /// No description provided for @fiCouldNotBlame.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not blame this file'**
+  String get fiCouldNotBlame;
+
+  /// No description provided for @ftvFlatList.
+  ///
+  /// In en, this message translates to:
+  /// **'Show as flat list'**
+  String get ftvFlatList;
+
+  /// No description provided for @ftvGroupByFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Group by folder'**
+  String get ftvGroupByFolder;
+
+  /// No description provided for @confirmAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm'**
+  String get confirmAction;
 }
 
 class _AppLocalizationsDelegate

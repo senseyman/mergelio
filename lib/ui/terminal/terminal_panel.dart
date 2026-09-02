@@ -6,6 +6,7 @@ import '../../core/tokens.dart';
 import '../../state/settings_controller.dart';
 import '../../state/terminal.dart';
 import '../../state/workspace.dart';
+import '../../l10n/gen/app_localizations.dart';
 
 /// The dockable terminal: a header with the repo path + close button, and an
 /// xterm view bound to the active repo's PTY session. Shown only when a repo is
@@ -15,6 +16,7 @@ class TerminalPanel extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final tab = ref.watch(workspaceProvider.select((w) => w.activeTab));
     if (tab == null) return const SizedBox.shrink();
@@ -62,7 +64,7 @@ class TerminalPanel extends ConsumerWidget {
                   ),
                 ),
                 IconButton(
-                  tooltip: 'Close terminal (⌘`)',
+                  tooltip: l.termClose,
                   icon: const Icon(Icons.close, size: 15),
                   color: t.textMuted,
                   onPressed: () => ref

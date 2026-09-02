@@ -1,12 +1,15 @@
 import '../../domain/git/models.dart';
+import '../../l10n/gen/app_localizations.dart';
 
 /// The toggleable graph meta columns, id → display label. Shared by the graph
-/// header "Columns" menu and Preferences so both stay in sync.
-const graphColumnLabels = {
-  'branch': 'Branch',
-  'author': 'Author',
-  'date': 'Date',
-  'sha': 'SHA',
+/// header "Columns" menu and Preferences so both stay in sync. A function
+/// rather than a constant map: the labels are localised, so they cannot be
+/// resolved until there is a context to resolve them against.
+Map<String, String> graphColumnLabels(AppLocalizations l) => {
+  'branch': l.ccBranch,
+  'author': l.cdAuthor,
+  'date': l.cdDate,
+  'sha': l.cdSha,
 };
 
 const _months = [

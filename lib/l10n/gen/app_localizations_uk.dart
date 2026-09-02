@@ -1340,4 +1340,164 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get wvChangesSub => 'Робоче дерево · індексація · коміт';
+
+  @override
+  String get rdlgCloneTitle => 'Клонувати репозиторій';
+
+  @override
+  String get rdlgCreateTitle => 'Створити репозиторій';
+
+  @override
+  String get rdlgFolderName => 'Назва теки';
+
+  @override
+  String get rdlgFolderHint => 'походить з URL';
+
+  @override
+  String get rdlgDestFolder => 'Тека призначення';
+
+  @override
+  String get rdlgCloning => 'Клонування…';
+
+  @override
+  String get rdlgClone => 'Клонувати';
+
+  @override
+  String get rdlgRepoName => 'Назва репозиторію';
+
+  @override
+  String get rdlgParentFolder => 'Батьківська тека';
+
+  @override
+  String get rdlgDefaultBranch => 'Типова гілка';
+
+  @override
+  String get rdlgInitReadme => 'Створити з README.md';
+
+  @override
+  String get rdlgAddGitignore => 'Додати порожній .gitignore';
+
+  @override
+  String get rdlgCreating => 'Створення…';
+
+  @override
+  String get rdlgChooseFolder => 'Виберіть теку…';
+
+  @override
+  String get rdlgBrowse => 'Огляд';
+
+  @override
+  String get welTitle => 'Ласкаво просимо до Mergelio';
+
+  @override
+  String get welSubtitle => 'Безкоштовний візуальний клієнт Git. Почніть:';
+
+  @override
+  String get welCloneSub => 'З URL (HTTPS/SSH) у теку';
+
+  @override
+  String get welCreateSub => 'Новий локальний репозиторій з README/.gitignore';
+
+  @override
+  String get welOpenTitle => 'Відкрити репозиторій';
+
+  @override
+  String get welOpenSub => 'Виберіть наявну теку з .git';
+
+  @override
+  String get welUnpin => 'Відкріпити';
+
+  @override
+  String get welPin => 'Закріпити';
+
+  @override
+  String get welRemoveRecent => 'Прибрати з нещодавніх';
+
+  @override
+  String get welNotARepo => 'Це не репозиторій git';
+
+  @override
+  String get gvSearchCommits => 'Пошук комітів…';
+
+  @override
+  String get gvAuthorFilter => 'Автор…';
+
+  @override
+  String get gvPrevMatch => 'Попередній (⇧N)';
+
+  @override
+  String get gvNextMatch => 'Наступний (N)';
+
+  @override
+  String get gvCloseSearch => 'Закрити (Esc)';
+
+  @override
+  String get gvColumns => 'Стовпці';
+
+  @override
+  String gvUncommittedFiles(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Незакомічені зміни · $count файлів',
+      few: 'Незакомічені зміни · $count файли',
+      one: 'Незакомічені зміни · $count файл',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get gvCannotRebaseTitle => 'Неможливо перебазувати на цей коміт';
+
+  @override
+  String gvCannotRebaseBody(String sha) {
+    return 'Коміти вище $sha містять злиття, яке перебазування злило б в один рядок.';
+  }
+
+  @override
+  String get gvNothingToRebaseTitle => 'Нема чого перебазовувати';
+
+  @override
+  String gvNothingToRebaseBody(String sha) {
+    return '$sha вже є частиною цієї гілки, і план нічого не змінює.';
+  }
+
+  @override
+  String gvResetTitle(String sha) {
+    return 'Скинути до $sha?';
+  }
+
+  @override
+  String get gvResetBody =>
+      'Переміщує поточну гілку на цей коміт і відкидає всі незакомічені зміни. Це не можна скасувати з диска.';
+
+  @override
+  String get gvResetHard => 'Reset --hard';
+
+  @override
+  String get ccBranch => 'Гілка';
+
+  @override
+  String get cpTypeCommand => 'Введіть команду…';
+
+  @override
+  String get termClose => 'Закрити термінал (⌘`)';
+
+  @override
+  String get fiHistory => 'Історія';
+
+  @override
+  String get fiCouldNotLoad => 'Не вдалося завантажити історію';
+
+  @override
+  String get fiCouldNotBlame => 'Не вдалося визначити авторство цього файлу';
+
+  @override
+  String get ftvFlatList => 'Показати плоским списком';
+
+  @override
+  String get ftvGroupByFolder => 'Групувати за текою';
+
+  @override
+  String get confirmAction => 'Підтвердити';
 }

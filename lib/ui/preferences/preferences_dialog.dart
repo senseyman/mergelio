@@ -138,7 +138,7 @@ class _GeneralTab extends ConsumerWidget {
             style: TextStyle(color: t.textFaint, fontSize: 12),
           ),
         ),
-        for (final e in graphColumnLabels.entries)
+        for (final e in graphColumnLabels(l).entries)
           _SwitchRow(
             e.value,
             s.graphCols[e.key] ?? true,

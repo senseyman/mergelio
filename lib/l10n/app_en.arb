@@ -755,5 +755,74 @@
   },
   "bsResetAndSwitch": "Reset & switch",
   "wvChanges": "Changes",
-  "wvChangesSub": "Working tree · staging · commit"
+  "wvChangesSub": "Working tree · staging · commit",
+
+  "rdlgCloneTitle": "Clone repository",
+  "rdlgCreateTitle": "Create repository",
+  "rdlgFolderName": "Folder name",
+  "rdlgFolderHint": "derived from the URL",
+  "rdlgDestFolder": "Destination folder",
+  "rdlgCloning": "Cloning…",
+  "rdlgClone": "Clone",
+  "rdlgRepoName": "Repository name",
+  "rdlgParentFolder": "Parent folder",
+  "rdlgDefaultBranch": "Default branch",
+  "rdlgInitReadme": "Initialise with README.md",
+  "rdlgAddGitignore": "Add an empty .gitignore",
+  "rdlgCreating": "Creating…",
+  "rdlgChooseFolder": "Choose a folder…",
+  "rdlgBrowse": "Browse",
+  "welTitle": "Welcome to Mergelio",
+  "welSubtitle": "Free visual Git client. Get started:",
+  "welCloneSub": "From a URL (HTTPS/SSH) into a folder",
+  "welCreateSub": "New local repository with README/.gitignore",
+  "welOpenTitle": "Open repository",
+  "welOpenSub": "Choose an existing folder with .git",
+  "welUnpin": "Unpin",
+  "welPin": "Pin",
+  "welRemoveRecent": "Remove from recents",
+  "welNotARepo": "Not a git repository",
+  "gvSearchCommits": "Search commits…",
+  "gvAuthorFilter": "Author…",
+  "gvPrevMatch": "Previous (⇧N)",
+  "gvNextMatch": "Next (N)",
+  "gvCloseSearch": "Close (Esc)",
+  "gvColumns": "Columns",
+  "gvUncommittedFiles": "{count, plural, one{Uncommitted changes · {count} file} other{Uncommitted changes · {count} files}}",
+  "@gvUncommittedFiles": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "gvCannotRebaseTitle": "Cannot rebase onto this commit",
+  "gvCannotRebaseBody": "The commits above {sha} include a merge, which a rebase would flatten.",
+  "@gvCannotRebaseBody": {
+    "placeholders": {
+      "sha": {"type": "String"}
+    }
+  },
+  "gvNothingToRebaseTitle": "Nothing to rebase",
+  "gvNothingToRebaseBody": "{sha} is already part of this branch and the plan changes nothing.",
+  "@gvNothingToRebaseBody": {
+    "placeholders": {
+      "sha": {"type": "String"}
+    }
+  },
+  "gvResetTitle": "Reset to {sha}?",
+  "@gvResetTitle": {
+    "placeholders": {
+      "sha": {"type": "String"}
+    }
+  },
+  "gvResetBody": "Moves the current branch to this commit and discards all uncommitted changes. This cannot be undone from disk.",
+  "gvResetHard": "Reset --hard",
+  "ccBranch": "Branch",
+  "cpTypeCommand": "Type a command…",
+  "termClose": "Close terminal (⌘`)",
+  "fiHistory": "History",
+  "fiCouldNotLoad": "Could not load history",
+  "fiCouldNotBlame": "Could not blame this file",
+  "ftvFlatList": "Show as flat list",
+  "ftvGroupByFolder": "Group by folder",
+  "confirmAction": "Confirm"
 }

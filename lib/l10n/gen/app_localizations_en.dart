@@ -1337,4 +1337,163 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get wvChangesSub => 'Working tree · staging · commit';
+
+  @override
+  String get rdlgCloneTitle => 'Clone repository';
+
+  @override
+  String get rdlgCreateTitle => 'Create repository';
+
+  @override
+  String get rdlgFolderName => 'Folder name';
+
+  @override
+  String get rdlgFolderHint => 'derived from the URL';
+
+  @override
+  String get rdlgDestFolder => 'Destination folder';
+
+  @override
+  String get rdlgCloning => 'Cloning…';
+
+  @override
+  String get rdlgClone => 'Clone';
+
+  @override
+  String get rdlgRepoName => 'Repository name';
+
+  @override
+  String get rdlgParentFolder => 'Parent folder';
+
+  @override
+  String get rdlgDefaultBranch => 'Default branch';
+
+  @override
+  String get rdlgInitReadme => 'Initialise with README.md';
+
+  @override
+  String get rdlgAddGitignore => 'Add an empty .gitignore';
+
+  @override
+  String get rdlgCreating => 'Creating…';
+
+  @override
+  String get rdlgChooseFolder => 'Choose a folder…';
+
+  @override
+  String get rdlgBrowse => 'Browse';
+
+  @override
+  String get welTitle => 'Welcome to Mergelio';
+
+  @override
+  String get welSubtitle => 'Free visual Git client. Get started:';
+
+  @override
+  String get welCloneSub => 'From a URL (HTTPS/SSH) into a folder';
+
+  @override
+  String get welCreateSub => 'New local repository with README/.gitignore';
+
+  @override
+  String get welOpenTitle => 'Open repository';
+
+  @override
+  String get welOpenSub => 'Choose an existing folder with .git';
+
+  @override
+  String get welUnpin => 'Unpin';
+
+  @override
+  String get welPin => 'Pin';
+
+  @override
+  String get welRemoveRecent => 'Remove from recents';
+
+  @override
+  String get welNotARepo => 'Not a git repository';
+
+  @override
+  String get gvSearchCommits => 'Search commits…';
+
+  @override
+  String get gvAuthorFilter => 'Author…';
+
+  @override
+  String get gvPrevMatch => 'Previous (⇧N)';
+
+  @override
+  String get gvNextMatch => 'Next (N)';
+
+  @override
+  String get gvCloseSearch => 'Close (Esc)';
+
+  @override
+  String get gvColumns => 'Columns';
+
+  @override
+  String gvUncommittedFiles(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Uncommitted changes · $count files',
+      one: 'Uncommitted changes · $count file',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get gvCannotRebaseTitle => 'Cannot rebase onto this commit';
+
+  @override
+  String gvCannotRebaseBody(String sha) {
+    return 'The commits above $sha include a merge, which a rebase would flatten.';
+  }
+
+  @override
+  String get gvNothingToRebaseTitle => 'Nothing to rebase';
+
+  @override
+  String gvNothingToRebaseBody(String sha) {
+    return '$sha is already part of this branch and the plan changes nothing.';
+  }
+
+  @override
+  String gvResetTitle(String sha) {
+    return 'Reset to $sha?';
+  }
+
+  @override
+  String get gvResetBody =>
+      'Moves the current branch to this commit and discards all uncommitted changes. This cannot be undone from disk.';
+
+  @override
+  String get gvResetHard => 'Reset --hard';
+
+  @override
+  String get ccBranch => 'Branch';
+
+  @override
+  String get cpTypeCommand => 'Type a command…';
+
+  @override
+  String get termClose => 'Close terminal (⌘`)';
+
+  @override
+  String get fiHistory => 'History';
+
+  @override
+  String get fiCouldNotLoad => 'Could not load history';
+
+  @override
+  String get fiCouldNotBlame => 'Could not blame this file';
+
+  @override
+  String get ftvFlatList => 'Show as flat list';
+
+  @override
+  String get ftvGroupByFolder => 'Group by folder';
+
+  @override
+  String get confirmAction => 'Confirm';
 }
