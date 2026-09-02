@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mergelio/data/update/installer_windows.dart';
 import 'package:mergelio/data/update/update_installer.dart';
 
 class FakeLauncher implements ProcessLauncher {
@@ -45,6 +46,35 @@ void main() {
       final result = await launcher.run('codesign', const []);
       expect(result.exitCode, 1);
       expect(result.stderr, 'not signed');
+    });
+  });
+
+  group('windows', () {
+    test('hands the installer a silent upgrade command line', () async {
+      final launcher = FakeLauncher();
+      final file = File('${Directory.systemTemp.path}/setup.exe');
+      file.writeAsStringSync('');
+      addTearDown(() => file.deleteSync());
+
+      await WindowsInstaller(launcher: launcher).handOff(file);
+
+      expect(launcher.detached, hasLength(1));
+      expect(launcher.detached.single, [
+        file.path,
+        '/SILENT',
+        '/CLOSEAPPLICATIONS',
+        '/RESTARTAPPLICATIONS',
+        '/NORESTART',
+      ]);
+    });
+
+    test('refuses a file that is not there', () async {
+      final launcher = FakeLauncher();
+      await expectLater(
+        WindowsInstaller(launcher: launcher).handOff(File('/nope/setup.exe')),
+        throwsA(isA<UpdateInstallError>()),
+      );
+      expect(launcher.detached, isEmpty);
     });
   });
 }
