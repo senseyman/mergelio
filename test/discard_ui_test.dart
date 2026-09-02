@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/core/tokens.dart';
 import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
@@ -36,6 +37,8 @@ Widget _harness(RepoData data) => ProviderScope(
     ),
   ],
   child: MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
     theme: ThemeData(extensions: [AppTokens.dark()]),
     home: Scaffold(
       body: WorkingTreePanel(repoPath: '/r', data: data),

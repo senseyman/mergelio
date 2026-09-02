@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/search.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../../state/graph_selection.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
@@ -22,6 +23,7 @@ void openGlobalSearch(WidgetRef ref) {
 
 /// Opens the command palette with network ops, checkouts and fly-to commits.
 void openGlobalPalette(BuildContext context, WidgetRef ref) {
+  final l = AppLocalizations.of(context);
   final path = ref.read(workspaceProvider).activeTab?.path;
   if (path == null) return;
   final actions = ref.read(repoActionsProvider(path));
@@ -31,7 +33,7 @@ void openGlobalPalette(BuildContext context, WidgetRef ref) {
     PaletteCommand('Pull', Icons.south_west, () => actions.pull()),
     PaletteCommand('Push', Icons.north_east, () => actions.push()),
     PaletteCommand(
-      'Global search',
+      l.tbGlobalSearch,
       Icons.search,
       () async => openGlobalSearch(ref),
     ),
@@ -39,15 +41,15 @@ void openGlobalPalette(BuildContext context, WidgetRef ref) {
       if (!context.mounted) return;
       final edit = await showRemoteDialog(
         context,
-        title: 'Add remote',
-        confirmLabel: 'Add',
+        title: l.sbAddRemoteTitle,
+        confirmLabel: l.sbAdd,
         existing: data?.remotes ?? const [],
       );
       if (edit != null) await actions.addRemote(edit.name, edit.url);
     }),
     for (final b in data?.branches ?? const [])
       PaletteCommand(
-        'Checkout: ${b.name}',
+        l.gaCheckoutBranch(b.name),
         Icons.call_split,
         // Routed through activateBranch, not actions.checkout directly, so
         // this consults the same worktree-collision guard as every other
@@ -59,7 +61,7 @@ void openGlobalPalette(BuildContext context, WidgetRef ref) {
       ),
     for (final c in (data?.commits ?? const []).take(200))
       PaletteCommand(
-        'Fly to: ${c.shortSha}  ${c.message}',
+        l.gaFlyToCommit(c.shortSha, c.message),
         Icons.my_location,
         () async => ref.read(selectedCommitProvider.notifier).state = c.sha,
       ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/tokens.dart';
+import '../../l10n/gen/app_localizations.dart';
 
 /// What a collapsed left panel leaves behind: a narrow strip whose only job is
 /// bringing the panel back. Shared by the history sidebar and the project
@@ -11,6 +12,7 @@ class CollapsedRail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     return Container(
       width: 44,
@@ -23,7 +25,7 @@ class CollapsedRail extends StatelessWidget {
           const SizedBox(height: 6),
           IconButton(
             iconSize: 17,
-            tooltip: 'Expand',
+            tooltip: l.railExpand,
             icon: const Icon(Icons.chevron_right),
             onPressed: onExpand,
           ),

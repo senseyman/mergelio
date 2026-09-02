@@ -58,7 +58,7 @@ class CommitDetails extends ConsumerWidget {
             child: Row(
               children: [
                 Text(
-                  'COMMIT',
+                  l.cdCommit,
                   style: TextStyle(
                     color: t.textFaint,
                     fontSize: 11,
@@ -72,7 +72,7 @@ class CommitDetails extends ConsumerWidget {
                     onPressed: () =>
                         ref.read(selectedCommitProvider.notifier).state =
                             wipSelection,
-                    child: const Text('‹ WIP', style: TextStyle(fontSize: 12)),
+                    child: Text(l.cdWip, style: TextStyle(fontSize: 12)),
                   ),
               ],
             ),
@@ -155,9 +155,12 @@ class CommitDetails extends ConsumerWidget {
                   ),
                 ],
                 const SizedBox(height: 12),
-                _Meta(label: 'Author', value: '${c.author} <${c.authorEmail}>'),
                 _Meta(
-                  label: 'Date',
+                  label: l.cdAuthor,
+                  value: '${c.author} <${c.authorEmail}>',
+                ),
+                _Meta(
+                  label: l.cdDate,
                   value: formatCommitDate(
                     c.date,
                     withTime: true,
@@ -168,7 +171,7 @@ class CommitDetails extends ConsumerWidget {
                 _MetaSha(sha: c.sha),
                 for (final p in c.parents)
                   _Meta(
-                    label: 'Parent',
+                    label: l.cdParent,
                     value: p.length > 7 ? p.substring(0, 7) : p,
                     mono: true,
                   ),
@@ -182,7 +185,7 @@ class CommitDetails extends ConsumerWidget {
                         Icon(Icons.group_outlined, size: 13, color: t.accent),
                         const SizedBox(width: 6),
                         Text(
-                          'Co-authored',
+                          l.cdCoauthored,
                           style: TextStyle(color: t.textMuted, fontSize: 12),
                         ),
                       ],
@@ -192,7 +195,7 @@ class CommitDetails extends ConsumerWidget {
                 Row(
                   children: [
                     Text(
-                      'CHANGED FILES',
+                      l.cdChangedFiles,
                       style: TextStyle(
                         color: t.textFaint,
                         fontSize: 10.5,
@@ -217,13 +220,13 @@ class CommitDetails extends ConsumerWidget {
                     ),
                   ),
                   error: (e, _) => Text(
-                    'Could not read changes',
+                    l.cdCouldNotRead,
                     style: TextStyle(color: t.textMuted, fontSize: 12),
                   ),
                   data: (list) {
                     if (list.isEmpty) {
                       return Text(
-                        'No changes',
+                        l.cdNoChanges,
                         style: TextStyle(color: t.textFaint, fontSize: 12),
                       );
                     }
@@ -365,6 +368,7 @@ class _MetaSha extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final short = sha.length > 7 ? sha.substring(0, 7) : sha;
     return Padding(
@@ -374,7 +378,7 @@ class _MetaSha extends StatelessWidget {
           SizedBox(
             width: 52,
             child: Text(
-              'SHA',
+              l.cdSha,
               style: TextStyle(color: t.textFaint, fontSize: 11.5),
             ),
           ),
@@ -422,6 +426,7 @@ class _FileRow extends StatelessWidget {
   }
 
   void _menu(BuildContext context, Offset at) {
+    final l = AppLocalizations.of(context);
     showContextMenu<void>(
       context: context,
       position: at,
@@ -430,7 +435,7 @@ class _FileRow extends StatelessWidget {
           height: 34,
           onTap: () =>
               showFileInsight(context, repoPath: repoPath, path: file.path),
-          child: const Text('File history', style: TextStyle(fontSize: 13)),
+          child: Text(l.wtpFileHistory, style: TextStyle(fontSize: 13)),
         ),
         PopupMenuItem(
           height: 34,
@@ -440,7 +445,7 @@ class _FileRow extends StatelessWidget {
             path: file.path,
             initialTab: 1,
           ),
-          child: const Text('Blame', style: TextStyle(fontSize: 13)),
+          child: Text(l.wtpBlame, style: TextStyle(fontSize: 13)),
         ),
       ],
     );

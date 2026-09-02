@@ -26,7 +26,7 @@ class AppToolbar extends ConsumerWidget {
     final l = AppLocalizations.of(context);
     void soon(String what) => ref
         .read(toastProvider.notifier)
-        .show(what, description: 'Coming in a later stage');
+        .show(what, description: l.tbComingLater);
 
     return Container(
       height: 48,
@@ -40,7 +40,7 @@ class AppToolbar extends ConsumerWidget {
           const MergelioMark(size: 24),
           const SizedBox(width: 8),
           Text(
-            'Mergelio',
+            l.appTitle,
             style: AppFonts.disp(
               size: 15,
               weight: FontWeight.w700,
@@ -85,7 +85,7 @@ class AppToolbar extends ConsumerWidget {
             tooltip: l.tooltipTerminal,
             onPressed: () {
               if (ref.read(workspaceProvider).activeTab == null) {
-                soon('Terminal');
+                soon(l.tbTerminal);
                 return;
               }
               ref.read(settingsProvider.notifier).toggleTerminal();
@@ -96,7 +96,7 @@ class AppToolbar extends ConsumerWidget {
             tooltip: l.tooltipSearch,
             onPressed: () {
               if (ref.read(workspaceProvider).activeTab == null) {
-                soon('Global search');
+                soon(l.tbGlobalSearch);
                 return;
               }
               openGlobalSearch(ref);
@@ -107,7 +107,7 @@ class AppToolbar extends ConsumerWidget {
             tooltip: l.tooltipPalette,
             onPressed: () {
               if (ref.read(workspaceProvider).activeTab == null) {
-                soon('Command palette');
+                soon(l.tbCommandPalette);
                 return;
               }
               openGlobalPalette(context, ref);

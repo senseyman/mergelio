@@ -61,6 +61,7 @@ class _MergeToolState extends ConsumerState<MergeTool> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final session = ref.watch(mergeSessionProvider(widget.repoPath));
     if (session == null) return const SizedBox.shrink();
@@ -118,10 +119,12 @@ class _MergeToolState extends ConsumerState<MergeTool> {
                     Expanded(
                       child: _ConflictView(
                         file: file,
-                        oursLabel: into == null ? 'Current' : 'Current — $into',
+                        oursLabel: into == null
+                            ? l.mtCurrent
+                            : l.mtCurrentNamed(into),
                         theirsLabel: session.branch.isEmpty
-                            ? 'Incoming'
-                            : 'Incoming — ${session.branch}',
+                            ? l.mtIncoming
+                            : l.mtIncomingNamed(session.branch),
                         onResolve: _resolve,
                       ),
                     ),
@@ -362,6 +365,7 @@ class _HunkCardState extends State<_HunkCard> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final hunk = widget.hunk;
     final res = widget.resolution;
@@ -390,12 +394,12 @@ class _HunkCardState extends State<_HunkCard> {
                   const Spacer(),
                   if (res == Resolution.both)
                     Text(
-                      '⚠ needs review',
+                      l.mtNeedsReview,
                       style: TextStyle(color: t.warning, fontSize: 11),
                     )
                   else if (res != null)
                     Text(
-                      '✓ resolved',
+                      l.mtResolved,
                       style: TextStyle(color: t.success, fontSize: 11),
                     ),
                 ],
@@ -407,6 +411,7 @@ class _HunkCardState extends State<_HunkCard> {
                 // Current side carries the success tint, incoming the accent,
                 // matching the spec's zone colours.
                 _side(
+                  l,
                   t,
                   widget.oursLabel,
                   hunk.ours,
@@ -416,6 +421,7 @@ class _HunkCardState extends State<_HunkCard> {
                   Resolution.ours,
                 ),
                 _side(
+                  l,
                   t,
                   widget.theirsLabel,
                   hunk.theirs,
@@ -431,9 +437,7 @@ class _HunkCardState extends State<_HunkCard> {
                 TextButton(
                   onPressed: () => widget.onAccept(Resolution.both),
                   child: Text(
-                    res == Resolution.both
-                        ? 'Both accepted ⚠ needs review'
-                        : 'Accept both',
+                    res == Resolution.both ? l.mtBothAccepted : l.mtAcceptBoth,
                     style: TextStyle(
                       fontSize: 12,
                       color: res == Resolution.both ? t.warning : t.textMuted,
@@ -443,7 +447,7 @@ class _HunkCardState extends State<_HunkCard> {
                 const Spacer(),
                 TextButton(
                   onPressed: _editor == null ? _startEdit : null,
-                  child: const Text('Edit', style: TextStyle(fontSize: 12)),
+                  child: Text(l.edit, style: TextStyle(fontSize: 12)),
                 ),
               ],
             ),
@@ -461,10 +465,10 @@ class _HunkCardState extends State<_HunkCard> {
                         fontSize: 12.5,
                         fontFamily: 'monospace',
                       ),
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         isDense: true,
-                        border: OutlineInputBorder(),
-                        labelText: 'RESULT',
+                        border: const OutlineInputBorder(),
+                        labelText: l.mtResult,
                       ),
                     ),
                     Align(
@@ -474,8 +478,8 @@ class _HunkCardState extends State<_HunkCard> {
                           Resolution.custom,
                           lines: _editor!.text.split('\n'),
                         ),
-                        child: const Text(
-                          'Use edit',
+                        child: Text(
+                          l.mtUseEdit,
                           style: TextStyle(fontSize: 12),
                         ),
                       ),
@@ -513,6 +517,7 @@ class _HunkCardState extends State<_HunkCard> {
 
   /// One side (OURS/THEIRS) with word-level highlight against [other].
   Widget _side(
+    AppLocalizations l,
     AppTokens t,
     String label,
     List<String> lines,
@@ -555,7 +560,7 @@ class _HunkCardState extends State<_HunkCard> {
                       vertical: 2,
                     ),
                   ),
-                  child: const Text('Accept', style: TextStyle(fontSize: 11)),
+                  child: Text(l.mtAccept, style: TextStyle(fontSize: 11)),
                 ),
               ],
             ),

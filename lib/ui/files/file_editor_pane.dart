@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../../state/open_files.dart';
 import '../../state/unsaved_guard.dart';
 import '../common/dialogs.dart';
@@ -56,14 +57,15 @@ class FileEditorPaneState extends ConsumerState<FileEditorPane> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final open = ref.watch(openFilesProvider(repoPath));
     _handles.removeWhere((path, _) => !open.paths.contains(path));
 
     if (open.paths.isEmpty) {
       return PanelPlaceholder(
-        title: 'Editor',
-        hint: 'Open a file to edit it',
+        title: l.filesEditor,
+        hint: l.fepOpenAFile,
         background: t.bgApp,
       );
     }
@@ -166,7 +168,7 @@ class _GoneBanner extends StatelessWidget {
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
     color: t.danger.withValues(alpha: 0.14),
     child: Text(
-      'Deleted on disk — saving is disabled',
+      AppLocalizations.of(context).fepDeletedOnDisk,
       style: TextStyle(color: t.danger, fontSize: 11),
     ),
   );
@@ -230,6 +232,7 @@ class _Tab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final name = path.split('/').last;
     return Tooltip(
@@ -278,7 +281,7 @@ class _Tab extends StatelessWidget {
                 ],
                 const SizedBox(width: 4),
                 Tooltip(
-                  message: 'Close $path',
+                  message: l.filesClosePath(path),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(4),
                     onTap: onClose,

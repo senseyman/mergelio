@@ -16,7 +16,7 @@ import 'logs_row.dart';
 /// persist through the settings controller.
 Future<void> showPreferencesDialog(BuildContext context) => showAppModal<void>(
   context: context,
-  title: 'Preferences',
+  title: AppLocalizations.of(context).prefsTitle,
   icon: Icons.settings_outlined,
   width: 560,
   body: const SizedBox(height: 460, child: _PrefsBody()),
@@ -138,7 +138,7 @@ class _GeneralTab extends ConsumerWidget {
             style: TextStyle(color: t.textFaint, fontSize: 12),
           ),
         ),
-        for (final e in graphColumnLabels.entries)
+        for (final e in graphColumnLabels(l).entries)
           _SwitchRow(
             e.value,
             s.graphCols[e.key] ?? true,
@@ -212,29 +212,30 @@ class _ZoomRow extends StatelessWidget {
 class _ShortcutsTab extends StatelessWidget {
   const _ShortcutsTab();
 
-  static const _shortcuts = [
-    ('⌘K / ⌘⇧P', 'Command palette'),
-    ('⌘F', 'Search commits'),
-    ('N / ⇧N', 'Next / previous search match'),
-    ('⌘⏎', 'Commit (in composer)'),
-    ('⌘B', 'Create branch'),
-    ('⌘\\', 'Collapse left panel'),
-    ('⌘`', 'Toggle terminal'),
-    ('⌘ + / −', 'Zoom in / out'),
-    ('⌘0', 'Reset zoom'),
-    ('⌘Z', 'Undo last action'),
-    ('⌘⇧Z', 'Redo'),
-    ('⌘,', 'Preferences'),
-    ('Esc', 'Close dialog / cancel'),
+  static List<(String, String)> _shortcutRows(AppLocalizations l) => [
+    ('⌘K / ⌘⇧P', l.pfScCommandPalette),
+    ('⌘F', l.pfScSearchCommits),
+    ('N / ⇧N', l.pfScNextPrevMatch),
+    ('⌘⏎', l.pfScCommit),
+    ('⌘B', l.pfScCreateBranch),
+    ('⌘\\', l.pfScCollapsePanel),
+    ('⌘`', l.pfScToggleTerminal),
+    ('⌘ + / −', l.pfScZoom),
+    ('⌘0', l.pfScResetZoom),
+    ('⌘Z', l.pfScUndo),
+    ('⌘⇧Z', l.pfScRedo),
+    ('⌘,', l.pfScPreferences),
+    ('Esc', l.pfScCloseDialog),
   ];
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     return ListView(
       padding: const EdgeInsets.all(12),
       children: [
-        for (final (keys, desc) in _shortcuts)
+        for (final (keys, desc) in _shortcutRows(l))
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 5),
             child: Row(
@@ -285,9 +286,10 @@ class _CredentialsTabState extends ConsumerState<_CredentialsTab> {
   void _reload() => setState(() => _keys = _ssh.list());
 
   Future<void> _generate() async {
+    final l = AppLocalizations.of(context);
     final name = await showInputDialog(
       context,
-      title: 'Generate SSH key',
+      title: l.pfGenerateSshKey,
       label: 'Key file name (e.g. id_ed25519_work)',
     );
     if (name == null || name.trim().isEmpty) return;
@@ -298,8 +300,7 @@ class _CredentialsTabState extends ConsumerState<_CredentialsTab> {
           .read(toastProvider.notifier)
           .show(
             'Key generated without a passphrase',
-            description:
-                'Run ssh-keygen -p -f ~/.ssh/${name.trim()} to add one.',
+            description: l.pfAddPassphraseHint(name.trim()),
             kind: ToastKind.success,
           );
       _reload();
@@ -307,18 +308,19 @@ class _CredentialsTabState extends ConsumerState<_CredentialsTab> {
       if (!mounted) return;
       ref
           .read(toastProvider.notifier)
-          .show('Generate failed', description: '$e', kind: ToastKind.error);
+          .show(l.pfGenerateFailed, description: '$e', kind: ToastKind.error);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     return ListView(
       padding: const EdgeInsets.all(14),
       children: [
         Text(
-          'Authentication',
+          l.pfAuthentication,
           style: TextStyle(
             color: t.textPrimary,
             fontSize: 14,
@@ -327,16 +329,14 @@ class _CredentialsTabState extends ConsumerState<_CredentialsTab> {
         ),
         const SizedBox(height: 8),
         Text(
-          'HTTPS remotes use your system git credential helper; SSH remotes '
-          'use your SSH agent and keys. Mergelio never stores or reads your '
-          'passwords or private keys — only public keys are listed here.',
+          l.pfAuthBody,
           style: TextStyle(color: t.textMuted, fontSize: 13, height: 1.5),
         ),
         const SizedBox(height: 14),
         Row(
           children: [
             Text(
-              'SSH KEYS',
+              l.pfSshKeys,
               style: TextStyle(
                 color: t.textFaint,
                 fontSize: 11,
@@ -347,10 +347,7 @@ class _CredentialsTabState extends ConsumerState<_CredentialsTab> {
             const Spacer(),
             TextButton(
               onPressed: _generate,
-              child: const Text(
-                'Generate key…',
-                style: TextStyle(fontSize: 12),
-              ),
+              child: Text(l.pfGenerateKeyMenu, style: TextStyle(fontSize: 12)),
             ),
           ],
         ),
@@ -372,7 +369,7 @@ class _CredentialsTabState extends ConsumerState<_CredentialsTab> {
             }
             if (keys.isEmpty) {
               return Text(
-                'No SSH keys found in ~/.ssh',
+                l.pfNoSshKeys,
                 style: TextStyle(color: t.textFaint, fontSize: 12),
               );
             }
@@ -410,7 +407,7 @@ class _CredentialsTabState extends ConsumerState<_CredentialsTab> {
                           ),
                         ),
                         Tooltip(
-                          message: 'Copy public key',
+                          message: l.pfCopyPublicKey,
                           child: IconButton(
                             iconSize: 15,
                             visualDensity: VisualDensity.compact,
@@ -422,7 +419,7 @@ class _CredentialsTabState extends ConsumerState<_CredentialsTab> {
                               ref
                                   .read(toastProvider.notifier)
                                   .show(
-                                    'Public key copied',
+                                    l.pfPublicKeyCopied,
                                     kind: ToastKind.success,
                                   );
                             },
@@ -540,7 +537,7 @@ class _AppearanceTab extends ConsumerWidget {
                 Clipboard.setData(ClipboardData(text: spec.encode()));
                 ref
                     .read(toastProvider.notifier)
-                    .show('Theme JSON copied', kind: ToastKind.success);
+                    .show(l.pfThemeJsonCopied, kind: ToastKind.success);
               },
               child: Text(l.export),
             ),
@@ -548,8 +545,8 @@ class _AppearanceTab extends ConsumerWidget {
               onPressed: () async {
                 final raw = await showInputDialog(
                   context,
-                  title: 'Import theme',
-                  label: 'Paste theme JSON',
+                  title: l.pfImportTheme,
+                  label: l.pfPasteThemeJson,
                 );
                 if (raw == null) return;
                 try {
@@ -557,7 +554,7 @@ class _AppearanceTab extends ConsumerWidget {
                 } on Object {
                   ref
                       .read(toastProvider.notifier)
-                      .show('Invalid theme JSON', kind: ToastKind.error);
+                      .show(l.pfInvalidThemeJson, kind: ToastKind.error);
                 }
               },
               child: Text(l.import),
@@ -581,7 +578,7 @@ class _AppearanceTab extends ConsumerWidget {
                   c.applySavedTheme(name);
                   ref
                       .read(toastProvider.notifier)
-                      .show('Applied "$name"', kind: ToastKind.success);
+                      .show(l.pfThemeApplied(name), kind: ToastKind.success);
                 },
                 onDeleted: () => c.deleteSavedTheme(name),
               ),
@@ -594,14 +591,14 @@ class _AppearanceTab extends ConsumerWidget {
               onPressed: () async {
                 final name = await showInputDialog(
                   context,
-                  title: 'Save theme',
-                  label: 'Theme name',
+                  title: l.pfSaveTheme,
+                  label: l.pfThemeName,
                 );
                 if (name == null || name.trim().isEmpty) return;
                 c.saveTheme(name.trim(), [for (final b in base) b.toARGB32()]);
                 ref
                     .read(toastProvider.notifier)
-                    .show('Saved "$name"', kind: ToastKind.success);
+                    .show(l.pfThemeSaved(name), kind: ToastKind.success);
               },
             ),
           ],
@@ -684,6 +681,7 @@ class _ColorRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final isPreset = _AppearanceTab._presets.contains(selected);
     return Wrap(
@@ -711,8 +709,8 @@ class _ColorRow extends StatelessWidget {
           onTap: () async {
             final raw = await showInputDialog(
               context,
-              title: 'Custom colour',
-              label: 'Hex (e.g. #6E7BFF)',
+              title: l.pfCustomColour,
+              label: l.pfHexHint,
             );
             if (raw == null) return;
             final argb = parseHexColor(raw);

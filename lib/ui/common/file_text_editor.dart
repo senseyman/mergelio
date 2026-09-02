@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/tokens.dart';
 import '../../domain/file_edit.dart';
 import '../../domain/text_find.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../../state/file_editor.dart';
 import '../../state/repo_actions.dart';
 import '../common/confirm.dart';
@@ -193,6 +194,7 @@ class _FileTextEditorState extends ConsumerState<FileTextEditor> {
   }
 
   Future<void> _save() async {
+    final l = AppLocalizations.of(context);
     final ctl = _controller;
     if (ctl == null || _saving) return;
     final onDisk = File('${widget.repoPath}/${widget.relPath}');
@@ -201,11 +203,9 @@ class _FileTextEditorState extends ConsumerState<FileTextEditor> {
       final ok = await confirmDestructive(
         ref,
         context,
-        title: 'File changed on disk',
-        body:
-            'Something else wrote ${widget.relPath} while it was open here. '
-            'Saving replaces those changes with this text.',
-        confirmLabel: 'Overwrite',
+        title: l.commonFileChangedOnDisk,
+        body: l.fteConflictBody(widget.relPath),
+        confirmLabel: l.commonOverwrite,
       );
       if (!ok) return;
     }
@@ -257,6 +257,7 @@ class _FileTextEditorState extends ConsumerState<FileTextEditor> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     return ref
         .watch(
@@ -270,7 +271,7 @@ class _FileTextEditorState extends ConsumerState<FileTextEditor> {
               child: CircularProgressIndicator(strokeWidth: 2),
             ),
           ),
-          error: (e, _) => _message(t, 'Could not open this file'),
+          error: (e, _) => _message(t, l.fteCouldNotOpen),
           data: (file) {
             if (!file.canEdit) return _message(t, file.blocker!);
             // The first delivery seeds the field; later rebuilds must not
@@ -385,11 +386,12 @@ class _FileTextEditorState extends ConsumerState<FileTextEditor> {
   );
 
   Widget _findBar(AppTokens t) {
+    final l = AppLocalizations.of(context);
     final matches = _matches;
     final count = _query.text.isEmpty
         ? ''
         : (matches.isEmpty
-              ? 'No results'
+              ? l.fteNoResults
               : '${_current.clamp(0, matches.length - 1) + 1} of '
                     '${matches.length}');
     return Container(
@@ -400,10 +402,15 @@ class _FileTextEditorState extends ConsumerState<FileTextEditor> {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       child: Row(
         children: [
-          Expanded(child: _findField(t, 'find:query', _query, 'Find')),
+          Expanded(child: _findField(t, 'find:query', _query, l.fteFind)),
           const SizedBox(width: 8),
           Expanded(
-            child: _findField(t, 'find:replace', _replacement, 'Replace with'),
+            child: _findField(
+              t,
+              'find:replace',
+              _replacement,
+              l.fteReplaceWith,
+            ),
           ),
           const SizedBox(width: 8),
           SizedBox(
@@ -417,7 +424,7 @@ class _FileTextEditorState extends ConsumerState<FileTextEditor> {
             t,
             'find:case',
             Icons.text_fields,
-            'Match case',
+            l.fteMatchCase,
             () => setState(() {
               _caseSensitive = !_caseSensitive;
               _current = 0;
@@ -428,28 +435,28 @@ class _FileTextEditorState extends ConsumerState<FileTextEditor> {
             t,
             'find:prev',
             Icons.keyboard_arrow_up,
-            'Previous match',
+            l.ftePreviousMatch,
             () => _step(forward: false),
           ),
           _findButton(
             t,
             'find:next',
             Icons.keyboard_arrow_down,
-            'Next match',
+            l.fteNextMatch,
             () => _step(forward: true),
           ),
           _findButton(
             t,
             'find:replaceOne',
             Icons.find_replace,
-            'Replace this match',
+            l.fteReplaceThis,
             _replaceCurrent,
           ),
           _findButton(
             t,
             'find:replaceAll',
             Icons.all_inclusive,
-            'Replace all',
+            l.fteReplaceAll,
             _replaceAll,
           ),
           _findButton(t, 'find:close', Icons.close, 'Close', _closeFind),

@@ -23,12 +23,8 @@
   "opPush": "Push",
   "opPushOrigin": "Push origin",
   "opForcePush": "Force-push (with lease)",
-  "opUndo": "Undo",
-  "opRedo": "Redo",
 
   "welcomeOpen": "Open",
-  "welcomeClone": "Clone",
-  "welcomeCreate": "Create",
   "welcomeRecents": "Recent repositories",
   "welcomeNoRecents": "No recent repositories yet",
 
@@ -118,7 +114,7 @@
       "sha": {"type": "String"}
     }
   },
-  "mergeInto": "Merge {branch} \u2192 {into}",
+  "mergeInto": "Merge {branch} → {into}",
   "@mergeInto": {
     "placeholders": {
       "branch": {"type": "String"},
@@ -150,5 +146,901 @@
     }
   },
   "a11yWorkingChanges": "Working tree changes",
-  "a11yCommitGraph": "Commit history graph"
+  "a11yCommitGraph": "Commit history graph",
+
+  "shellAddRepository": "Add repository",
+  "shellOpenRepoMenu": "Open…",
+  "shellCloneRepoMenu": "Clone…",
+  "shellCreateRepoMenu": "Create…",
+  "shellRepoGroup": "Repo group",
+  "shellAllGroups": "All",
+  "shellNewGroup": "New group",
+  "shellNewGroupMenu": "New group…",
+  "shellGroupName": "Group name",
+  "shellRenameGroup": "Rename group",
+  "shellRenameMenu": "Rename…",
+  "shellRenameGroupMenu": "Rename group…",
+  "shellDeleteGroupTitle": "Delete group?",
+  "shellDeleteGroupMenu": "Delete group…",
+  "shellDeleteGroupBody": "\"{name}\" is removed from the switcher. Repositories in it stay open, without a group.",
+  "@shellDeleteGroupBody": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "shellCloseTab": "Close tab",
+  "shellCloseOthers": "Close others",
+  "shellRemoveFromGroup": "Remove from {name}",
+  "@shellRemoveFromGroup": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "shellMoveToGroup": "Move to {name}",
+  "@shellMoveToGroup": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "tabWorktree": "Worktree",
+  "tabWorktreeOf": "Worktree of {parent}",
+  "@tabWorktreeOf": {
+    "placeholders": {
+      "parent": {"type": "String"}
+    }
+  },
+
+  "wtAdd": "Add worktree",
+  "wtLocation": "Location",
+  "wtBrowse": "Browse…",
+  "wtNewBranch": "New branch",
+  "wtFrom": "from",
+  "wtExistingBranch": "Existing branch",
+  "wtDetachedAt": "Detached at",
+  "wtHeldBy": "— in {name}",
+  "@wtHeldBy": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "wtBranchExists": "That branch already exists",
+  "wtDirNotEmpty": "That directory is not empty",
+  "wtSubmodulesNote": "Submodules are not checked out in a new worktree; initialise them there yourself.",
+  "wtOpenInNewTab": "Open in a new tab",
+  "wtRemoveTitle": "Remove worktree?",
+  "wtCheckedOutBranch": "Checked out: {branch}",
+  "@wtCheckedOutBranch": {
+    "placeholders": {
+      "branch": {"type": "String"}
+    }
+  },
+  "wtDirDeleted": "The directory will be deleted.",
+  "wtRemove": "Remove",
+  "wtHasChangesTitle": "Worktree has changes",
+  "wtForcingDiscards": "Forcing discards those changes.",
+  "wtForceRemove": "Force remove",
+  "wtMoveTitle": "Move worktree",
+  "wtAlreadyThere": "That is where it already is",
+  "wtNewLocationFor": "New location for {name}",
+  "@wtNewLocationFor": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "wtMove": "Move",
+  "wtAlreadyCheckedOut": "Already checked out",
+  "wtCheckedOutInWorktreeAt": "{branch} is checked out in the worktree at",
+  "@wtCheckedOutInWorktreeAt": {
+    "placeholders": {
+      "branch": {"type": "String"}
+    }
+  },
+  "wtTwoPlacesWarning": "Checking out anyway puts the branch in two places at once; commits made in one leave the other behind.",
+  "wtCheckoutAnyway": "Checkout anyway",
+  "wtOpenWorktree": "Open worktree",
+  "wtPruneTitle": "Prune stale worktrees",
+  "wtNothingToPrune": "Nothing to prune.",
+  "wtEntriesWillBeRemoved": "These entries will be removed:",
+  "wtPrune": "Prune",
+
+  "sbRepository": "Repository",
+  "sbCollapse": "Collapse",
+  "sbCouldNotRead": "Could not read repository",
+  "sbRetry": "Retry",
+  "sbBranches": "Branches",
+  "sbNoBranches": "No branches",
+  "sbRemotes": "Remotes",
+  "sbNoRemotes": "No remotes",
+  "sbTags": "Tags",
+  "sbNoTags": "No tags",
+  "sbStashes": "Stashes",
+  "sbNoStashes": "No stashes",
+  "sbSubmodules": "Submodules",
+  "sbNoSubmodules": "No submodules",
+  "sbAddRemoteRow": "Add remote…",
+  "sbAddRemoteTitle": "Add remote",
+  "sbAdd": "Add",
+  "sbAddSubmoduleRow": "Add submodule…",
+  "sbPop": "Pop",
+  "sbInit": "Init",
+  "sbUpdate": "Update",
+  "sbUpdateToRemote": "Update to remote",
+  "sbSync": "Sync",
+  "sbDeinit": "Deinit",
+  "sbReset": "Reset",
+  "sbResetToUpstreamTitle": "Reset {branch} to {upstream}?",
+  "@sbResetToUpstreamTitle": {
+    "placeholders": {
+      "branch": {"type": "String"},
+      "upstream": {"type": "String"}
+    }
+  },
+  "sbResetUnpushedBody": "{count, plural, one{{count} unpushed commit on {branch} will be removed. This can be undone.} other{{count} unpushed commits on {branch} will be removed. This can be undone.}}",
+  "@sbResetUnpushedBody": {
+    "placeholders": {
+      "count": {"type": "int"},
+      "branch": {"type": "String"}
+    }
+  },
+  "sbResetMovedBody": "{branch} will be moved to {upstream}. This can be undone.",
+  "@sbResetMovedBody": {
+    "placeholders": {
+      "branch": {"type": "String"},
+      "upstream": {"type": "String"}
+    }
+  },
+  "sbCheckout": "Checkout",
+  "sbMergeIntoCurrent": "Merge into current",
+  "sbRebaseOntoCurrent": "Rebase onto current",
+  "sbSetUpstreamItem": "Set upstream…",
+  "sbSetUpstreamTitle": "Set upstream for {branch}",
+  "@sbSetUpstreamTitle": {
+    "placeholders": {
+      "branch": {"type": "String"}
+    }
+  },
+  "sbSetUpstreamHint": "e.g. origin/{branch}",
+  "@sbSetUpstreamHint": {
+    "placeholders": {
+      "branch": {"type": "String"}
+    }
+  },
+  "sbResetToRemote": "Reset to remote…",
+  "sbRenameItem": "Rename…",
+  "sbRenameBranchTitle": "Rename branch",
+  "sbDeleteBranch": "Delete branch",
+  "sbDeleteBranchTitle": "Delete {branch}?",
+  "@sbDeleteBranchTitle": {
+    "placeholders": {
+      "branch": {"type": "String"}
+    }
+  },
+  "sbDeleteBranchBody": "The branch ref will be removed. This can be undone.",
+  "sbDeleteBranchAndRemote": "Delete branch and remote…",
+  "sbDeleteBothTitle": "Delete {branch} and {upstream}?",
+  "@sbDeleteBothTitle": {
+    "placeholders": {
+      "branch": {"type": "String"},
+      "upstream": {"type": "String"}
+    }
+  },
+  "sbDeleteBothBody": "The branch will be removed here and on the remote. Only the local half can be undone.",
+  "sbDeleteBoth": "Delete both",
+  "sbCheckedOutIn": "Checked out in {name}",
+  "@sbCheckedOutIn": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "sbMergeSourceInto": "Merge «{source}» into «{target}»",
+  "@sbMergeSourceInto": {
+    "placeholders": {
+      "source": {"type": "String"},
+      "target": {"type": "String"}
+    }
+  },
+  "sbRebaseSourceOnto": "Rebase «{source}» onto «{target}»",
+  "@sbRebaseSourceOnto": {
+    "placeholders": {
+      "source": {"type": "String"},
+      "target": {"type": "String"}
+    }
+  },
+  "sbTipSwitchHint": "Click to show its tip · double-click to switch to {branch}",
+  "@sbTipSwitchHint": {
+    "placeholders": {
+      "branch": {"type": "String"}
+    }
+  },
+  "sbTipCheckoutHint": "Click to show its tip · double-click to check out {name}",
+  "@sbTipCheckoutHint": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "sbHasLocalBranch": "Has a local branch",
+  "sbSwitchTo": "Switch to {branch}",
+  "@sbSwitchTo": {
+    "placeholders": {
+      "branch": {"type": "String"}
+    }
+  },
+  "sbCheckOutNamed": "Check out {name}",
+  "@sbCheckOutNamed": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "sbMergeNamedIntoCurrent": "Merge {name} into current",
+  "@sbMergeNamedIntoCurrent": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "sbResetToThis": "Reset {branch} to this",
+  "@sbResetToThis": {
+    "placeholders": {
+      "branch": {"type": "String"}
+    }
+  },
+  "sbDeleteRemoteBranchTitle": "Delete {name}?",
+  "@sbDeleteRemoteBranchTitle": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "sbDeleteRemoteBranchBody": "The branch will be deleted on {remote}. Any local branch of the same name stays. This cannot be undone.",
+  "@sbDeleteRemoteBranchBody": {
+    "placeholders": {
+      "remote": {"type": "String"}
+    }
+  },
+  "sbDeleteNamedItem": "Delete {name}…",
+  "@sbDeleteNamedItem": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "sbFetchRemote": "Fetch {remote}",
+  "@sbFetchRemote": {
+    "placeholders": {
+      "remote": {"type": "String"}
+    }
+  },
+  "sbPrune": "Prune",
+  "sbCopyUrl": "Copy URL",
+  "sbEditRemoteTitle": "Edit remote",
+  "sbEditRemoteItem": "Edit remote…",
+  "sbRemoveRemoteTitle": "Remove remote {remote}?",
+  "@sbRemoveRemoteTitle": {
+    "placeholders": {
+      "remote": {"type": "String"}
+    }
+  },
+  "sbRemoveRemoteBody": "Its remote-tracking branches go with it. Undo restores the remote; fetch to bring the branches back.",
+  "sbRemove": "Remove",
+  "sbRemoveRemoteItem": "Remove remote…",
+  "sbPushTag": "Push tag",
+  "sbCopyName": "Copy name",
+  "sbDeleteTagTitle": "Delete tag {tag}?",
+  "@sbDeleteTagTitle": {
+    "placeholders": {
+      "tag": {"type": "String"}
+    }
+  },
+  "sbDeleteTagBody": "The tag will be removed locally. This can be undone.",
+  "sbDeleteTag": "Delete tag",
+  "sbDropStashTitle": "Drop {ref}?",
+  "@sbDropStashTitle": {
+    "placeholders": {
+      "ref": {"type": "String"}
+    }
+  },
+  "sbDropStashBody": "The stash will be deleted. An Undo toast lets you restore it.",
+  "sbDrop": "Drop",
+  "sbRemoveSubmoduleTitle": "Remove {name}?",
+  "@sbRemoveSubmoduleTitle": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "sbRemoveSubmoduleBody": "The submodule at {path} will be deinitialized and removed from .gitmodules. This cannot be undone.",
+  "@sbRemoveSubmoduleBody": {
+    "placeholders": {
+      "path": {"type": "String"}
+    }
+  },
+
+  "discard": "Discard",
+  "create": "Create",
+  "edit": "Edit",
+  "rename": "Rename",
+  "commonUnsavedChanges": "Unsaved changes",
+  "commonFileChangedOnDisk": "File changed on disk",
+  "commonOverwrite": "Overwrite",
+  "diffDiscardEditsTitle": "Discard edits?",
+  "diffDiscardEditsBody": "What you typed here has not been written to {path}.",
+  "@diffDiscardEditsBody": {
+    "placeholders": {
+      "path": {"type": "String"}
+    }
+  },
+  "diffSelectAll": "Select all",
+  "diffDiscardFileTitle": "Discard {path}?",
+  "@diffDiscardFileTitle": {
+    "placeholders": {
+      "path": {"type": "String"}
+    }
+  },
+  "diffDiscardFileBody": "This deletes the untracked file. You can undo it.",
+  "filesEditor": "Editor",
+  "filesClosePath": "Close {path}",
+  "@filesClosePath": {
+    "placeholders": {
+      "path": {"type": "String"}
+    }
+  },
+  "filesName": "Name",
+  "filesRenameTitle": "Rename",
+  "filesNewName": "New name",
+  "filesDeleteTitle": "Delete {name}?",
+  "@filesDeleteTitle": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "filesDiscardChangesTitle": "Discard changes to {name}?",
+  "@filesDiscardChangesTitle": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "filesRefresh": "Refresh",
+  "filesCollapse": "Collapse",
+
+  "wtpAlsoDeleteUntracked": "{count, plural, one{Also delete {count} untracked file} other{Also delete {count} untracked files}}",
+  "@wtpAlsoDeleteUntracked": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "diffDiscardHunkTitle": "Discard hunk?",
+  "diffDiscardLinesTitle": "{count, plural, one{Discard {count} line?} other{Discard {count} lines?}}",
+  "@diffDiscardLinesTitle": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "diffDiscardLinesBody": "This removes the selected changes from the working tree. You can undo it.",
+
+  "bbOpenRepoFirst": "Open a repository first",
+  "bbOperationRunning": "An operation is already running",
+  "bbNoRemote": "No remote configured",
+  "bbUndoLabelled": "Undo {label} (⌘Z)",
+  "@bbUndoLabelled": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "bbUndo": "Undo (⌘Z)",
+  "bbRedoLabelled": "Redo {label} (⌘⇧Z)",
+  "@bbRedoLabelled": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "bbRedo": "Redo (⌘⇧Z)",
+  "bbFetchOrigin": "Fetch origin",
+  "bbFetchAllRemotes": "Fetch all remotes",
+  "bbPullAllRemotes": "Pull (all remotes)",
+  "bbForcePushTitle": "Force-push?",
+  "bbForcePushBody": "This overwrites the remote branch with your local history (using --force-with-lease, which still refuses if the remote moved unexpectedly).",
+  "bbForcePush": "Force-push",
+  "bbBranch": "Branch",
+  "bbMerge": "Merge",
+  "bbStash": "Stash",
+  "sbarNoProfile": "No profile",
+  "sbarNoRepository": "No repository",
+  "sbarDark": "Dark",
+  "sbarLight": "Light",
+  "sbarCancelBusy": "Cancel {label}",
+  "@sbarCancelBusy": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "tbComingLater": "Coming in a later stage",
+  "tbTerminal": "Terminal",
+  "tbGlobalSearch": "Global search",
+  "tbCommandPalette": "Command palette",
+  "railExpand": "Expand",
+  "gaCheckoutBranch": "Checkout: {name}",
+  "@gaCheckoutBranch": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "gaFlyToCommit": "Fly to: {sha}  {message}",
+  "@gaFlyToCommit": {
+    "placeholders": {
+      "sha": {"type": "String"},
+      "message": {"type": "String"}
+    }
+  },
+  "rmcMomentsAgo": "moments ago",
+  "rmcMinutesAgo": "{minutes}m ago",
+  "@rmcMinutesAgo": {
+    "placeholders": {
+      "minutes": {"type": "int"}
+    }
+  },
+  "rmcHoursAgo": "{hours}h ago",
+  "@rmcHoursAgo": {
+    "placeholders": {
+      "hours": {"type": "int"}
+    }
+  },
+  "rmcDaysAgo": "{days}d ago",
+  "@rmcDaysAgo": {
+    "placeholders": {
+      "days": {"type": "int"}
+    }
+  },
+  "rmcNotFetched": "This repository has not fetched yet.",
+  "rmcLastFetched": "Last fetched {age}.",
+  "@rmcLastFetched": {
+    "placeholders": {
+      "age": {"type": "String"}
+    }
+  },
+  "rmcMergeFrom": "Merge from {remote}?",
+  "@rmcMergeFrom": {
+    "placeholders": {
+      "remote": {"type": "String"}
+    }
+  },
+  "rmcStaleWarning": "{source} is a remote-tracking branch. It is only as current as the last fetch from {remote}.",
+  "@rmcStaleWarning": {
+    "placeholders": {
+      "source": {"type": "String"},
+      "remote": {"type": "String"}
+    }
+  },
+  "rmcMergeAsIs": "Merge as-is",
+  "rmcFetchAndMerge": "Fetch and merge",
+  "ropCreateBranchTitle": "Create branch",
+  "ropCurrentBranch": "current branch",
+  "ropMergeIntoTitle": "Merge into {branch}",
+  "@ropMergeIntoTitle": {
+    "placeholders": {
+      "branch": {"type": "String"}
+    }
+  },
+  "ropCreateTagTitle": "Create tag",
+  "ropTagName": "Tag name",
+  "ropType": "Type",
+  "ropTagMessage": "Tag message",
+  "ropStashChangesTitle": "Stash changes",
+  "ropBranchName": "Branch name",
+  "ropStartFrom": "Start from",
+  "ropCheckoutAfterCreating": "Check out after creating",
+  "ropNoOtherBranches": "No other branches to merge.",
+  "ropBranchToMerge": "Branch to merge",
+  "ropMerge": "Merge",
+  "ropMessageOptional": "Message (optional)",
+  "ropOnlyStaged": "Only staged changes",
+  "ropStash": "Stash",
+  "shellPrevOpUnfinished": "A previous operation may not have finished",
+
+  "wtpChanges": "CHANGES",
+  "wtpDiscardAll": "Discard all changes",
+  "wtpUnstaged": "UNSTAGED",
+  "wtpStageAll": "Stage all",
+  "wtpStaged": "STAGED",
+  "wtpUnstageAll": "Unstage all",
+  "wtpAbortTitle": "Abort {name}?",
+  "@wtpAbortTitle": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "wtpAbortBody": "The staged resolution is discarded and the repository goes back to where the {name} started.",
+  "@wtpAbortBody": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "wtpAbort": "Abort",
+  "wtpOpPausedBody": "A {name} is paused. Review the staged files, then continue it.",
+  "@wtpOpPausedBody": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "wtpMergeOpenBody": "A merge is open. Review the staged files, then commit it.",
+  "wtpContinueOp": "Continue {name}",
+  "@wtpContinueOp": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "wtpTreeClean": "Working tree clean",
+  "wtpNothingToCommit": "Nothing to commit",
+  "wtpSectionCount": "{label} ({count})",
+  "@wtpSectionCount": {
+    "placeholders": {
+      "label": {"type": "String"},
+      "count": {"type": "int"}
+    }
+  },
+  "wtpFileHistory": "File history",
+  "wtpBlame": "Blame",
+  "wtpDiscardChanges": "Discard changes",
+  "wtpFinishOpFirst": "Finish the operation first",
+  "wtpFinishOpBody": "Continue or abort it above; committing here would strand the rest of the sequence.",
+  "wtpMessageEmpty": "Commit message is empty",
+  "wtpNothingStaged": "Nothing staged to commit",
+  "wtpCommitted": "Committed",
+  "wtpCommitFailed": "Commit failed",
+  "wtpSummary": "Summary",
+  "wtpDescription": "Description",
+  "wtpCoauthorsHint": "Co-authors: Name <email>, Name2 <email2>",
+  "wtpAmend": "Amend",
+  "wtpSign": "Sign",
+  "wtpAddCoauthor": "+ Co-author",
+  "wtpCommit": "Commit",
+  "wtpDiscardAllTitle": "Discard all changes?",
+  "wtpDiscardAllBody": "This reverts every tracked file to its committed state, dropping staged and unstaged changes. You can undo it.",
+  "wtpDiscardFileTitle": "Discard changes to {path}?",
+  "@wtpDiscardFileTitle": {
+    "placeholders": {
+      "path": {"type": "String"}
+    }
+  },
+  "wtpDiscardFileBody": "This reverts the file to its committed state, dropping staged and unstaged changes. You can undo it.",
+  "wtsWorktrees": "Worktrees",
+  "wtsNoWorktrees": "No worktrees",
+  "wtsPruneMenu": "Prune stale worktrees…",
+  "wtsLockTitle": "Lock {name}",
+  "@wtsLockTitle": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "wtsReasonOptional": "Reason (optional)",
+  "wtsLock": "Lock",
+  "wtsLocked": "Locked",
+  "wtsPrunable": "Prunable",
+  "wtsOpenInTab": "Open in tab",
+  "wtsRevealInFinder": "Reveal in Finder",
+  "wtsMoveMenu": "Move…",
+  "wtsUnlock": "Unlock",
+  "wtsLockMenu": "Lock…",
+  "wtsRemoveMenu": "Remove…",
+  "cdCommit": "COMMIT",
+  "cdWip": "‹ WIP",
+  "cdAuthor": "Author",
+  "cdDate": "Date",
+  "cdParent": "Parent",
+  "cdCoauthored": "Co-authored",
+  "cdChangedFiles": "CHANGED FILES",
+  "cdCouldNotRead": "Could not read changes",
+  "cdNoChanges": "No changes",
+  "cdSha": "SHA",
+  "asdTitle": "Add submodule",
+  "asdRepoUrl": "Repository URL",
+  "asdPath": "Path",
+  "asdPathHint": "folder in this repo",
+  "asdBranchOptional": "Branch (optional)",
+  "asdBranchHint": "track a branch",
+  "rdName": "Name",
+  "rdUrl": "URL",
+  "bsResetTitle": "Reset {branch} to {target}?",
+  "@bsResetTitle": {
+    "placeholders": {
+      "branch": {"type": "String"},
+      "target": {"type": "String"}
+    }
+  },
+  "bsResetBody": "This moves local {branch} to {target}, discarding any commits not on the remote. Uncommitted changes are stashed (undoable).",
+  "@bsResetBody": {
+    "placeholders": {
+      "branch": {"type": "String"},
+      "target": {"type": "String"}
+    }
+  },
+  "bsResetAndSwitch": "Reset & switch",
+  "wvChanges": "Changes",
+  "wvChangesSub": "Working tree · staging · commit",
+
+  "rdlgCloneTitle": "Clone repository",
+  "rdlgCreateTitle": "Create repository",
+  "rdlgFolderName": "Folder name",
+  "rdlgFolderHint": "derived from the URL",
+  "rdlgDestFolder": "Destination folder",
+  "rdlgCloning": "Cloning…",
+  "rdlgClone": "Clone",
+  "rdlgRepoName": "Repository name",
+  "rdlgParentFolder": "Parent folder",
+  "rdlgDefaultBranch": "Default branch",
+  "rdlgInitReadme": "Initialise with README.md",
+  "rdlgAddGitignore": "Add an empty .gitignore",
+  "rdlgCreating": "Creating…",
+  "rdlgChooseFolder": "Choose a folder…",
+  "rdlgBrowse": "Browse",
+  "welTitle": "Welcome to Mergelio",
+  "welSubtitle": "Free visual Git client. Get started:",
+  "welCloneSub": "From a URL (HTTPS/SSH) into a folder",
+  "welCreateSub": "New local repository with README/.gitignore",
+  "welOpenTitle": "Open repository",
+  "welOpenSub": "Choose an existing folder with .git",
+  "welUnpin": "Unpin",
+  "welPin": "Pin",
+  "welRemoveRecent": "Remove from recents",
+  "welNotARepo": "Not a git repository",
+  "gvSearchCommits": "Search commits…",
+  "gvAuthorFilter": "Author…",
+  "gvPrevMatch": "Previous (⇧N)",
+  "gvNextMatch": "Next (N)",
+  "gvCloseSearch": "Close (Esc)",
+  "gvColumns": "Columns",
+  "gvUncommittedFiles": "{count, plural, one{Uncommitted changes · {count} file} other{Uncommitted changes · {count} files}}",
+  "@gvUncommittedFiles": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "gvCannotRebaseTitle": "Cannot rebase onto this commit",
+  "gvCannotRebaseBody": "The commits above {sha} include a merge, which a rebase would flatten.",
+  "@gvCannotRebaseBody": {
+    "placeholders": {
+      "sha": {"type": "String"}
+    }
+  },
+  "gvNothingToRebaseTitle": "Nothing to rebase",
+  "gvNothingToRebaseBody": "{sha} is already part of this branch and the plan changes nothing.",
+  "@gvNothingToRebaseBody": {
+    "placeholders": {
+      "sha": {"type": "String"}
+    }
+  },
+  "gvResetTitle": "Reset to {sha}?",
+  "@gvResetTitle": {
+    "placeholders": {
+      "sha": {"type": "String"}
+    }
+  },
+  "gvResetBody": "Moves the current branch to this commit and discards all uncommitted changes. This cannot be undone from disk.",
+  "gvResetHard": "Reset --hard",
+  "ccBranch": "Branch",
+  "cpTypeCommand": "Type a command…",
+  "termClose": "Close terminal (⌘`)",
+  "fiHistory": "History",
+  "fiCouldNotLoad": "Could not load history",
+  "fiCouldNotBlame": "Could not blame this file",
+  "ftvFlatList": "Show as flat list",
+  "ftvGroupByFolder": "Group by folder",
+  "confirmAction": "Confirm",
+
+  "pfScCommandPalette": "Command palette",
+  "pfScSearchCommits": "Search commits",
+  "pfScNextPrevMatch": "Next / previous search match",
+  "pfScCommit": "Commit (in composer)",
+  "pfScCreateBranch": "Create branch",
+  "pfScCollapsePanel": "Collapse left panel",
+  "pfScToggleTerminal": "Toggle terminal",
+  "pfScZoom": "Zoom in / out",
+  "pfScResetZoom": "Reset zoom",
+  "pfScUndo": "Undo last action",
+  "pfScRedo": "Redo",
+  "pfScPreferences": "Preferences",
+  "pfScCloseDialog": "Close dialog / cancel",
+  "pfGenerateSshKey": "Generate SSH key",
+  "pfAddPassphraseHint": "Run ssh-keygen -p -f ~/.ssh/{name} to add one.",
+  "@pfAddPassphraseHint": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "pfGenerateFailed": "Generate failed",
+  "pfAuthentication": "Authentication",
+  "pfAuthBody": "HTTPS remotes use your system git credential helper; SSH remotes use your SSH agent and keys. Mergelio never stores or reads your passwords or private keys — only public keys are listed here.",
+  "pfSshKeys": "SSH KEYS",
+  "pfGenerateKeyMenu": "Generate key…",
+  "pfNoSshKeys": "No SSH keys found in ~/.ssh",
+  "pfCopyPublicKey": "Copy public key",
+  "pfPublicKeyCopied": "Public key copied",
+  "pfThemeJsonCopied": "Theme JSON copied",
+  "pfImportTheme": "Import theme",
+  "pfPasteThemeJson": "Paste theme JSON",
+  "pfInvalidThemeJson": "Invalid theme JSON",
+  "pfThemeApplied": "Applied \"{name}\"",
+  "@pfThemeApplied": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "pfSaveTheme": "Save theme",
+  "pfThemeName": "Theme name",
+  "pfThemeSaved": "Saved \"{name}\"",
+  "@pfThemeSaved": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "pfCustomColour": "Custom colour",
+  "pfHexHint": "Hex (e.g. #6E7BFF)",
+  "lgCouldNotOpen": "Could not open the log folder: {error}",
+  "@lgCouldNotOpen": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "lgDiagnosticLogs": "Diagnostic logs",
+  "lgNotActive": "File logging is not active",
+  "lgReveal": "Reveal",
+  "pdEmpty": "No profiles yet. Add one to set your commit identity.",
+  "pdUse": "Use",
+  "pdDeleteTitle": "Delete profile {label}?",
+  "@pdDeleteTitle": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "pdDeleteBody": "The profile is removed. Any keys it references in the keychain are left untouched.",
+  "pdAddProfile": "Add profile",
+  "pfmNew": "New profile",
+  "pfmEdit": "Edit profile",
+  "pfmProfileName": "Profile name",
+  "pfmProfileNameHint": "Work, Personal, …",
+  "pfmDeveloperName": "Developer name",
+  "pfmDeveloperNameHint": "Your name in commits",
+  "pfmEmail": "Email",
+  "fpTitle": "Create your first profile",
+  "fpBody": "Every group and repository belongs to a profile. Switching profiles later shows only that profile’s work.",
+  "fpCreateProfile": "Create profile",
+  "mtCurrent": "Current",
+  "mtCurrentNamed": "Current — {into}",
+  "@mtCurrentNamed": {
+    "placeholders": {
+      "into": {"type": "String"}
+    }
+  },
+  "mtIncoming": "Incoming",
+  "mtIncomingNamed": "Incoming — {branch}",
+  "@mtIncomingNamed": {
+    "placeholders": {
+      "branch": {"type": "String"}
+    }
+  },
+  "mtNeedsReview": "⚠ needs review",
+  "mtResolved": "✓ resolved",
+  "mtBothAccepted": "Both accepted ⚠ needs review",
+  "mtAcceptBoth": "Accept both",
+  "mtResult": "RESULT",
+  "mtUseEdit": "Use edit",
+  "mtAccept": "Accept",
+  "rbPick": "keep this commit as it is",
+  "rbReword": "keep this commit, change its message",
+  "rbSquash": "merge into the commit above, keep both messages",
+  "rbFixup": "merge into the commit above, drop its message",
+  "rbDrop": "remove this commit entirely",
+  "rbPresetAsIs": "Move commits as-is",
+  "rbPresetSquashAll": "Squash into one commit",
+  "rbPresetSquashKeepFirst": "Squash, keep first message",
+  "rbSummaryAsIs": "Replay all {count} commits on the new base. History keeps its shape.",
+  "@rbSummaryAsIs": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "rbSummarySquashAll": "Combine all {count} into one commit; all messages are kept, one after another.",
+  "@rbSummarySquashAll": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "rbSummarySquashKeepFirst": "Combine all {count} into one commit; only the first message is kept.",
+  "@rbSummarySquashKeepFirst": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "rbTitle": "Interactive rebase",
+  "rbCommitCount": "{count, plural, one{{count} commit} other{{count} commits}}",
+  "@rbCommitCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "rbCommitCountOnto": "{count, plural, one{{count} commit onto {onto}} other{{count} commits onto {onto}}}",
+  "@rbCommitCountOnto": {
+    "placeholders": {
+      "count": {"type": "int"},
+      "onto": {"type": "String"}
+    }
+  },
+  "rbStart": "Start rebase",
+  "rbNeedsTwo": "Needs at least 2 commits.",
+  "rbCustomize": "Customize per commit",
+  "rbCustomizeHint": "Pick an action for each commit, or drag to reorder them.",
+
+  "dlgEditCommitMessage": "Edit commit message",
+  "dlgUnsavedOne": "{path} has changes that are not on disk.",
+  "@dlgUnsavedOne": {
+    "placeholders": {
+      "path": {"type": "String"}
+    }
+  },
+  "dlgUnsavedMany": "These files have changes that are not on disk:",
+  "fteConflictBody": "Something else wrote {name} while it was open here. Saving replaces those changes with this text.",
+  "@fteConflictBody": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "fteCouldNotOpen": "Could not open this file",
+  "fteNoResults": "No results",
+  "fteFind": "Find",
+  "fteReplaceWith": "Replace with",
+  "fteMatchCase": "Match case",
+  "ftePreviousMatch": "Previous match",
+  "fteNextMatch": "Next match",
+  "fteReplaceThis": "Replace this match",
+  "fteReplaceAll": "Replace all",
+  "diffEditingWorkingTree": "Editing the working tree — saved changes stay unstaged",
+  "diffStageSelectedLines": "Stage selected lines",
+  "diffUnstageSelectedLines": "Unstage selected lines",
+  "diffDiscardSelectedLines": "Discard selected lines",
+  "diffUnsavedBody": "What you typed in {path} has not been written to the working tree.",
+  "@diffUnsavedBody": {
+    "placeholders": {
+      "path": {"type": "String"}
+    }
+  },
+  "diffUncommittedWorkingTree": "Uncommitted changes · working tree",
+  "diffStageFile": "Stage file",
+  "diffUnstageFile": "Unstage file",
+  "diffShowChangesOnly": "Show changes only",
+  "diffShowWholeFile": "Show whole file",
+  "diffCouldNotLoad": "Could not load diff",
+  "diffBinaryFile": "Binary file — diff not shown",
+  "diffCouldNotStage": "Could not stage",
+  "diffCouldNotUnstage": "Could not unstage",
+  "diffCouldNotDiscard": "Could not discard",
+  "diffStageHunk": "Stage hunk",
+  "diffUnstageHunk": "Unstage hunk",
+  "diffDiscardHunk": "Discard hunk",
+  "diffUnstagedLabel": "Unstaged",
+  "diffStagedLabel": "Staged",
+  "fepOpenAFile": "Open a file to edit it",
+  "fepDeletedOnDisk": "Deleted on disk — saving is disabled",
+  "pnpNewFileMenu": "New file…",
+  "pnpNewFolderMenu": "New folder…",
+  "pnpRenameMenu": "Rename…",
+  "pnpDeleteMenu": "Delete…",
+  "pnpStage": "Stage",
+  "pnpUnstage": "Unstage",
+  "pnpDiscardMenu": "Discard changes…",
+  "pnpShowHistory": "Show history",
+  "pnpRevealInFinder": "Reveal in Finder",
+  "pnpShowInExplorer": "Show in Explorer",
+  "pnpOpenContainingFolder": "Open containing folder",
+  "pnpNewFile": "New file",
+  "pnpNewFolder": "New folder",
+  "pnpDeleteFolderBody": "The folder and everything in it is removed from disk, not just from git.",
+  "pnpDeleteFileBody": "The file is removed from disk, not just from git.",
+  "pnpDiscardUntrackedBody": "The file is untracked, so discarding deletes it.",
+  "pnpDiscardTrackedBody": "The file goes back to what it was at the last commit.",
+  "pnpCouldNotOpenFileManager": "Could not open the file manager",
+  "pnpOperationFailed": "Operation failed",
+  "pnpMore": "…{count} more",
+  "@pnpMore": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "pnpProject": "Project",
+  "pnpShowIgnored": "Show ignored files",
+  "pnpHideIgnored": "Hide ignored files"
 }

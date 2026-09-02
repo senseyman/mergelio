@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
 import '../../domain/git/remote_ref.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
 import '../common/dialogs.dart';
@@ -57,11 +58,11 @@ Future<Duration?> _lastFetchAge(String repoPath) async {
   return age.isNegative ? Duration.zero : age;
 }
 
-String _ageLabel(Duration d) {
-  if (d.inMinutes < 1) return 'moments ago';
-  if (d.inHours < 1) return '${d.inMinutes}m ago';
-  if (d.inDays < 1) return '${d.inHours}h ago';
-  return '${d.inDays}d ago';
+String _ageLabel(AppLocalizations l, Duration d) {
+  if (d.inMinutes < 1) return l.rmcMomentsAgo;
+  if (d.inHours < 1) return l.rmcMinutesAgo(d.inMinutes);
+  if (d.inDays < 1) return l.rmcHoursAgo(d.inHours);
+  return l.rmcDaysAgo(d.inDays);
 }
 
 /// Best-effort "last fetched" line. Loaded inside the dialog rather than
@@ -72,6 +73,7 @@ class _LastFetchLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     return FutureBuilder<Duration?>(
       future: _lastFetchAge(repoPath),
@@ -81,8 +83,8 @@ class _LastFetchLine extends StatelessWidget {
         }
         return Text(
           snap.data == null
-              ? 'This repository has not fetched yet.'
-              : 'Last fetched ${_ageLabel(snap.data!)}.',
+              ? l.rmcNotFetched
+              : l.rmcLastFetched(_ageLabel(l, snap.data!)),
           style: TextStyle(color: t.textFaint, fontSize: 12),
         );
       },
@@ -96,10 +98,11 @@ Future<_RemoteMergeChoice> _ask(
   required String remote,
   required String repoPath,
 }) async {
+  final l = AppLocalizations.of(context);
   final t = context.tokens;
   final result = await showAppModal<_RemoteMergeChoice>(
     context: context,
-    title: 'Merge from $remote?',
+    title: l.rmcMergeFrom(remote),
     icon: Icons.cloud_download_outlined,
     width: 520,
     body: Column(
@@ -107,8 +110,7 @@ Future<_RemoteMergeChoice> _ask(
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          '$source is a remote-tracking branch. It is only as current as the '
-          'last fetch from $remote.',
+          l.rmcStaleWarning(source, remote),
           style: TextStyle(color: t.textMuted, fontSize: 13, height: 1.5),
         ),
         const SizedBox(height: 8),
@@ -119,20 +121,20 @@ Future<_RemoteMergeChoice> _ask(
       Builder(
         builder: (ctx) => TextButton(
           onPressed: () => Navigator.of(ctx).pop(_RemoteMergeChoice.cancel),
-          child: const Text('Cancel'),
+          child: Text(l.cancel),
         ),
       ),
       Builder(
         builder: (ctx) => TextButton(
           onPressed: () => Navigator.of(ctx).pop(_RemoteMergeChoice.mergeAsIs),
-          child: const Text('Merge as-is'),
+          child: Text(l.rmcMergeAsIs),
         ),
       ),
       Builder(
         builder: (ctx) => FilledButton(
           onPressed: () =>
               Navigator.of(ctx).pop(_RemoteMergeChoice.fetchThenMerge),
-          child: const Text('Fetch and merge'),
+          child: Text(l.rmcFetchAndMerge),
         ),
       ),
     ],

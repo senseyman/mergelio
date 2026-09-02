@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/tokens.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../common/dialogs.dart';
 
 typedef AddSubmoduleData = ({String url, String path, String? branch});
@@ -10,7 +11,7 @@ typedef AddSubmoduleData = ({String url, String path, String? branch});
 Future<AddSubmoduleData?> showAddSubmoduleDialog(BuildContext context) =>
     showAppModal<AddSubmoduleData>(
       context: context,
-      title: 'Add submodule',
+      title: AppLocalizations.of(context).asdTitle,
       icon: Icons.account_tree_outlined,
       width: 480,
       body: const _AddSubmoduleBody(),
@@ -63,6 +64,7 @@ class _AddSubmoduleBodyState extends State<_AddSubmoduleBody> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     Widget field(
       String label,
@@ -97,31 +99,31 @@ class _AddSubmoduleBodyState extends State<_AddSubmoduleBody> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         field(
-          'Repository URL',
+          l.asdRepoUrl,
           _url,
           hint: 'https://… or git@…',
           autofocus: true,
           onChanged: _onUrlChanged,
         ),
         field(
-          'Path',
+          l.asdPath,
           _path,
-          hint: 'folder in this repo',
+          hint: l.asdPathHint,
           onChanged: (_) => setState(() => _pathEdited = true),
         ),
-        field('Branch (optional)', _branch, hint: 'track a branch'),
+        field(l.asdBranchOptional, _branch, hint: l.asdBranchHint),
         const SizedBox(height: 4),
         Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: Text(l.cancel),
             ),
             const SizedBox(width: 8),
             FilledButton(
               onPressed: _valid ? _submit : null,
-              child: const Text('Add'),
+              child: Text(l.sbAdd),
             ),
           ],
         ),

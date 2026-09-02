@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../../state/repo_bootstrap.dart';
 import '../common/dialogs.dart';
 
@@ -11,7 +12,7 @@ import '../common/dialogs.dart';
 /// opens the new repo as a tab.
 Future<void> showCloneDialog(BuildContext context) => showAppModal<void>(
   context: context,
-  title: 'Clone repository',
+  title: AppLocalizations.of(context).rdlgCloneTitle,
   icon: Icons.cloud_download_outlined,
   body: const _CloneBody(),
 );
@@ -20,7 +21,7 @@ Future<void> showCloneDialog(BuildContext context) => showAppModal<void>(
 /// optional README / .gitignore seeded as the initial commit.
 Future<void> showCreateDialog(BuildContext context) => showAppModal<void>(
   context: context,
-  title: 'Create repository',
+  title: AppLocalizations.of(context).rdlgCreateTitle,
   icon: Icons.add_box_outlined,
   body: const _CreateBody(),
 );
@@ -79,26 +80,27 @@ class _CloneBodyState extends ConsumerState<_CloneBody> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
         _Field(
-          label: 'Repository URL',
+          label: l.asdRepoUrl,
           controller: _url,
           hint: 'https://… or git@…',
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: 14),
         _Field(
-          label: 'Folder name',
+          label: l.rdlgFolderName,
           controller: _name,
-          hint: 'derived from the URL',
+          hint: l.rdlgFolderHint,
           onChanged: (_) => setState(() => _nameEdited = true),
         ),
         const SizedBox(height: 14),
         _DirField(
-          label: 'Destination folder',
+          label: l.rdlgDestFolder,
           controller: _dir,
           onChanged: () => setState(() {}),
         ),
@@ -112,12 +114,12 @@ class _CloneBodyState extends ConsumerState<_CloneBody> {
           children: [
             TextButton(
               onPressed: _cloning ? null : () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: Text(l.cancel),
             ),
             const SizedBox(width: 8),
             FilledButton(
               onPressed: _ready ? _clone : null,
-              child: Text(_cloning ? 'Cloning…' : 'Clone'),
+              child: Text(_cloning ? l.rdlgCloning : l.rdlgClone),
             ),
           ],
         ),
@@ -169,20 +171,21 @@ class _CreateBodyState extends ConsumerState<_CreateBody> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
         _Field(
-          label: 'Repository name',
+          label: l.rdlgRepoName,
           controller: _name,
           hint: 'my-project',
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: 14),
         _DirField(
-          label: 'Parent folder',
+          label: l.rdlgParentFolder,
           controller: _dir,
           onChanged: () => setState(() {}),
         ),
@@ -191,7 +194,7 @@ class _CreateBodyState extends ConsumerState<_CreateBody> {
           children: [
             Expanded(
               child: Text(
-                'Default branch',
+                l.rdlgDefaultBranch,
                 style: TextStyle(color: t.textMuted, fontSize: 12),
               ),
             ),
@@ -211,7 +214,7 @@ class _CreateBodyState extends ConsumerState<_CreateBody> {
           contentPadding: EdgeInsets.zero,
           controlAffinity: ListTileControlAffinity.leading,
           title: Text(
-            'Initialise with README.md',
+            l.rdlgInitReadme,
             style: TextStyle(color: t.textPrimary, fontSize: 13),
           ),
           value: _readme,
@@ -222,7 +225,7 @@ class _CreateBodyState extends ConsumerState<_CreateBody> {
           contentPadding: EdgeInsets.zero,
           controlAffinity: ListTileControlAffinity.leading,
           title: Text(
-            'Add an empty .gitignore',
+            l.rdlgAddGitignore,
             style: TextStyle(color: t.textPrimary, fontSize: 13),
           ),
           value: _gitignore,
@@ -234,12 +237,12 @@ class _CreateBodyState extends ConsumerState<_CreateBody> {
           children: [
             TextButton(
               onPressed: _creating ? null : () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: Text(l.cancel),
             ),
             const SizedBox(width: 8),
             FilledButton(
               onPressed: _ready ? _create : null,
-              child: Text(_creating ? 'Creating…' : 'Create'),
+              child: Text(_creating ? l.rdlgCreating : l.create),
             ),
           ],
         ),
@@ -301,6 +304,7 @@ class _DirField extends StatefulWidget {
 class _DirFieldState extends State<_DirField> {
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -314,7 +318,7 @@ class _DirFieldState extends State<_DirField> {
                 controller: widget.controller,
                 readOnly: true,
                 decoration: InputDecoration(
-                  hintText: 'Choose a folder…',
+                  hintText: l.rdlgChooseFolder,
                   isDense: true,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(t.rButton),
@@ -331,7 +335,7 @@ class _DirFieldState extends State<_DirField> {
                   widget.onChanged?.call();
                 }
               },
-              child: const Text('Browse'),
+              child: Text(l.rdlgBrowse),
             ),
           ],
         ),

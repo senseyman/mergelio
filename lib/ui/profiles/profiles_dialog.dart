@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../../state/profiles.dart';
 import '../common/dialogs.dart';
 import 'profile_form.dart';
@@ -10,7 +11,7 @@ import 'profile_form.dart';
 /// active one (which drives commit author name/email).
 Future<void> showProfilesDialog(BuildContext context) => showAppModal<void>(
   context: context,
-  title: 'Profiles',
+  title: AppLocalizations.of(context).tooltipProfiles,
   icon: Icons.person_outline,
   width: 460,
   body: const _ProfilesBody(),
@@ -30,6 +31,7 @@ class _ProfilesBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final state = ref.watch(profilesProvider);
     final ctl = ref.read(profilesProvider.notifier);
@@ -42,7 +44,7 @@ class _ProfilesBody extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Text(
-              'No profiles yet. Add one to set your commit identity.',
+              l.pdEmpty,
               style: TextStyle(color: t.textFaint, fontSize: 12.5),
             ),
           ),
@@ -74,7 +76,7 @@ class _ProfilesBody extends ConsumerWidget {
                 else
                   TextButton(
                     onPressed: () => ctl.setActive(p.id),
-                    child: const Text('Use', style: TextStyle(fontSize: 12)),
+                    child: Text(l.pdUse, style: TextStyle(fontSize: 12)),
                   ),
                 IconButton(
                   iconSize: 15,
@@ -88,11 +90,9 @@ class _ProfilesBody extends ConsumerWidget {
                   onPressed: () async {
                     final ok = await showConfirmDialog(
                       context,
-                      title: 'Delete profile ${p.label}?',
-                      body:
-                          'The profile is removed. Any keys it references in '
-                          'the keychain are left untouched.',
-                      confirmLabel: 'Delete',
+                      title: l.pdDeleteTitle(p.label),
+                      body: l.pdDeleteBody,
+                      confirmLabel: l.delete,
                     );
                     if (ok) ctl.remove(p.id);
                   },
@@ -105,7 +105,7 @@ class _ProfilesBody extends ConsumerWidget {
           alignment: Alignment.centerLeft,
           child: TextButton.icon(
             icon: const Icon(Icons.add, size: 16),
-            label: const Text('Add profile'),
+            label: Text(l.pdAddProfile),
             onPressed: () => _edit(context, ctl, null, state.profiles.length),
           ),
         ),

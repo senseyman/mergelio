@@ -40,6 +40,7 @@ class GraphView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final path = ref.watch(workspaceProvider.select((w) => w.activeTab?.path));
     if (path == null) return Container(color: t.bgApp);
@@ -58,7 +59,7 @@ class GraphView extends ConsumerWidget {
             ),
             error: (e, _) => Center(
               child: Text(
-                'Could not read repository',
+                l.sbCouldNotRead,
                 style: TextStyle(color: t.textMuted, fontSize: 12),
               ),
             ),
@@ -261,6 +262,7 @@ class _GraphListState extends ConsumerState<GraphList> {
     String target,
     Offset at,
   ) async {
+    final l = AppLocalizations.of(context);
     final path = ref.read(workspaceProvider).activeTab?.path;
     if (path == null) return;
     final actions = ref.read(repoActionsProvider(path));
@@ -281,7 +283,7 @@ class _GraphListState extends ConsumerState<GraphList> {
             }
           },
           child: Text(
-            'Merge «$source» into «$target»',
+            l.sbMergeSourceInto(source, target),
             style: const TextStyle(fontSize: 13),
           ),
         ),
@@ -289,7 +291,7 @@ class _GraphListState extends ConsumerState<GraphList> {
           height: 34,
           onTap: () => actions.rebaseOnto(source, target),
           child: Text(
-            'Rebase «$source» onto «$target»',
+            l.sbRebaseSourceOnto(source, target),
             style: const TextStyle(fontSize: 13),
           ),
         ),
@@ -357,6 +359,7 @@ class _GraphListState extends ConsumerState<GraphList> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final d = widget.data;
     final compact = ref.watch(settingsProvider.select((s) => s.graphCompact));
     final cols = ref.watch(settingsProvider.select((s) => s.graphCols));
@@ -411,7 +414,7 @@ class _GraphListState extends ConsumerState<GraphList> {
           );
     final matchShas = _matchesFor(d, query, pathShas, content?.valueOrNull);
 
-    return Column(
+    final graph = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (query != null)
@@ -602,6 +605,7 @@ class _GraphListState extends ConsumerState<GraphList> {
         ),
       ],
     );
+    return Semantics(container: true, label: l.a11yCommitGraph, child: graph);
   }
 }
 
@@ -694,7 +698,7 @@ class _SearchBarState extends State<_SearchBar> {
                 decoration: InputDecoration(
                   isDense: true,
                   border: InputBorder.none,
-                  hintText: 'Search commits…',
+                  hintText: l.gvSearchCommits,
                   hintStyle: TextStyle(color: t.textFaint, fontSize: 13),
                 ),
               ),
@@ -748,7 +752,7 @@ class _SearchBarState extends State<_SearchBar> {
                 decoration: InputDecoration(
                   isDense: true,
                   border: InputBorder.none,
-                  hintText: 'Author…',
+                  hintText: l.gvAuthorFilter,
                   hintStyle: TextStyle(color: t.textFaint, fontSize: 12),
                 ),
               ),
@@ -793,19 +797,19 @@ class _SearchBarState extends State<_SearchBar> {
             ),
             IconButton(
               iconSize: 16,
-              tooltip: 'Previous (⇧N)',
+              tooltip: l.gvPrevMatch,
               icon: const Icon(Icons.keyboard_arrow_up),
               onPressed: () => onJump(false),
             ),
             IconButton(
               iconSize: 16,
-              tooltip: 'Next (N)',
+              tooltip: l.gvNextMatch,
               icon: const Icon(Icons.keyboard_arrow_down),
               onPressed: () => onJump(true),
             ),
             IconButton(
               iconSize: 16,
-              tooltip: 'Close (Esc)',
+              tooltip: l.gvCloseSearch,
               icon: const Icon(Icons.close),
               onPressed: onClose,
             ),
@@ -961,7 +965,7 @@ class _GraphHeader extends ConsumerWidget {
     final t = context.tokens;
     final l = AppLocalizations.of(context);
     final ctl = ref.read(settingsProvider.notifier);
-    const names = graphColumnLabels;
+    final names = graphColumnLabels(l);
     return Container(
       height: 34,
       padding: const EdgeInsets.only(left: 14, right: 8),
@@ -981,7 +985,7 @@ class _GraphHeader extends ConsumerWidget {
           ),
           const Spacer(),
           PopupMenuButton<String>(
-            tooltip: 'Columns',
+            tooltip: l.gvColumns,
             onSelected: (id) => id == 'compact'
                 ? ctl.toggleGraphCompact()
                 : ctl.toggleGraphCol(id),
@@ -1009,7 +1013,7 @@ class _GraphHeader extends ConsumerWidget {
               child: Row(
                 children: [
                   Text(
-                    'Columns',
+                    l.gvColumns,
                     style: TextStyle(color: t.textMuted, fontSize: 12),
                   ),
                   Icon(Icons.arrow_drop_down, size: 16, color: t.textMuted),
@@ -1044,6 +1048,7 @@ class _WipRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     return InkWell(
       onTap: onTap,
@@ -1079,8 +1084,7 @@ class _WipRow extends StatelessWidget {
                   const SizedBox(width: 8),
                   Flexible(
                     child: Text(
-                      'Uncommitted changes · '
-                      '$fileCount ${fileCount == 1 ? 'file' : 'files'}',
+                      l.gvUncommittedFiles(fileCount),
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(color: t.textMuted, fontSize: 12.5),
                     ),
@@ -1168,8 +1172,8 @@ class _CommitContextMenu extends ConsumerWidget {
         item(l.menuCreateBranch, () async {
           final name = await showInputDialog(
             context,
-            title: 'Create branch',
-            label: 'Branch name',
+            title: l.ropCreateBranchTitle,
+            label: l.ropBranchName,
           );
           if (name != null) await actions.createBranch(name, at: sha);
         }),
@@ -1183,10 +1187,8 @@ class _CommitContextMenu extends ConsumerWidget {
             ref
                 .read(toastProvider.notifier)
                 .show(
-                  'Cannot rebase onto this commit',
-                  description:
-                      'The commits above ${commit.shortSha} include a merge, '
-                      'which a rebase would flatten.',
+                  l.gvCannotRebaseTitle,
+                  description: l.gvCannotRebaseBody(commit.shortSha),
                   kind: ToastKind.warning,
                 );
             return;
@@ -1202,10 +1204,8 @@ class _CommitContextMenu extends ConsumerWidget {
             ref
                 .read(toastProvider.notifier)
                 .show(
-                  'Nothing to rebase',
-                  description:
-                      '${commit.shortSha} is already part of this branch and '
-                      'the plan changes nothing.',
+                  l.gvNothingToRebaseTitle,
+                  description: l.gvNothingToRebaseBody(commit.shortSha),
                 );
             return;
           }
@@ -1215,11 +1215,9 @@ class _CommitContextMenu extends ConsumerWidget {
           final ok = await confirmDestructive(
             ref,
             context,
-            title: 'Reset to ${commit.shortSha}?',
-            body:
-                'Moves the current branch to this commit and discards all '
-                'uncommitted changes. This cannot be undone from disk.',
-            confirmLabel: 'Reset --hard',
+            title: l.gvResetTitle(commit.shortSha),
+            body: l.gvResetBody,
+            confirmLabel: l.gvResetHard,
           );
           if (ok) await actions.resetHard(sha);
         }, danger: true),

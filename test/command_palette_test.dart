@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/core/tokens.dart';
 import 'package:mergelio/ui/palette/command_palette.dart';
 
@@ -18,6 +19,8 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         theme: ThemeData(extensions: [AppTokens.dark()]),
         home: Builder(
           builder: (ctx) => Scaffold(

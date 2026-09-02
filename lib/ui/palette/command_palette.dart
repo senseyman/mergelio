@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../core/tokens.dart';
 import '../../domain/search.dart';
+import '../../l10n/gen/app_localizations.dart';
 
 /// One runnable entry in the command palette.
 class PaletteCommand {
@@ -89,6 +90,7 @@ class _PaletteState extends State<_Palette> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final results = _results;
     if (_selected >= results.length) _selected = 0;
@@ -128,7 +130,7 @@ class _PaletteState extends State<_Palette> {
                   onSubmitted: (_) => _run(results),
                   style: TextStyle(color: t.textPrimary, fontSize: 15),
                   decoration: InputDecoration(
-                    hintText: 'Type a command…',
+                    hintText: l.cpTypeCommand,
                     hintStyle: TextStyle(color: t.textFaint),
                     prefixIcon: Icon(
                       Icons.search,

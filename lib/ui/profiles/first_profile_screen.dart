@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../../state/profiles.dart';
 import 'profile_form.dart';
 
@@ -22,6 +23,7 @@ class FirstProfileScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     return Scaffold(
       backgroundColor: t.bgApp,
@@ -35,7 +37,7 @@ class FirstProfileScreen extends ConsumerWidget {
               Icon(Icons.person_add_alt_1, size: 40, color: t.accent),
               const SizedBox(height: 16),
               Text(
-                'Create your first profile',
+                l.fpTitle,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: t.textPrimary,
@@ -45,15 +47,14 @@ class FirstProfileScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 6),
               Text(
-                'Every group and repository belongs to a profile. Switching '
-                'profiles later shows only that profile’s work.',
+                l.fpBody,
                 textAlign: TextAlign.center,
                 style: TextStyle(color: t.textFaint, fontSize: 12.5),
               ),
               const SizedBox(height: 24),
               ProfileFormBody(
                 showCancel: false,
-                submitLabel: 'Create profile',
+                submitLabel: l.fpCreateProfile,
                 onSubmit: (d) => ref
                     .read(profilesProvider.notifier)
                     .add(

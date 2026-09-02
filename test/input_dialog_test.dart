@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/core/tokens.dart';
 import 'package:mergelio/ui/common/dialogs.dart';
 
 void main() {
   Widget harness(void Function(BuildContext) onTap) => MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
     theme: ThemeData(extensions: [AppTokens.dark()]),
     home: Scaffold(
       body: Builder(

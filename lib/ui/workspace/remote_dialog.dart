@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/tokens.dart';
 import '../../domain/git/remote_spec.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../common/dialogs.dart';
 
 /// The name and URL a user entered for a remote.
@@ -20,7 +21,7 @@ Future<RemoteEdit?> showRemoteDialog(
   String initialUrl = '',
   Iterable<String> existing = const [],
   String? current,
-  String confirmLabel = 'Save',
+  String? confirmLabel,
 }) => showAppModal<RemoteEdit>(
   context: context,
   title: title,
@@ -33,7 +34,7 @@ Future<RemoteEdit?> showRemoteDialog(
     initialUrl: initialUrl,
     existing: existing.toList(),
     current: current,
-    confirmLabel: confirmLabel,
+    confirmLabel: confirmLabel ?? AppLocalizations.of(context).save,
   ),
 );
 
@@ -93,6 +94,7 @@ class _RemoteDialogBodyState extends State<_RemoteDialogBody> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final style = TextStyle(color: t.textPrimary, fontSize: 13);
     return Column(
@@ -105,7 +107,7 @@ class _RemoteDialogBodyState extends State<_RemoteDialogBody> {
           autofocus: true,
           style: style,
           decoration: InputDecoration(
-            labelText: 'Name',
+            labelText: l.rdName,
             hintText: 'upstream',
             // An untouched field is blank, not wrong — the confirm button
             // still stays disabled until it is filled in.
@@ -121,7 +123,7 @@ class _RemoteDialogBodyState extends State<_RemoteDialogBody> {
           style: style,
           onSubmitted: (_) => _submit(),
           decoration: InputDecoration(
-            labelText: 'URL',
+            labelText: l.rdUrl,
             hintText: 'https://example.com/owner/repo.git',
             errorText: _url.text.isEmpty ? null : _urlError,
             isDense: true,
@@ -134,7 +136,7 @@ class _RemoteDialogBodyState extends State<_RemoteDialogBody> {
           children: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: Text(l.cancel),
             ),
             const SizedBox(width: 8),
             FilledButton(

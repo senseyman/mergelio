@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/core/tokens.dart';
 import 'package:mergelio/domain/git/rebase_plan.dart';
 import 'package:mergelio/ui/rebase/rebase_editor.dart';
@@ -16,6 +17,8 @@ void main() {
 
   Widget harness(List<RebaseStep> initial, {String onto = 'a1b2c3d'}) =>
       MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         theme: ThemeData(extensions: [AppTokens.dark()]),
         home: Scaffold(
           body: Builder(

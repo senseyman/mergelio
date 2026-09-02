@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme.dart';
 import '../../core/tokens.dart';
 import '../../domain/git/commit_message.dart';
+import '../../l10n/gen/app_localizations.dart';
 
 export '../../domain/git/commit_message.dart' show CommitMessageParts;
 
@@ -152,6 +153,7 @@ class _InputDialogBodyState extends State<_InputDialogBody> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -174,7 +176,7 @@ class _InputDialogBodyState extends State<_InputDialogBody> {
           children: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: Text(l.cancel),
             ),
             const SizedBox(width: 8),
             FilledButton(onPressed: _submit, child: Text(widget.confirmLabel)),
@@ -190,19 +192,19 @@ class _InputDialogBodyState extends State<_InputDialogBody> {
 /// null on cancel. An empty summary cannot be saved — a commit needs a subject.
 Future<CommitMessageParts?> showCommitMessageDialog(
   BuildContext context, {
-  String title = 'Edit commit message',
+  String? title,
   String initialSummary = '',
   String initialDescription = '',
-  String confirmLabel = 'Save',
+  String? confirmLabel,
 }) => showAppModal<CommitMessageParts>(
   context: context,
-  title: title,
+  title: title ?? AppLocalizations.of(context).dlgEditCommitMessage,
   icon: Icons.edit_note_outlined,
   width: 520,
   body: _CommitMessageBody(
     initialSummary: initialSummary,
     initialDescription: initialDescription,
-    confirmLabel: confirmLabel,
+    confirmLabel: confirmLabel ?? AppLocalizations.of(context).save,
   ),
 );
 
@@ -247,6 +249,7 @@ class _CommitMessageBodyState extends State<_CommitMessageBody> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final style = TextStyle(color: t.textPrimary, fontSize: 13);
     return Column(
@@ -258,10 +261,10 @@ class _CommitMessageBodyState extends State<_CommitMessageBody> {
           autofocus: true,
           onSubmitted: (_) => _submit(),
           style: style,
-          decoration: const InputDecoration(
-            labelText: 'Summary',
+          decoration: InputDecoration(
+            labelText: l.wtpSummary,
             isDense: true,
-            border: OutlineInputBorder(),
+            border: const OutlineInputBorder(),
           ),
         ),
         const SizedBox(height: 12),
@@ -271,11 +274,11 @@ class _CommitMessageBodyState extends State<_CommitMessageBody> {
           maxLines: 10,
           keyboardType: TextInputType.multiline,
           style: style,
-          decoration: const InputDecoration(
-            labelText: 'Description',
+          decoration: InputDecoration(
+            labelText: l.wtpDescription,
             alignLabelWithHint: true,
             isDense: true,
-            border: OutlineInputBorder(),
+            border: const OutlineInputBorder(),
           ),
         ),
         const SizedBox(height: 16),
@@ -284,7 +287,7 @@ class _CommitMessageBodyState extends State<_CommitMessageBody> {
           children: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: Text(l.cancel),
             ),
             const SizedBox(width: 8),
             FilledButton(onPressed: _submit, child: Text(widget.confirmLabel)),
@@ -300,8 +303,9 @@ Future<bool> showConfirmDialog(
   BuildContext context, {
   required String title,
   required String body,
-  String confirmLabel = 'Confirm',
+  String? confirmLabel,
 }) async {
+  final l = AppLocalizations.of(context);
   final t = context.tokens;
   final result = await showAppModal<bool>(
     context: context,
@@ -316,7 +320,7 @@ Future<bool> showConfirmDialog(
       Builder(
         builder: (ctx) => TextButton(
           onPressed: () => Navigator.of(ctx).pop(false),
-          child: const Text('Cancel'),
+          child: Text(l.cancel),
         ),
       ),
       Builder(
@@ -326,7 +330,7 @@ Future<bool> showConfirmDialog(
             foregroundColor: Colors.white,
           ),
           onPressed: () => Navigator.of(ctx).pop(true),
-          child: Text(confirmLabel),
+          child: Text(confirmLabel ?? AppLocalizations.of(ctx).confirmAction),
         ),
       ),
     ],
@@ -344,16 +348,17 @@ Future<UnsavedChoice> showUnsavedDialog(
   BuildContext context, {
   required List<String> paths,
 }) async {
+  final l = AppLocalizations.of(context);
   final t = context.tokens;
   final result = await showAppModal<UnsavedChoice>(
     context: context,
-    title: 'Unsaved changes',
+    title: l.commonUnsavedChanges,
     icon: Icons.edit_note_outlined,
     width: 460,
     body: Text(
       paths.length == 1
-          ? '${paths.single} has changes that are not on disk.'
-          : 'These files have changes that are not on disk:\n\n'
+          ? l.dlgUnsavedOne(paths.single)
+          : '${l.dlgUnsavedMany}\n\n'
                 '${paths.map((p) => '· $p').join('\n')}',
       style: TextStyle(color: t.textMuted, fontSize: 13, height: 1.5),
     ),
@@ -361,20 +366,20 @@ Future<UnsavedChoice> showUnsavedDialog(
       Builder(
         builder: (ctx) => TextButton(
           onPressed: () => Navigator.of(ctx).pop(UnsavedChoice.cancel),
-          child: const Text('Cancel'),
+          child: Text(l.cancel),
         ),
       ),
       Builder(
         builder: (ctx) => TextButton(
           style: TextButton.styleFrom(foregroundColor: ctx.tokens.danger),
           onPressed: () => Navigator.of(ctx).pop(UnsavedChoice.discard),
-          child: const Text('Discard'),
+          child: Text(l.discard),
         ),
       ),
       Builder(
         builder: (ctx) => FilledButton(
           onPressed: () => Navigator.of(ctx).pop(UnsavedChoice.save),
-          child: const Text('Save'),
+          child: Text(l.save),
         ),
       ),
     ],

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../../state/diff_document.dart';
 import '../../state/diff_target.dart';
 import '../../state/file_editor.dart';
@@ -22,13 +23,14 @@ class DiffEditor extends ConsumerWidget {
   }
 
   Future<void> _cancel(BuildContext context, WidgetRef ref) async {
+    final l = AppLocalizations.of(context);
     if (ref.read(diffEditorDirtyProvider)) {
       final ok = await confirmDestructive(
         ref,
         context,
-        title: 'Discard edits?',
-        body: 'What you typed here has not been written to ${target.path}.',
-        confirmLabel: 'Discard',
+        title: l.diffDiscardEditsTitle,
+        body: l.diffDiscardEditsBody(target.path),
+        confirmLabel: l.discard,
       );
       if (!ok) return;
     }
@@ -71,7 +73,7 @@ class DiffEditor extends ConsumerWidget {
       children: [
         Flexible(
           child: Text(
-            'Editing the working tree — saved changes stay unstaged',
+            AppLocalizations.of(context).diffEditingWorkingTree,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(color: t.textFaint, fontSize: 11),
           ),
@@ -79,12 +81,12 @@ class DiffEditor extends ConsumerWidget {
         const Spacer(),
         TextButton(
           onPressed: controls.saving ? null : () => _cancel(context, ref),
-          child: const Text('Cancel'),
+          child: Text(AppLocalizations.of(context).cancel),
         ),
         const SizedBox(width: 6),
         FilledButton(
           onPressed: controls.saving ? null : controls.save,
-          child: const Text('Save'),
+          child: Text(AppLocalizations.of(context).save),
         ),
       ],
     ),

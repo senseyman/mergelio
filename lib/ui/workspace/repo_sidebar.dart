@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/tokens.dart';
 import '../../domain/git/models.dart';
 import '../../domain/path_key.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../../state/graph_selection.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
@@ -29,6 +30,7 @@ class RepoSidebar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final path = ref.watch(workspaceProvider).activeTab?.path;
 
@@ -37,7 +39,7 @@ class RepoSidebar extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _PanelHeader(title: 'Repository', onCollapse: onCollapse),
+          _PanelHeader(title: l.sbRepository, onCollapse: onCollapse),
           Expanded(
             child: path == null
                 ? const SizedBox.shrink()
@@ -70,6 +72,7 @@ class _PanelHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     return Container(
       height: 34,
@@ -92,7 +95,7 @@ class _PanelHeader extends StatelessWidget {
           IconButton(
             iconSize: 15,
             visualDensity: VisualDensity.compact,
-            tooltip: 'Collapse',
+            tooltip: l.sbCollapse,
             icon: const Icon(Icons.chevron_left),
             onPressed: onCollapse,
           ),
@@ -108,6 +111,7 @@ class _LoadError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     return Center(
       child: Column(
@@ -116,11 +120,11 @@ class _LoadError extends StatelessWidget {
           Icon(Icons.error_outline, color: t.danger, size: 22),
           const SizedBox(height: 8),
           Text(
-            'Could not read repository',
+            l.sbCouldNotRead,
             style: TextStyle(color: t.textMuted, fontSize: 12),
           ),
           const SizedBox(height: 8),
-          TextButton(onPressed: onRetry, child: const Text('Retry')),
+          TextButton(onPressed: onRetry, child: Text(l.sbRetry)),
         ],
       ),
     );
@@ -133,6 +137,7 @@ class _Sections extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final collapsed = ref.watch(
       settingsProvider.select((s) => s.collapsedSections),
     );
@@ -147,9 +152,9 @@ class _Sections extends ConsumerWidget {
         SidebarSection(
           id: 'branches',
           icon: Icons.call_split,
-          label: 'Branches',
+          label: l.sbBranches,
           count: data.branches.length,
-          emptyLabel: 'No branches',
+          emptyLabel: l.sbNoBranches,
           open: isOpen('branches'),
           onToggle: () => ctl.toggleSection('branches'),
           children: [
@@ -172,9 +177,9 @@ class _Sections extends ConsumerWidget {
         SidebarSection(
           id: 'remotes',
           icon: Icons.cloud_outlined,
-          label: 'Remotes',
+          label: l.sbRemotes,
           count: data.remoteBranches.length,
-          emptyLabel: 'No remotes',
+          emptyLabel: l.sbNoRemotes,
           open: isOpen('remotes'),
           onToggle: () => ctl.toggleSection('remotes'),
           children: [
@@ -216,12 +221,12 @@ class _Sections extends ConsumerWidget {
             if (actions != null)
               _LeafRow(
                 icon: Icons.add,
-                label: 'Add remote…',
+                label: l.sbAddRemoteRow,
                 onTap: () async {
                   final edit = await showRemoteDialog(
                     context,
-                    title: 'Add remote',
-                    confirmLabel: 'Add',
+                    title: l.sbAddRemoteTitle,
+                    confirmLabel: l.sbAdd,
                     existing: data.remotes,
                   );
                   if (edit != null) {
@@ -234,9 +239,9 @@ class _Sections extends ConsumerWidget {
         SidebarSection(
           id: 'tags',
           icon: Icons.sell_outlined,
-          label: 'Tags',
+          label: l.sbTags,
           count: data.tags.length,
-          emptyLabel: 'No tags',
+          emptyLabel: l.sbNoTags,
           open: isOpen('tags'),
           onToggle: () => ctl.toggleSection('tags'),
           children: [
@@ -253,9 +258,9 @@ class _Sections extends ConsumerWidget {
         SidebarSection(
           id: 'stashes',
           icon: Icons.inventory_2_outlined,
-          label: 'Stashes',
+          label: l.sbStashes,
           count: data.stashes.length,
-          emptyLabel: 'No stashes',
+          emptyLabel: l.sbNoStashes,
           open: isOpen('stashes'),
           onToggle: () => ctl.toggleSection('stashes'),
           children: [
@@ -271,12 +276,12 @@ class _Sections extends ConsumerWidget {
                     ? const []
                     : [
                         _MiniButton(
-                          'Pop',
+                          l.sbPop,
                           accent: true,
                           onTap: () => actions.stashPop(s.ref),
                         ),
                         _MiniButton(
-                          'Apply',
+                          l.apply,
                           onTap: () => actions.stashApply(s.ref),
                         ),
                       ],
@@ -289,9 +294,9 @@ class _Sections extends ConsumerWidget {
         SidebarSection(
           id: 'submodules',
           icon: Icons.account_tree_outlined,
-          label: 'Submodules',
+          label: l.sbSubmodules,
           count: data.submodules.length,
-          emptyLabel: 'No submodules',
+          emptyLabel: l.sbNoSubmodules,
           open: isOpen('submodules'),
           onToggle: () => ctl.toggleSection('submodules'),
           children: [
@@ -307,8 +312,8 @@ class _Sections extends ConsumerWidget {
                     : [
                         _MiniButton(
                           sm.status == SubmoduleStatus.notInitialized
-                              ? 'Init'
-                              : 'Update',
+                              ? l.sbInit
+                              : l.sbUpdate,
                           accent: true,
                           onTap: () => actions.submoduleUpdate(sm.path),
                         ),
@@ -319,7 +324,7 @@ class _Sections extends ConsumerWidget {
               ),
             if (actions != null)
               _AddRow(
-                'Add submodule…',
+                l.sbAddSubmoduleRow,
                 onTap: () async {
                   final r = await showAddSubmoduleDialog(context);
                   if (r != null) {
@@ -396,15 +401,15 @@ Future<void> _confirmResetToRemote(
   required String upstream,
   required int ahead,
 }) async {
+  final l = AppLocalizations.of(context);
   final ok = await confirmDestructive(
     ref,
     context,
-    title: 'Reset $branchName to $upstream?',
+    title: l.sbResetToUpstreamTitle(branchName, upstream),
     body: ahead > 0
-        ? '$ahead unpushed commit${ahead == 1 ? '' : 's'} on $branchName '
-              'will be removed. This can be undone.'
-        : '$branchName will be moved to $upstream. This can be undone.',
-    confirmLabel: 'Reset',
+        ? l.sbResetUnpushedBody(ahead, branchName)
+        : l.sbResetMovedBody(branchName, upstream),
+    confirmLabel: l.sbReset,
   );
   if (ok) await actions.resetToRemote(upstream);
 }
@@ -416,6 +421,7 @@ class _BranchRow extends ConsumerWidget {
   const _BranchRow({required this.branch, required this.depth, this.repoPath});
 
   Future<void> _menu(BuildContext context, WidgetRef ref, Offset at) async {
+    final l = AppLocalizations.of(context);
     final path = ref.read(workspaceProvider).activeTab?.path;
     if (path == null) return;
     final actions = ref.read(repoActionsProvider(path));
@@ -441,14 +447,14 @@ class _BranchRow extends ConsumerWidget {
       position: at,
       items: [
         item(
-          'Checkout',
+          l.sbCheckout,
           // Routed through activateBranch, not actions.checkout directly, so
           // this consults the same worktree-collision guard as every other
           // checkout entry point.
           () => activateBranch(ref, context, path, localBranch: branch.name),
           enabled: !branch.current,
         ),
-        item('Merge into current', () async {
+        item(l.sbMergeIntoCurrent, () async {
           if (await confirmRemoteSource(
             context,
             ref,
@@ -458,7 +464,7 @@ class _BranchRow extends ConsumerWidget {
             await actions.merge(branch.name);
           }
         }),
-        item('Rebase onto current', () {
+        item(l.sbRebaseOntoCurrent, () {
           final current = ref
               .read(repoDataProvider(path))
               .valueOrNull
@@ -468,17 +474,17 @@ class _BranchRow extends ConsumerWidget {
           if (current != null) actions.rebaseOnto(branch.name, current.name);
         }),
         const PopupMenuDivider(),
-        item('Set upstream…', () async {
+        item(l.sbSetUpstreamItem, () async {
           final up = await showInputDialog(
             context,
-            title: 'Set upstream for ${branch.name}',
-            label: 'e.g. origin/${branch.name}',
+            title: l.sbSetUpstreamTitle(branch.name),
+            label: l.sbSetUpstreamHint(branch.name),
           );
           if (up != null) await actions.setUpstream(branch.name, up);
         }),
         if (canResetToRemote(branch))
           item(
-            'Reset to remote…',
+            l.sbResetToRemote,
             () => _confirmResetToRemote(
               ref,
               context,
@@ -488,10 +494,10 @@ class _BranchRow extends ConsumerWidget {
               ahead: branch.ahead,
             ),
           ),
-        item('Rename…', () async {
+        item(l.sbRenameItem, () async {
           final name = await showInputDialog(
             context,
-            title: 'Rename branch',
+            title: l.sbRenameBranchTitle,
             initial: branch.name,
           );
           if (name != null && name != branch.name) {
@@ -500,14 +506,14 @@ class _BranchRow extends ConsumerWidget {
         }),
         const PopupMenuDivider(),
         item(
-          'Delete branch',
+          l.sbDeleteBranch,
           () async {
             final ok = await confirmDestructive(
               ref,
               context,
-              title: 'Delete ${branch.name}?',
-              body: 'The branch ref will be removed. This can be undone.',
-              confirmLabel: 'Delete',
+              title: l.sbDeleteBranchTitle(branch.name),
+              body: l.sbDeleteBranchBody,
+              confirmLabel: l.delete,
             );
             if (ok) await actions.deleteBranch(branch.name);
           },
@@ -516,16 +522,14 @@ class _BranchRow extends ConsumerWidget {
         ),
         if (branch.upstream.isNotEmpty)
           item(
-            'Delete branch and remote…',
+            l.sbDeleteBranchAndRemote,
             () async {
               final ok = await confirmDestructive(
                 ref,
                 context,
-                title: 'Delete ${branch.name} and ${branch.upstream}?',
-                body:
-                    'The branch will be removed here and on the remote. '
-                    'Only the local half can be undone.',
-                confirmLabel: 'Delete both',
+                title: l.sbDeleteBothTitle(branch.name, branch.upstream),
+                body: l.sbDeleteBothBody,
+                confirmLabel: l.sbDeleteBoth,
               );
               if (ok) {
                 await actions.deleteBranchAndRemote(
@@ -543,6 +547,7 @@ class _BranchRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final leaf = branch.name.split('/').last;
     // Row is selected when its tip is the commit currently highlighted in the
@@ -631,7 +636,7 @@ class _BranchRow extends ConsumerWidget {
                     if (heldElsewhere) ...[
                       const SizedBox(width: 6),
                       Tooltip(
-                        message: 'Checked out in ${heldBy.name}',
+                        message: l.sbCheckedOutIn(heldBy.name),
                         child: Icon(
                           Icons.dashboard_outlined,
                           size: 12,
@@ -676,6 +681,7 @@ class _BranchRow extends ConsumerWidget {
     String target,
     Offset at,
   ) async {
+    final l = AppLocalizations.of(context);
     final path = ref.read(workspaceProvider).activeTab?.path;
     if (path == null) return;
     final actions = ref.read(repoActionsProvider(path));
@@ -696,7 +702,7 @@ class _BranchRow extends ConsumerWidget {
             }
           },
           child: Text(
-            'Merge «$source» into «$target»',
+            l.sbMergeSourceInto(source, target),
             style: const TextStyle(fontSize: 13),
           ),
         ),
@@ -704,7 +710,7 @@ class _BranchRow extends ConsumerWidget {
           height: 34,
           onTap: () => actions.rebaseOnto(source, target),
           child: Text(
-            'Rebase «$source» onto «$target»',
+            l.sbRebaseSourceOnto(source, target),
             style: const TextStyle(fontSize: 13),
           ),
         ),
@@ -805,6 +811,7 @@ class _RemoteBranchRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final selected =
         rb.tip.isNotEmpty && ref.watch(selectedCommitProvider) == rb.tip;
@@ -815,8 +822,8 @@ class _RemoteBranchRow extends ConsumerWidget {
       onDoubleTap: onCheckout,
       child: Tooltip(
         message: rb.hasLocal
-            ? 'Click to show its tip · double-click to switch to ${rb.branch}'
-            : 'Click to show its tip · double-click to check out ${rb.name}',
+            ? l.sbTipSwitchHint(rb.branch)
+            : l.sbTipCheckoutHint(rb.name),
         waitDuration: const Duration(milliseconds: 600),
         child: InkWell(
           hoverColor: t.hover,
@@ -839,7 +846,7 @@ class _RemoteBranchRow extends ConsumerWidget {
                 ),
                 if (rb.hasLocal)
                   Tooltip(
-                    message: 'Has a local branch',
+                    message: l.sbHasLocalBranch,
                     child: Container(
                       width: 6,
                       height: 6,
@@ -886,6 +893,7 @@ Future<void> _remoteDropMenu(
   RemoteBranch rb,
   Offset at,
 ) async {
+  final l = AppLocalizations.of(context);
   final path = ref.read(workspaceProvider).activeTab?.path;
   if (path == null) return;
   final actions = ref.read(repoActionsProvider(path));
@@ -906,7 +914,7 @@ Future<void> _remoteDropMenu(
           }
         },
         child: Text(
-          'Merge «$source» into «${rb.branch}»',
+          l.sbMergeSourceInto(source, rb.branch),
           style: const TextStyle(fontSize: 13),
         ),
       ),
@@ -914,7 +922,7 @@ Future<void> _remoteDropMenu(
         height: 34,
         onTap: () => actions.rebaseOnto(source, rb.name),
         child: Text(
-          'Rebase «$source» onto «${rb.name}»',
+          l.sbRebaseSourceOnto(source, rb.name),
           style: const TextStyle(fontSize: 13),
         ),
       ),
@@ -930,6 +938,7 @@ Future<void> _remoteBranchMenu(
   Offset at, {
   Branch? currentLocal,
 }) async {
+  final l = AppLocalizations.of(context);
   await showContextMenu<void>(
     context: context,
     position: at,
@@ -945,7 +954,7 @@ Future<void> _remoteBranchMenu(
           activateBranch(ref, context, path, remote: rb);
         },
         child: Text(
-          rb.hasLocal ? 'Switch to ${rb.branch}' : 'Check out ${rb.name}',
+          rb.hasLocal ? l.sbSwitchTo(rb.branch) : l.sbCheckOutNamed(rb.name),
           style: const TextStyle(fontSize: 13),
         ),
       ),
@@ -964,7 +973,7 @@ Future<void> _remoteBranchMenu(
           }
         },
         child: Text(
-          'Merge ${rb.name} into current',
+          l.sbMergeNamedIntoCurrent(rb.name),
           style: const TextStyle(fontSize: 13),
         ),
       ),
@@ -982,7 +991,7 @@ Future<void> _remoteBranchMenu(
             ahead: currentLocal.ahead,
           ),
           child: Text(
-            'Reset ${rb.branch} to this',
+            l.sbResetToThis(rb.branch),
             style: const TextStyle(fontSize: 13),
           ),
         ),
@@ -993,16 +1002,14 @@ Future<void> _remoteBranchMenu(
           final ok = await confirmDestructive(
             ref,
             context,
-            title: 'Delete ${rb.name}?',
-            body:
-                'The branch will be deleted on ${rb.remote}. Any local '
-                'branch of the same name stays. This cannot be undone.',
-            confirmLabel: 'Delete',
+            title: l.sbDeleteRemoteBranchTitle(rb.name),
+            body: l.sbDeleteRemoteBranchBody(rb.remote),
+            confirmLabel: l.delete,
           );
           if (ok) await actions.deleteRemoteBranch(rb);
         },
         child: Text(
-          'Delete ${rb.name}…',
+          l.sbDeleteNamedItem(rb.name),
           style: TextStyle(fontSize: 13, color: context.tokens.danger),
         ),
       ),
@@ -1018,6 +1025,7 @@ Future<void> _remoteMenu(
   Offset at, {
   required List<String> existing,
 }) async {
+  final l = AppLocalizations.of(context);
   final t = context.tokens;
   await showContextMenu<void>(
     context: context,
@@ -1026,12 +1034,15 @@ Future<void> _remoteMenu(
       PopupMenuItem(
         height: 34,
         onTap: () => actions.fetch(remote: remote),
-        child: Text('Fetch $remote', style: const TextStyle(fontSize: 13)),
+        child: Text(
+          l.sbFetchRemote(remote),
+          style: const TextStyle(fontSize: 13),
+        ),
       ),
       PopupMenuItem(
         height: 34,
         onTap: () => actions.pruneRemote(remote),
-        child: const Text('Prune', style: TextStyle(fontSize: 13)),
+        child: Text(l.sbPrune, style: const TextStyle(fontSize: 13)),
       ),
       PopupMenuItem(
         height: 34,
@@ -1041,7 +1052,7 @@ Future<void> _remoteMenu(
             await Clipboard.setData(ClipboardData(text: url));
           }
         },
-        child: const Text('Copy URL', style: TextStyle(fontSize: 13)),
+        child: Text(l.sbCopyUrl, style: const TextStyle(fontSize: 13)),
       ),
       const PopupMenuDivider(),
       PopupMenuItem(
@@ -1051,7 +1062,7 @@ Future<void> _remoteMenu(
           if (!context.mounted) return;
           final edit = await showRemoteDialog(
             context,
-            title: 'Edit remote',
+            title: l.sbEditRemoteTitle,
             initialName: remote,
             initialUrl: url,
             existing: existing,
@@ -1061,7 +1072,7 @@ Future<void> _remoteMenu(
             await actions.updateRemote(remote, name: edit.name, url: edit.url);
           }
         },
-        child: const Text('Edit remote…', style: TextStyle(fontSize: 13)),
+        child: Text(l.sbEditRemoteItem, style: const TextStyle(fontSize: 13)),
       ),
       PopupMenuItem(
         height: 34,
@@ -1069,16 +1080,14 @@ Future<void> _remoteMenu(
           final ok = await confirmDestructive(
             ref,
             context,
-            title: 'Remove remote $remote?',
-            body:
-                'Its remote-tracking branches go with it. Undo restores the '
-                'remote; fetch to bring the branches back.',
-            confirmLabel: 'Remove',
+            title: l.sbRemoveRemoteTitle(remote),
+            body: l.sbRemoveRemoteBody,
+            confirmLabel: l.sbRemove,
           );
           if (ok) await actions.removeRemote(remote);
         },
         child: Text(
-          'Remove remote…',
+          l.sbRemoveRemoteItem,
           style: TextStyle(fontSize: 13, color: t.danger),
         ),
       ),
@@ -1093,6 +1102,7 @@ Future<void> _tagMenu(
   String tag,
   Offset at,
 ) async {
+  final l = AppLocalizations.of(context);
   final t = context.tokens;
   await showContextMenu<void>(
     context: context,
@@ -1101,17 +1111,17 @@ Future<void> _tagMenu(
       PopupMenuItem(
         height: 34,
         onTap: () => actions.checkout(tag),
-        child: const Text('Checkout', style: TextStyle(fontSize: 13)),
+        child: Text(l.sbCheckout, style: const TextStyle(fontSize: 13)),
       ),
       PopupMenuItem(
         height: 34,
         onTap: () => actions.pushTag(tag),
-        child: const Text('Push tag', style: TextStyle(fontSize: 13)),
+        child: Text(l.sbPushTag, style: const TextStyle(fontSize: 13)),
       ),
       PopupMenuItem(
         height: 34,
         onTap: () => Clipboard.setData(ClipboardData(text: tag)),
-        child: const Text('Copy name', style: TextStyle(fontSize: 13)),
+        child: Text(l.sbCopyName, style: const TextStyle(fontSize: 13)),
       ),
       const PopupMenuDivider(),
       PopupMenuItem(
@@ -1120,14 +1130,14 @@ Future<void> _tagMenu(
           final ok = await confirmDestructive(
             ref,
             context,
-            title: 'Delete tag $tag?',
-            body: 'The tag will be removed locally. This can be undone.',
-            confirmLabel: 'Delete',
+            title: l.sbDeleteTagTitle(tag),
+            body: l.sbDeleteTagBody,
+            confirmLabel: l.delete,
           );
           if (ok) await actions.deleteTag(tag);
         },
         child: Text(
-          'Delete tag',
+          l.sbDeleteTag,
           style: TextStyle(fontSize: 13, color: t.danger),
         ),
       ),
@@ -1142,6 +1152,7 @@ Future<void> _stashMenu(
   Stash stash,
   Offset at,
 ) async {
+  final l = AppLocalizations.of(context);
   final t = context.tokens;
   await showContextMenu<void>(
     context: context,
@@ -1150,12 +1161,12 @@ Future<void> _stashMenu(
       PopupMenuItem(
         height: 34,
         onTap: () => actions.stashPop(stash.ref),
-        child: const Text('Pop', style: TextStyle(fontSize: 13)),
+        child: Text(l.sbPop, style: const TextStyle(fontSize: 13)),
       ),
       PopupMenuItem(
         height: 34,
         onTap: () => actions.stashApply(stash.ref),
-        child: const Text('Apply', style: TextStyle(fontSize: 13)),
+        child: Text(l.apply, style: const TextStyle(fontSize: 13)),
       ),
       const PopupMenuDivider(),
       PopupMenuItem(
@@ -1164,14 +1175,13 @@ Future<void> _stashMenu(
           final ok = await confirmDestructive(
             ref,
             context,
-            title: 'Drop ${stash.ref}?',
-            body:
-                'The stash will be deleted. An Undo toast lets you restore it.',
-            confirmLabel: 'Drop',
+            title: l.sbDropStashTitle(stash.ref),
+            body: l.sbDropStashBody,
+            confirmLabel: l.sbDrop,
           );
           if (ok) await actions.stashDrop(stash.ref);
         },
-        child: Text('Drop', style: TextStyle(fontSize: 13, color: t.danger)),
+        child: Text(l.sbDrop, style: TextStyle(fontSize: 13, color: t.danger)),
       ),
     ],
   );
@@ -1184,6 +1194,7 @@ Future<void> _submoduleMenu(
   Submodule sm,
   Offset at,
 ) async {
+  final l = AppLocalizations.of(context);
   final t = context.tokens;
   await showContextMenu<void>(
     context: context,
@@ -1192,22 +1203,22 @@ Future<void> _submoduleMenu(
       PopupMenuItem(
         height: 34,
         onTap: () => actions.submoduleUpdate(sm.path),
-        child: const Text('Update', style: TextStyle(fontSize: 13)),
+        child: Text(l.sbUpdate, style: const TextStyle(fontSize: 13)),
       ),
       PopupMenuItem(
         height: 34,
         onTap: () => actions.submoduleUpdateRemote(sm.path),
-        child: const Text('Update to remote', style: TextStyle(fontSize: 13)),
+        child: Text(l.sbUpdateToRemote, style: const TextStyle(fontSize: 13)),
       ),
       PopupMenuItem(
         height: 34,
         onTap: () => actions.submoduleSync(sm.path),
-        child: const Text('Sync', style: TextStyle(fontSize: 13)),
+        child: Text(l.sbSync, style: const TextStyle(fontSize: 13)),
       ),
       PopupMenuItem(
         height: 34,
         onTap: () => actions.submoduleDeinit(sm.path),
-        child: const Text('Deinit', style: TextStyle(fontSize: 13)),
+        child: Text(l.sbDeinit, style: const TextStyle(fontSize: 13)),
       ),
       const PopupMenuDivider(),
       PopupMenuItem(
@@ -1216,15 +1227,16 @@ Future<void> _submoduleMenu(
           final ok = await confirmDestructive(
             ref,
             context,
-            title: 'Remove ${sm.name}?',
-            body:
-                'The submodule at ${sm.path} will be deinitialized and removed '
-                'from .gitmodules. This cannot be undone.',
-            confirmLabel: 'Remove',
+            title: l.sbRemoveSubmoduleTitle(sm.name),
+            body: l.sbRemoveSubmoduleBody(sm.path),
+            confirmLabel: l.sbRemove,
           );
           if (ok) await actions.submoduleRemove(sm.path);
         },
-        child: Text('Remove', style: TextStyle(fontSize: 13, color: t.danger)),
+        child: Text(
+          l.sbRemove,
+          style: TextStyle(fontSize: 13, color: t.danger),
+        ),
       ),
     ],
   );

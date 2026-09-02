@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/git/models.dart';
 import '../../domain/path_key.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
 import '../../state/workspace.dart';
@@ -43,6 +44,7 @@ Future<void> activateBranch(
   String? localBranch,
   RemoteBranch? remote,
 }) async {
+  final l = AppLocalizations.of(context);
   final actions = ref.read(repoActionsProvider(repoPath));
 
   // The local branch this call will ultimately check out, if any: the
@@ -111,11 +113,9 @@ Future<void> activateBranch(
   final ok = await confirmDestructive(
     ref,
     context,
-    title: 'Reset ${rb.branch} to ${rb.name}?',
-    body:
-        'This moves local ${rb.branch} to ${rb.name}, discarding any commits '
-        'not on the remote. Uncommitted changes are stashed (undoable).',
-    confirmLabel: 'Reset & switch',
+    title: l.bsResetTitle(rb.branch, rb.name),
+    body: l.bsResetBody(rb.branch, rb.name),
+    confirmLabel: l.bsResetAndSwitch,
   );
   if (!ok) return;
   await actions.switchResettingToRemote(

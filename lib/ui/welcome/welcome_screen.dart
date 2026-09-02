@@ -36,31 +36,31 @@ class WelcomeScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Welcome to Mergelio',
+                      l.welTitle,
                       style: AppFonts.disp(size: 30, color: t.textPrimary),
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Free visual Git client. Get started:',
+                      l.welSubtitle,
                       style: TextStyle(color: t.textMuted, fontSize: 14),
                     ),
                     const SizedBox(height: 24),
                     _ActionCard(
                       icon: Icons.cloud_download_outlined,
-                      title: 'Clone repository',
-                      subtitle: 'From a URL (HTTPS/SSH) into a folder',
+                      title: l.rdlgCloneTitle,
+                      subtitle: l.welCloneSub,
                       onTap: () => showCloneDialog(context),
                     ),
                     _ActionCard(
                       icon: Icons.add_box_outlined,
-                      title: 'Create repository',
-                      subtitle: 'New local repository with README/.gitignore',
+                      title: l.rdlgCreateTitle,
+                      subtitle: l.welCreateSub,
                       onTap: () => showCreateDialog(context),
                     ),
                     _ActionCard(
                       icon: Icons.folder_open_outlined,
-                      title: 'Open repository',
-                      subtitle: 'Choose an existing folder with .git',
+                      title: l.welOpenTitle,
+                      subtitle: l.welOpenSub,
                       onTap: () => openRepositoryFlow(context, ref),
                     ),
                   ],
@@ -181,6 +181,7 @@ class _RecentRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     return GestureDetector(
       onSecondaryTapDown: (d) async {
@@ -191,12 +192,12 @@ class _RecentRow extends ConsumerWidget {
             PopupMenuItem(
               value: 'pin',
               height: 36,
-              child: Text(repo.pinned ? 'Unpin' : 'Pin'),
+              child: Text(repo.pinned ? l.welUnpin : l.welPin),
             ),
-            const PopupMenuItem(
+            PopupMenuItem(
               value: 'remove',
               height: 36,
-              child: Text('Remove from recents'),
+              child: Text(l.welRemoveRecent),
             ),
           ],
         );
@@ -214,7 +215,7 @@ class _RecentRow extends ConsumerWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(t.rButton),
           hoverColor: t.hover,
-          onTap: () => openRepositoryPath(ref, repo.path),
+          onTap: () => openRepositoryPath(ref, repo.path, l),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             child: Row(
@@ -245,7 +246,7 @@ class _RecentRow extends ConsumerWidget {
                 IconButton(
                   iconSize: 15,
                   visualDensity: VisualDensity.compact,
-                  tooltip: repo.pinned ? 'Unpin' : 'Pin',
+                  tooltip: repo.pinned ? l.welUnpin : l.welPin,
                   icon: Icon(
                     repo.pinned ? Icons.push_pin : Icons.push_pin_outlined,
                     color: repo.pinned ? t.accent : t.textFaint,

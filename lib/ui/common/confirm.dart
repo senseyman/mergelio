@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../l10n/gen/app_localizations.dart';
 import '../../state/settings_controller.dart';
 import 'dialogs.dart';
 
@@ -12,13 +13,14 @@ Future<bool> confirmDestructive(
   BuildContext context, {
   required String title,
   required String body,
-  String confirmLabel = 'Confirm',
+  String? confirmLabel,
 }) async {
+  final l = AppLocalizations.of(context);
   if (!ref.read(settingsProvider).confirmDestructive) return true;
   return showConfirmDialog(
     context,
     title: title,
     body: body,
-    confirmLabel: confirmLabel,
+    confirmLabel: confirmLabel ?? l.confirmAction,
   );
 }

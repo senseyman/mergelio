@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../../state/diff_target.dart';
 import '../../state/file_insight.dart';
 import '../../state/settings_controller.dart';
@@ -38,6 +39,7 @@ class _InsightBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     return DefaultTabController(
       length: 2,
@@ -48,9 +50,9 @@ class _InsightBody extends StatelessWidget {
             labelColor: t.textPrimary,
             unselectedLabelColor: t.textFaint,
             indicatorColor: t.accent,
-            tabs: const [
-              Tab(text: 'History'),
-              Tab(text: 'Blame'),
+            tabs: [
+              Tab(text: l.fiHistory),
+              Tab(text: l.wtpBlame),
             ],
           ),
           Expanded(
@@ -74,6 +76,7 @@ class _HistoryTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final dateFormat = ref.watch(settingsProvider.select((s) => s.dateFormat));
     return ref
@@ -81,10 +84,7 @@ class _HistoryTab extends ConsumerWidget {
         .when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(
-            child: Text(
-              'Could not load history',
-              style: TextStyle(color: t.textMuted),
-            ),
+            child: Text(l.fiCouldNotLoad, style: TextStyle(color: t.textMuted)),
           ),
           data: (commits) => ListView(
             children: [
@@ -148,6 +148,7 @@ class _BlameTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     return ref
         .watch(blameProvider((repo: repoPath, path: path)))
@@ -155,7 +156,7 @@ class _BlameTab extends ConsumerWidget {
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(
             child: Text(
-              'Could not blame this file',
+              l.fiCouldNotBlame,
               style: TextStyle(color: t.textMuted),
             ),
           ),

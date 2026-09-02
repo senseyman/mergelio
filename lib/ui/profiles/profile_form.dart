@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/tokens.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../common/dialogs.dart';
 
 /// The three values a profile needs: its display [label] plus the git identity
@@ -14,7 +15,9 @@ Future<ProfileFormData?> showProfileFormDialog(
   ProfileFormData? initial,
 }) => showAppModal<ProfileFormData>(
   context: context,
-  title: initial == null ? 'New profile' : 'Edit profile',
+  title: initial == null
+      ? AppLocalizations.of(context).pfmNew
+      : AppLocalizations.of(context).pfmEdit,
   icon: Icons.person_outline,
   width: 460,
   body: ProfileFormBody(initial: initial),
@@ -25,13 +28,13 @@ Future<ProfileFormData?> showProfileFormDialog(
 class ProfileFormBody extends StatefulWidget {
   final ProfileFormData? initial;
   final bool showCancel;
-  final String submitLabel;
+  final String? submitLabel;
   final void Function(ProfileFormData data)? onSubmit;
   const ProfileFormBody({
     super.key,
     this.initial,
     this.showCancel = true,
-    this.submitLabel = 'Save',
+    this.submitLabel,
     this.onSubmit,
   });
 
@@ -73,6 +76,7 @@ class _ProfileFormBodyState extends State<ProfileFormBody> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     Widget field(String label, TextEditingController c, {String? hint}) =>
         Padding(
@@ -84,7 +88,7 @@ class _ProfileFormBodyState extends State<ProfileFormBody> {
               const SizedBox(height: 4),
               TextField(
                 controller: c,
-                autofocus: label == 'Profile name',
+                autofocus: label == l.pfmProfileName,
                 onChanged: (_) => setState(() {}),
                 onSubmitted: (_) => _submit(),
                 decoration: InputDecoration(
@@ -101,9 +105,9 @@ class _ProfileFormBodyState extends State<ProfileFormBody> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        field('Profile name', _label, hint: 'Work, Personal, …'),
-        field('Developer name', _name, hint: 'Your name in commits'),
-        field('Email', _email, hint: 'you@example.com'),
+        field(l.pfmProfileName, _label, hint: l.pfmProfileNameHint),
+        field(l.pfmDeveloperName, _name, hint: l.pfmDeveloperNameHint),
+        field(l.pfmEmail, _email, hint: 'you@example.com'),
         const SizedBox(height: 4),
         Row(
           mainAxisAlignment: MainAxisAlignment.end,
@@ -111,12 +115,12 @@ class _ProfileFormBodyState extends State<ProfileFormBody> {
             if (widget.showCancel)
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Cancel'),
+                child: Text(l.cancel),
               ),
             const SizedBox(width: 8),
             FilledButton(
               onPressed: _valid ? _submit : null,
-              child: Text(widget.submitLabel),
+              child: Text((widget.submitLabel ?? l.save)),
             ),
           ],
         ),

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../core/tokens.dart';
 import '../../domain/git/worktree.dart';
 import '../../domain/path_key.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../common/dialogs.dart';
 
 /// What the Add dialog collected. Exactly one of [newBranch], [existingBranch]
@@ -33,7 +34,7 @@ Future<AddWorktreeData?> showAddWorktreeDialog(
   bool hasSubmodules = false,
 }) => showAppModal<AddWorktreeData>(
   context: context,
-  title: 'Add worktree',
+  title: AppLocalizations.of(context).wtAdd,
   icon: Icons.dashboard_outlined,
   width: 520,
   body: _AddWorktreeBody(
@@ -129,7 +130,7 @@ class _AddWorktreeBodyState extends State<_AddWorktreeBody> {
     // git would refuse this too, but only after creating nothing and leaving
     // the user to read its message; the branch list is already here.
     return widget.branches.contains(_branch.text.trim())
-        ? 'That branch already exists'
+        ? AppLocalizations.of(context).wtBranchExists
         : null;
   }
 
@@ -140,7 +141,9 @@ class _AddWorktreeBodyState extends State<_AddWorktreeBody> {
   String? get _existsError {
     final p = _path.text.trim();
     if (p.isEmpty) return null;
-    return widget.isNonEmptyDir(p) ? 'That directory is not empty' : null;
+    return widget.isNonEmptyDir(p)
+        ? AppLocalizations.of(context).wtDirNotEmpty
+        : null;
   }
 
   bool get _valid =>
@@ -175,6 +178,7 @@ class _AddWorktreeBodyState extends State<_AddWorktreeBody> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final err = _pathError ?? _existsError ?? _branchError;
 
@@ -190,7 +194,7 @@ class _AddWorktreeBodyState extends State<_AddWorktreeBody> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text('Location', style: TextStyle(color: t.textMuted, fontSize: 12)),
+        Text(l.wtLocation, style: TextStyle(color: t.textMuted, fontSize: 12)),
         const SizedBox(height: 6),
         Row(
           children: [
@@ -203,7 +207,7 @@ class _AddWorktreeBodyState extends State<_AddWorktreeBody> {
               ),
             ),
             const SizedBox(width: 8),
-            OutlinedButton(onPressed: _browse, child: const Text('Browse…')),
+            OutlinedButton(onPressed: _browse, child: Text(l.wtBrowse)),
           ],
         ),
         const SizedBox(height: 14),
@@ -219,7 +223,7 @@ class _AddWorktreeBodyState extends State<_AddWorktreeBody> {
                 value: _AddMode.newBranch,
                 title: Row(
                   children: [
-                    const Text('New branch', style: TextStyle(fontSize: 13)),
+                    Text(l.wtNewBranch, style: const TextStyle(fontSize: 13)),
                     const SizedBox(width: 8),
                     Expanded(
                       child: TextField(
@@ -231,7 +235,7 @@ class _AddWorktreeBodyState extends State<_AddWorktreeBody> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    const Text('from', style: TextStyle(fontSize: 13)),
+                    Text(l.wtFrom, style: const TextStyle(fontSize: 13)),
                     const SizedBox(width: 8),
                     SizedBox(
                       width: 120,
@@ -252,9 +256,9 @@ class _AddWorktreeBodyState extends State<_AddWorktreeBody> {
                 value: _AddMode.existing,
                 title: Row(
                   children: [
-                    const Text(
-                      'Existing branch',
-                      style: TextStyle(fontSize: 13),
+                    Text(
+                      l.wtExistingBranch,
+                      style: const TextStyle(fontSize: 13),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -279,7 +283,12 @@ class _AddWorktreeBodyState extends State<_AddWorktreeBody> {
                                     const SizedBox(width: 4),
                                     Expanded(
                                       child: Text(
-                                        '— in ${worktreeHolding(widget.existing, b)!.name}',
+                                        l.wtHeldBy(
+                                          worktreeHolding(
+                                            widget.existing,
+                                            b,
+                                          )!.name,
+                                        ),
                                         overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
                                           fontSize: 11,
@@ -313,9 +322,9 @@ class _AddWorktreeBodyState extends State<_AddWorktreeBody> {
                 dense: true,
                 contentPadding: EdgeInsets.zero,
                 value: _AddMode.detached,
-                title: const Text(
-                  'Detached at',
-                  style: TextStyle(fontSize: 13),
+                title: Text(
+                  l.wtDetachedAt,
+                  style: const TextStyle(fontSize: 13),
                 ),
               ),
             ],
@@ -328,8 +337,7 @@ class _AddWorktreeBodyState extends State<_AddWorktreeBody> {
               // `worktree add` leaves them uninitialised, and initialising
               // them here is out of scope — so say it rather than let the new
               // worktree look broken.
-              'Submodules are not checked out in a new worktree; initialise '
-              'them there yourself.',
+              l.wtSubmodulesNote,
               style: TextStyle(color: t.textMuted, fontSize: 12),
             ),
           ),
@@ -340,7 +348,7 @@ class _AddWorktreeBodyState extends State<_AddWorktreeBody> {
           value: _openTab,
           onChanged: (v) => setState(() => _openTab = v ?? true),
           title: Text(
-            'Open in a new tab',
+            l.wtOpenInNewTab,
             style: TextStyle(color: t.textPrimary, fontSize: 13),
           ),
         ),
@@ -353,12 +361,12 @@ class _AddWorktreeBodyState extends State<_AddWorktreeBody> {
           children: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: Text(l.cancel),
             ),
             const SizedBox(width: 8),
             FilledButton(
               onPressed: _valid && _targetBranch.isNotEmpty ? _submit : null,
-              child: const Text('Add worktree'),
+              child: Text(l.wtAdd),
             ),
           ],
         ),
@@ -370,18 +378,19 @@ class _AddWorktreeBodyState extends State<_AddWorktreeBody> {
 /// First-stage removal confirmation. Names what will be deleted; the actual
 /// refusal-and-force path is [showForceRemoveDialog].
 Future<bool> showRemoveWorktreeDialog(BuildContext context, Worktree w) async {
+  final l = AppLocalizations.of(context);
   final answer = await showAppModal<bool>(
     context: context,
-    title: 'Remove worktree?',
+    title: l.wtRemoveTitle,
     icon: Icons.delete_outline,
     width: 460,
     body: _ConfirmBody(
       lines: [
         w.path,
-        if (w.branch != null) 'Checked out: ${w.branch}',
-        'The directory will be deleted.',
+        if (w.branch != null) l.wtCheckedOutBranch(w.branch!),
+        l.wtDirDeleted,
       ],
-      confirmLabel: 'Remove',
+      confirmLabel: l.wtRemove,
     ),
   );
   return answer ?? false;
@@ -393,14 +402,15 @@ Future<bool> showForceRemoveDialog(
   Worktree w,
   String gitMessage,
 ) async {
+  final l = AppLocalizations.of(context);
   final answer = await showAppModal<bool>(
     context: context,
-    title: 'Worktree has changes',
+    title: l.wtHasChangesTitle,
     icon: Icons.warning_amber_outlined,
     width: 480,
     body: _ConfirmBody(
-      lines: [w.path, gitMessage, 'Forcing discards those changes.'],
-      confirmLabel: 'Force remove',
+      lines: [w.path, gitMessage, l.wtForcingDiscards],
+      confirmLabel: l.wtForceRemove,
     ),
   );
   return answer ?? false;
@@ -419,7 +429,7 @@ Future<String?> showMoveWorktreeDialog(
   required List<Worktree> existing,
 }) => showAppModal<String>(
   context: context,
-  title: 'Move worktree',
+  title: AppLocalizations.of(context).wtMoveTitle,
   icon: Icons.drive_file_move_outlined,
   width: 480,
   body: _MoveWorktreeBody(worktree: w, repoPath: repoPath, existing: existing),
@@ -454,7 +464,7 @@ class _MoveWorktreeBodyState extends State<_MoveWorktreeBody> {
   String? get _error {
     final to = _path.text.trim();
     if (to.isNotEmpty && samePath(to, widget.worktree.path)) {
-      return 'That is where it already is';
+      return AppLocalizations.of(context).wtAlreadyThere;
     }
     return validateWorktreeDestination(
       destination: to,
@@ -473,6 +483,7 @@ class _MoveWorktreeBodyState extends State<_MoveWorktreeBody> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final err = _error;
     return Column(
@@ -480,7 +491,7 @@ class _MoveWorktreeBodyState extends State<_MoveWorktreeBody> {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          'New location for ${widget.worktree.name}',
+          l.wtNewLocationFor(widget.worktree.name),
           style: TextStyle(color: t.textMuted, fontSize: 12),
         ),
         const SizedBox(height: 6),
@@ -508,12 +519,12 @@ class _MoveWorktreeBodyState extends State<_MoveWorktreeBody> {
           children: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: Text(l.cancel),
             ),
             const SizedBox(width: 8),
             FilledButton(
               onPressed: err == null ? _submit : null,
-              child: const Text('Move'),
+              child: Text(l.wtMove),
             ),
           ],
         ),
@@ -535,7 +546,7 @@ Future<CollisionChoice> showWorktreeCollisionDialog(
 }) async {
   final choice = await showAppModal<CollisionChoice>(
     context: context,
-    title: 'Already checked out',
+    title: AppLocalizations.of(context).wtAlreadyCheckedOut,
     icon: Icons.dashboard_outlined,
     width: 500,
     body: _CollisionBody(branch: branch, holder: holder),
@@ -550,21 +561,21 @@ class _CollisionBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          '$branch is checked out in the worktree at',
+          l.wtCheckedOutInWorktreeAt(branch),
           style: TextStyle(color: t.textPrimary, fontSize: 13),
         ),
         const SizedBox(height: 4),
         Text(holder.path, style: TextStyle(color: t.textMuted, fontSize: 12)),
         const SizedBox(height: 10),
         Text(
-          'Checking out anyway puts the branch in two places at once; commits '
-          'made in one leave the other behind.',
+          l.wtTwoPlacesWarning,
           style: TextStyle(color: t.textMuted, fontSize: 12),
         ),
         const SizedBox(height: 14),
@@ -576,18 +587,18 @@ class _CollisionBody extends StatelessWidget {
             TextButton(
               onPressed: () =>
                   Navigator.of(context).pop(CollisionChoice.cancel),
-              child: const Text('Cancel'),
+              child: Text(l.cancel),
             ),
             // Deliberately not the default action.
             TextButton(
               onPressed: () =>
                   Navigator.of(context).pop(CollisionChoice.checkoutAnyway),
-              child: const Text('Checkout anyway'),
+              child: Text(l.wtCheckoutAnyway),
             ),
             FilledButton(
               onPressed: () =>
                   Navigator.of(context).pop(CollisionChoice.openWorktree),
-              child: const Text('Open worktree'),
+              child: Text(l.wtOpenWorktree),
             ),
           ],
         ),
@@ -600,7 +611,7 @@ class _CollisionBody extends StatelessWidget {
 Future<bool> showPruneDialog(BuildContext context, String report) async {
   final answer = await showAppModal<bool>(
     context: context,
-    title: 'Prune stale worktrees',
+    title: AppLocalizations.of(context).wtPruneTitle,
     icon: Icons.cleaning_services_outlined,
     width: 560,
     body: _PruneBody(report: report),
@@ -615,6 +626,7 @@ class _ConfirmBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -630,7 +642,7 @@ class _ConfirmBody extends StatelessWidget {
           children: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
+              child: Text(l.cancel),
             ),
             const SizedBox(width: 8),
             FilledButton(
@@ -650,6 +662,7 @@ class _PruneBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final empty = report.trim().isEmpty;
     return Column(
@@ -657,7 +670,7 @@ class _PruneBody extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          empty ? 'Nothing to prune.' : 'These entries will be removed:',
+          empty ? l.wtNothingToPrune : l.wtEntriesWillBeRemoved,
           style: TextStyle(color: t.textMuted, fontSize: 12),
         ),
         if (!empty) ...[
@@ -684,12 +697,12 @@ class _PruneBody extends StatelessWidget {
           children: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
+              child: Text(l.cancel),
             ),
             const SizedBox(width: 8),
             FilledButton(
               onPressed: empty ? null : () => Navigator.of(context).pop(true),
-              child: const Text('Prune'),
+              child: Text(l.wtPrune),
             ),
           ],
         ),
