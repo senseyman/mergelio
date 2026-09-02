@@ -1099,4 +1099,242 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get shellPrevOpUnfinished =>
       'A previous operation may not have finished';
+
+  @override
+  String get wtpChanges => 'CHANGES';
+
+  @override
+  String get wtpDiscardAll => 'Discard all changes';
+
+  @override
+  String get wtpUnstaged => 'UNSTAGED';
+
+  @override
+  String get wtpStageAll => 'Stage all';
+
+  @override
+  String get wtpStaged => 'STAGED';
+
+  @override
+  String get wtpUnstageAll => 'Unstage all';
+
+  @override
+  String wtpAbortTitle(String name) {
+    return 'Abort $name?';
+  }
+
+  @override
+  String wtpAbortBody(String name) {
+    return 'The staged resolution is discarded and the repository goes back to where the $name started.';
+  }
+
+  @override
+  String get wtpAbort => 'Abort';
+
+  @override
+  String wtpOpPausedBody(String name) {
+    return 'A $name is paused. Review the staged files, then continue it.';
+  }
+
+  @override
+  String get wtpMergeOpenBody =>
+      'A merge is open. Review the staged files, then commit it.';
+
+  @override
+  String wtpContinueOp(String name) {
+    return 'Continue $name';
+  }
+
+  @override
+  String get wtpTreeClean => 'Working tree clean';
+
+  @override
+  String get wtpNothingToCommit => 'Nothing to commit';
+
+  @override
+  String wtpSectionCount(String label, int count) {
+    return '$label ($count)';
+  }
+
+  @override
+  String get wtpFileHistory => 'File history';
+
+  @override
+  String get wtpBlame => 'Blame';
+
+  @override
+  String get wtpDiscardChanges => 'Discard changes';
+
+  @override
+  String get wtpFinishOpFirst => 'Finish the operation first';
+
+  @override
+  String get wtpFinishOpBody =>
+      'Continue or abort it above; committing here would strand the rest of the sequence.';
+
+  @override
+  String get wtpMessageEmpty => 'Commit message is empty';
+
+  @override
+  String get wtpNothingStaged => 'Nothing staged to commit';
+
+  @override
+  String get wtpCommitted => 'Committed';
+
+  @override
+  String get wtpCommitFailed => 'Commit failed';
+
+  @override
+  String get wtpSummary => 'Summary';
+
+  @override
+  String get wtpDescription => 'Description';
+
+  @override
+  String get wtpCoauthorsHint => 'Co-authors: Name <email>, Name2 <email2>';
+
+  @override
+  String get wtpAmend => 'Amend';
+
+  @override
+  String get wtpSign => 'Sign';
+
+  @override
+  String get wtpAddCoauthor => '+ Co-author';
+
+  @override
+  String get wtpCommit => 'Commit';
+
+  @override
+  String get wtpDiscardAllTitle => 'Discard all changes?';
+
+  @override
+  String get wtpDiscardAllBody =>
+      'This reverts every tracked file to its committed state, dropping staged and unstaged changes. You can undo it.';
+
+  @override
+  String wtpDiscardFileTitle(String path) {
+    return 'Discard changes to $path?';
+  }
+
+  @override
+  String get wtpDiscardFileBody =>
+      'This reverts the file to its committed state, dropping staged and unstaged changes. You can undo it.';
+
+  @override
+  String get wtsWorktrees => 'Worktrees';
+
+  @override
+  String get wtsNoWorktrees => 'No worktrees';
+
+  @override
+  String get wtsPruneMenu => 'Prune stale worktrees…';
+
+  @override
+  String wtsLockTitle(String name) {
+    return 'Lock $name';
+  }
+
+  @override
+  String get wtsReasonOptional => 'Reason (optional)';
+
+  @override
+  String get wtsLock => 'Lock';
+
+  @override
+  String get wtsLocked => 'Locked';
+
+  @override
+  String get wtsPrunable => 'Prunable';
+
+  @override
+  String get wtsOpenInTab => 'Open in tab';
+
+  @override
+  String get wtsRevealInFinder => 'Reveal in Finder';
+
+  @override
+  String get wtsMoveMenu => 'Move…';
+
+  @override
+  String get wtsUnlock => 'Unlock';
+
+  @override
+  String get wtsLockMenu => 'Lock…';
+
+  @override
+  String get wtsRemoveMenu => 'Remove…';
+
+  @override
+  String get cdCommit => 'COMMIT';
+
+  @override
+  String get cdWip => '‹ WIP';
+
+  @override
+  String get cdAuthor => 'Author';
+
+  @override
+  String get cdDate => 'Date';
+
+  @override
+  String get cdParent => 'Parent';
+
+  @override
+  String get cdCoauthored => 'Co-authored';
+
+  @override
+  String get cdChangedFiles => 'CHANGED FILES';
+
+  @override
+  String get cdCouldNotRead => 'Could not read changes';
+
+  @override
+  String get cdNoChanges => 'No changes';
+
+  @override
+  String get cdSha => 'SHA';
+
+  @override
+  String get asdTitle => 'Add submodule';
+
+  @override
+  String get asdRepoUrl => 'Repository URL';
+
+  @override
+  String get asdPath => 'Path';
+
+  @override
+  String get asdPathHint => 'folder in this repo';
+
+  @override
+  String get asdBranchOptional => 'Branch (optional)';
+
+  @override
+  String get asdBranchHint => 'track a branch';
+
+  @override
+  String get rdName => 'Name';
+
+  @override
+  String get rdUrl => 'URL';
+
+  @override
+  String bsResetTitle(String branch, String target) {
+    return 'Reset $branch to $target?';
+  }
+
+  @override
+  String bsResetBody(String branch, String target) {
+    return 'This moves local $branch to $target, discarding any commits not on the remote. Uncommitted changes are stashed (undoable).';
+  }
+
+  @override
+  String get bsResetAndSwitch => 'Reset & switch';
+
+  @override
+  String get wvChanges => 'Changes';
+
+  @override
+  String get wvChangesSub => 'Working tree · staging · commit';
 }

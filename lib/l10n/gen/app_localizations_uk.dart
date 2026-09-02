@@ -1102,4 +1102,242 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get shellPrevOpUnfinished => 'Попередня операція могла не завершитися';
+
+  @override
+  String get wtpChanges => 'ЗМІНИ';
+
+  @override
+  String get wtpDiscardAll => 'Відкинути всі зміни';
+
+  @override
+  String get wtpUnstaged => 'НЕПРОІНДЕКСОВАНІ';
+
+  @override
+  String get wtpStageAll => 'Проіндексувати все';
+
+  @override
+  String get wtpStaged => 'ПРОІНДЕКСОВАНІ';
+
+  @override
+  String get wtpUnstageAll => 'Зняти індексацію з усього';
+
+  @override
+  String wtpAbortTitle(String name) {
+    return 'Перервати $name?';
+  }
+
+  @override
+  String wtpAbortBody(String name) {
+    return 'Проіндексоване вирішення буде відкинуто, і репозиторій повернеться до стану, з якого почався $name.';
+  }
+
+  @override
+  String get wtpAbort => 'Перервати';
+
+  @override
+  String wtpOpPausedBody(String name) {
+    return '$name призупинено. Перегляньте проіндексовані файли, потім продовжте.';
+  }
+
+  @override
+  String get wtpMergeOpenBody =>
+      'Триває злиття. Перегляньте проіндексовані файли, потім зробіть коміт.';
+
+  @override
+  String wtpContinueOp(String name) {
+    return 'Продовжити $name';
+  }
+
+  @override
+  String get wtpTreeClean => 'Робоче дерево чисте';
+
+  @override
+  String get wtpNothingToCommit => 'Нема чого комітити';
+
+  @override
+  String wtpSectionCount(String label, int count) {
+    return '$label ($count)';
+  }
+
+  @override
+  String get wtpFileHistory => 'Історія файлу';
+
+  @override
+  String get wtpBlame => 'Авторство';
+
+  @override
+  String get wtpDiscardChanges => 'Відкинути зміни';
+
+  @override
+  String get wtpFinishOpFirst => 'Спершу завершіть операцію';
+
+  @override
+  String get wtpFinishOpBody =>
+      'Продовжте або перервіть її вище; коміт тут залишить решту послідовності незавершеною.';
+
+  @override
+  String get wtpMessageEmpty => 'Опис коміту порожній';
+
+  @override
+  String get wtpNothingStaged => 'Нічого не проіндексовано для коміту';
+
+  @override
+  String get wtpCommitted => 'Закомічено';
+
+  @override
+  String get wtpCommitFailed => 'Не вдалося зробити коміт';
+
+  @override
+  String get wtpSummary => 'Заголовок';
+
+  @override
+  String get wtpDescription => 'Опис';
+
+  @override
+  String get wtpCoauthorsHint => 'Співавтори: Ім’я <email>, Ім’я2 <email2>';
+
+  @override
+  String get wtpAmend => 'Виправити';
+
+  @override
+  String get wtpSign => 'Підписати';
+
+  @override
+  String get wtpAddCoauthor => '+ Співавтор';
+
+  @override
+  String get wtpCommit => 'Коміт';
+
+  @override
+  String get wtpDiscardAllTitle => 'Відкинути всі зміни?';
+
+  @override
+  String get wtpDiscardAllBody =>
+      'Це поверне кожен відстежуваний файл до стану останнього коміту, відкинувши проіндексовані та непроіндексовані зміни. Дію можна скасувати.';
+
+  @override
+  String wtpDiscardFileTitle(String path) {
+    return 'Відкинути зміни у $path?';
+  }
+
+  @override
+  String get wtpDiscardFileBody =>
+      'Це поверне файл до стану останнього коміту, відкинувши проіндексовані та непроіндексовані зміни. Дію можна скасувати.';
+
+  @override
+  String get wtsWorktrees => 'Робочі дерева';
+
+  @override
+  String get wtsNoWorktrees => 'Немає робочих дерев';
+
+  @override
+  String get wtsPruneMenu => 'Очистити застарілі робочі дерева…';
+
+  @override
+  String wtsLockTitle(String name) {
+    return 'Заблокувати $name';
+  }
+
+  @override
+  String get wtsReasonOptional => 'Причина (необов’язково)';
+
+  @override
+  String get wtsLock => 'Заблокувати';
+
+  @override
+  String get wtsLocked => 'Заблоковано';
+
+  @override
+  String get wtsPrunable => 'Можна очистити';
+
+  @override
+  String get wtsOpenInTab => 'Відкрити у вкладці';
+
+  @override
+  String get wtsRevealInFinder => 'Показати у Finder';
+
+  @override
+  String get wtsMoveMenu => 'Перемістити…';
+
+  @override
+  String get wtsUnlock => 'Розблокувати';
+
+  @override
+  String get wtsLockMenu => 'Заблокувати…';
+
+  @override
+  String get wtsRemoveMenu => 'Вилучити…';
+
+  @override
+  String get cdCommit => 'КОМІТ';
+
+  @override
+  String get cdWip => '‹ WIP';
+
+  @override
+  String get cdAuthor => 'Автор';
+
+  @override
+  String get cdDate => 'Дата';
+
+  @override
+  String get cdParent => 'Батьківський';
+
+  @override
+  String get cdCoauthored => 'Співавторство';
+
+  @override
+  String get cdChangedFiles => 'ЗМІНЕНІ ФАЙЛИ';
+
+  @override
+  String get cdCouldNotRead => 'Не вдалося прочитати зміни';
+
+  @override
+  String get cdNoChanges => 'Немає змін';
+
+  @override
+  String get cdSha => 'SHA';
+
+  @override
+  String get asdTitle => 'Додати підмодуль';
+
+  @override
+  String get asdRepoUrl => 'URL репозиторію';
+
+  @override
+  String get asdPath => 'Шлях';
+
+  @override
+  String get asdPathHint => 'тека в цьому репозиторії';
+
+  @override
+  String get asdBranchOptional => 'Гілка (необов’язково)';
+
+  @override
+  String get asdBranchHint => 'відстежувати гілку';
+
+  @override
+  String get rdName => 'Назва';
+
+  @override
+  String get rdUrl => 'URL';
+
+  @override
+  String bsResetTitle(String branch, String target) {
+    return 'Скинути $branch до $target?';
+  }
+
+  @override
+  String bsResetBody(String branch, String target) {
+    return 'Це перемістить локальну $branch до $target, відкинувши коміти, яких немає на віддаленому. Незакомічені зміни буде сховано (з можливістю повернення).';
+  }
+
+  @override
+  String get bsResetAndSwitch => 'Скинути й переключитися';
+
+  @override
+  String get wvChanges => 'Зміни';
+
+  @override
+  String get wvChangesSub => 'Робоче дерево · індексація · коміт';
 }

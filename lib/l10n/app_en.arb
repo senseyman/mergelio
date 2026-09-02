@@ -634,5 +634,126 @@
   "ropMessageOptional": "Message (optional)",
   "ropOnlyStaged": "Only staged changes",
   "ropStash": "Stash",
-  "shellPrevOpUnfinished": "A previous operation may not have finished"
+  "shellPrevOpUnfinished": "A previous operation may not have finished",
+
+  "wtpChanges": "CHANGES",
+  "wtpDiscardAll": "Discard all changes",
+  "wtpUnstaged": "UNSTAGED",
+  "wtpStageAll": "Stage all",
+  "wtpStaged": "STAGED",
+  "wtpUnstageAll": "Unstage all",
+  "wtpAbortTitle": "Abort {name}?",
+  "@wtpAbortTitle": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "wtpAbortBody": "The staged resolution is discarded and the repository goes back to where the {name} started.",
+  "@wtpAbortBody": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "wtpAbort": "Abort",
+  "wtpOpPausedBody": "A {name} is paused. Review the staged files, then continue it.",
+  "@wtpOpPausedBody": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "wtpMergeOpenBody": "A merge is open. Review the staged files, then commit it.",
+  "wtpContinueOp": "Continue {name}",
+  "@wtpContinueOp": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "wtpTreeClean": "Working tree clean",
+  "wtpNothingToCommit": "Nothing to commit",
+  "wtpSectionCount": "{label} ({count})",
+  "@wtpSectionCount": {
+    "placeholders": {
+      "label": {"type": "String"},
+      "count": {"type": "int"}
+    }
+  },
+  "wtpFileHistory": "File history",
+  "wtpBlame": "Blame",
+  "wtpDiscardChanges": "Discard changes",
+  "wtpFinishOpFirst": "Finish the operation first",
+  "wtpFinishOpBody": "Continue or abort it above; committing here would strand the rest of the sequence.",
+  "wtpMessageEmpty": "Commit message is empty",
+  "wtpNothingStaged": "Nothing staged to commit",
+  "wtpCommitted": "Committed",
+  "wtpCommitFailed": "Commit failed",
+  "wtpSummary": "Summary",
+  "wtpDescription": "Description",
+  "wtpCoauthorsHint": "Co-authors: Name <email>, Name2 <email2>",
+  "wtpAmend": "Amend",
+  "wtpSign": "Sign",
+  "wtpAddCoauthor": "+ Co-author",
+  "wtpCommit": "Commit",
+  "wtpDiscardAllTitle": "Discard all changes?",
+  "wtpDiscardAllBody": "This reverts every tracked file to its committed state, dropping staged and unstaged changes. You can undo it.",
+  "wtpDiscardFileTitle": "Discard changes to {path}?",
+  "@wtpDiscardFileTitle": {
+    "placeholders": {
+      "path": {"type": "String"}
+    }
+  },
+  "wtpDiscardFileBody": "This reverts the file to its committed state, dropping staged and unstaged changes. You can undo it.",
+  "wtsWorktrees": "Worktrees",
+  "wtsNoWorktrees": "No worktrees",
+  "wtsPruneMenu": "Prune stale worktrees…",
+  "wtsLockTitle": "Lock {name}",
+  "@wtsLockTitle": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "wtsReasonOptional": "Reason (optional)",
+  "wtsLock": "Lock",
+  "wtsLocked": "Locked",
+  "wtsPrunable": "Prunable",
+  "wtsOpenInTab": "Open in tab",
+  "wtsRevealInFinder": "Reveal in Finder",
+  "wtsMoveMenu": "Move…",
+  "wtsUnlock": "Unlock",
+  "wtsLockMenu": "Lock…",
+  "wtsRemoveMenu": "Remove…",
+  "cdCommit": "COMMIT",
+  "cdWip": "‹ WIP",
+  "cdAuthor": "Author",
+  "cdDate": "Date",
+  "cdParent": "Parent",
+  "cdCoauthored": "Co-authored",
+  "cdChangedFiles": "CHANGED FILES",
+  "cdCouldNotRead": "Could not read changes",
+  "cdNoChanges": "No changes",
+  "cdSha": "SHA",
+  "asdTitle": "Add submodule",
+  "asdRepoUrl": "Repository URL",
+  "asdPath": "Path",
+  "asdPathHint": "folder in this repo",
+  "asdBranchOptional": "Branch (optional)",
+  "asdBranchHint": "track a branch",
+  "rdName": "Name",
+  "rdUrl": "URL",
+  "bsResetTitle": "Reset {branch} to {target}?",
+  "@bsResetTitle": {
+    "placeholders": {
+      "branch": {"type": "String"},
+      "target": {"type": "String"}
+    }
+  },
+  "bsResetBody": "This moves local {branch} to {target}, discarding any commits not on the remote. Uncommitted changes are stashed (undoable).",
+  "@bsResetBody": {
+    "placeholders": {
+      "branch": {"type": "String"},
+      "target": {"type": "String"}
+    }
+  },
+  "bsResetAndSwitch": "Reset & switch",
+  "wvChanges": "Changes",
+  "wvChangesSub": "Working tree · staging · commit"
 }

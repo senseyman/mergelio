@@ -1981,6 +1981,438 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'A previous operation may not have finished'**
   String get shellPrevOpUnfinished;
+
+  /// No description provided for @wtpChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'CHANGES'**
+  String get wtpChanges;
+
+  /// No description provided for @wtpDiscardAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard all changes'**
+  String get wtpDiscardAll;
+
+  /// No description provided for @wtpUnstaged.
+  ///
+  /// In en, this message translates to:
+  /// **'UNSTAGED'**
+  String get wtpUnstaged;
+
+  /// No description provided for @wtpStageAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Stage all'**
+  String get wtpStageAll;
+
+  /// No description provided for @wtpStaged.
+  ///
+  /// In en, this message translates to:
+  /// **'STAGED'**
+  String get wtpStaged;
+
+  /// No description provided for @wtpUnstageAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Unstage all'**
+  String get wtpUnstageAll;
+
+  /// No description provided for @wtpAbortTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Abort {name}?'**
+  String wtpAbortTitle(String name);
+
+  /// No description provided for @wtpAbortBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The staged resolution is discarded and the repository goes back to where the {name} started.'**
+  String wtpAbortBody(String name);
+
+  /// No description provided for @wtpAbort.
+  ///
+  /// In en, this message translates to:
+  /// **'Abort'**
+  String get wtpAbort;
+
+  /// No description provided for @wtpOpPausedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'A {name} is paused. Review the staged files, then continue it.'**
+  String wtpOpPausedBody(String name);
+
+  /// No description provided for @wtpMergeOpenBody.
+  ///
+  /// In en, this message translates to:
+  /// **'A merge is open. Review the staged files, then commit it.'**
+  String get wtpMergeOpenBody;
+
+  /// No description provided for @wtpContinueOp.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue {name}'**
+  String wtpContinueOp(String name);
+
+  /// No description provided for @wtpTreeClean.
+  ///
+  /// In en, this message translates to:
+  /// **'Working tree clean'**
+  String get wtpTreeClean;
+
+  /// No description provided for @wtpNothingToCommit.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to commit'**
+  String get wtpNothingToCommit;
+
+  /// No description provided for @wtpSectionCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{label} ({count})'**
+  String wtpSectionCount(String label, int count);
+
+  /// No description provided for @wtpFileHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'File history'**
+  String get wtpFileHistory;
+
+  /// No description provided for @wtpBlame.
+  ///
+  /// In en, this message translates to:
+  /// **'Blame'**
+  String get wtpBlame;
+
+  /// No description provided for @wtpDiscardChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard changes'**
+  String get wtpDiscardChanges;
+
+  /// No description provided for @wtpFinishOpFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish the operation first'**
+  String get wtpFinishOpFirst;
+
+  /// No description provided for @wtpFinishOpBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue or abort it above; committing here would strand the rest of the sequence.'**
+  String get wtpFinishOpBody;
+
+  /// No description provided for @wtpMessageEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Commit message is empty'**
+  String get wtpMessageEmpty;
+
+  /// No description provided for @wtpNothingStaged.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing staged to commit'**
+  String get wtpNothingStaged;
+
+  /// No description provided for @wtpCommitted.
+  ///
+  /// In en, this message translates to:
+  /// **'Committed'**
+  String get wtpCommitted;
+
+  /// No description provided for @wtpCommitFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Commit failed'**
+  String get wtpCommitFailed;
+
+  /// No description provided for @wtpSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Summary'**
+  String get wtpSummary;
+
+  /// No description provided for @wtpDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Description'**
+  String get wtpDescription;
+
+  /// No description provided for @wtpCoauthorsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Co-authors: Name <email>, Name2 <email2>'**
+  String get wtpCoauthorsHint;
+
+  /// No description provided for @wtpAmend.
+  ///
+  /// In en, this message translates to:
+  /// **'Amend'**
+  String get wtpAmend;
+
+  /// No description provided for @wtpSign.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign'**
+  String get wtpSign;
+
+  /// No description provided for @wtpAddCoauthor.
+  ///
+  /// In en, this message translates to:
+  /// **'+ Co-author'**
+  String get wtpAddCoauthor;
+
+  /// No description provided for @wtpCommit.
+  ///
+  /// In en, this message translates to:
+  /// **'Commit'**
+  String get wtpCommit;
+
+  /// No description provided for @wtpDiscardAllTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard all changes?'**
+  String get wtpDiscardAllTitle;
+
+  /// No description provided for @wtpDiscardAllBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This reverts every tracked file to its committed state, dropping staged and unstaged changes. You can undo it.'**
+  String get wtpDiscardAllBody;
+
+  /// No description provided for @wtpDiscardFileTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard changes to {path}?'**
+  String wtpDiscardFileTitle(String path);
+
+  /// No description provided for @wtpDiscardFileBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This reverts the file to its committed state, dropping staged and unstaged changes. You can undo it.'**
+  String get wtpDiscardFileBody;
+
+  /// No description provided for @wtsWorktrees.
+  ///
+  /// In en, this message translates to:
+  /// **'Worktrees'**
+  String get wtsWorktrees;
+
+  /// No description provided for @wtsNoWorktrees.
+  ///
+  /// In en, this message translates to:
+  /// **'No worktrees'**
+  String get wtsNoWorktrees;
+
+  /// No description provided for @wtsPruneMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Prune stale worktrees…'**
+  String get wtsPruneMenu;
+
+  /// No description provided for @wtsLockTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Lock {name}'**
+  String wtsLockTitle(String name);
+
+  /// No description provided for @wtsReasonOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason (optional)'**
+  String get wtsReasonOptional;
+
+  /// No description provided for @wtsLock.
+  ///
+  /// In en, this message translates to:
+  /// **'Lock'**
+  String get wtsLock;
+
+  /// No description provided for @wtsLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Locked'**
+  String get wtsLocked;
+
+  /// No description provided for @wtsPrunable.
+  ///
+  /// In en, this message translates to:
+  /// **'Prunable'**
+  String get wtsPrunable;
+
+  /// No description provided for @wtsOpenInTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in tab'**
+  String get wtsOpenInTab;
+
+  /// No description provided for @wtsRevealInFinder.
+  ///
+  /// In en, this message translates to:
+  /// **'Reveal in Finder'**
+  String get wtsRevealInFinder;
+
+  /// No description provided for @wtsMoveMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Move…'**
+  String get wtsMoveMenu;
+
+  /// No description provided for @wtsUnlock.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock'**
+  String get wtsUnlock;
+
+  /// No description provided for @wtsLockMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Lock…'**
+  String get wtsLockMenu;
+
+  /// No description provided for @wtsRemoveMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove…'**
+  String get wtsRemoveMenu;
+
+  /// No description provided for @cdCommit.
+  ///
+  /// In en, this message translates to:
+  /// **'COMMIT'**
+  String get cdCommit;
+
+  /// No description provided for @cdWip.
+  ///
+  /// In en, this message translates to:
+  /// **'‹ WIP'**
+  String get cdWip;
+
+  /// No description provided for @cdAuthor.
+  ///
+  /// In en, this message translates to:
+  /// **'Author'**
+  String get cdAuthor;
+
+  /// No description provided for @cdDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Date'**
+  String get cdDate;
+
+  /// No description provided for @cdParent.
+  ///
+  /// In en, this message translates to:
+  /// **'Parent'**
+  String get cdParent;
+
+  /// No description provided for @cdCoauthored.
+  ///
+  /// In en, this message translates to:
+  /// **'Co-authored'**
+  String get cdCoauthored;
+
+  /// No description provided for @cdChangedFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'CHANGED FILES'**
+  String get cdChangedFiles;
+
+  /// No description provided for @cdCouldNotRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read changes'**
+  String get cdCouldNotRead;
+
+  /// No description provided for @cdNoChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'No changes'**
+  String get cdNoChanges;
+
+  /// No description provided for @cdSha.
+  ///
+  /// In en, this message translates to:
+  /// **'SHA'**
+  String get cdSha;
+
+  /// No description provided for @asdTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add submodule'**
+  String get asdTitle;
+
+  /// No description provided for @asdRepoUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Repository URL'**
+  String get asdRepoUrl;
+
+  /// No description provided for @asdPath.
+  ///
+  /// In en, this message translates to:
+  /// **'Path'**
+  String get asdPath;
+
+  /// No description provided for @asdPathHint.
+  ///
+  /// In en, this message translates to:
+  /// **'folder in this repo'**
+  String get asdPathHint;
+
+  /// No description provided for @asdBranchOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Branch (optional)'**
+  String get asdBranchOptional;
+
+  /// No description provided for @asdBranchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'track a branch'**
+  String get asdBranchHint;
+
+  /// No description provided for @rdName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get rdName;
+
+  /// No description provided for @rdUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'URL'**
+  String get rdUrl;
+
+  /// No description provided for @bsResetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset {branch} to {target}?'**
+  String bsResetTitle(String branch, String target);
+
+  /// No description provided for @bsResetBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This moves local {branch} to {target}, discarding any commits not on the remote. Uncommitted changes are stashed (undoable).'**
+  String bsResetBody(String branch, String target);
+
+  /// No description provided for @bsResetAndSwitch.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset & switch'**
+  String get bsResetAndSwitch;
+
+  /// No description provided for @wvChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Changes'**
+  String get wvChanges;
+
+  /// No description provided for @wvChangesSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Working tree · staging · commit'**
+  String get wvChangesSub;
 }
 
 class _AppLocalizationsDelegate

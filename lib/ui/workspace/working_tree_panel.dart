@@ -33,6 +33,7 @@ class WorkingTreePanel extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final actions = ref.read(repoActionsProvider(repoPath));
     final staged = data.working.where((f) => f.isStaged).toList();
@@ -49,7 +50,7 @@ class WorkingTreePanel extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _Header(
-            title: 'CHANGES',
+            title: l.wtpChanges,
             trailing: clean
                 ? null
                 : Row(
@@ -58,7 +59,7 @@ class WorkingTreePanel extends ConsumerWidget {
                       IconButton(
                         iconSize: 15,
                         visualDensity: VisualDensity.compact,
-                        tooltip: 'Discard all changes',
+                        tooltip: l.wtpDiscardAll,
                         icon: const Icon(Icons.backspace_outlined),
                         onPressed: () => _confirmDiscardAll(
                           ref,
@@ -81,7 +82,7 @@ class WorkingTreePanel extends ConsumerWidget {
                 child: FilledButton.icon(
                   onPressed: actions.openConflictResolution,
                   icon: const Icon(Icons.merge_type, size: 16),
-                  label: const Text('Resolve conflicts'),
+                  label: Text(l.mergeResolveConflicts),
                 ),
               ),
             )
@@ -94,26 +95,26 @@ class WorkingTreePanel extends ConsumerWidget {
                     padding: const EdgeInsets.only(bottom: 8),
                     children: [
                       _FileSection(
-                        label: 'UNSTAGED',
+                        label: l.wtpUnstaged,
                         repoPath: repoPath,
                         files: unstaged,
                         staged: false,
                         tree: tree,
                         onBulk: actions.stageAll,
-                        bulkLabel: 'Stage all',
+                        bulkLabel: l.wtpStageAll,
                         onToggle: (f) => actions.stageFile(f.path),
                         onOpen: (f) => _open(ref, f.path, staged: false),
                         onDiscard: (f) =>
                             _confirmDiscardFile(ref, context, repoPath, f),
                       ),
                       _FileSection(
-                        label: 'STAGED',
+                        label: l.wtpStaged,
                         repoPath: repoPath,
                         files: staged,
                         staged: true,
                         tree: tree,
                         onBulk: actions.unstageAll,
-                        bulkLabel: 'Unstage all',
+                        bulkLabel: l.wtpUnstageAll,
                         onToggle: (f) => actions.unstageFile(f.path),
                         onOpen: (f) => _open(ref, f.path, staged: true),
                         onDiscard: (f) =>
@@ -163,21 +164,21 @@ class _PendingOpBar extends ConsumerWidget {
   };
 
   Future<void> _abort(WidgetRef ref, BuildContext context) async {
+    final l = AppLocalizations.of(context);
     final name = _name(pending.kind);
     final ok = await confirmDestructive(
       ref,
       context,
-      title: 'Abort $name?',
-      body:
-          'The staged resolution is discarded and the repository goes back '
-          'to where the $name started.',
-      confirmLabel: 'Abort',
+      title: l.wtpAbortTitle(name),
+      body: l.wtpAbortBody(name),
+      confirmLabel: l.wtpAbort,
     );
     if (ok) await ref.read(repoActionsProvider(repoPath)).abortMerge();
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final name = _name(pending.kind);
     return Container(
@@ -200,10 +201,8 @@ class _PendingOpBar extends ConsumerWidget {
                   // Not always a resolution the app just staged: a merge or
                   // rebase started in a terminal lands here the same way.
                   pending.continues
-                      ? 'A $name is paused. Review the staged files, then '
-                            'continue it.'
-                      : 'A merge is open. Review the staged files, then '
-                            'commit it.',
+                      ? l.wtpOpPausedBody(name)
+                      : l.wtpMergeOpenBody,
                   style: TextStyle(color: t.textMuted, fontSize: 11.5),
                 ),
               ),
@@ -218,7 +217,7 @@ class _PendingOpBar extends ConsumerWidget {
                     onPressed: ref
                         .read(repoActionsProvider(repoPath))
                         .continueOp,
-                    child: Text('Continue $name'),
+                    child: Text(l.wtpContinueOp(name)),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -226,7 +225,7 @@ class _PendingOpBar extends ConsumerWidget {
               Expanded(
                 child: OutlinedButton(
                   onPressed: () => _abort(ref, context),
-                  child: const Text('Abort'),
+                  child: Text(l.wtpAbort),
                 ),
               ),
             ],
@@ -273,6 +272,7 @@ class _Header extends StatelessWidget {
 class _CleanState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     return Center(
       child: Column(
@@ -281,12 +281,12 @@ class _CleanState extends StatelessWidget {
           Icon(Icons.check_circle_outline, color: t.success, size: 26),
           const SizedBox(height: 10),
           Text(
-            'Working tree clean',
+            l.wtpTreeClean,
             style: TextStyle(color: t.textMuted, fontSize: 13),
           ),
           const SizedBox(height: 3),
           Text(
-            'Nothing to commit',
+            l.wtpNothingToCommit,
             style: TextStyle(color: t.textFaint, fontSize: 12),
           ),
         ],
@@ -322,6 +322,7 @@ class _FileSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -331,7 +332,7 @@ class _FileSection extends StatelessWidget {
           child: Row(
             children: [
               Text(
-                '$label (${files.length})',
+                l.wtpSectionCount(label, files.length),
                 style: TextStyle(
                   color: t.textFaint,
                   fontSize: 11,
@@ -406,6 +407,7 @@ class _FileRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final change = staged ? file.index : file.worktree;
     final (color, letter) = switch (change) {
@@ -429,7 +431,7 @@ class _FileRow extends StatelessWidget {
             height: 34,
             onTap: () =>
                 showFileInsight(context, repoPath: repoPath, path: file.path),
-            child: const Text('File history', style: TextStyle(fontSize: 13)),
+            child: Text(l.wtpFileHistory, style: TextStyle(fontSize: 13)),
           ),
           PopupMenuItem(
             height: 34,
@@ -439,15 +441,12 @@ class _FileRow extends StatelessWidget {
               path: file.path,
               initialTab: 1,
             ),
-            child: const Text('Blame', style: TextStyle(fontSize: 13)),
+            child: Text(l.wtpBlame, style: TextStyle(fontSize: 13)),
           ),
           PopupMenuItem(
             height: 34,
             onTap: () => onDiscard(file),
-            child: const Text(
-              'Discard changes',
-              style: TextStyle(fontSize: 13),
-            ),
+            child: Text(l.wtpDiscardChanges, style: TextStyle(fontSize: 13)),
           ),
         ],
       ),
@@ -628,26 +627,25 @@ class _ComposerState extends ConsumerState<_Composer> {
   }
 
   Future<void> _commit() async {
+    final l = AppLocalizations.of(context);
     final toasts = ref.read(toastProvider.notifier);
     if (widget.sequencePaused) {
       toasts.show(
-        'Finish the operation first',
-        description:
-            'Continue or abort it above; committing here would '
-            'strand the rest of the sequence.',
+        l.wtpFinishOpFirst,
+        description: l.wtpFinishOpBody,
         kind: ToastKind.warning,
       );
       return;
     }
     final summary = _summary.text.trim();
     if (summary.isEmpty) {
-      toasts.show('Commit message is empty', kind: ToastKind.warning);
+      toasts.show(l.wtpMessageEmpty, kind: ToastKind.warning);
       return;
     }
     // A merge commit is worth making even with nothing staged: it records the
     // merge itself, which is not otherwise in the history.
     if (!_amend && !widget.merging && widget.stagedCount == 0) {
-      toasts.show('Nothing staged to commit', kind: ToastKind.warning);
+      toasts.show(l.wtpNothingStaged, kind: ToastKind.warning);
       return;
     }
     try {
@@ -667,14 +665,15 @@ class _ComposerState extends ConsumerState<_Composer> {
         _amend = false;
         _showCoauthors = false;
       });
-      toasts.show('Committed', kind: ToastKind.success);
+      toasts.show(l.wtpCommitted, kind: ToastKind.success);
     } on Object catch (e) {
-      toasts.show('Commit failed', description: '$e', kind: ToastKind.error);
+      toasts.show(l.wtpCommitFailed, description: '$e', kind: ToastKind.error);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final profile = ref.watch(profilesProvider).active;
     return CallbackShortcuts(
@@ -725,7 +724,7 @@ class _ComposerState extends ConsumerState<_Composer> {
             TextField(
               controller: _summary,
               style: TextStyle(color: t.textPrimary, fontSize: 13),
-              decoration: _dec(t, 'Summary'),
+              decoration: _dec(t, l.wtpSummary),
             ),
             const SizedBox(height: 8),
             TextField(
@@ -733,14 +732,14 @@ class _ComposerState extends ConsumerState<_Composer> {
               style: TextStyle(color: t.textMuted, fontSize: 12.5),
               maxLines: 3,
               minLines: 2,
-              decoration: _dec(t, 'Description'),
+              decoration: _dec(t, l.wtpDescription),
             ),
             if (_showCoauthors) ...[
               const SizedBox(height: 8),
               TextField(
                 controller: _coauthors,
                 style: TextStyle(color: t.textMuted, fontSize: 12),
-                decoration: _dec(t, 'Co-authors: Name <email>, Name2 <email2>'),
+                decoration: _dec(t, l.wtpCoauthorsHint),
               ),
             ],
             const SizedBox(height: 8),
@@ -755,12 +754,12 @@ class _ComposerState extends ConsumerState<_Composer> {
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       _Toggle(
-                        label: 'Amend',
+                        label: l.wtpAmend,
                         value: _amend,
                         onChanged: _setAmend,
                       ),
                       _Toggle(
-                        label: 'Sign',
+                        label: l.wtpSign,
                         value: _sign,
                         onChanged: (v) => setState(() => _sign = v),
                       ),
@@ -768,7 +767,7 @@ class _ComposerState extends ConsumerState<_Composer> {
                         onTap: () =>
                             setState(() => _showCoauthors = !_showCoauthors),
                         child: Text(
-                          '+ Co-author',
+                          l.wtpAddCoauthor,
                           style: TextStyle(
                             color: _showCoauthors ? t.accent : t.textFaint,
                             fontSize: 12,
@@ -783,7 +782,7 @@ class _ComposerState extends ConsumerState<_Composer> {
                   message: '⌘⏎',
                   child: FilledButton(
                     onPressed: widget.sequencePaused ? null : _commit,
-                    child: Text(_amend ? 'Amend' : 'Commit'),
+                    child: Text(_amend ? l.wtpAmend : l.wtpCommit),
                   ),
                 ),
               ],
@@ -862,7 +861,7 @@ Future<void> _confirmDiscardAll(
   final t = context.tokens;
   final ok = await showAppModal<bool>(
     context: context,
-    title: 'Discard all changes?',
+    title: l.wtpDiscardAllTitle,
     icon: Icons.warning_amber_rounded,
     width: 460,
     body: StatefulBuilder(
@@ -871,8 +870,7 @@ Future<void> _confirmDiscardAll(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            'This reverts every tracked file to its committed state, dropping '
-            'staged and unstaged changes. You can undo it.',
+            l.wtpDiscardAllBody,
             style: TextStyle(color: t.textMuted, fontSize: 13, height: 1.5),
           ),
           if (untracked > 0) ...[
@@ -903,7 +901,7 @@ Future<void> _confirmDiscardAll(
       Builder(
         builder: (ctx) => TextButton(
           onPressed: () => Navigator.of(ctx).pop(false),
-          child: const Text('Cancel'),
+          child: Text(l.cancel),
         ),
       ),
       Builder(
@@ -913,7 +911,7 @@ Future<void> _confirmDiscardAll(
             foregroundColor: Colors.white,
           ),
           onPressed: () => Navigator.of(ctx).pop(true),
-          child: const Text('Discard'),
+          child: Text(l.discard),
         ),
       ),
     ],
@@ -933,15 +931,13 @@ Future<void> _confirmDiscardFile(
   String repoPath,
   WorkingFile f,
 ) async {
+  final l = AppLocalizations.of(context);
   final ok = await confirmDestructive(
     ref,
     context,
-    title: 'Discard changes to ${f.path}?',
-    body: f.isUntracked
-        ? 'This deletes the untracked file. You can undo it.'
-        : 'This reverts the file to its committed state, dropping staged and '
-              'unstaged changes. You can undo it.',
-    confirmLabel: 'Discard',
+    title: l.wtpDiscardFileTitle(f.path),
+    body: f.isUntracked ? l.diffDiscardFileBody : l.wtpDiscardFileBody,
+    confirmLabel: l.discard,
   );
   if (!ok) return;
   await ref.read(repoActionsProvider(repoPath)).discardFile(f);

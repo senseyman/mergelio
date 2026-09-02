@@ -13,6 +13,7 @@ import '../../state/worktrees.dart';
 import '../common/dialogs.dart';
 import 'sidebar_section.dart';
 import 'worktree_dialogs.dart';
+import '../../l10n/gen/app_localizations.dart';
 
 /// Sidebar section listing every worktree of the active repository, so a
 /// branch checked out elsewhere — or a worktree that is locked, prunable, or
@@ -23,6 +24,7 @@ class WorktreesSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final trees =
         ref.watch(worktreesProvider(repoPath)).valueOrNull ??
@@ -39,9 +41,9 @@ class WorktreesSection extends ConsumerWidget {
       // wearing one glyph read as the same thing. This is the glyph the branch
       // badge and the tab marker already use to mean "worktree".
       icon: Icons.dashboard_outlined,
-      label: 'Worktrees',
+      label: l.wtsWorktrees,
       count: trees.length,
-      emptyLabel: 'No worktrees',
+      emptyLabel: l.wtsNoWorktrees,
       open: !(collapsed['worktrees'] ?? false),
       onToggle: () => ctl.toggleSection('worktrees'),
       trailing: Row(
@@ -50,11 +52,11 @@ class WorktreesSection extends ConsumerWidget {
           PopupMenuButton<String>(
             icon: Icon(Icons.more_horiz, size: 14, color: t.textFaint),
             padding: EdgeInsets.zero,
-            itemBuilder: (_) => const [
+            itemBuilder: (_) => [
               PopupMenuItem(
                 value: 'prune',
                 height: 34,
-                child: Text('Prune stale worktrees…'),
+                child: Text(l.wtsPruneMenu),
               ),
             ],
             onSelected: (_) async {
@@ -68,7 +70,7 @@ class WorktreesSection extends ConsumerWidget {
           ),
           IconButton(
             icon: const Icon(Icons.add, size: 14),
-            tooltip: 'Add worktree',
+            tooltip: l.wtAdd,
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
             onPressed: () async {
@@ -130,6 +132,7 @@ class WorktreesSection extends ConsumerWidget {
     String? activePath,
     List<Worktree> siblings,
   ) {
+    final l = AppLocalizations.of(context);
     final isActive = activePath != null && samePath(activePath, w.path);
     final openable = !isActive && w.kind != WorktreeKind.bare && !w.prunable;
     return _WorktreeRow(
@@ -166,9 +169,9 @@ class WorktreesSection extends ConsumerWidget {
             // only way to reach a reasonless lock.
             final reason = await showInputDialog(
               context,
-              title: 'Lock ${w.name}',
-              label: 'Reason (optional)',
-              confirmLabel: 'Lock',
+              title: l.wtsLockTitle(w.name),
+              label: l.wtsReasonOptional,
+              confirmLabel: l.wtsLock,
               allowEmpty: true,
             );
             if (reason == null) return;
@@ -215,6 +218,7 @@ class _WorktreeRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final label = worktree.detached
         ? worktree.shortHead
@@ -266,7 +270,7 @@ class _WorktreeRow extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(left: 4),
                 child: Tooltip(
-                  message: worktree.lockReason ?? 'Locked',
+                  message: worktree.lockReason ?? l.wtsLocked,
                   child: Icon(Icons.lock_outline, size: 13, color: t.textFaint),
                 ),
               ),
@@ -274,7 +278,7 @@ class _WorktreeRow extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(left: 4),
                 child: Tooltip(
-                  message: worktree.prunableReason ?? 'Prunable',
+                  message: worktree.prunableReason ?? l.wtsPrunable,
                   child: Icon(
                     Icons.warning_amber_outlined,
                     size: 13,
@@ -291,24 +295,24 @@ class _WorktreeRow extends StatelessWidget {
                   value: 'open',
                   height: 34,
                   enabled: onOpen != null && !isActive,
-                  child: const Text('Open in tab'),
+                  child: Text(l.wtsOpenInTab),
                 ),
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'reveal',
                   height: 34,
-                  child: Text('Reveal in Finder'),
+                  child: Text(l.wtsRevealInFinder),
                 ),
                 PopupMenuItem(
                   value: 'move',
                   height: 34,
                   // Git refuses to move the main worktree.
                   enabled: worktree.kind == WorktreeKind.linked,
-                  child: const Text('Move…'),
+                  child: Text(l.wtsMoveMenu),
                 ),
                 PopupMenuItem(
                   value: worktree.locked ? 'unlock' : 'lock',
                   height: 34,
-                  child: Text(worktree.locked ? 'Unlock' : 'Lock…'),
+                  child: Text(worktree.locked ? l.wtsUnlock : l.wtsLockMenu),
                 ),
                 PopupMenuItem(
                   value: 'remove',
@@ -317,7 +321,7 @@ class _WorktreeRow extends StatelessWidget {
                   // must be unlocked first.
                   enabled:
                       worktree.kind == WorktreeKind.linked && !worktree.locked,
-                  child: const Text('Remove…'),
+                  child: Text(l.wtsRemoveMenu),
                 ),
               ],
               onSelected: onMenu,

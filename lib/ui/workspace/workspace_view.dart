@@ -18,6 +18,7 @@ import 'commit_details.dart';
 import 'panel_placeholder.dart';
 import 'repo_sidebar.dart';
 import 'working_tree_panel.dart';
+import '../../l10n/gen/app_localizations.dart';
 
 /// The 3-panel workspace: left sidebar (refs) · centre (history/graph) · right
 /// (changes). Left and right widths are user-resizable and persisted; the left
@@ -103,6 +104,7 @@ class _RightPanel extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final path = ref.watch(workspaceProvider).activeTab?.path;
     final selected = ref.watch(selectedCommitProvider);
@@ -133,8 +135,8 @@ class _RightPanel extends ConsumerWidget {
       }
     }
     return PanelPlaceholder(
-      title: 'Changes',
-      hint: 'Working tree · staging · commit',
+      title: l.wvChanges,
+      hint: l.wvChangesSub,
       background: t.bgPanel,
     );
   }
