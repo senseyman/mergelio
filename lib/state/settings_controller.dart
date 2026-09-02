@@ -38,6 +38,15 @@ class SettingsController extends StateNotifier<AppSettings> {
   void setTelemetryEnabled(bool v) =>
       _update(state.copyWith(telemetryEnabled: v));
 
+  void setUpdateConsent(String value) =>
+      _update(state.copyWith(updateConsent: value));
+
+  void setUpdateSkippedVersion(String version) =>
+      _update(state.copyWith(updateSkippedVersion: version));
+
+  void setUpdateLastCheck(DateTime when) =>
+      _update(state.copyWith(updateLastCheckMs: when.millisecondsSinceEpoch));
+
   /// Group-switcher style: 'dropdown' | 'pills' | 'rail'.
   void setGroupStyle(String s) => _update(state.copyWith(groupStyle: s));
 
