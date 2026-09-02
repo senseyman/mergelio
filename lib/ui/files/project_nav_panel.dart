@@ -24,6 +24,7 @@ import '../../state/workspace.dart';
 import '../common/confirm.dart';
 import '../common/dialogs.dart';
 import '../common/file_tree_view.dart';
+import '../../l10n/gen/app_localizations.dart';
 
 /// Directories the user has opened in the navigator, per repository. Bounded
 /// by what has actually been clicked, so it stays small even in a huge tree.
@@ -346,11 +347,12 @@ class _ProjectNavPanelState extends ConsumerState<ProjectNavPanel> {
   };
 
   Future<void> _create(String relDir, {required bool dir}) async {
+    final l = AppLocalizations.of(context);
     final name = await showInputDialog(
       context,
       title: dir ? 'New folder' : 'New file',
-      label: 'Name',
-      confirmLabel: 'Create',
+      label: l.filesName,
+      confirmLabel: l.create,
     );
     if (name == null || !mounted) return;
     final ops = ref.read(projectOpsProvider(repoPath));
@@ -369,12 +371,13 @@ class _ProjectNavPanelState extends ConsumerState<ProjectNavPanel> {
   }
 
   Future<void> _rename(ProjectRow row) async {
+    final l = AppLocalizations.of(context);
     final name = await showInputDialog(
       context,
-      title: 'Rename',
-      label: 'New name',
+      title: l.filesRenameTitle,
+      label: l.filesNewName,
       initial: _basename(row.path),
-      confirmLabel: 'Rename',
+      confirmLabel: l.rename,
     );
     if (name == null || !mounted) return;
     final r = await ref
@@ -389,15 +392,16 @@ class _ProjectNavPanelState extends ConsumerState<ProjectNavPanel> {
   }
 
   Future<void> _delete(ProjectRow row) async {
+    final l = AppLocalizations.of(context);
     final ok = await confirmDestructive(
       ref,
       context,
-      title: 'Delete ${_basename(row.path)}?',
+      title: l.filesDeleteTitle(_basename(row.path)),
       body: row is ProjectDirRow
           ? 'The folder and everything in it is removed from disk, not just '
                 'from git.'
           : 'The file is removed from disk, not just from git.',
-      confirmLabel: 'Delete',
+      confirmLabel: l.delete,
     );
     if (!ok || !mounted) return;
     final r = await ref.read(projectOpsProvider(repoPath)).delete(row.path);
@@ -409,14 +413,15 @@ class _ProjectNavPanelState extends ConsumerState<ProjectNavPanel> {
   }
 
   Future<void> _discard(WorkingFile change) async {
+    final l = AppLocalizations.of(context);
     final ok = await confirmDestructive(
       ref,
       context,
-      title: 'Discard changes to ${_basename(change.path)}?',
+      title: l.filesDiscardChangesTitle(_basename(change.path)),
       body: change.isUntracked
           ? 'The file is untracked, so discarding deletes it.'
           : 'The file goes back to what it was at the last commit.',
-      confirmLabel: 'Discard',
+      confirmLabel: l.discard,
     );
     if (!ok) return;
     await ref.read(repoActionsProvider(repoPath)).discardFile(change);
@@ -540,6 +545,7 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final name = repoPath
         .split(RegExp(r'[/\\]'))
@@ -573,13 +579,13 @@ class _Header extends StatelessWidget {
           ),
           _MiniButton(
             icon: Icons.refresh,
-            tooltip: 'Refresh',
+            tooltip: l.filesRefresh,
             onTap: onRefresh,
           ),
           if (onCollapse != null)
             _MiniButton(
               icon: Icons.chevron_left,
-              tooltip: 'Collapse',
+              tooltip: l.filesCollapse,
               onTap: onCollapse!,
             ),
         ],

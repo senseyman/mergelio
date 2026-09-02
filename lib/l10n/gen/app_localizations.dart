@@ -1495,6 +1495,132 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The submodule at {path} will be deinitialized and removed from .gitmodules. This cannot be undone.'**
   String sbRemoveSubmoduleBody(String path);
+
+  /// No description provided for @discard.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard'**
+  String get discard;
+
+  /// No description provided for @create.
+  ///
+  /// In en, this message translates to:
+  /// **'Create'**
+  String get create;
+
+  /// No description provided for @edit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get edit;
+
+  /// No description provided for @rename.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename'**
+  String get rename;
+
+  /// No description provided for @commonUnsavedChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Unsaved changes'**
+  String get commonUnsavedChanges;
+
+  /// No description provided for @commonFileChangedOnDisk.
+  ///
+  /// In en, this message translates to:
+  /// **'File changed on disk'**
+  String get commonFileChangedOnDisk;
+
+  /// No description provided for @commonOverwrite.
+  ///
+  /// In en, this message translates to:
+  /// **'Overwrite'**
+  String get commonOverwrite;
+
+  /// No description provided for @diffDiscardEditsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard edits?'**
+  String get diffDiscardEditsTitle;
+
+  /// No description provided for @diffDiscardEditsBody.
+  ///
+  /// In en, this message translates to:
+  /// **'What you typed here has not been written to {path}.'**
+  String diffDiscardEditsBody(String path);
+
+  /// No description provided for @diffSelectAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Select all'**
+  String get diffSelectAll;
+
+  /// No description provided for @diffDiscardFileTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard {path}?'**
+  String diffDiscardFileTitle(String path);
+
+  /// No description provided for @diffDiscardFileBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This deletes the untracked file. You can undo it.'**
+  String get diffDiscardFileBody;
+
+  /// No description provided for @filesEditor.
+  ///
+  /// In en, this message translates to:
+  /// **'Editor'**
+  String get filesEditor;
+
+  /// No description provided for @filesClosePath.
+  ///
+  /// In en, this message translates to:
+  /// **'Close {path}'**
+  String filesClosePath(String path);
+
+  /// No description provided for @filesName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get filesName;
+
+  /// No description provided for @filesRenameTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename'**
+  String get filesRenameTitle;
+
+  /// No description provided for @filesNewName.
+  ///
+  /// In en, this message translates to:
+  /// **'New name'**
+  String get filesNewName;
+
+  /// No description provided for @filesDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete {name}?'**
+  String filesDeleteTitle(String name);
+
+  /// No description provided for @filesDiscardChangesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard changes to {name}?'**
+  String filesDiscardChangesTitle(String name);
+
+  /// No description provided for @filesRefresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get filesRefresh;
+
+  /// No description provided for @filesCollapse.
+  ///
+  /// In en, this message translates to:
+  /// **'Collapse'**
+  String get filesCollapse;
 }
 
 class _AppLocalizationsDelegate

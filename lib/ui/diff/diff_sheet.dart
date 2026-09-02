@@ -20,6 +20,7 @@ import 'diff_selection.dart';
 import 'line_selection.dart';
 import 'linked_scroll.dart';
 import 'syntax_style.dart';
+import '../../l10n/gen/app_localizations.dart';
 
 /// Slide-up diff sheet over the graph. Occupies [settings.diffHeight] of the
 /// available height; the grip resizes it. Renders inline/split with word-level
@@ -39,16 +40,17 @@ class DiffSheet extends ConsumerWidget {
     final editing = ref.watch(diffEditingProvider) == target;
 
     Future<void> close() async {
+      final l = AppLocalizations.of(context);
       // Closing the sheet mid-edit would drop the typed text without a word.
       if (editing && ref.read(diffEditorDirtyProvider)) {
         final ok = await confirmDestructive(
           ref,
           context,
-          title: 'Discard edits?',
+          title: l.diffDiscardEditsTitle,
           body:
               'What you typed in ${target.path} has not been written to the '
               'working tree.',
-          confirmLabel: 'Discard',
+          confirmLabel: l.discard,
         );
         if (!ok) return;
       }
@@ -146,6 +148,7 @@ class _DiffHeader extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final split = ref.watch(settingsProvider.select((s) => s.diffSplit));
     final ctl = ref.read(settingsProvider.notifier);
@@ -213,7 +216,7 @@ class _DiffHeader extends ConsumerWidget {
               style: _compactButton,
               onPressed: () =>
                   ref.read(diffEditingProvider.notifier).state = target,
-              child: const Text('Edit'),
+              child: Text(l.edit),
             ),
           if (doc != null && doc.editable && !editing)
             TextButton(
@@ -248,7 +251,7 @@ class _DiffHeader extends ConsumerWidget {
             ),
           IconButton(
             iconSize: 18,
-            tooltip: 'Close',
+            tooltip: l.close,
             icon: const Icon(Icons.close),
             onPressed: onClose,
           ),
@@ -401,6 +404,7 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final target = widget.target;
     final t = context.tokens;
     final split = ref.watch(settingsProvider.select((s) => s.diffSplit));
@@ -498,9 +502,9 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
                 final ok = await confirmDestructive(
                   ref,
                   context,
-                  title: 'Discard ${file.path}?',
-                  body: 'This deletes the untracked file. You can undo it.',
-                  confirmLabel: 'Discard',
+                  title: l.diffDiscardFileTitle(file.path),
+                  body: l.diffDiscardFileBody,
+                  confirmLabel: l.discard,
                 );
                 if (!ok) return;
                 await ref
@@ -525,7 +529,7 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
                 body:
                     'This removes the selected changes from the working tree. '
                     'You can undo it.',
-                confirmLabel: 'Discard',
+                confirmLabel: l.discard,
               );
               if (!ok) return;
               try {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
 import '../common/dialogs.dart';
+import '../../l10n/gen/app_localizations.dart';
 
 /// Right-click menu for the diff body.
 ///
@@ -19,6 +20,7 @@ Future<void> showDiffSelectionMenu(
   VoidCallback? onStageLines,
   VoidCallback? onDiscardLines,
 }) async {
+  final l = AppLocalizations.of(context);
   final region = context.findAncestorStateOfType<SelectableRegionState>();
   if (region == null) return;
 
@@ -53,7 +55,7 @@ Future<void> showDiffSelectionMenu(
           region.widget.focusNode?.requestFocus();
           region.selectAll();
         },
-        child: const Text('Select all', style: TextStyle(fontSize: 13)),
+        child: Text(l.diffSelectAll, style: TextStyle(fontSize: 13)),
       ),
     ],
   );

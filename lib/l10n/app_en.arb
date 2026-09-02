@@ -453,5 +453,52 @@
     "placeholders": {
       "path": {"type": "String"}
     }
-  }
+  },
+
+  "discard": "Discard",
+  "create": "Create",
+  "edit": "Edit",
+  "rename": "Rename",
+  "commonUnsavedChanges": "Unsaved changes",
+  "commonFileChangedOnDisk": "File changed on disk",
+  "commonOverwrite": "Overwrite",
+  "diffDiscardEditsTitle": "Discard edits?",
+  "diffDiscardEditsBody": "What you typed here has not been written to {path}.",
+  "@diffDiscardEditsBody": {
+    "placeholders": {
+      "path": {"type": "String"}
+    }
+  },
+  "diffSelectAll": "Select all",
+  "diffDiscardFileTitle": "Discard {path}?",
+  "@diffDiscardFileTitle": {
+    "placeholders": {
+      "path": {"type": "String"}
+    }
+  },
+  "diffDiscardFileBody": "This deletes the untracked file. You can undo it.",
+  "filesEditor": "Editor",
+  "filesClosePath": "Close {path}",
+  "@filesClosePath": {
+    "placeholders": {
+      "path": {"type": "String"}
+    }
+  },
+  "filesName": "Name",
+  "filesRenameTitle": "Rename",
+  "filesNewName": "New name",
+  "filesDeleteTitle": "Delete {name}?",
+  "@filesDeleteTitle": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "filesDiscardChangesTitle": "Discard changes to {name}?",
+  "@filesDiscardChangesTitle": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "filesRefresh": "Refresh",
+  "filesCollapse": "Collapse"
 }

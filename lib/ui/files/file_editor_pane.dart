@@ -8,6 +8,7 @@ import '../../state/unsaved_guard.dart';
 import '../common/dialogs.dart';
 import '../common/file_text_editor.dart';
 import '../workspace/panel_placeholder.dart';
+import '../../l10n/gen/app_localizations.dart';
 
 /// Right side of Files mode: a strip of open files over the editor for
 /// whichever one is on top. Every open file stays mounted, so switching tabs
@@ -56,13 +57,14 @@ class FileEditorPaneState extends ConsumerState<FileEditorPane> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final open = ref.watch(openFilesProvider(repoPath));
     _handles.removeWhere((path, _) => !open.paths.contains(path));
 
     if (open.paths.isEmpty) {
       return PanelPlaceholder(
-        title: 'Editor',
+        title: l.filesEditor,
         hint: 'Open a file to edit it',
         background: t.bgApp,
       );
@@ -230,6 +232,7 @@ class _Tab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final name = path.split('/').last;
     return Tooltip(
@@ -278,7 +281,7 @@ class _Tab extends StatelessWidget {
                 ],
                 const SizedBox(width: 4),
                 Tooltip(
-                  message: 'Close $path',
+                  message: l.filesClosePath(path),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(4),
                     onTap: onClose,

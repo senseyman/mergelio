@@ -802,4 +802,78 @@ class AppLocalizationsEn extends AppLocalizations {
   String sbRemoveSubmoduleBody(String path) {
     return 'The submodule at $path will be deinitialized and removed from .gitmodules. This cannot be undone.';
   }
+
+  @override
+  String get discard => 'Discard';
+
+  @override
+  String get create => 'Create';
+
+  @override
+  String get edit => 'Edit';
+
+  @override
+  String get rename => 'Rename';
+
+  @override
+  String get commonUnsavedChanges => 'Unsaved changes';
+
+  @override
+  String get commonFileChangedOnDisk => 'File changed on disk';
+
+  @override
+  String get commonOverwrite => 'Overwrite';
+
+  @override
+  String get diffDiscardEditsTitle => 'Discard edits?';
+
+  @override
+  String diffDiscardEditsBody(String path) {
+    return 'What you typed here has not been written to $path.';
+  }
+
+  @override
+  String get diffSelectAll => 'Select all';
+
+  @override
+  String diffDiscardFileTitle(String path) {
+    return 'Discard $path?';
+  }
+
+  @override
+  String get diffDiscardFileBody =>
+      'This deletes the untracked file. You can undo it.';
+
+  @override
+  String get filesEditor => 'Editor';
+
+  @override
+  String filesClosePath(String path) {
+    return 'Close $path';
+  }
+
+  @override
+  String get filesName => 'Name';
+
+  @override
+  String get filesRenameTitle => 'Rename';
+
+  @override
+  String get filesNewName => 'New name';
+
+  @override
+  String filesDeleteTitle(String name) {
+    return 'Delete $name?';
+  }
+
+  @override
+  String filesDiscardChangesTitle(String name) {
+    return 'Discard changes to $name?';
+  }
+
+  @override
+  String get filesRefresh => 'Refresh';
+
+  @override
+  String get filesCollapse => 'Collapse';
 }

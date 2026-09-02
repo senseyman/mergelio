@@ -804,4 +804,78 @@ class AppLocalizationsUk extends AppLocalizations {
   String sbRemoveSubmoduleBody(String path) {
     return 'Підмодуль за шляхом $path буде деініціалізовано та вилучено з .gitmodules. Цю дію не можна скасувати.';
   }
+
+  @override
+  String get discard => 'Відкинути';
+
+  @override
+  String get create => 'Створити';
+
+  @override
+  String get edit => 'Редагувати';
+
+  @override
+  String get rename => 'Перейменувати';
+
+  @override
+  String get commonUnsavedChanges => 'Незбережені зміни';
+
+  @override
+  String get commonFileChangedOnDisk => 'Файл змінено на диску';
+
+  @override
+  String get commonOverwrite => 'Перезаписати';
+
+  @override
+  String get diffDiscardEditsTitle => 'Відкинути зміни?';
+
+  @override
+  String diffDiscardEditsBody(String path) {
+    return 'Введений тут текст не було записано у $path.';
+  }
+
+  @override
+  String get diffSelectAll => 'Вибрати все';
+
+  @override
+  String diffDiscardFileTitle(String path) {
+    return 'Відкинути $path?';
+  }
+
+  @override
+  String get diffDiscardFileBody =>
+      'Це видалить невідстежуваний файл. Дію можна скасувати.';
+
+  @override
+  String get filesEditor => 'Редактор';
+
+  @override
+  String filesClosePath(String path) {
+    return 'Закрити $path';
+  }
+
+  @override
+  String get filesName => 'Назва';
+
+  @override
+  String get filesRenameTitle => 'Перейменувати';
+
+  @override
+  String get filesNewName => 'Нова назва';
+
+  @override
+  String filesDeleteTitle(String name) {
+    return 'Видалити $name?';
+  }
+
+  @override
+  String filesDiscardChangesTitle(String name) {
+    return 'Відкинути зміни у $name?';
+  }
+
+  @override
+  String get filesRefresh => 'Оновити';
+
+  @override
+  String get filesCollapse => 'Згорнути';
 }

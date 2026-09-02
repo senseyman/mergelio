@@ -13,6 +13,7 @@ import '../../state/repo_actions.dart';
 import '../common/confirm.dart';
 import '../diff/linked_scroll.dart';
 import '../diff/syntax_style.dart';
+import '../../l10n/gen/app_localizations.dart';
 
 /// What a host's footer may do with the editor above it.
 class FileEditorControls {
@@ -193,6 +194,7 @@ class _FileTextEditorState extends ConsumerState<FileTextEditor> {
   }
 
   Future<void> _save() async {
+    final l = AppLocalizations.of(context);
     final ctl = _controller;
     if (ctl == null || _saving) return;
     final onDisk = File('${widget.repoPath}/${widget.relPath}');
@@ -201,11 +203,11 @@ class _FileTextEditorState extends ConsumerState<FileTextEditor> {
       final ok = await confirmDestructive(
         ref,
         context,
-        title: 'File changed on disk',
+        title: l.commonFileChangedOnDisk,
         body:
             'Something else wrote ${widget.relPath} while it was open here. '
             'Saving replaces those changes with this text.',
-        confirmLabel: 'Overwrite',
+        confirmLabel: l.commonOverwrite,
       );
       if (!ok) return;
     }

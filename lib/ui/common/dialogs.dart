@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme.dart';
 import '../../core/tokens.dart';
 import '../../domain/git/commit_message.dart';
+import '../../l10n/gen/app_localizations.dart';
 
 export '../../domain/git/commit_message.dart' show CommitMessageParts;
 
@@ -152,6 +153,7 @@ class _InputDialogBodyState extends State<_InputDialogBody> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -174,7 +176,7 @@ class _InputDialogBodyState extends State<_InputDialogBody> {
           children: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: Text(l.cancel),
             ),
             const SizedBox(width: 8),
             FilledButton(onPressed: _submit, child: Text(widget.confirmLabel)),
@@ -247,6 +249,7 @@ class _CommitMessageBodyState extends State<_CommitMessageBody> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final style = TextStyle(color: t.textPrimary, fontSize: 13);
     return Column(
@@ -284,7 +287,7 @@ class _CommitMessageBodyState extends State<_CommitMessageBody> {
           children: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: Text(l.cancel),
             ),
             const SizedBox(width: 8),
             FilledButton(onPressed: _submit, child: Text(widget.confirmLabel)),
@@ -302,6 +305,7 @@ Future<bool> showConfirmDialog(
   required String body,
   String confirmLabel = 'Confirm',
 }) async {
+  final l = AppLocalizations.of(context);
   final t = context.tokens;
   final result = await showAppModal<bool>(
     context: context,
@@ -316,7 +320,7 @@ Future<bool> showConfirmDialog(
       Builder(
         builder: (ctx) => TextButton(
           onPressed: () => Navigator.of(ctx).pop(false),
-          child: const Text('Cancel'),
+          child: Text(l.cancel),
         ),
       ),
       Builder(
@@ -344,10 +348,11 @@ Future<UnsavedChoice> showUnsavedDialog(
   BuildContext context, {
   required List<String> paths,
 }) async {
+  final l = AppLocalizations.of(context);
   final t = context.tokens;
   final result = await showAppModal<UnsavedChoice>(
     context: context,
-    title: 'Unsaved changes',
+    title: l.commonUnsavedChanges,
     icon: Icons.edit_note_outlined,
     width: 460,
     body: Text(
@@ -361,20 +366,20 @@ Future<UnsavedChoice> showUnsavedDialog(
       Builder(
         builder: (ctx) => TextButton(
           onPressed: () => Navigator.of(ctx).pop(UnsavedChoice.cancel),
-          child: const Text('Cancel'),
+          child: Text(l.cancel),
         ),
       ),
       Builder(
         builder: (ctx) => TextButton(
           style: TextButton.styleFrom(foregroundColor: ctx.tokens.danger),
           onPressed: () => Navigator.of(ctx).pop(UnsavedChoice.discard),
-          child: const Text('Discard'),
+          child: Text(l.discard),
         ),
       ),
       Builder(
         builder: (ctx) => FilledButton(
           onPressed: () => Navigator.of(ctx).pop(UnsavedChoice.save),
-          child: const Text('Save'),
+          child: Text(l.save),
         ),
       ),
     ],

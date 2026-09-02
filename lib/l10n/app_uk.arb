@@ -282,5 +282,27 @@
   "sbDropStashBody": "Схованку буде видалено. Спливне сповіщення дозволить її відновити.",
   "sbDrop": "Відкинути",
   "sbRemoveSubmoduleTitle": "Вилучити {name}?",
-  "sbRemoveSubmoduleBody": "Підмодуль за шляхом {path} буде деініціалізовано та вилучено з .gitmodules. Цю дію не можна скасувати."
+  "sbRemoveSubmoduleBody": "Підмодуль за шляхом {path} буде деініціалізовано та вилучено з .gitmodules. Цю дію не можна скасувати.",
+
+  "discard": "Відкинути",
+  "create": "Створити",
+  "edit": "Редагувати",
+  "rename": "Перейменувати",
+  "commonUnsavedChanges": "Незбережені зміни",
+  "commonFileChangedOnDisk": "Файл змінено на диску",
+  "commonOverwrite": "Перезаписати",
+  "diffDiscardEditsTitle": "Відкинути зміни?",
+  "diffDiscardEditsBody": "Введений тут текст не було записано у {path}.",
+  "diffSelectAll": "Вибрати все",
+  "diffDiscardFileTitle": "Відкинути {path}?",
+  "diffDiscardFileBody": "Це видалить невідстежуваний файл. Дію можна скасувати.",
+  "filesEditor": "Редактор",
+  "filesClosePath": "Закрити {path}",
+  "filesName": "Назва",
+  "filesRenameTitle": "Перейменувати",
+  "filesNewName": "Нова назва",
+  "filesDeleteTitle": "Видалити {name}?",
+  "filesDiscardChangesTitle": "Відкинути зміни у {name}?",
+  "filesRefresh": "Оновити",
+  "filesCollapse": "Згорнути"
 }

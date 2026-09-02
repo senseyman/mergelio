@@ -8,6 +8,7 @@ import '../../state/file_editor.dart';
 import '../../state/repo_actions.dart';
 import '../common/confirm.dart';
 import '../common/file_text_editor.dart';
+import '../../l10n/gen/app_localizations.dart';
 
 /// Full-text editor for an uncommitted file, shown in place of the diff body.
 /// Saving writes the working tree and returns to the diff; the result is left
@@ -22,13 +23,14 @@ class DiffEditor extends ConsumerWidget {
   }
 
   Future<void> _cancel(BuildContext context, WidgetRef ref) async {
+    final l = AppLocalizations.of(context);
     if (ref.read(diffEditorDirtyProvider)) {
       final ok = await confirmDestructive(
         ref,
         context,
-        title: 'Discard edits?',
-        body: 'What you typed here has not been written to ${target.path}.',
-        confirmLabel: 'Discard',
+        title: l.diffDiscardEditsTitle,
+        body: l.diffDiscardEditsBody(target.path),
+        confirmLabel: l.discard,
       );
       if (!ok) return;
     }
@@ -79,12 +81,12 @@ class DiffEditor extends ConsumerWidget {
         const Spacer(),
         TextButton(
           onPressed: controls.saving ? null : () => _cancel(context, ref),
-          child: const Text('Cancel'),
+          child: Text(AppLocalizations.of(context).cancel),
         ),
         const SizedBox(width: 6),
         FilledButton(
           onPressed: controls.saving ? null : controls.save,
-          child: const Text('Save'),
+          child: Text(AppLocalizations.of(context).save),
         ),
       ],
     ),
