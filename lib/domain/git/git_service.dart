@@ -184,8 +184,19 @@ class SystemGitService implements GitService {
     // Git emits UTF-8 regardless of platform; decode explicitly so output is
     // correct on Windows (systemEncoding would use the ANSI code page). Drain
     // both streams eagerly to avoid the child blocking on a full pipe buffer.
-    final stdoutFuture = proc.stdout.transform(utf8.decoder).join();
-    final stderrFuture = proc.stderr.transform(utf8.decoder).join();
+    // Malformed bytes are tolerated: filenames and commit messages written in
+    // another encoding are the repository's history, not an error to raise.
+    const decoder = Utf8Decoder(allowMalformed: true);
+    final stdoutFuture = proc.stdout.transform(decoder).join();
+    final stderrFuture = proc.stderr.transform(decoder).join();
+
+    // Claim the errors before anyone waits on them. The timeout path below
+    // abandons both futures, and a stream error nobody listens for surfaces
+    // later as an unhandled async error, far from the command that caused it.
+    // The success path still awaits the originals, so a real failure is not
+    // swallowed — this only guarantees someone is listening.
+    unawaited(stdoutFuture.catchError((Object _) => ''));
+    unawaited(stderrFuture.catchError((Object _) => ''));
 
     try {
       final exitCode = await proc.exitCode.timeout(timeout ?? defaultTimeout);
