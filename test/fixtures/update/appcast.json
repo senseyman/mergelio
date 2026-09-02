@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "version": "9.9.9",
+  "build": 16,
+  "published": "2026-09-02T14:25:09Z",
+  "notes_url": "https://github.com/senseyman/mergelio/releases/tag/v9.9.9",
+  "artifacts": {
+    "windows-x64": {
+      "url": "https://github.com/senseyman/mergelio/releases/download/v9.9.9/Mergelio-9.9.9-windows-x64-setup.exe",
+      "sha256": "98ea6e4f216f2fb4b69fff9b3a44842c38686ca685f3f55dc48c5d3fb1107be4",
+      "size": 3
+    },
+    "macos-arm64": {
+      "url": "https://github.com/senseyman/mergelio/releases/download/v9.9.9/Mergelio-9.9.9-macos-arm64-update.zip",
+      "sha256": "98ea6e4f216f2fb4b69fff9b3a44842c38686ca685f3f55dc48c5d3fb1107be4",
+      "size": 3
+    }
+  }
+}
