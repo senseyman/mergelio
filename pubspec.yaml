@@ -28,6 +28,13 @@ dependencies:
   window_manager: ^0.4.3
   # Native open-folder dialog
   file_selector: ^1.0.3
+  # Update checks: manifest fetch, artifact download, hashing, signature check.
+  http: ^1.2.2
+  crypto: ^3.0.5
+  convert: ^3.1.1
+  cryptography: ^2.7.0
+  pub_semver: ^2.1.4
+  package_info_plus: ^8.0.2
   # Typography
   google_fonts: ^6.2.1
   flutter_pty: ^0.4.2
