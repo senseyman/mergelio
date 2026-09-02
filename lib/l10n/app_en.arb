@@ -967,5 +967,85 @@
   "rbStart": "Start rebase",
   "rbNeedsTwo": "Needs at least 2 commits.",
   "rbCustomize": "Customize per commit",
-  "rbCustomizeHint": "Pick an action for each commit, or drag to reorder them."
+  "rbCustomizeHint": "Pick an action for each commit, or drag to reorder them.",
+
+  "dlgEditCommitMessage": "Edit commit message",
+  "dlgUnsavedOne": "{path} has changes that are not on disk.",
+  "@dlgUnsavedOne": {
+    "placeholders": {
+      "path": {"type": "String"}
+    }
+  },
+  "dlgUnsavedMany": "These files have changes that are not on disk:",
+  "fteConflictBody": "Something else wrote {name} while it was open here. Saving replaces those changes with this text.",
+  "@fteConflictBody": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "fteCouldNotOpen": "Could not open this file",
+  "fteNoResults": "No results",
+  "fteFind": "Find",
+  "fteReplaceWith": "Replace with",
+  "fteMatchCase": "Match case",
+  "ftePreviousMatch": "Previous match",
+  "fteNextMatch": "Next match",
+  "fteReplaceThis": "Replace this match",
+  "fteReplaceAll": "Replace all",
+  "diffEditingWorkingTree": "Editing the working tree — saved changes stay unstaged",
+  "diffStageSelectedLines": "Stage selected lines",
+  "diffUnstageSelectedLines": "Unstage selected lines",
+  "diffDiscardSelectedLines": "Discard selected lines",
+  "diffUnsavedBody": "What you typed in {path} has not been written to the working tree.",
+  "@diffUnsavedBody": {
+    "placeholders": {
+      "path": {"type": "String"}
+    }
+  },
+  "diffUncommittedWorkingTree": "Uncommitted changes · working tree",
+  "diffStageFile": "Stage file",
+  "diffUnstageFile": "Unstage file",
+  "diffShowChangesOnly": "Show changes only",
+  "diffShowWholeFile": "Show whole file",
+  "diffCouldNotLoad": "Could not load diff",
+  "diffBinaryFile": "Binary file — diff not shown",
+  "diffCouldNotStage": "Could not stage",
+  "diffCouldNotUnstage": "Could not unstage",
+  "diffCouldNotDiscard": "Could not discard",
+  "diffStageHunk": "Stage hunk",
+  "diffUnstageHunk": "Unstage hunk",
+  "diffDiscardHunk": "Discard hunk",
+  "diffUnstagedLabel": "Unstaged",
+  "diffStagedLabel": "Staged",
+  "fepOpenAFile": "Open a file to edit it",
+  "fepDeletedOnDisk": "Deleted on disk — saving is disabled",
+  "pnpNavigator": "project navigator",
+  "pnpNewFileMenu": "New file…",
+  "pnpNewFolderMenu": "New folder…",
+  "pnpRenameMenu": "Rename…",
+  "pnpDeleteMenu": "Delete…",
+  "pnpStage": "Stage",
+  "pnpUnstage": "Unstage",
+  "pnpDiscardMenu": "Discard changes…",
+  "pnpShowHistory": "Show history",
+  "pnpRevealInFinder": "Reveal in Finder",
+  "pnpShowInExplorer": "Show in Explorer",
+  "pnpOpenContainingFolder": "Open containing folder",
+  "pnpNewFile": "New file",
+  "pnpNewFolder": "New folder",
+  "pnpDeleteFolderBody": "The folder and everything in it is removed from disk, not just from git.",
+  "pnpDeleteFileBody": "The file is removed from disk, not just from git.",
+  "pnpDiscardUntrackedBody": "The file is untracked, so discarding deletes it.",
+  "pnpDiscardTrackedBody": "The file goes back to what it was at the last commit.",
+  "pnpCouldNotOpenFileManager": "Could not open the file manager",
+  "pnpOperationFailed": "Operation failed",
+  "pnpMore": "…{count} more",
+  "@pnpMore": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "pnpProject": "Project",
+  "pnpShowIgnored": "Show ignored files",
+  "pnpHideIgnored": "Hide ignored files"
 }

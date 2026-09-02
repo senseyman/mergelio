@@ -47,9 +47,7 @@ class DiffSheet extends ConsumerWidget {
           ref,
           context,
           title: l.diffDiscardEditsTitle,
-          body:
-              'What you typed in ${target.path} has not been written to the '
-              'working tree.',
+          body: l.diffUnsavedBody(target.path),
           confirmLabel: l.discard,
         );
         if (!ok) return;
@@ -168,7 +166,7 @@ class _DiffHeader extends ConsumerWidget {
     final partial = target.commitSha == null && (wf?.isPartial ?? false);
     final context0 = target.commitSha != null
         ? 'commit ${target.commitSha!.length > 7 ? target.commitSha!.substring(0, 7) : target.commitSha}'
-        : 'Uncommitted changes · working tree';
+        : l.diffUncommittedWorkingTree;
 
     return Container(
       height: 38,
@@ -230,7 +228,7 @@ class _DiffHeader extends ConsumerWidget {
                 }
                 ref.invalidate(diffDocumentProvider(target));
               },
-              child: Text(doc.staged ? 'Unstage file' : 'Stage file'),
+              child: Text(doc.staged ? l.diffUnstageFile : l.diffStageFile),
             ),
           _SegToggle(
             split: split,
@@ -241,8 +239,8 @@ class _DiffHeader extends ConsumerWidget {
             IconButton(
               iconSize: 18,
               tooltip: target.wholeFile
-                  ? 'Show changes only'
-                  : 'Show whole file',
+                  ? l.diffShowChangesOnly
+                  : l.diffShowWholeFile,
               icon: Icon(
                 target.wholeFile ? Icons.unfold_less : Icons.unfold_more,
               ),
@@ -431,7 +429,7 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
           ),
           error: (e, _) => Center(
             child: Text(
-              'Could not load diff',
+              l.diffCouldNotLoad,
               style: TextStyle(color: t.textMuted, fontSize: 12),
             ),
           ),
@@ -439,7 +437,7 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
             if (doc.isBinary) {
               return Center(
                 child: Text(
-                  'Binary file — diff not shown',
+                  l.diffBinaryFile,
                   style: TextStyle(color: t.textFaint, fontSize: 12),
                 ),
               );
@@ -447,7 +445,7 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
             if (doc.isEmpty) {
               return Center(
                 child: Text(
-                  'No changes',
+                  l.cdNoChanges,
                   style: TextStyle(color: t.textFaint, fontSize: 12),
                 ),
               );
@@ -473,7 +471,7 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
                 ref
                     .read(toastProvider.notifier)
                     .show(
-                      doc.staged ? 'Could not unstage' : 'Could not stage',
+                      doc.staged ? l.diffCouldNotUnstage : l.diffCouldNotStage,
                       description: '$e',
                       kind: ToastKind.error,
                     );
@@ -538,7 +536,7 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
                 ref
                     .read(toastProvider.notifier)
                     .show(
-                      'Could not discard',
+                      l.diffCouldNotDiscard,
                       description: '$e',
                       kind: ToastKind.error,
                     );
@@ -582,8 +580,8 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
                 menuContext,
                 at,
                 stageLabel: doc.staged
-                    ? 'Unstage selected lines'
-                    : 'Stage selected lines',
+                    ? l.diffUnstageSelectedLines
+                    : l.diffStageSelectedLines,
                 onStageLines: hasRun && doc.editable ? applyRun : null,
                 onDiscardLines: hasRun && doc.editable && !doc.staged
                     ? discardRun
@@ -861,6 +859,7 @@ class _HunkHeaderRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     return Container(
       height: _hunkHeaderHeight,
@@ -895,7 +894,7 @@ class _HunkHeaderRow extends StatelessWidget {
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
                 child: Text(
-                  staged ? 'Unstage hunk' : 'Stage hunk',
+                  staged ? l.diffUnstageHunk : l.diffStageHunk,
                   style: const TextStyle(fontSize: 11),
                 ),
               ),
@@ -910,10 +909,7 @@ class _HunkHeaderRow extends StatelessWidget {
                   ),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                child: const Text(
-                  'Discard hunk',
-                  style: TextStyle(fontSize: 11),
-                ),
+                child: Text(l.diffDiscardHunk, style: TextStyle(fontSize: 11)),
               ),
           ],
         ),
@@ -1317,6 +1313,7 @@ class _SideToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     Widget seg(String label, bool on, VoidCallback tap) => InkWell(
       onTap: tap,
@@ -1343,8 +1340,8 @@ class _SideToggle extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            seg('Unstaged', !staged, onUnstaged),
-            seg('Staged', staged, onStaged),
+            seg(l.diffUnstagedLabel, !staged, onUnstaged),
+            seg(l.diffStagedLabel, staged, onStaged),
           ],
         ),
       ),

@@ -65,6 +65,7 @@ class _ProjectNavPanelState extends ConsumerState<ProjectNavPanel> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final expanded = ref.watch(expandedDirsProvider(repoPath));
     // The file on top of the editor is what the tree marks as selected, so
@@ -145,7 +146,7 @@ class _ProjectNavPanelState extends ConsumerState<ProjectNavPanel> {
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   itemCount: rows.length,
                   itemBuilder: (context, i) =>
-                      _row(t, rows[i], selected, cursor, statusOf, working),
+                      _row(l, t, rows[i], selected, cursor, statusOf, working),
                 ),
               ),
             ),
@@ -249,6 +250,7 @@ class _ProjectNavPanelState extends ConsumerState<ProjectNavPanel> {
     EntryStatus status,
     WorkingFile? change,
   ) async {
+    final l = AppLocalizations.of(context);
     final items = projectMenuItems(
       isDir: row is ProjectDirRow,
       status: status,
@@ -262,7 +264,10 @@ class _ProjectNavPanelState extends ConsumerState<ProjectNavPanel> {
           PopupMenuItem(
             value: item,
             height: 34,
-            child: Text(_menuLabel(item), style: const TextStyle(fontSize: 13)),
+            child: Text(
+              _menuLabel(l, item),
+              style: const TextStyle(fontSize: 13),
+            ),
           ),
       ],
     );
@@ -305,6 +310,7 @@ class _ProjectNavPanelState extends ConsumerState<ProjectNavPanel> {
 
   /// Offers what the project root can do, for a click that landed on no row.
   Future<void> _rootMenu(Offset at) async {
+    final l = AppLocalizations.of(context);
     final picked = await showContextMenu<ProjectMenuItem>(
       context: context,
       position: at,
@@ -313,7 +319,10 @@ class _ProjectNavPanelState extends ConsumerState<ProjectNavPanel> {
           PopupMenuItem(
             value: item,
             height: 34,
-            child: Text(_menuLabel(item), style: const TextStyle(fontSize: 13)),
+            child: Text(
+              _menuLabel(l, item),
+              style: const TextStyle(fontSize: 13),
+            ),
           ),
       ],
     );
@@ -330,27 +339,28 @@ class _ProjectNavPanelState extends ConsumerState<ProjectNavPanel> {
     }
   }
 
-  static String _menuLabel(ProjectMenuItem item) => switch (item) {
-    ProjectMenuItem.newFile => 'New file…',
-    ProjectMenuItem.newFolder => 'New folder…',
-    ProjectMenuItem.rename => 'Rename…',
-    ProjectMenuItem.delete => 'Delete…',
-    ProjectMenuItem.stage => 'Stage',
-    ProjectMenuItem.unstage => 'Unstage',
-    ProjectMenuItem.discard => 'Discard changes…',
-    ProjectMenuItem.history => 'Show history',
-    ProjectMenuItem.reveal => switch (Platform.operatingSystem) {
-      'macos' => 'Reveal in Finder',
-      'windows' => 'Show in Explorer',
-      _ => 'Open containing folder',
-    },
-  };
+  static String _menuLabel(AppLocalizations l, ProjectMenuItem item) =>
+      switch (item) {
+        ProjectMenuItem.newFile => l.pnpNewFileMenu,
+        ProjectMenuItem.newFolder => l.pnpNewFolderMenu,
+        ProjectMenuItem.rename => l.pnpRenameMenu,
+        ProjectMenuItem.delete => l.pnpDeleteMenu,
+        ProjectMenuItem.stage => l.pnpStage,
+        ProjectMenuItem.unstage => l.pnpUnstage,
+        ProjectMenuItem.discard => l.pnpDiscardMenu,
+        ProjectMenuItem.history => l.pnpShowHistory,
+        ProjectMenuItem.reveal => switch (Platform.operatingSystem) {
+          'macos' => l.pnpRevealInFinder,
+          'windows' => l.pnpShowInExplorer,
+          _ => l.pnpOpenContainingFolder,
+        },
+      };
 
   Future<void> _create(String relDir, {required bool dir}) async {
     final l = AppLocalizations.of(context);
     final name = await showInputDialog(
       context,
-      title: dir ? 'New folder' : 'New file',
+      title: dir ? l.pnpNewFolder : l.pnpNewFile,
       label: l.filesName,
       confirmLabel: l.create,
     );
@@ -397,10 +407,7 @@ class _ProjectNavPanelState extends ConsumerState<ProjectNavPanel> {
       ref,
       context,
       title: l.filesDeleteTitle(_basename(row.path)),
-      body: row is ProjectDirRow
-          ? 'The folder and everything in it is removed from disk, not just '
-                'from git.'
-          : 'The file is removed from disk, not just from git.',
+      body: row is ProjectDirRow ? l.pnpDeleteFolderBody : l.pnpDeleteFileBody,
       confirmLabel: l.delete,
     );
     if (!ok || !mounted) return;
@@ -419,8 +426,8 @@ class _ProjectNavPanelState extends ConsumerState<ProjectNavPanel> {
       context,
       title: l.filesDiscardChangesTitle(_basename(change.path)),
       body: change.isUntracked
-          ? 'The file is untracked, so discarding deletes it.'
-          : 'The file goes back to what it was at the last commit.',
+          ? l.pnpDiscardUntrackedBody
+          : l.pnpDiscardTrackedBody,
       confirmLabel: l.discard,
     );
     if (!ok) return;
@@ -428,6 +435,7 @@ class _ProjectNavPanelState extends ConsumerState<ProjectNavPanel> {
   }
 
   Future<void> _reveal(String relPath) async {
+    final l = AppLocalizations.of(context);
     try {
       await revealInFileManager(
         relPath.isEmpty ? repoPath : '$repoPath/$relPath',
@@ -436,16 +444,17 @@ class _ProjectNavPanelState extends ConsumerState<ProjectNavPanel> {
       if (!mounted) return;
       ref
           .read(toastProvider.notifier)
-          .show('Could not open the file manager', description: e.message);
+          .show(l.pnpCouldNotOpenFileManager, description: e.message);
     }
   }
 
   /// Reports a refusal and says whether the operation went through.
   bool _report(ProjectOpResult r) {
+    final l = AppLocalizations.of(context);
     if (r.ok) return true;
     ref
         .read(toastProvider.notifier)
-        .show(r.error ?? 'Operation failed', kind: ToastKind.error);
+        .show(r.error ?? l.pnpOperationFailed, kind: ToastKind.error);
     return false;
   }
 
@@ -480,6 +489,7 @@ class _ProjectNavPanelState extends ConsumerState<ProjectNavPanel> {
   }
 
   Widget _row(
+    AppLocalizations l,
     AppTokens t,
     ProjectRow row,
     String? selected,
@@ -524,7 +534,7 @@ class _ProjectNavPanelState extends ConsumerState<ProjectNavPanel> {
         child: CircularProgressIndicator(strokeWidth: 1.5, color: t.accent),
       ),
     ),
-    ProjectMoreRow() => _NoteRow(depth: row.depth, text: '…${row.count} more'),
+    ProjectMoreRow() => _NoteRow(depth: row.depth, text: l.pnpMore(row.count)),
     ProjectErrorRow() => _NoteRow(depth: row.depth, text: row.message),
   };
 }
@@ -561,7 +571,7 @@ class _Header extends StatelessWidget {
         children: [
           Expanded(
             child: Text(
-              name ?? 'Project',
+              name ?? l.pnpProject,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: t.textPrimary,
@@ -574,7 +584,7 @@ class _Header extends StatelessWidget {
             icon: hideIgnored
                 ? Icons.visibility_off_outlined
                 : Icons.visibility_outlined,
-            tooltip: hideIgnored ? 'Show ignored files' : 'Hide ignored files',
+            tooltip: hideIgnored ? l.pnpShowIgnored : l.pnpHideIgnored,
             onTap: onToggleIgnored,
           ),
           _MiniButton(

@@ -73,7 +73,7 @@ class DiffEditor extends ConsumerWidget {
       children: [
         Flexible(
           child: Text(
-            'Editing the working tree — saved changes stay unstaged',
+            AppLocalizations.of(context).diffEditingWorkingTree,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(color: t.textFaint, fontSize: 11),
           ),

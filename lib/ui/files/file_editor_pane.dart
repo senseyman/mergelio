@@ -65,7 +65,7 @@ class FileEditorPaneState extends ConsumerState<FileEditorPane> {
     if (open.paths.isEmpty) {
       return PanelPlaceholder(
         title: l.filesEditor,
-        hint: 'Open a file to edit it',
+        hint: l.fepOpenAFile,
         background: t.bgApp,
       );
     }
@@ -168,7 +168,7 @@ class _GoneBanner extends StatelessWidget {
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
     color: t.danger.withValues(alpha: 0.14),
     child: Text(
-      'Deleted on disk — saving is disabled',
+      AppLocalizations.of(context).fepDeletedOnDisk,
       style: TextStyle(color: t.danger, fontSize: 11),
     ),
   );

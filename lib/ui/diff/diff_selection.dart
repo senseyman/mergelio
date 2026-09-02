@@ -33,7 +33,7 @@ Future<void> showDiffSelectionMenu(
           height: 34,
           onTap: onStageLines,
           child: Text(
-            stageLabel ?? 'Stage selected lines',
+            stageLabel ?? l.diffStageSelectedLines,
             style: const TextStyle(fontSize: 13),
           ),
         ),
@@ -41,8 +41,8 @@ Future<void> showDiffSelectionMenu(
         PopupMenuItem(
           height: 34,
           onTap: onDiscardLines,
-          child: const Text(
-            'Discard selected lines',
+          child: Text(
+            l.diffDiscardSelectedLines,
             style: TextStyle(fontSize: 13),
           ),
         ),

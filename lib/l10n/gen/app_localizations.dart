@@ -3187,6 +3187,360 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Pick an action for each commit, or drag to reorder them.'**
   String get rbCustomizeHint;
+
+  /// No description provided for @dlgEditCommitMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit commit message'**
+  String get dlgEditCommitMessage;
+
+  /// No description provided for @dlgUnsavedOne.
+  ///
+  /// In en, this message translates to:
+  /// **'{path} has changes that are not on disk.'**
+  String dlgUnsavedOne(String path);
+
+  /// No description provided for @dlgUnsavedMany.
+  ///
+  /// In en, this message translates to:
+  /// **'These files have changes that are not on disk:'**
+  String get dlgUnsavedMany;
+
+  /// No description provided for @fteConflictBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Something else wrote {name} while it was open here. Saving replaces those changes with this text.'**
+  String fteConflictBody(String name);
+
+  /// No description provided for @fteCouldNotOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open this file'**
+  String get fteCouldNotOpen;
+
+  /// No description provided for @fteNoResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No results'**
+  String get fteNoResults;
+
+  /// No description provided for @fteFind.
+  ///
+  /// In en, this message translates to:
+  /// **'Find'**
+  String get fteFind;
+
+  /// No description provided for @fteReplaceWith.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace with'**
+  String get fteReplaceWith;
+
+  /// No description provided for @fteMatchCase.
+  ///
+  /// In en, this message translates to:
+  /// **'Match case'**
+  String get fteMatchCase;
+
+  /// No description provided for @ftePreviousMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous match'**
+  String get ftePreviousMatch;
+
+  /// No description provided for @fteNextMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Next match'**
+  String get fteNextMatch;
+
+  /// No description provided for @fteReplaceThis.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace this match'**
+  String get fteReplaceThis;
+
+  /// No description provided for @fteReplaceAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace all'**
+  String get fteReplaceAll;
+
+  /// No description provided for @diffEditingWorkingTree.
+  ///
+  /// In en, this message translates to:
+  /// **'Editing the working tree — saved changes stay unstaged'**
+  String get diffEditingWorkingTree;
+
+  /// No description provided for @diffStageSelectedLines.
+  ///
+  /// In en, this message translates to:
+  /// **'Stage selected lines'**
+  String get diffStageSelectedLines;
+
+  /// No description provided for @diffUnstageSelectedLines.
+  ///
+  /// In en, this message translates to:
+  /// **'Unstage selected lines'**
+  String get diffUnstageSelectedLines;
+
+  /// No description provided for @diffDiscardSelectedLines.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard selected lines'**
+  String get diffDiscardSelectedLines;
+
+  /// No description provided for @diffUnsavedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'What you typed in {path} has not been written to the working tree.'**
+  String diffUnsavedBody(String path);
+
+  /// No description provided for @diffUncommittedWorkingTree.
+  ///
+  /// In en, this message translates to:
+  /// **'Uncommitted changes · working tree'**
+  String get diffUncommittedWorkingTree;
+
+  /// No description provided for @diffStageFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Stage file'**
+  String get diffStageFile;
+
+  /// No description provided for @diffUnstageFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Unstage file'**
+  String get diffUnstageFile;
+
+  /// No description provided for @diffShowChangesOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Show changes only'**
+  String get diffShowChangesOnly;
+
+  /// No description provided for @diffShowWholeFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Show whole file'**
+  String get diffShowWholeFile;
+
+  /// No description provided for @diffCouldNotLoad.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load diff'**
+  String get diffCouldNotLoad;
+
+  /// No description provided for @diffBinaryFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Binary file — diff not shown'**
+  String get diffBinaryFile;
+
+  /// No description provided for @diffCouldNotStage.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not stage'**
+  String get diffCouldNotStage;
+
+  /// No description provided for @diffCouldNotUnstage.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not unstage'**
+  String get diffCouldNotUnstage;
+
+  /// No description provided for @diffCouldNotDiscard.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not discard'**
+  String get diffCouldNotDiscard;
+
+  /// No description provided for @diffStageHunk.
+  ///
+  /// In en, this message translates to:
+  /// **'Stage hunk'**
+  String get diffStageHunk;
+
+  /// No description provided for @diffUnstageHunk.
+  ///
+  /// In en, this message translates to:
+  /// **'Unstage hunk'**
+  String get diffUnstageHunk;
+
+  /// No description provided for @diffDiscardHunk.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard hunk'**
+  String get diffDiscardHunk;
+
+  /// No description provided for @diffUnstagedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Unstaged'**
+  String get diffUnstagedLabel;
+
+  /// No description provided for @diffStagedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Staged'**
+  String get diffStagedLabel;
+
+  /// No description provided for @fepOpenAFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Open a file to edit it'**
+  String get fepOpenAFile;
+
+  /// No description provided for @fepDeletedOnDisk.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted on disk — saving is disabled'**
+  String get fepDeletedOnDisk;
+
+  /// No description provided for @pnpNavigator.
+  ///
+  /// In en, this message translates to:
+  /// **'project navigator'**
+  String get pnpNavigator;
+
+  /// No description provided for @pnpNewFileMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'New file…'**
+  String get pnpNewFileMenu;
+
+  /// No description provided for @pnpNewFolderMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'New folder…'**
+  String get pnpNewFolderMenu;
+
+  /// No description provided for @pnpRenameMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename…'**
+  String get pnpRenameMenu;
+
+  /// No description provided for @pnpDeleteMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete…'**
+  String get pnpDeleteMenu;
+
+  /// No description provided for @pnpStage.
+  ///
+  /// In en, this message translates to:
+  /// **'Stage'**
+  String get pnpStage;
+
+  /// No description provided for @pnpUnstage.
+  ///
+  /// In en, this message translates to:
+  /// **'Unstage'**
+  String get pnpUnstage;
+
+  /// No description provided for @pnpDiscardMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard changes…'**
+  String get pnpDiscardMenu;
+
+  /// No description provided for @pnpShowHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Show history'**
+  String get pnpShowHistory;
+
+  /// No description provided for @pnpRevealInFinder.
+  ///
+  /// In en, this message translates to:
+  /// **'Reveal in Finder'**
+  String get pnpRevealInFinder;
+
+  /// No description provided for @pnpShowInExplorer.
+  ///
+  /// In en, this message translates to:
+  /// **'Show in Explorer'**
+  String get pnpShowInExplorer;
+
+  /// No description provided for @pnpOpenContainingFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Open containing folder'**
+  String get pnpOpenContainingFolder;
+
+  /// No description provided for @pnpNewFile.
+  ///
+  /// In en, this message translates to:
+  /// **'New file'**
+  String get pnpNewFile;
+
+  /// No description provided for @pnpNewFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'New folder'**
+  String get pnpNewFolder;
+
+  /// No description provided for @pnpDeleteFolderBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The folder and everything in it is removed from disk, not just from git.'**
+  String get pnpDeleteFolderBody;
+
+  /// No description provided for @pnpDeleteFileBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The file is removed from disk, not just from git.'**
+  String get pnpDeleteFileBody;
+
+  /// No description provided for @pnpDiscardUntrackedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The file is untracked, so discarding deletes it.'**
+  String get pnpDiscardUntrackedBody;
+
+  /// No description provided for @pnpDiscardTrackedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The file goes back to what it was at the last commit.'**
+  String get pnpDiscardTrackedBody;
+
+  /// No description provided for @pnpCouldNotOpenFileManager.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the file manager'**
+  String get pnpCouldNotOpenFileManager;
+
+  /// No description provided for @pnpOperationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Operation failed'**
+  String get pnpOperationFailed;
+
+  /// No description provided for @pnpMore.
+  ///
+  /// In en, this message translates to:
+  /// **'…{count} more'**
+  String pnpMore(int count);
+
+  /// No description provided for @pnpProject.
+  ///
+  /// In en, this message translates to:
+  /// **'Project'**
+  String get pnpProject;
+
+  /// No description provided for @pnpShowIgnored.
+  ///
+  /// In en, this message translates to:
+  /// **'Show ignored files'**
+  String get pnpShowIgnored;
+
+  /// No description provided for @pnpHideIgnored.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide ignored files'**
+  String get pnpHideIgnored;
 }
 
 class _AppLocalizationsDelegate

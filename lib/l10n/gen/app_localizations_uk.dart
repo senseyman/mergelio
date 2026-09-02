@@ -1786,4 +1786,195 @@ class AppLocalizationsUk extends AppLocalizations {
   @override
   String get rbCustomizeHint =>
       'Виберіть дію для кожного коміту або перетягніть, щоб змінити порядок.';
+
+  @override
+  String get dlgEditCommitMessage => 'Редагувати опис коміту';
+
+  @override
+  String dlgUnsavedOne(String path) {
+    return '$path має зміни, яких немає на диску.';
+  }
+
+  @override
+  String get dlgUnsavedMany => 'Ці файли мають зміни, яких немає на диску:';
+
+  @override
+  String fteConflictBody(String name) {
+    return 'Щось інше записало $name, поки файл був відкритий тут. Збереження замінить ті зміни цим текстом.';
+  }
+
+  @override
+  String get fteCouldNotOpen => 'Не вдалося відкрити цей файл';
+
+  @override
+  String get fteNoResults => 'Немає результатів';
+
+  @override
+  String get fteFind => 'Знайти';
+
+  @override
+  String get fteReplaceWith => 'Замінити на';
+
+  @override
+  String get fteMatchCase => 'Враховувати регістр';
+
+  @override
+  String get ftePreviousMatch => 'Попередній збіг';
+
+  @override
+  String get fteNextMatch => 'Наступний збіг';
+
+  @override
+  String get fteReplaceThis => 'Замінити цей збіг';
+
+  @override
+  String get fteReplaceAll => 'Замінити все';
+
+  @override
+  String get diffEditingWorkingTree =>
+      'Редагування робочого дерева — збережені зміни залишаються непроіндексованими';
+
+  @override
+  String get diffStageSelectedLines => 'Проіндексувати вибрані рядки';
+
+  @override
+  String get diffUnstageSelectedLines => 'Зняти індексацію з вибраних рядків';
+
+  @override
+  String get diffDiscardSelectedLines => 'Відкинути вибрані рядки';
+
+  @override
+  String diffUnsavedBody(String path) {
+    return 'Введений у $path текст не було записано в робоче дерево.';
+  }
+
+  @override
+  String get diffUncommittedWorkingTree => 'Незакомічені зміни · робоче дерево';
+
+  @override
+  String get diffStageFile => 'Проіндексувати файл';
+
+  @override
+  String get diffUnstageFile => 'Зняти індексацію з файлу';
+
+  @override
+  String get diffShowChangesOnly => 'Показати лише зміни';
+
+  @override
+  String get diffShowWholeFile => 'Показати весь файл';
+
+  @override
+  String get diffCouldNotLoad => 'Не вдалося завантажити відмінності';
+
+  @override
+  String get diffBinaryFile => 'Двійковий файл — відмінності не показано';
+
+  @override
+  String get diffCouldNotStage => 'Не вдалося проіндексувати';
+
+  @override
+  String get diffCouldNotUnstage => 'Не вдалося зняти індексацію';
+
+  @override
+  String get diffCouldNotDiscard => 'Не вдалося відкинути';
+
+  @override
+  String get diffStageHunk => 'Проіндексувати блок';
+
+  @override
+  String get diffUnstageHunk => 'Зняти індексацію з блоку';
+
+  @override
+  String get diffDiscardHunk => 'Відкинути блок';
+
+  @override
+  String get diffUnstagedLabel => 'Непроіндексовані';
+
+  @override
+  String get diffStagedLabel => 'Проіндексовані';
+
+  @override
+  String get fepOpenAFile => 'Відкрийте файл, щоб редагувати його';
+
+  @override
+  String get fepDeletedOnDisk => 'Видалено з диска — збереження вимкнено';
+
+  @override
+  String get pnpNavigator => 'навігатор проєкту';
+
+  @override
+  String get pnpNewFileMenu => 'Новий файл…';
+
+  @override
+  String get pnpNewFolderMenu => 'Нова тека…';
+
+  @override
+  String get pnpRenameMenu => 'Перейменувати…';
+
+  @override
+  String get pnpDeleteMenu => 'Видалити…';
+
+  @override
+  String get pnpStage => 'Проіндексувати';
+
+  @override
+  String get pnpUnstage => 'Зняти індексацію';
+
+  @override
+  String get pnpDiscardMenu => 'Відкинути зміни…';
+
+  @override
+  String get pnpShowHistory => 'Показати історію';
+
+  @override
+  String get pnpRevealInFinder => 'Показати у Finder';
+
+  @override
+  String get pnpShowInExplorer => 'Показати в Провіднику';
+
+  @override
+  String get pnpOpenContainingFolder => 'Відкрити теку з файлом';
+
+  @override
+  String get pnpNewFile => 'Новий файл';
+
+  @override
+  String get pnpNewFolder => 'Нова тека';
+
+  @override
+  String get pnpDeleteFolderBody =>
+      'Теку й увесь її вміст буде вилучено з диска, а не лише з git.';
+
+  @override
+  String get pnpDeleteFileBody =>
+      'Файл буде вилучено з диска, а не лише з git.';
+
+  @override
+  String get pnpDiscardUntrackedBody =>
+      'Файл не відстежується, тож відкидання видалить його.';
+
+  @override
+  String get pnpDiscardTrackedBody =>
+      'Файл повернеться до стану останнього коміту.';
+
+  @override
+  String get pnpCouldNotOpenFileManager =>
+      'Не вдалося відкрити файловий менеджер';
+
+  @override
+  String get pnpOperationFailed => 'Операція не вдалася';
+
+  @override
+  String pnpMore(int count) {
+    return '…ще $count';
+  }
+
+  @override
+  String get pnpProject => 'Проєкт';
+
+  @override
+  String get pnpShowIgnored => 'Показати ігноровані файли';
+
+  @override
+  String get pnpHideIgnored => 'Сховати ігноровані файли';
 }

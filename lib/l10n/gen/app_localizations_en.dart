@@ -1779,4 +1779,194 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get rbCustomizeHint =>
       'Pick an action for each commit, or drag to reorder them.';
+
+  @override
+  String get dlgEditCommitMessage => 'Edit commit message';
+
+  @override
+  String dlgUnsavedOne(String path) {
+    return '$path has changes that are not on disk.';
+  }
+
+  @override
+  String get dlgUnsavedMany => 'These files have changes that are not on disk:';
+
+  @override
+  String fteConflictBody(String name) {
+    return 'Something else wrote $name while it was open here. Saving replaces those changes with this text.';
+  }
+
+  @override
+  String get fteCouldNotOpen => 'Could not open this file';
+
+  @override
+  String get fteNoResults => 'No results';
+
+  @override
+  String get fteFind => 'Find';
+
+  @override
+  String get fteReplaceWith => 'Replace with';
+
+  @override
+  String get fteMatchCase => 'Match case';
+
+  @override
+  String get ftePreviousMatch => 'Previous match';
+
+  @override
+  String get fteNextMatch => 'Next match';
+
+  @override
+  String get fteReplaceThis => 'Replace this match';
+
+  @override
+  String get fteReplaceAll => 'Replace all';
+
+  @override
+  String get diffEditingWorkingTree =>
+      'Editing the working tree — saved changes stay unstaged';
+
+  @override
+  String get diffStageSelectedLines => 'Stage selected lines';
+
+  @override
+  String get diffUnstageSelectedLines => 'Unstage selected lines';
+
+  @override
+  String get diffDiscardSelectedLines => 'Discard selected lines';
+
+  @override
+  String diffUnsavedBody(String path) {
+    return 'What you typed in $path has not been written to the working tree.';
+  }
+
+  @override
+  String get diffUncommittedWorkingTree => 'Uncommitted changes · working tree';
+
+  @override
+  String get diffStageFile => 'Stage file';
+
+  @override
+  String get diffUnstageFile => 'Unstage file';
+
+  @override
+  String get diffShowChangesOnly => 'Show changes only';
+
+  @override
+  String get diffShowWholeFile => 'Show whole file';
+
+  @override
+  String get diffCouldNotLoad => 'Could not load diff';
+
+  @override
+  String get diffBinaryFile => 'Binary file — diff not shown';
+
+  @override
+  String get diffCouldNotStage => 'Could not stage';
+
+  @override
+  String get diffCouldNotUnstage => 'Could not unstage';
+
+  @override
+  String get diffCouldNotDiscard => 'Could not discard';
+
+  @override
+  String get diffStageHunk => 'Stage hunk';
+
+  @override
+  String get diffUnstageHunk => 'Unstage hunk';
+
+  @override
+  String get diffDiscardHunk => 'Discard hunk';
+
+  @override
+  String get diffUnstagedLabel => 'Unstaged';
+
+  @override
+  String get diffStagedLabel => 'Staged';
+
+  @override
+  String get fepOpenAFile => 'Open a file to edit it';
+
+  @override
+  String get fepDeletedOnDisk => 'Deleted on disk — saving is disabled';
+
+  @override
+  String get pnpNavigator => 'project navigator';
+
+  @override
+  String get pnpNewFileMenu => 'New file…';
+
+  @override
+  String get pnpNewFolderMenu => 'New folder…';
+
+  @override
+  String get pnpRenameMenu => 'Rename…';
+
+  @override
+  String get pnpDeleteMenu => 'Delete…';
+
+  @override
+  String get pnpStage => 'Stage';
+
+  @override
+  String get pnpUnstage => 'Unstage';
+
+  @override
+  String get pnpDiscardMenu => 'Discard changes…';
+
+  @override
+  String get pnpShowHistory => 'Show history';
+
+  @override
+  String get pnpRevealInFinder => 'Reveal in Finder';
+
+  @override
+  String get pnpShowInExplorer => 'Show in Explorer';
+
+  @override
+  String get pnpOpenContainingFolder => 'Open containing folder';
+
+  @override
+  String get pnpNewFile => 'New file';
+
+  @override
+  String get pnpNewFolder => 'New folder';
+
+  @override
+  String get pnpDeleteFolderBody =>
+      'The folder and everything in it is removed from disk, not just from git.';
+
+  @override
+  String get pnpDeleteFileBody =>
+      'The file is removed from disk, not just from git.';
+
+  @override
+  String get pnpDiscardUntrackedBody =>
+      'The file is untracked, so discarding deletes it.';
+
+  @override
+  String get pnpDiscardTrackedBody =>
+      'The file goes back to what it was at the last commit.';
+
+  @override
+  String get pnpCouldNotOpenFileManager => 'Could not open the file manager';
+
+  @override
+  String get pnpOperationFailed => 'Operation failed';
+
+  @override
+  String pnpMore(int count) {
+    return '…$count more';
+  }
+
+  @override
+  String get pnpProject => 'Project';
+
+  @override
+  String get pnpShowIgnored => 'Show ignored files';
+
+  @override
+  String get pnpHideIgnored => 'Hide ignored files';
 }

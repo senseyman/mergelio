@@ -192,19 +192,19 @@ class _InputDialogBodyState extends State<_InputDialogBody> {
 /// null on cancel. An empty summary cannot be saved — a commit needs a subject.
 Future<CommitMessageParts?> showCommitMessageDialog(
   BuildContext context, {
-  String title = 'Edit commit message',
+  String? title,
   String initialSummary = '',
   String initialDescription = '',
-  String confirmLabel = 'Save',
+  String? confirmLabel,
 }) => showAppModal<CommitMessageParts>(
   context: context,
-  title: title,
+  title: title ?? AppLocalizations.of(context).dlgEditCommitMessage,
   icon: Icons.edit_note_outlined,
   width: 520,
   body: _CommitMessageBody(
     initialSummary: initialSummary,
     initialDescription: initialDescription,
-    confirmLabel: confirmLabel,
+    confirmLabel: confirmLabel ?? AppLocalizations.of(context).save,
   ),
 );
 
@@ -261,10 +261,10 @@ class _CommitMessageBodyState extends State<_CommitMessageBody> {
           autofocus: true,
           onSubmitted: (_) => _submit(),
           style: style,
-          decoration: const InputDecoration(
-            labelText: 'Summary',
+          decoration: InputDecoration(
+            labelText: l.wtpSummary,
             isDense: true,
-            border: OutlineInputBorder(),
+            border: const OutlineInputBorder(),
           ),
         ),
         const SizedBox(height: 12),
@@ -274,11 +274,11 @@ class _CommitMessageBodyState extends State<_CommitMessageBody> {
           maxLines: 10,
           keyboardType: TextInputType.multiline,
           style: style,
-          decoration: const InputDecoration(
-            labelText: 'Description',
+          decoration: InputDecoration(
+            labelText: l.wtpDescription,
             alignLabelWithHint: true,
             isDense: true,
-            border: OutlineInputBorder(),
+            border: const OutlineInputBorder(),
           ),
         ),
         const SizedBox(height: 16),
@@ -303,7 +303,7 @@ Future<bool> showConfirmDialog(
   BuildContext context, {
   required String title,
   required String body,
-  String confirmLabel = 'Confirm',
+  String? confirmLabel,
 }) async {
   final l = AppLocalizations.of(context);
   final t = context.tokens;
@@ -330,7 +330,7 @@ Future<bool> showConfirmDialog(
             foregroundColor: Colors.white,
           ),
           onPressed: () => Navigator.of(ctx).pop(true),
-          child: Text(confirmLabel),
+          child: Text(confirmLabel ?? AppLocalizations.of(ctx).confirmAction),
         ),
       ),
     ],
@@ -357,8 +357,8 @@ Future<UnsavedChoice> showUnsavedDialog(
     width: 460,
     body: Text(
       paths.length == 1
-          ? '${paths.single} has changes that are not on disk.'
-          : 'These files have changes that are not on disk:\n\n'
+          ? l.dlgUnsavedOne(paths.single)
+          : '${l.dlgUnsavedMany}\n\n'
                 '${paths.map((p) => '· $p').join('\n')}',
       style: TextStyle(color: t.textMuted, fontSize: 13, height: 1.5),
     ),
