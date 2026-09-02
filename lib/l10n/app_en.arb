@@ -150,5 +150,47 @@
     }
   },
   "a11yWorkingChanges": "Working tree changes",
-  "a11yCommitGraph": "Commit history graph"
+  "a11yCommitGraph": "Commit history graph",
+
+  "shellAddRepository": "Add repository",
+  "shellOpenRepoMenu": "Open…",
+  "shellCloneRepoMenu": "Clone…",
+  "shellCreateRepoMenu": "Create…",
+  "shellRepoGroup": "Repo group",
+  "shellAllGroups": "All",
+  "shellNewGroup": "New group",
+  "shellNewGroupMenu": "New group…",
+  "shellGroupName": "Group name",
+  "shellRenameGroup": "Rename group",
+  "shellRenameMenu": "Rename…",
+  "shellRenameGroupMenu": "Rename group…",
+  "shellDeleteGroupTitle": "Delete group?",
+  "shellDeleteGroupMenu": "Delete group…",
+  "shellDeleteGroupBody": "\"{name}\" is removed from the switcher. Repositories in it stay open, without a group.",
+  "@shellDeleteGroupBody": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "shellCloseTab": "Close tab",
+  "shellCloseOthers": "Close others",
+  "shellRemoveFromGroup": "Remove from {name}",
+  "@shellRemoveFromGroup": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "shellMoveToGroup": "Move to {name}",
+  "@shellMoveToGroup": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "tabWorktree": "Worktree",
+  "tabWorktreeOf": "Worktree of {parent}",
+  "@tabWorktreeOf": {
+    "placeholders": {
+      "parent": {"type": "String"}
+    }
+  }
 }

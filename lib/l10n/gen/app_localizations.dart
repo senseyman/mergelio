@@ -721,6 +721,132 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Commit history graph'**
   String get a11yCommitGraph;
+
+  /// No description provided for @shellAddRepository.
+  ///
+  /// In en, this message translates to:
+  /// **'Add repository'**
+  String get shellAddRepository;
+
+  /// No description provided for @shellOpenRepoMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Open…'**
+  String get shellOpenRepoMenu;
+
+  /// No description provided for @shellCloneRepoMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Clone…'**
+  String get shellCloneRepoMenu;
+
+  /// No description provided for @shellCreateRepoMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Create…'**
+  String get shellCreateRepoMenu;
+
+  /// No description provided for @shellRepoGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Repo group'**
+  String get shellRepoGroup;
+
+  /// No description provided for @shellAllGroups.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get shellAllGroups;
+
+  /// No description provided for @shellNewGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'New group'**
+  String get shellNewGroup;
+
+  /// No description provided for @shellNewGroupMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'New group…'**
+  String get shellNewGroupMenu;
+
+  /// No description provided for @shellGroupName.
+  ///
+  /// In en, this message translates to:
+  /// **'Group name'**
+  String get shellGroupName;
+
+  /// No description provided for @shellRenameGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename group'**
+  String get shellRenameGroup;
+
+  /// No description provided for @shellRenameMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename…'**
+  String get shellRenameMenu;
+
+  /// No description provided for @shellRenameGroupMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename group…'**
+  String get shellRenameGroupMenu;
+
+  /// No description provided for @shellDeleteGroupTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete group?'**
+  String get shellDeleteGroupTitle;
+
+  /// No description provided for @shellDeleteGroupMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete group…'**
+  String get shellDeleteGroupMenu;
+
+  /// No description provided for @shellDeleteGroupBody.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{name}\" is removed from the switcher. Repositories in it stay open, without a group.'**
+  String shellDeleteGroupBody(String name);
+
+  /// No description provided for @shellCloseTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Close tab'**
+  String get shellCloseTab;
+
+  /// No description provided for @shellCloseOthers.
+  ///
+  /// In en, this message translates to:
+  /// **'Close others'**
+  String get shellCloseOthers;
+
+  /// No description provided for @shellRemoveFromGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from {name}'**
+  String shellRemoveFromGroup(String name);
+
+  /// No description provided for @shellMoveToGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to {name}'**
+  String shellMoveToGroup(String name);
+
+  /// No description provided for @tabWorktree.
+  ///
+  /// In en, this message translates to:
+  /// **'Worktree'**
+  String get tabWorktree;
+
+  /// No description provided for @tabWorktreeOf.
+  ///
+  /// In en, this message translates to:
+  /// **'Worktree of {parent}'**
+  String tabWorktreeOf(String parent);
 }
 
 class _AppLocalizationsDelegate

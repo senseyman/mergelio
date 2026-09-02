@@ -150,5 +150,27 @@
     }
   },
   "a11yWorkingChanges": "Зміни в робочому дереві",
-  "a11yCommitGraph": "Граф історії комітів"
+  "a11yCommitGraph": "Граф історії комітів",
+
+  "shellAddRepository": "Додати репозиторій",
+  "shellOpenRepoMenu": "Відкрити…",
+  "shellCloneRepoMenu": "Клонувати…",
+  "shellCreateRepoMenu": "Створити…",
+  "shellRepoGroup": "Група репозиторіїв",
+  "shellAllGroups": "Усі",
+  "shellNewGroup": "Нова група",
+  "shellNewGroupMenu": "Нова група…",
+  "shellGroupName": "Назва групи",
+  "shellRenameGroup": "Перейменувати групу",
+  "shellRenameMenu": "Перейменувати…",
+  "shellRenameGroupMenu": "Перейменувати групу…",
+  "shellDeleteGroupTitle": "Видалити групу?",
+  "shellDeleteGroupMenu": "Видалити групу…",
+  "shellDeleteGroupBody": "«{name}» буде вилучено з перемикача. Репозиторії з неї залишаться відкритими, але без групи.",
+  "shellCloseTab": "Закрити вкладку",
+  "shellCloseOthers": "Закрити інші",
+  "shellRemoveFromGroup": "Вилучити з {name}",
+  "shellMoveToGroup": "Перемістити до {name}",
+  "tabWorktree": "Робоче дерево",
+  "tabWorktreeOf": "Робоче дерево {parent}"
 }

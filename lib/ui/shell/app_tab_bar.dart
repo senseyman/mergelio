@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../../state/settings_controller.dart';
 import '../../state/unsaved_guard.dart';
 import '../../state/workspace.dart';
@@ -24,10 +25,11 @@ Future<void> _closeTab(
 }
 
 Future<void> _createGroup(BuildContext context, WidgetRef ref) async {
+  final l = AppLocalizations.of(context);
   final name = await showInputDialog(
     context,
-    title: 'New group',
-    label: 'Group name',
+    title: l.shellNewGroup,
+    label: l.shellGroupName,
   );
   if (name == null) return;
   final ctl = ref.read(workspaceProvider.notifier);
@@ -40,10 +42,11 @@ Future<void> _renameGroup(
   WidgetRef ref,
   RepoGroup g,
 ) async {
+  final l = AppLocalizations.of(context);
   final name = await showInputDialog(
     context,
-    title: 'Rename group',
-    label: 'Group name',
+    title: l.shellRenameGroup,
+    label: l.shellGroupName,
     initial: g.name,
   );
   if (name == null) return;
@@ -57,14 +60,13 @@ Future<void> _deleteGroup(
   WidgetRef ref,
   RepoGroup g,
 ) async {
+  final l = AppLocalizations.of(context);
   final ok = await confirmDestructive(
     ref,
     context,
-    title: 'Delete group?',
-    body:
-        '"${g.name}" is removed from the switcher. Repositories in it stay '
-        'open, without a group.',
-    confirmLabel: 'Delete',
+    title: l.shellDeleteGroupTitle,
+    body: l.shellDeleteGroupBody(g.name),
+    confirmLabel: l.delete,
   );
   if (!ok) return;
   ref.read(workspaceProvider.notifier).deleteGroup(g.id);
@@ -78,12 +80,21 @@ Future<void> _showGroupMenu(
   RepoGroup g,
   Offset at,
 ) async {
+  final l = AppLocalizations.of(context);
   final action = await showContextMenu<String>(
     context: context,
     position: at,
-    items: const [
-      PopupMenuItem(value: 'rename', height: 34, child: Text('Rename…')),
-      PopupMenuItem(value: 'delete', height: 34, child: Text('Delete group…')),
+    items: [
+      PopupMenuItem(
+        value: 'rename',
+        height: 34,
+        child: Text(l.shellRenameMenu),
+      ),
+      PopupMenuItem(
+        value: 'delete',
+        height: 34,
+        child: Text(l.shellDeleteGroupMenu),
+      ),
     ],
   );
   if (!context.mounted) return;
@@ -103,6 +114,7 @@ class AppTabBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final ws = ref.watch(workspaceProvider);
     final style = ref.watch(settingsProvider.select((s) => s.groupStyle));
@@ -143,7 +155,7 @@ class AppTabBar extends ConsumerWidget {
             ),
           ),
           PopupMenuButton<String>(
-            tooltip: 'Add repository',
+            tooltip: l.shellAddRepository,
             position: PopupMenuPosition.under,
             onSelected: (v) {
               switch (v) {
@@ -155,15 +167,18 @@ class AppTabBar extends ConsumerWidget {
                   showCreateDialog(context);
               }
             },
-            itemBuilder: (context) => const [
+            itemBuilder: (context) => [
               PopupMenuItem(
                 value: 'open',
                 height: 36,
                 child: Row(
                   children: [
-                    Icon(Icons.folder_open_outlined, size: 16),
-                    SizedBox(width: 10),
-                    Text('Open…', style: TextStyle(fontSize: 13)),
+                    const Icon(Icons.folder_open_outlined, size: 16),
+                    const SizedBox(width: 10),
+                    Text(
+                      l.shellOpenRepoMenu,
+                      style: const TextStyle(fontSize: 13),
+                    ),
                   ],
                 ),
               ),
@@ -172,9 +187,12 @@ class AppTabBar extends ConsumerWidget {
                 height: 36,
                 child: Row(
                   children: [
-                    Icon(Icons.cloud_download_outlined, size: 16),
-                    SizedBox(width: 10),
-                    Text('Clone…', style: TextStyle(fontSize: 13)),
+                    const Icon(Icons.cloud_download_outlined, size: 16),
+                    const SizedBox(width: 10),
+                    Text(
+                      l.shellCloneRepoMenu,
+                      style: const TextStyle(fontSize: 13),
+                    ),
                   ],
                 ),
               ),
@@ -183,9 +201,12 @@ class AppTabBar extends ConsumerWidget {
                 height: 36,
                 child: Row(
                   children: [
-                    Icon(Icons.add_box_outlined, size: 16),
-                    SizedBox(width: 10),
-                    Text('Create…', style: TextStyle(fontSize: 13)),
+                    const Icon(Icons.add_box_outlined, size: 16),
+                    const SizedBox(width: 10),
+                    Text(
+                      l.shellCreateRepoMenu,
+                      style: const TextStyle(fontSize: 13),
+                    ),
                   ],
                 ),
               ),
@@ -209,12 +230,13 @@ class _GroupDropdown extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final ctl = ref.read(workspaceProvider.notifier);
     final active = ws.groupById(ws.activeGroupId);
 
     return PopupMenuButton<Object>(
-      tooltip: 'Repo group',
+      tooltip: l.shellRepoGroup,
       onSelected: (v) async {
         // Rename/delete act on the active group: pick it in the same menu
         // first, then manage it.
@@ -233,10 +255,10 @@ class _GroupDropdown extends ConsumerWidget {
         }
       },
       itemBuilder: (context) => [
-        const PopupMenuItem(
+        PopupMenuItem(
           value: 'all',
           height: 34,
-          child: Text('All', style: TextStyle(fontSize: 13)),
+          child: Text(l.shellAllGroups, style: const TextStyle(fontSize: 13)),
         ),
         for (final g in ws.groups)
           PopupMenuItem(
@@ -251,22 +273,31 @@ class _GroupDropdown extends ConsumerWidget {
             ),
           ),
         const PopupMenuDivider(),
-        const PopupMenuItem(
+        PopupMenuItem(
           value: 'new',
           height: 34,
-          child: Text('New group…', style: TextStyle(fontSize: 13)),
+          child: Text(
+            l.shellNewGroupMenu,
+            style: const TextStyle(fontSize: 13),
+          ),
         ),
         PopupMenuItem(
           value: 'rename',
           height: 34,
           enabled: active != null,
-          child: const Text('Rename group…', style: TextStyle(fontSize: 13)),
+          child: Text(
+            l.shellRenameGroupMenu,
+            style: const TextStyle(fontSize: 13),
+          ),
         ),
         PopupMenuItem(
           value: 'delete',
           height: 34,
           enabled: active != null,
-          child: const Text('Delete group…', style: TextStyle(fontSize: 13)),
+          child: Text(
+            l.shellDeleteGroupMenu,
+            style: const TextStyle(fontSize: 13),
+          ),
         ),
       ],
       child: Padding(
@@ -279,7 +310,7 @@ class _GroupDropdown extends ConsumerWidget {
               const SizedBox(width: 6),
             ],
             Text(
-              active?.name ?? 'All',
+              active?.name ?? l.shellAllGroups,
               style: TextStyle(color: t.textMuted, fontSize: 12.5),
             ),
             Icon(Icons.arrow_drop_down, size: 16, color: t.textFaint),
@@ -297,6 +328,7 @@ class _GroupPills extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final ctl = ref.read(workspaceProvider.notifier);
 
@@ -345,7 +377,7 @@ class _GroupPills extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         pill(
-          label: 'All',
+          label: l.shellAllGroups,
           selected: ws.activeGroupId == null,
           onTap: () => ctl.setActiveGroup(null),
         ),
@@ -374,6 +406,7 @@ class GroupRail extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final ws = ref.watch(workspaceProvider);
     final ctl = ref.read(workspaceProvider.notifier);
@@ -419,7 +452,7 @@ class GroupRail extends ConsumerWidget {
           const SizedBox(height: 6),
           item(
             child: Icon(Icons.apps, size: 15, color: t.textMuted),
-            tooltip: 'All',
+            tooltip: l.shellAllGroups,
             selected: ws.activeGroupId == null,
             onTap: () => ctl.setActiveGroup(null),
           ),
@@ -434,7 +467,7 @@ class GroupRail extends ConsumerWidget {
             ),
           item(
             child: Icon(Icons.add, size: 15, color: t.textFaint),
-            tooltip: 'New group',
+            tooltip: l.shellNewGroup,
             selected: false,
             onTap: () => _createGroup(context, ref),
           ),
@@ -464,6 +497,7 @@ class _Tab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final ws = ref.watch(workspaceProvider);
     final ctl = ref.read(workspaceProvider.notifier);
@@ -509,8 +543,8 @@ class _Tab extends ConsumerWidget {
               if (isLinkedWorktree) ...[
                 Tooltip(
                   message: worktreeParent == null
-                      ? 'Worktree'
-                      : 'Worktree of $worktreeParent',
+                      ? l.tabWorktree
+                      : l.tabWorktreeOf(worktreeParent),
                   child: Icon(
                     Icons.dashboard_outlined,
                     size: 12,
@@ -563,15 +597,15 @@ class _Tab extends ConsumerWidget {
               context: context,
               position: d.globalPosition,
               items: [
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'close',
                   height: 36,
-                  child: Text('Close tab'),
+                  child: Text(l.shellCloseTab),
                 ),
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'others',
                   height: 36,
-                  child: Text('Close others'),
+                  child: Text(l.shellCloseOthers),
                 ),
                 if (ws.groups.isNotEmpty) const PopupMenuDivider(),
                 for (final g in ws.groups)
@@ -584,8 +618,8 @@ class _Tab extends ConsumerWidget {
                         const SizedBox(width: 8),
                         Text(
                           tab.groupId == g.id
-                              ? 'Remove from ${g.name}'
-                              : 'Move to ${g.name}',
+                              ? l.shellRemoveFromGroup(g.name)
+                              : l.shellMoveToGroup(g.name),
                         ),
                       ],
                     ),

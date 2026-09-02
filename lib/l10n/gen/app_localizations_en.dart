@@ -334,4 +334,75 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get a11yCommitGraph => 'Commit history graph';
+
+  @override
+  String get shellAddRepository => 'Add repository';
+
+  @override
+  String get shellOpenRepoMenu => 'Open…';
+
+  @override
+  String get shellCloneRepoMenu => 'Clone…';
+
+  @override
+  String get shellCreateRepoMenu => 'Create…';
+
+  @override
+  String get shellRepoGroup => 'Repo group';
+
+  @override
+  String get shellAllGroups => 'All';
+
+  @override
+  String get shellNewGroup => 'New group';
+
+  @override
+  String get shellNewGroupMenu => 'New group…';
+
+  @override
+  String get shellGroupName => 'Group name';
+
+  @override
+  String get shellRenameGroup => 'Rename group';
+
+  @override
+  String get shellRenameMenu => 'Rename…';
+
+  @override
+  String get shellRenameGroupMenu => 'Rename group…';
+
+  @override
+  String get shellDeleteGroupTitle => 'Delete group?';
+
+  @override
+  String get shellDeleteGroupMenu => 'Delete group…';
+
+  @override
+  String shellDeleteGroupBody(String name) {
+    return '\"$name\" is removed from the switcher. Repositories in it stay open, without a group.';
+  }
+
+  @override
+  String get shellCloseTab => 'Close tab';
+
+  @override
+  String get shellCloseOthers => 'Close others';
+
+  @override
+  String shellRemoveFromGroup(String name) {
+    return 'Remove from $name';
+  }
+
+  @override
+  String shellMoveToGroup(String name) {
+    return 'Move to $name';
+  }
+
+  @override
+  String get tabWorktree => 'Worktree';
+
+  @override
+  String tabWorktreeOf(String parent) {
+    return 'Worktree of $parent';
+  }
 }

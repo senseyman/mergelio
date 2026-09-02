@@ -334,4 +334,75 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get a11yCommitGraph => 'Граф історії комітів';
+
+  @override
+  String get shellAddRepository => 'Додати репозиторій';
+
+  @override
+  String get shellOpenRepoMenu => 'Відкрити…';
+
+  @override
+  String get shellCloneRepoMenu => 'Клонувати…';
+
+  @override
+  String get shellCreateRepoMenu => 'Створити…';
+
+  @override
+  String get shellRepoGroup => 'Група репозиторіїв';
+
+  @override
+  String get shellAllGroups => 'Усі';
+
+  @override
+  String get shellNewGroup => 'Нова група';
+
+  @override
+  String get shellNewGroupMenu => 'Нова група…';
+
+  @override
+  String get shellGroupName => 'Назва групи';
+
+  @override
+  String get shellRenameGroup => 'Перейменувати групу';
+
+  @override
+  String get shellRenameMenu => 'Перейменувати…';
+
+  @override
+  String get shellRenameGroupMenu => 'Перейменувати групу…';
+
+  @override
+  String get shellDeleteGroupTitle => 'Видалити групу?';
+
+  @override
+  String get shellDeleteGroupMenu => 'Видалити групу…';
+
+  @override
+  String shellDeleteGroupBody(String name) {
+    return '«$name» буде вилучено з перемикача. Репозиторії з неї залишаться відкритими, але без групи.';
+  }
+
+  @override
+  String get shellCloseTab => 'Закрити вкладку';
+
+  @override
+  String get shellCloseOthers => 'Закрити інші';
+
+  @override
+  String shellRemoveFromGroup(String name) {
+    return 'Вилучити з $name';
+  }
+
+  @override
+  String shellMoveToGroup(String name) {
+    return 'Перемістити до $name';
+  }
+
+  @override
+  String get tabWorktree => 'Робоче дерево';
+
+  @override
+  String tabWorktreeOf(String parent) {
+    return 'Робоче дерево $parent';
+  }
 }
