@@ -511,4 +511,295 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get wtPrune => 'Prune';
+
+  @override
+  String get sbRepository => 'Repository';
+
+  @override
+  String get sbCollapse => 'Collapse';
+
+  @override
+  String get sbCouldNotRead => 'Could not read repository';
+
+  @override
+  String get sbRetry => 'Retry';
+
+  @override
+  String get sbBranches => 'Branches';
+
+  @override
+  String get sbNoBranches => 'No branches';
+
+  @override
+  String get sbRemotes => 'Remotes';
+
+  @override
+  String get sbNoRemotes => 'No remotes';
+
+  @override
+  String get sbTags => 'Tags';
+
+  @override
+  String get sbNoTags => 'No tags';
+
+  @override
+  String get sbStashes => 'Stashes';
+
+  @override
+  String get sbNoStashes => 'No stashes';
+
+  @override
+  String get sbSubmodules => 'Submodules';
+
+  @override
+  String get sbNoSubmodules => 'No submodules';
+
+  @override
+  String get sbAddRemoteRow => 'Add remote…';
+
+  @override
+  String get sbAddRemoteTitle => 'Add remote';
+
+  @override
+  String get sbAdd => 'Add';
+
+  @override
+  String get sbAddSubmoduleRow => 'Add submodule…';
+
+  @override
+  String get sbPop => 'Pop';
+
+  @override
+  String get sbInit => 'Init';
+
+  @override
+  String get sbUpdate => 'Update';
+
+  @override
+  String get sbUpdateToRemote => 'Update to remote';
+
+  @override
+  String get sbSync => 'Sync';
+
+  @override
+  String get sbDeinit => 'Deinit';
+
+  @override
+  String get sbReset => 'Reset';
+
+  @override
+  String sbResetToUpstreamTitle(String branch, String upstream) {
+    return 'Reset $branch to $upstream?';
+  }
+
+  @override
+  String sbResetUnpushedBody(int count, String branch) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count unpushed commits on $branch will be removed. This can be undone.',
+      one:
+          '$count unpushed commit on $branch will be removed. This can be undone.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String sbResetMovedBody(String branch, String upstream) {
+    return '$branch will be moved to $upstream. This can be undone.';
+  }
+
+  @override
+  String get sbCheckout => 'Checkout';
+
+  @override
+  String get sbMergeIntoCurrent => 'Merge into current';
+
+  @override
+  String get sbRebaseOntoCurrent => 'Rebase onto current';
+
+  @override
+  String get sbSetUpstreamItem => 'Set upstream…';
+
+  @override
+  String sbSetUpstreamTitle(String branch) {
+    return 'Set upstream for $branch';
+  }
+
+  @override
+  String sbSetUpstreamHint(String branch) {
+    return 'e.g. origin/$branch';
+  }
+
+  @override
+  String get sbResetToRemote => 'Reset to remote…';
+
+  @override
+  String get sbRenameItem => 'Rename…';
+
+  @override
+  String get sbRenameBranchTitle => 'Rename branch';
+
+  @override
+  String get sbDeleteBranch => 'Delete branch';
+
+  @override
+  String sbDeleteBranchTitle(String branch) {
+    return 'Delete $branch?';
+  }
+
+  @override
+  String get sbDeleteBranchBody =>
+      'The branch ref will be removed. This can be undone.';
+
+  @override
+  String get sbDeleteBranchAndRemote => 'Delete branch and remote…';
+
+  @override
+  String sbDeleteBothTitle(String branch, String upstream) {
+    return 'Delete $branch and $upstream?';
+  }
+
+  @override
+  String get sbDeleteBothBody =>
+      'The branch will be removed here and on the remote. Only the local half can be undone.';
+
+  @override
+  String get sbDeleteBoth => 'Delete both';
+
+  @override
+  String sbCheckedOutIn(String name) {
+    return 'Checked out in $name';
+  }
+
+  @override
+  String sbMergeSourceInto(String source, String target) {
+    return 'Merge «$source» into «$target»';
+  }
+
+  @override
+  String sbRebaseSourceOnto(String source, String target) {
+    return 'Rebase «$source» onto «$target»';
+  }
+
+  @override
+  String sbTipSwitchHint(String branch) {
+    return 'Click to show its tip · double-click to switch to $branch';
+  }
+
+  @override
+  String sbTipCheckoutHint(String name) {
+    return 'Click to show its tip · double-click to check out $name';
+  }
+
+  @override
+  String get sbHasLocalBranch => 'Has a local branch';
+
+  @override
+  String sbSwitchTo(String branch) {
+    return 'Switch to $branch';
+  }
+
+  @override
+  String sbCheckOutNamed(String name) {
+    return 'Check out $name';
+  }
+
+  @override
+  String sbMergeNamedIntoCurrent(String name) {
+    return 'Merge $name into current';
+  }
+
+  @override
+  String sbResetToThis(String branch) {
+    return 'Reset $branch to this';
+  }
+
+  @override
+  String sbDeleteRemoteBranchTitle(String name) {
+    return 'Delete $name?';
+  }
+
+  @override
+  String sbDeleteRemoteBranchBody(String remote) {
+    return 'The branch will be deleted on $remote. Any local branch of the same name stays. This cannot be undone.';
+  }
+
+  @override
+  String sbDeleteNamedItem(String name) {
+    return 'Delete $name…';
+  }
+
+  @override
+  String sbFetchRemote(String remote) {
+    return 'Fetch $remote';
+  }
+
+  @override
+  String get sbPrune => 'Prune';
+
+  @override
+  String get sbCopyUrl => 'Copy URL';
+
+  @override
+  String get sbEditRemoteTitle => 'Edit remote';
+
+  @override
+  String get sbEditRemoteItem => 'Edit remote…';
+
+  @override
+  String sbRemoveRemoteTitle(String remote) {
+    return 'Remove remote $remote?';
+  }
+
+  @override
+  String get sbRemoveRemoteBody =>
+      'Its remote-tracking branches go with it. Undo restores the remote; fetch to bring the branches back.';
+
+  @override
+  String get sbRemove => 'Remove';
+
+  @override
+  String get sbRemoveRemoteItem => 'Remove remote…';
+
+  @override
+  String get sbPushTag => 'Push tag';
+
+  @override
+  String get sbCopyName => 'Copy name';
+
+  @override
+  String sbDeleteTagTitle(String tag) {
+    return 'Delete tag $tag?';
+  }
+
+  @override
+  String get sbDeleteTagBody =>
+      'The tag will be removed locally. This can be undone.';
+
+  @override
+  String get sbDeleteTag => 'Delete tag';
+
+  @override
+  String sbDropStashTitle(String ref) {
+    return 'Drop $ref?';
+  }
+
+  @override
+  String get sbDropStashBody =>
+      'The stash will be deleted. An Undo toast lets you restore it.';
+
+  @override
+  String get sbDrop => 'Drop';
+
+  @override
+  String sbRemoveSubmoduleTitle(String name) {
+    return 'Remove $name?';
+  }
+
+  @override
+  String sbRemoveSubmoduleBody(String path) {
+    return 'The submodule at $path will be deinitialized and removed from .gitmodules. This cannot be undone.';
+  }
 }

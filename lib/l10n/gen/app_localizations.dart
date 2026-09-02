@@ -1039,6 +1039,462 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Prune'**
   String get wtPrune;
+
+  /// No description provided for @sbRepository.
+  ///
+  /// In en, this message translates to:
+  /// **'Repository'**
+  String get sbRepository;
+
+  /// No description provided for @sbCollapse.
+  ///
+  /// In en, this message translates to:
+  /// **'Collapse'**
+  String get sbCollapse;
+
+  /// No description provided for @sbCouldNotRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read repository'**
+  String get sbCouldNotRead;
+
+  /// No description provided for @sbRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get sbRetry;
+
+  /// No description provided for @sbBranches.
+  ///
+  /// In en, this message translates to:
+  /// **'Branches'**
+  String get sbBranches;
+
+  /// No description provided for @sbNoBranches.
+  ///
+  /// In en, this message translates to:
+  /// **'No branches'**
+  String get sbNoBranches;
+
+  /// No description provided for @sbRemotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Remotes'**
+  String get sbRemotes;
+
+  /// No description provided for @sbNoRemotes.
+  ///
+  /// In en, this message translates to:
+  /// **'No remotes'**
+  String get sbNoRemotes;
+
+  /// No description provided for @sbTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Tags'**
+  String get sbTags;
+
+  /// No description provided for @sbNoTags.
+  ///
+  /// In en, this message translates to:
+  /// **'No tags'**
+  String get sbNoTags;
+
+  /// No description provided for @sbStashes.
+  ///
+  /// In en, this message translates to:
+  /// **'Stashes'**
+  String get sbStashes;
+
+  /// No description provided for @sbNoStashes.
+  ///
+  /// In en, this message translates to:
+  /// **'No stashes'**
+  String get sbNoStashes;
+
+  /// No description provided for @sbSubmodules.
+  ///
+  /// In en, this message translates to:
+  /// **'Submodules'**
+  String get sbSubmodules;
+
+  /// No description provided for @sbNoSubmodules.
+  ///
+  /// In en, this message translates to:
+  /// **'No submodules'**
+  String get sbNoSubmodules;
+
+  /// No description provided for @sbAddRemoteRow.
+  ///
+  /// In en, this message translates to:
+  /// **'Add remote…'**
+  String get sbAddRemoteRow;
+
+  /// No description provided for @sbAddRemoteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add remote'**
+  String get sbAddRemoteTitle;
+
+  /// No description provided for @sbAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get sbAdd;
+
+  /// No description provided for @sbAddSubmoduleRow.
+  ///
+  /// In en, this message translates to:
+  /// **'Add submodule…'**
+  String get sbAddSubmoduleRow;
+
+  /// No description provided for @sbPop.
+  ///
+  /// In en, this message translates to:
+  /// **'Pop'**
+  String get sbPop;
+
+  /// No description provided for @sbInit.
+  ///
+  /// In en, this message translates to:
+  /// **'Init'**
+  String get sbInit;
+
+  /// No description provided for @sbUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Update'**
+  String get sbUpdate;
+
+  /// No description provided for @sbUpdateToRemote.
+  ///
+  /// In en, this message translates to:
+  /// **'Update to remote'**
+  String get sbUpdateToRemote;
+
+  /// No description provided for @sbSync.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync'**
+  String get sbSync;
+
+  /// No description provided for @sbDeinit.
+  ///
+  /// In en, this message translates to:
+  /// **'Deinit'**
+  String get sbDeinit;
+
+  /// No description provided for @sbReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset'**
+  String get sbReset;
+
+  /// No description provided for @sbResetToUpstreamTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset {branch} to {upstream}?'**
+  String sbResetToUpstreamTitle(String branch, String upstream);
+
+  /// No description provided for @sbResetUnpushedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{{count} unpushed commit on {branch} will be removed. This can be undone.} other{{count} unpushed commits on {branch} will be removed. This can be undone.}}'**
+  String sbResetUnpushedBody(int count, String branch);
+
+  /// No description provided for @sbResetMovedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{branch} will be moved to {upstream}. This can be undone.'**
+  String sbResetMovedBody(String branch, String upstream);
+
+  /// No description provided for @sbCheckout.
+  ///
+  /// In en, this message translates to:
+  /// **'Checkout'**
+  String get sbCheckout;
+
+  /// No description provided for @sbMergeIntoCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge into current'**
+  String get sbMergeIntoCurrent;
+
+  /// No description provided for @sbRebaseOntoCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'Rebase onto current'**
+  String get sbRebaseOntoCurrent;
+
+  /// No description provided for @sbSetUpstreamItem.
+  ///
+  /// In en, this message translates to:
+  /// **'Set upstream…'**
+  String get sbSetUpstreamItem;
+
+  /// No description provided for @sbSetUpstreamTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Set upstream for {branch}'**
+  String sbSetUpstreamTitle(String branch);
+
+  /// No description provided for @sbSetUpstreamHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. origin/{branch}'**
+  String sbSetUpstreamHint(String branch);
+
+  /// No description provided for @sbResetToRemote.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset to remote…'**
+  String get sbResetToRemote;
+
+  /// No description provided for @sbRenameItem.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename…'**
+  String get sbRenameItem;
+
+  /// No description provided for @sbRenameBranchTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename branch'**
+  String get sbRenameBranchTitle;
+
+  /// No description provided for @sbDeleteBranch.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete branch'**
+  String get sbDeleteBranch;
+
+  /// No description provided for @sbDeleteBranchTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete {branch}?'**
+  String sbDeleteBranchTitle(String branch);
+
+  /// No description provided for @sbDeleteBranchBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The branch ref will be removed. This can be undone.'**
+  String get sbDeleteBranchBody;
+
+  /// No description provided for @sbDeleteBranchAndRemote.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete branch and remote…'**
+  String get sbDeleteBranchAndRemote;
+
+  /// No description provided for @sbDeleteBothTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete {branch} and {upstream}?'**
+  String sbDeleteBothTitle(String branch, String upstream);
+
+  /// No description provided for @sbDeleteBothBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The branch will be removed here and on the remote. Only the local half can be undone.'**
+  String get sbDeleteBothBody;
+
+  /// No description provided for @sbDeleteBoth.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete both'**
+  String get sbDeleteBoth;
+
+  /// No description provided for @sbCheckedOutIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Checked out in {name}'**
+  String sbCheckedOutIn(String name);
+
+  /// No description provided for @sbMergeSourceInto.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge «{source}» into «{target}»'**
+  String sbMergeSourceInto(String source, String target);
+
+  /// No description provided for @sbRebaseSourceOnto.
+  ///
+  /// In en, this message translates to:
+  /// **'Rebase «{source}» onto «{target}»'**
+  String sbRebaseSourceOnto(String source, String target);
+
+  /// No description provided for @sbTipSwitchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Click to show its tip · double-click to switch to {branch}'**
+  String sbTipSwitchHint(String branch);
+
+  /// No description provided for @sbTipCheckoutHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Click to show its tip · double-click to check out {name}'**
+  String sbTipCheckoutHint(String name);
+
+  /// No description provided for @sbHasLocalBranch.
+  ///
+  /// In en, this message translates to:
+  /// **'Has a local branch'**
+  String get sbHasLocalBranch;
+
+  /// No description provided for @sbSwitchTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch to {branch}'**
+  String sbSwitchTo(String branch);
+
+  /// No description provided for @sbCheckOutNamed.
+  ///
+  /// In en, this message translates to:
+  /// **'Check out {name}'**
+  String sbCheckOutNamed(String name);
+
+  /// No description provided for @sbMergeNamedIntoCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge {name} into current'**
+  String sbMergeNamedIntoCurrent(String name);
+
+  /// No description provided for @sbResetToThis.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset {branch} to this'**
+  String sbResetToThis(String branch);
+
+  /// No description provided for @sbDeleteRemoteBranchTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete {name}?'**
+  String sbDeleteRemoteBranchTitle(String name);
+
+  /// No description provided for @sbDeleteRemoteBranchBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The branch will be deleted on {remote}. Any local branch of the same name stays. This cannot be undone.'**
+  String sbDeleteRemoteBranchBody(String remote);
+
+  /// No description provided for @sbDeleteNamedItem.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete {name}…'**
+  String sbDeleteNamedItem(String name);
+
+  /// No description provided for @sbFetchRemote.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetch {remote}'**
+  String sbFetchRemote(String remote);
+
+  /// No description provided for @sbPrune.
+  ///
+  /// In en, this message translates to:
+  /// **'Prune'**
+  String get sbPrune;
+
+  /// No description provided for @sbCopyUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy URL'**
+  String get sbCopyUrl;
+
+  /// No description provided for @sbEditRemoteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit remote'**
+  String get sbEditRemoteTitle;
+
+  /// No description provided for @sbEditRemoteItem.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit remote…'**
+  String get sbEditRemoteItem;
+
+  /// No description provided for @sbRemoveRemoteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove remote {remote}?'**
+  String sbRemoveRemoteTitle(String remote);
+
+  /// No description provided for @sbRemoveRemoteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Its remote-tracking branches go with it. Undo restores the remote; fetch to bring the branches back.'**
+  String get sbRemoveRemoteBody;
+
+  /// No description provided for @sbRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get sbRemove;
+
+  /// No description provided for @sbRemoveRemoteItem.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove remote…'**
+  String get sbRemoveRemoteItem;
+
+  /// No description provided for @sbPushTag.
+  ///
+  /// In en, this message translates to:
+  /// **'Push tag'**
+  String get sbPushTag;
+
+  /// No description provided for @sbCopyName.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy name'**
+  String get sbCopyName;
+
+  /// No description provided for @sbDeleteTagTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete tag {tag}?'**
+  String sbDeleteTagTitle(String tag);
+
+  /// No description provided for @sbDeleteTagBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The tag will be removed locally. This can be undone.'**
+  String get sbDeleteTagBody;
+
+  /// No description provided for @sbDeleteTag.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete tag'**
+  String get sbDeleteTag;
+
+  /// No description provided for @sbDropStashTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Drop {ref}?'**
+  String sbDropStashTitle(String ref);
+
+  /// No description provided for @sbDropStashBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The stash will be deleted. An Undo toast lets you restore it.'**
+  String get sbDropStashBody;
+
+  /// No description provided for @sbDrop.
+  ///
+  /// In en, this message translates to:
+  /// **'Drop'**
+  String get sbDrop;
+
+  /// No description provided for @sbRemoveSubmoduleTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove {name}?'**
+  String sbRemoveSubmoduleTitle(String name);
+
+  /// No description provided for @sbRemoveSubmoduleBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The submodule at {path} will be deinitialized and removed from .gitmodules. This cannot be undone.'**
+  String sbRemoveSubmoduleBody(String path);
 }
 
 class _AppLocalizationsDelegate

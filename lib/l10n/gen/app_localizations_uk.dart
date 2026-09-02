@@ -511,4 +511,297 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get wtPrune => 'Очистити';
+
+  @override
+  String get sbRepository => 'Репозиторій';
+
+  @override
+  String get sbCollapse => 'Згорнути';
+
+  @override
+  String get sbCouldNotRead => 'Не вдалося прочитати репозиторій';
+
+  @override
+  String get sbRetry => 'Повторити';
+
+  @override
+  String get sbBranches => 'Гілки';
+
+  @override
+  String get sbNoBranches => 'Немає гілок';
+
+  @override
+  String get sbRemotes => 'Віддалені репозиторії';
+
+  @override
+  String get sbNoRemotes => 'Немає віддалених репозиторіїв';
+
+  @override
+  String get sbTags => 'Теги';
+
+  @override
+  String get sbNoTags => 'Немає тегів';
+
+  @override
+  String get sbStashes => 'Схованки';
+
+  @override
+  String get sbNoStashes => 'Немає схованок';
+
+  @override
+  String get sbSubmodules => 'Підмодулі';
+
+  @override
+  String get sbNoSubmodules => 'Немає підмодулів';
+
+  @override
+  String get sbAddRemoteRow => 'Додати віддалений…';
+
+  @override
+  String get sbAddRemoteTitle => 'Додати віддалений';
+
+  @override
+  String get sbAdd => 'Додати';
+
+  @override
+  String get sbAddSubmoduleRow => 'Додати підмодуль…';
+
+  @override
+  String get sbPop => 'Дістати';
+
+  @override
+  String get sbInit => 'Ініціалізувати';
+
+  @override
+  String get sbUpdate => 'Оновити';
+
+  @override
+  String get sbUpdateToRemote => 'Оновити до віддаленого';
+
+  @override
+  String get sbSync => 'Синхронізувати';
+
+  @override
+  String get sbDeinit => 'Деініціалізувати';
+
+  @override
+  String get sbReset => 'Скинути';
+
+  @override
+  String sbResetToUpstreamTitle(String branch, String upstream) {
+    return 'Скинути $branch до $upstream?';
+  }
+
+  @override
+  String sbResetUnpushedBody(int count, String branch) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count невідправлених комітів у $branch буде вилучено. Цю дію можна скасувати.',
+      few:
+          '$count невідправлені коміти у $branch буде вилучено. Цю дію можна скасувати.',
+      one:
+          '$count невідправлений коміт у $branch буде вилучено. Цю дію можна скасувати.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String sbResetMovedBody(String branch, String upstream) {
+    return '$branch буде переміщено до $upstream. Цю дію можна скасувати.';
+  }
+
+  @override
+  String get sbCheckout => 'Переключитися';
+
+  @override
+  String get sbMergeIntoCurrent => 'Злити в поточну';
+
+  @override
+  String get sbRebaseOntoCurrent => 'Перебазувати на поточну';
+
+  @override
+  String get sbSetUpstreamItem => 'Встановити відстеження…';
+
+  @override
+  String sbSetUpstreamTitle(String branch) {
+    return 'Відстеження для $branch';
+  }
+
+  @override
+  String sbSetUpstreamHint(String branch) {
+    return 'напр. origin/$branch';
+  }
+
+  @override
+  String get sbResetToRemote => 'Скинути до віддаленої…';
+
+  @override
+  String get sbRenameItem => 'Перейменувати…';
+
+  @override
+  String get sbRenameBranchTitle => 'Перейменувати гілку';
+
+  @override
+  String get sbDeleteBranch => 'Видалити гілку';
+
+  @override
+  String sbDeleteBranchTitle(String branch) {
+    return 'Видалити $branch?';
+  }
+
+  @override
+  String get sbDeleteBranchBody =>
+      'Посилання на гілку буде вилучено. Цю дію можна скасувати.';
+
+  @override
+  String get sbDeleteBranchAndRemote => 'Видалити гілку та віддалену…';
+
+  @override
+  String sbDeleteBothTitle(String branch, String upstream) {
+    return 'Видалити $branch і $upstream?';
+  }
+
+  @override
+  String get sbDeleteBothBody =>
+      'Гілку буде вилучено тут і на віддаленому репозиторії. Скасувати можна лише локальну половину.';
+
+  @override
+  String get sbDeleteBoth => 'Видалити обидві';
+
+  @override
+  String sbCheckedOutIn(String name) {
+    return 'Використовується в $name';
+  }
+
+  @override
+  String sbMergeSourceInto(String source, String target) {
+    return 'Злити «$source» у «$target»';
+  }
+
+  @override
+  String sbRebaseSourceOnto(String source, String target) {
+    return 'Перебазувати «$source» на «$target»';
+  }
+
+  @override
+  String sbTipSwitchHint(String branch) {
+    return 'Клацніть, щоб показати вершину · подвійне клацання — переключитися на $branch';
+  }
+
+  @override
+  String sbTipCheckoutHint(String name) {
+    return 'Клацніть, щоб показати вершину · подвійне клацання — отримати $name';
+  }
+
+  @override
+  String get sbHasLocalBranch => 'Має локальну гілку';
+
+  @override
+  String sbSwitchTo(String branch) {
+    return 'Переключитися на $branch';
+  }
+
+  @override
+  String sbCheckOutNamed(String name) {
+    return 'Отримати $name';
+  }
+
+  @override
+  String sbMergeNamedIntoCurrent(String name) {
+    return 'Злити $name у поточну';
+  }
+
+  @override
+  String sbResetToThis(String branch) {
+    return 'Скинути $branch до цього';
+  }
+
+  @override
+  String sbDeleteRemoteBranchTitle(String name) {
+    return 'Видалити $name?';
+  }
+
+  @override
+  String sbDeleteRemoteBranchBody(String remote) {
+    return 'Гілку буде видалено на $remote. Локальна гілка з такою ж назвою залишиться. Цю дію не можна скасувати.';
+  }
+
+  @override
+  String sbDeleteNamedItem(String name) {
+    return 'Видалити $name…';
+  }
+
+  @override
+  String sbFetchRemote(String remote) {
+    return 'Отримати з $remote';
+  }
+
+  @override
+  String get sbPrune => 'Очистити';
+
+  @override
+  String get sbCopyUrl => 'Копіювати URL';
+
+  @override
+  String get sbEditRemoteTitle => 'Редагувати віддалений';
+
+  @override
+  String get sbEditRemoteItem => 'Редагувати віддалений…';
+
+  @override
+  String sbRemoveRemoteTitle(String remote) {
+    return 'Вилучити віддалений $remote?';
+  }
+
+  @override
+  String get sbRemoveRemoteBody =>
+      'Його гілки відстеження зникнуть разом із ним. Скасування відновить віддалений; отримайте зміни, щоб повернути гілки.';
+
+  @override
+  String get sbRemove => 'Вилучити';
+
+  @override
+  String get sbRemoveRemoteItem => 'Вилучити віддалений…';
+
+  @override
+  String get sbPushTag => 'Відправити тег';
+
+  @override
+  String get sbCopyName => 'Копіювати назву';
+
+  @override
+  String sbDeleteTagTitle(String tag) {
+    return 'Видалити тег $tag?';
+  }
+
+  @override
+  String get sbDeleteTagBody =>
+      'Тег буде вилучено локально. Цю дію можна скасувати.';
+
+  @override
+  String get sbDeleteTag => 'Видалити тег';
+
+  @override
+  String sbDropStashTitle(String ref) {
+    return 'Відкинути $ref?';
+  }
+
+  @override
+  String get sbDropStashBody =>
+      'Схованку буде видалено. Спливне сповіщення дозволить її відновити.';
+
+  @override
+  String get sbDrop => 'Відкинути';
+
+  @override
+  String sbRemoveSubmoduleTitle(String name) {
+    return 'Вилучити $name?';
+  }
+
+  @override
+  String sbRemoveSubmoduleBody(String path) {
+    return 'Підмодуль за шляхом $path буде деініціалізовано та вилучено з .gitmodules. Цю дію не можна скасувати.';
+  }
 }

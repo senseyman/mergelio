@@ -245,5 +245,213 @@
   "wtPruneTitle": "Prune stale worktrees",
   "wtNothingToPrune": "Nothing to prune.",
   "wtEntriesWillBeRemoved": "These entries will be removed:",
-  "wtPrune": "Prune"
+  "wtPrune": "Prune",
+
+  "sbRepository": "Repository",
+  "sbCollapse": "Collapse",
+  "sbCouldNotRead": "Could not read repository",
+  "sbRetry": "Retry",
+  "sbBranches": "Branches",
+  "sbNoBranches": "No branches",
+  "sbRemotes": "Remotes",
+  "sbNoRemotes": "No remotes",
+  "sbTags": "Tags",
+  "sbNoTags": "No tags",
+  "sbStashes": "Stashes",
+  "sbNoStashes": "No stashes",
+  "sbSubmodules": "Submodules",
+  "sbNoSubmodules": "No submodules",
+  "sbAddRemoteRow": "Add remote…",
+  "sbAddRemoteTitle": "Add remote",
+  "sbAdd": "Add",
+  "sbAddSubmoduleRow": "Add submodule…",
+  "sbPop": "Pop",
+  "sbInit": "Init",
+  "sbUpdate": "Update",
+  "sbUpdateToRemote": "Update to remote",
+  "sbSync": "Sync",
+  "sbDeinit": "Deinit",
+  "sbReset": "Reset",
+  "sbResetToUpstreamTitle": "Reset {branch} to {upstream}?",
+  "@sbResetToUpstreamTitle": {
+    "placeholders": {
+      "branch": {"type": "String"},
+      "upstream": {"type": "String"}
+    }
+  },
+  "sbResetUnpushedBody": "{count, plural, one{{count} unpushed commit on {branch} will be removed. This can be undone.} other{{count} unpushed commits on {branch} will be removed. This can be undone.}}",
+  "@sbResetUnpushedBody": {
+    "placeholders": {
+      "count": {"type": "int"},
+      "branch": {"type": "String"}
+    }
+  },
+  "sbResetMovedBody": "{branch} will be moved to {upstream}. This can be undone.",
+  "@sbResetMovedBody": {
+    "placeholders": {
+      "branch": {"type": "String"},
+      "upstream": {"type": "String"}
+    }
+  },
+  "sbCheckout": "Checkout",
+  "sbMergeIntoCurrent": "Merge into current",
+  "sbRebaseOntoCurrent": "Rebase onto current",
+  "sbSetUpstreamItem": "Set upstream…",
+  "sbSetUpstreamTitle": "Set upstream for {branch}",
+  "@sbSetUpstreamTitle": {
+    "placeholders": {
+      "branch": {"type": "String"}
+    }
+  },
+  "sbSetUpstreamHint": "e.g. origin/{branch}",
+  "@sbSetUpstreamHint": {
+    "placeholders": {
+      "branch": {"type": "String"}
+    }
+  },
+  "sbResetToRemote": "Reset to remote…",
+  "sbRenameItem": "Rename…",
+  "sbRenameBranchTitle": "Rename branch",
+  "sbDeleteBranch": "Delete branch",
+  "sbDeleteBranchTitle": "Delete {branch}?",
+  "@sbDeleteBranchTitle": {
+    "placeholders": {
+      "branch": {"type": "String"}
+    }
+  },
+  "sbDeleteBranchBody": "The branch ref will be removed. This can be undone.",
+  "sbDeleteBranchAndRemote": "Delete branch and remote…",
+  "sbDeleteBothTitle": "Delete {branch} and {upstream}?",
+  "@sbDeleteBothTitle": {
+    "placeholders": {
+      "branch": {"type": "String"},
+      "upstream": {"type": "String"}
+    }
+  },
+  "sbDeleteBothBody": "The branch will be removed here and on the remote. Only the local half can be undone.",
+  "sbDeleteBoth": "Delete both",
+  "sbCheckedOutIn": "Checked out in {name}",
+  "@sbCheckedOutIn": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "sbMergeSourceInto": "Merge «{source}» into «{target}»",
+  "@sbMergeSourceInto": {
+    "placeholders": {
+      "source": {"type": "String"},
+      "target": {"type": "String"}
+    }
+  },
+  "sbRebaseSourceOnto": "Rebase «{source}» onto «{target}»",
+  "@sbRebaseSourceOnto": {
+    "placeholders": {
+      "source": {"type": "String"},
+      "target": {"type": "String"}
+    }
+  },
+  "sbTipSwitchHint": "Click to show its tip · double-click to switch to {branch}",
+  "@sbTipSwitchHint": {
+    "placeholders": {
+      "branch": {"type": "String"}
+    }
+  },
+  "sbTipCheckoutHint": "Click to show its tip · double-click to check out {name}",
+  "@sbTipCheckoutHint": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "sbHasLocalBranch": "Has a local branch",
+  "sbSwitchTo": "Switch to {branch}",
+  "@sbSwitchTo": {
+    "placeholders": {
+      "branch": {"type": "String"}
+    }
+  },
+  "sbCheckOutNamed": "Check out {name}",
+  "@sbCheckOutNamed": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "sbMergeNamedIntoCurrent": "Merge {name} into current",
+  "@sbMergeNamedIntoCurrent": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "sbResetToThis": "Reset {branch} to this",
+  "@sbResetToThis": {
+    "placeholders": {
+      "branch": {"type": "String"}
+    }
+  },
+  "sbDeleteRemoteBranchTitle": "Delete {name}?",
+  "@sbDeleteRemoteBranchTitle": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "sbDeleteRemoteBranchBody": "The branch will be deleted on {remote}. Any local branch of the same name stays. This cannot be undone.",
+  "@sbDeleteRemoteBranchBody": {
+    "placeholders": {
+      "remote": {"type": "String"}
+    }
+  },
+  "sbDeleteNamedItem": "Delete {name}…",
+  "@sbDeleteNamedItem": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "sbFetchRemote": "Fetch {remote}",
+  "@sbFetchRemote": {
+    "placeholders": {
+      "remote": {"type": "String"}
+    }
+  },
+  "sbPrune": "Prune",
+  "sbCopyUrl": "Copy URL",
+  "sbEditRemoteTitle": "Edit remote",
+  "sbEditRemoteItem": "Edit remote…",
+  "sbRemoveRemoteTitle": "Remove remote {remote}?",
+  "@sbRemoveRemoteTitle": {
+    "placeholders": {
+      "remote": {"type": "String"}
+    }
+  },
+  "sbRemoveRemoteBody": "Its remote-tracking branches go with it. Undo restores the remote; fetch to bring the branches back.",
+  "sbRemove": "Remove",
+  "sbRemoveRemoteItem": "Remove remote…",
+  "sbPushTag": "Push tag",
+  "sbCopyName": "Copy name",
+  "sbDeleteTagTitle": "Delete tag {tag}?",
+  "@sbDeleteTagTitle": {
+    "placeholders": {
+      "tag": {"type": "String"}
+    }
+  },
+  "sbDeleteTagBody": "The tag will be removed locally. This can be undone.",
+  "sbDeleteTag": "Delete tag",
+  "sbDropStashTitle": "Drop {ref}?",
+  "@sbDropStashTitle": {
+    "placeholders": {
+      "ref": {"type": "String"}
+    }
+  },
+  "sbDropStashBody": "The stash will be deleted. An Undo toast lets you restore it.",
+  "sbDrop": "Drop",
+  "sbRemoveSubmoduleTitle": "Remove {name}?",
+  "@sbRemoveSubmoduleTitle": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "sbRemoveSubmoduleBody": "The submodule at {path} will be deinitialized and removed from .gitmodules. This cannot be undone.",
+  "@sbRemoveSubmoduleBody": {
+    "placeholders": {
+      "path": {"type": "String"}
+    }
+  }
 }
