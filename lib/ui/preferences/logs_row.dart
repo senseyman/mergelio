@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
 import '../../state/diagnostics.dart';
+import '../../l10n/gen/app_localizations.dart';
 
 /// Preferences row pointing at the diagnostic log, with a button that opens it
 /// in the file manager. The path is shown in full so it can still be found by
@@ -18,17 +19,19 @@ class _LogsRowState extends ConsumerState<LogsRow> {
   String? _error;
 
   Future<void> _reveal(String path) async {
+    final l = AppLocalizations.of(context);
     setState(() => _error = null);
     try {
       await ref.read(revealProvider)(path);
     } on Object catch (e) {
       if (!mounted) return;
-      setState(() => _error = 'Could not open the log folder: $e');
+      setState(() => _error = l.lgCouldNotOpen('$e'));
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final path = ref.watch(logFilePathProvider);
     return Padding(
@@ -43,12 +46,12 @@ class _LogsRowState extends ConsumerState<LogsRow> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Diagnostic logs',
+                      l.lgDiagnosticLogs,
                       style: TextStyle(color: t.textPrimary, fontSize: 13),
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      path ?? 'File logging is not active',
+                      path ?? l.lgNotActive,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: t.textFaint,
@@ -62,7 +65,7 @@ class _LogsRowState extends ConsumerState<LogsRow> {
               const SizedBox(width: 8),
               TextButton(
                 onPressed: path == null ? null : () => _reveal(path),
-                child: const Text('Reveal', style: TextStyle(fontSize: 12)),
+                child: Text(l.lgReveal, style: TextStyle(fontSize: 12)),
               ),
             ],
           ),

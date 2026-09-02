@@ -824,5 +824,148 @@
   "fiCouldNotBlame": "Could not blame this file",
   "ftvFlatList": "Show as flat list",
   "ftvGroupByFolder": "Group by folder",
-  "confirmAction": "Confirm"
+  "confirmAction": "Confirm",
+
+  "pfScCommandPalette": "Command palette",
+  "pfScSearchCommits": "Search commits",
+  "pfScNextPrevMatch": "Next / previous search match",
+  "pfScCommit": "Commit (in composer)",
+  "pfScCreateBranch": "Create branch",
+  "pfScCollapsePanel": "Collapse left panel",
+  "pfScToggleTerminal": "Toggle terminal",
+  "pfScZoom": "Zoom in / out",
+  "pfScResetZoom": "Reset zoom",
+  "pfScUndo": "Undo last action",
+  "pfScRedo": "Redo",
+  "pfScPreferences": "Preferences",
+  "pfScCloseDialog": "Close dialog / cancel",
+  "pfGenerateSshKey": "Generate SSH key",
+  "pfAddPassphraseHint": "Run ssh-keygen -p -f ~/.ssh/{name} to add one.",
+  "@pfAddPassphraseHint": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "pfGenerateFailed": "Generate failed",
+  "pfAuthentication": "Authentication",
+  "pfAuthBody": "HTTPS remotes use your system git credential helper; SSH remotes use your SSH agent and keys. Mergelio never stores or reads your passwords or private keys — only public keys are listed here.",
+  "pfSshKeys": "SSH KEYS",
+  "pfGenerateKeyMenu": "Generate key…",
+  "pfNoSshKeys": "No SSH keys found in ~/.ssh",
+  "pfCopyPublicKey": "Copy public key",
+  "pfPublicKeyCopied": "Public key copied",
+  "pfThemeJsonCopied": "Theme JSON copied",
+  "pfImportTheme": "Import theme",
+  "pfPasteThemeJson": "Paste theme JSON",
+  "pfInvalidThemeJson": "Invalid theme JSON",
+  "pfThemeApplied": "Applied \"{name}\"",
+  "@pfThemeApplied": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "pfSaveTheme": "Save theme",
+  "pfThemeName": "Theme name",
+  "pfThemeSaved": "Saved \"{name}\"",
+  "@pfThemeSaved": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "pfCustomColour": "Custom colour",
+  "pfHexHint": "Hex (e.g. #6E7BFF)",
+  "lgCouldNotOpen": "Could not open the log folder: {error}",
+  "@lgCouldNotOpen": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "lgDiagnosticLogs": "Diagnostic logs",
+  "lgNotActive": "File logging is not active",
+  "lgReveal": "Reveal",
+  "pdEmpty": "No profiles yet. Add one to set your commit identity.",
+  "pdUse": "Use",
+  "pdDeleteTitle": "Delete profile {label}?",
+  "@pdDeleteTitle": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "pdDeleteBody": "The profile is removed. Any keys it references in the keychain are left untouched.",
+  "pdAddProfile": "Add profile",
+  "pfmNew": "New profile",
+  "pfmEdit": "Edit profile",
+  "pfmProfileName": "Profile name",
+  "pfmProfileNameHint": "Work, Personal, …",
+  "pfmDeveloperName": "Developer name",
+  "pfmDeveloperNameHint": "Your name in commits",
+  "pfmEmail": "Email",
+  "fpTitle": "Create your first profile",
+  "fpBody": "Every group and repository belongs to a profile. Switching profiles later shows only that profile’s work.",
+  "fpCreateProfile": "Create profile",
+  "mtCurrent": "Current",
+  "mtCurrentNamed": "Current — {into}",
+  "@mtCurrentNamed": {
+    "placeholders": {
+      "into": {"type": "String"}
+    }
+  },
+  "mtIncoming": "Incoming",
+  "mtIncomingNamed": "Incoming — {branch}",
+  "@mtIncomingNamed": {
+    "placeholders": {
+      "branch": {"type": "String"}
+    }
+  },
+  "mtNeedsReview": "⚠ needs review",
+  "mtResolved": "✓ resolved",
+  "mtBothAccepted": "Both accepted ⚠ needs review",
+  "mtAcceptBoth": "Accept both",
+  "mtResult": "RESULT",
+  "mtUseEdit": "Use edit",
+  "mtAccept": "Accept",
+  "rbPick": "keep this commit as it is",
+  "rbReword": "keep this commit, change its message",
+  "rbSquash": "merge into the commit above, keep both messages",
+  "rbFixup": "merge into the commit above, drop its message",
+  "rbDrop": "remove this commit entirely",
+  "rbPresetAsIs": "Move commits as-is",
+  "rbPresetSquashAll": "Squash into one commit",
+  "rbPresetSquashKeepFirst": "Squash, keep first message",
+  "rbSummaryAsIs": "Replay all {count} commits on the new base. History keeps its shape.",
+  "@rbSummaryAsIs": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "rbSummarySquashAll": "Combine all {count} into one commit; all messages are kept, one after another.",
+  "@rbSummarySquashAll": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "rbSummarySquashKeepFirst": "Combine all {count} into one commit; only the first message is kept.",
+  "@rbSummarySquashKeepFirst": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "rbTitle": "Interactive rebase",
+  "rbCommitCount": "{count, plural, one{{count} commit} other{{count} commits}}",
+  "@rbCommitCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "rbCommitCountOnto": "{count, plural, one{{count} commit onto {onto}} other{{count} commits onto {onto}}}",
+  "@rbCommitCountOnto": {
+    "placeholders": {
+      "count": {"type": "int"},
+      "onto": {"type": "String"}
+    }
+  },
+  "rbStart": "Start rebase",
+  "rbNeedsTwo": "Needs at least 2 commits.",
+  "rbCustomize": "Customize per commit",
+  "rbCustomizeHint": "Pick an action for each commit, or drag to reorder them."
 }

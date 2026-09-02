@@ -2701,6 +2701,492 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Confirm'**
   String get confirmAction;
+
+  /// No description provided for @pfScCommandPalette.
+  ///
+  /// In en, this message translates to:
+  /// **'Command palette'**
+  String get pfScCommandPalette;
+
+  /// No description provided for @pfScSearchCommits.
+  ///
+  /// In en, this message translates to:
+  /// **'Search commits'**
+  String get pfScSearchCommits;
+
+  /// No description provided for @pfScNextPrevMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Next / previous search match'**
+  String get pfScNextPrevMatch;
+
+  /// No description provided for @pfScCommit.
+  ///
+  /// In en, this message translates to:
+  /// **'Commit (in composer)'**
+  String get pfScCommit;
+
+  /// No description provided for @pfScCreateBranch.
+  ///
+  /// In en, this message translates to:
+  /// **'Create branch'**
+  String get pfScCreateBranch;
+
+  /// No description provided for @pfScCollapsePanel.
+  ///
+  /// In en, this message translates to:
+  /// **'Collapse left panel'**
+  String get pfScCollapsePanel;
+
+  /// No description provided for @pfScToggleTerminal.
+  ///
+  /// In en, this message translates to:
+  /// **'Toggle terminal'**
+  String get pfScToggleTerminal;
+
+  /// No description provided for @pfScZoom.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom in / out'**
+  String get pfScZoom;
+
+  /// No description provided for @pfScResetZoom.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset zoom'**
+  String get pfScResetZoom;
+
+  /// No description provided for @pfScUndo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo last action'**
+  String get pfScUndo;
+
+  /// No description provided for @pfScRedo.
+  ///
+  /// In en, this message translates to:
+  /// **'Redo'**
+  String get pfScRedo;
+
+  /// No description provided for @pfScPreferences.
+  ///
+  /// In en, this message translates to:
+  /// **'Preferences'**
+  String get pfScPreferences;
+
+  /// No description provided for @pfScCloseDialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Close dialog / cancel'**
+  String get pfScCloseDialog;
+
+  /// No description provided for @pfGenerateSshKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate SSH key'**
+  String get pfGenerateSshKey;
+
+  /// No description provided for @pfAddPassphraseHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Run ssh-keygen -p -f ~/.ssh/{name} to add one.'**
+  String pfAddPassphraseHint(String name);
+
+  /// No description provided for @pfGenerateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate failed'**
+  String get pfGenerateFailed;
+
+  /// No description provided for @pfAuthentication.
+  ///
+  /// In en, this message translates to:
+  /// **'Authentication'**
+  String get pfAuthentication;
+
+  /// No description provided for @pfAuthBody.
+  ///
+  /// In en, this message translates to:
+  /// **'HTTPS remotes use your system git credential helper; SSH remotes use your SSH agent and keys. Mergelio never stores or reads your passwords or private keys — only public keys are listed here.'**
+  String get pfAuthBody;
+
+  /// No description provided for @pfSshKeys.
+  ///
+  /// In en, this message translates to:
+  /// **'SSH KEYS'**
+  String get pfSshKeys;
+
+  /// No description provided for @pfGenerateKeyMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate key…'**
+  String get pfGenerateKeyMenu;
+
+  /// No description provided for @pfNoSshKeys.
+  ///
+  /// In en, this message translates to:
+  /// **'No SSH keys found in ~/.ssh'**
+  String get pfNoSshKeys;
+
+  /// No description provided for @pfCopyPublicKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy public key'**
+  String get pfCopyPublicKey;
+
+  /// No description provided for @pfPublicKeyCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Public key copied'**
+  String get pfPublicKeyCopied;
+
+  /// No description provided for @pfThemeJsonCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme JSON copied'**
+  String get pfThemeJsonCopied;
+
+  /// No description provided for @pfImportTheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Import theme'**
+  String get pfImportTheme;
+
+  /// No description provided for @pfPasteThemeJson.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste theme JSON'**
+  String get pfPasteThemeJson;
+
+  /// No description provided for @pfInvalidThemeJson.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid theme JSON'**
+  String get pfInvalidThemeJson;
+
+  /// No description provided for @pfThemeApplied.
+  ///
+  /// In en, this message translates to:
+  /// **'Applied \"{name}\"'**
+  String pfThemeApplied(String name);
+
+  /// No description provided for @pfSaveTheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Save theme'**
+  String get pfSaveTheme;
+
+  /// No description provided for @pfThemeName.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme name'**
+  String get pfThemeName;
+
+  /// No description provided for @pfThemeSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved \"{name}\"'**
+  String pfThemeSaved(String name);
+
+  /// No description provided for @pfCustomColour.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom colour'**
+  String get pfCustomColour;
+
+  /// No description provided for @pfHexHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Hex (e.g. #6E7BFF)'**
+  String get pfHexHint;
+
+  /// No description provided for @lgCouldNotOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the log folder: {error}'**
+  String lgCouldNotOpen(String error);
+
+  /// No description provided for @lgDiagnosticLogs.
+  ///
+  /// In en, this message translates to:
+  /// **'Diagnostic logs'**
+  String get lgDiagnosticLogs;
+
+  /// No description provided for @lgNotActive.
+  ///
+  /// In en, this message translates to:
+  /// **'File logging is not active'**
+  String get lgNotActive;
+
+  /// No description provided for @lgReveal.
+  ///
+  /// In en, this message translates to:
+  /// **'Reveal'**
+  String get lgReveal;
+
+  /// No description provided for @pdEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No profiles yet. Add one to set your commit identity.'**
+  String get pdEmpty;
+
+  /// No description provided for @pdUse.
+  ///
+  /// In en, this message translates to:
+  /// **'Use'**
+  String get pdUse;
+
+  /// No description provided for @pdDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete profile {label}?'**
+  String pdDeleteTitle(String label);
+
+  /// No description provided for @pdDeleteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The profile is removed. Any keys it references in the keychain are left untouched.'**
+  String get pdDeleteBody;
+
+  /// No description provided for @pdAddProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Add profile'**
+  String get pdAddProfile;
+
+  /// No description provided for @pfmNew.
+  ///
+  /// In en, this message translates to:
+  /// **'New profile'**
+  String get pfmNew;
+
+  /// No description provided for @pfmEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit profile'**
+  String get pfmEdit;
+
+  /// No description provided for @pfmProfileName.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile name'**
+  String get pfmProfileName;
+
+  /// No description provided for @pfmProfileNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Work, Personal, …'**
+  String get pfmProfileNameHint;
+
+  /// No description provided for @pfmDeveloperName.
+  ///
+  /// In en, this message translates to:
+  /// **'Developer name'**
+  String get pfmDeveloperName;
+
+  /// No description provided for @pfmDeveloperNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Your name in commits'**
+  String get pfmDeveloperNameHint;
+
+  /// No description provided for @pfmEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get pfmEmail;
+
+  /// No description provided for @fpTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Create your first profile'**
+  String get fpTitle;
+
+  /// No description provided for @fpBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Every group and repository belongs to a profile. Switching profiles later shows only that profile’s work.'**
+  String get fpBody;
+
+  /// No description provided for @fpCreateProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Create profile'**
+  String get fpCreateProfile;
+
+  /// No description provided for @mtCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'Current'**
+  String get mtCurrent;
+
+  /// No description provided for @mtCurrentNamed.
+  ///
+  /// In en, this message translates to:
+  /// **'Current — {into}'**
+  String mtCurrentNamed(String into);
+
+  /// No description provided for @mtIncoming.
+  ///
+  /// In en, this message translates to:
+  /// **'Incoming'**
+  String get mtIncoming;
+
+  /// No description provided for @mtIncomingNamed.
+  ///
+  /// In en, this message translates to:
+  /// **'Incoming — {branch}'**
+  String mtIncomingNamed(String branch);
+
+  /// No description provided for @mtNeedsReview.
+  ///
+  /// In en, this message translates to:
+  /// **'⚠ needs review'**
+  String get mtNeedsReview;
+
+  /// No description provided for @mtResolved.
+  ///
+  /// In en, this message translates to:
+  /// **'✓ resolved'**
+  String get mtResolved;
+
+  /// No description provided for @mtBothAccepted.
+  ///
+  /// In en, this message translates to:
+  /// **'Both accepted ⚠ needs review'**
+  String get mtBothAccepted;
+
+  /// No description provided for @mtAcceptBoth.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept both'**
+  String get mtAcceptBoth;
+
+  /// No description provided for @mtResult.
+  ///
+  /// In en, this message translates to:
+  /// **'RESULT'**
+  String get mtResult;
+
+  /// No description provided for @mtUseEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Use edit'**
+  String get mtUseEdit;
+
+  /// No description provided for @mtAccept.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept'**
+  String get mtAccept;
+
+  /// No description provided for @rbPick.
+  ///
+  /// In en, this message translates to:
+  /// **'keep this commit as it is'**
+  String get rbPick;
+
+  /// No description provided for @rbReword.
+  ///
+  /// In en, this message translates to:
+  /// **'keep this commit, change its message'**
+  String get rbReword;
+
+  /// No description provided for @rbSquash.
+  ///
+  /// In en, this message translates to:
+  /// **'merge into the commit above, keep both messages'**
+  String get rbSquash;
+
+  /// No description provided for @rbFixup.
+  ///
+  /// In en, this message translates to:
+  /// **'merge into the commit above, drop its message'**
+  String get rbFixup;
+
+  /// No description provided for @rbDrop.
+  ///
+  /// In en, this message translates to:
+  /// **'remove this commit entirely'**
+  String get rbDrop;
+
+  /// No description provided for @rbPresetAsIs.
+  ///
+  /// In en, this message translates to:
+  /// **'Move commits as-is'**
+  String get rbPresetAsIs;
+
+  /// No description provided for @rbPresetSquashAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Squash into one commit'**
+  String get rbPresetSquashAll;
+
+  /// No description provided for @rbPresetSquashKeepFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Squash, keep first message'**
+  String get rbPresetSquashKeepFirst;
+
+  /// No description provided for @rbSummaryAsIs.
+  ///
+  /// In en, this message translates to:
+  /// **'Replay all {count} commits on the new base. History keeps its shape.'**
+  String rbSummaryAsIs(int count);
+
+  /// No description provided for @rbSummarySquashAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Combine all {count} into one commit; all messages are kept, one after another.'**
+  String rbSummarySquashAll(int count);
+
+  /// No description provided for @rbSummarySquashKeepFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Combine all {count} into one commit; only the first message is kept.'**
+  String rbSummarySquashKeepFirst(int count);
+
+  /// No description provided for @rbTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Interactive rebase'**
+  String get rbTitle;
+
+  /// No description provided for @rbCommitCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{{count} commit} other{{count} commits}}'**
+  String rbCommitCount(int count);
+
+  /// No description provided for @rbCommitCountOnto.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{{count} commit onto {onto}} other{{count} commits onto {onto}}}'**
+  String rbCommitCountOnto(int count, String onto);
+
+  /// No description provided for @rbStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Start rebase'**
+  String get rbStart;
+
+  /// No description provided for @rbNeedsTwo.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs at least 2 commits.'**
+  String get rbNeedsTwo;
+
+  /// No description provided for @rbCustomize.
+  ///
+  /// In en, this message translates to:
+  /// **'Customize per commit'**
+  String get rbCustomize;
+
+  /// No description provided for @rbCustomizeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick an action for each commit, or drag to reorder them.'**
+  String get rbCustomizeHint;
 }
 
 class _AppLocalizationsDelegate

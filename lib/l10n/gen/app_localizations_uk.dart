@@ -1500,4 +1500,290 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get confirmAction => 'Підтвердити';
+
+  @override
+  String get pfScCommandPalette => 'Палітра команд';
+
+  @override
+  String get pfScSearchCommits => 'Пошук комітів';
+
+  @override
+  String get pfScNextPrevMatch => 'Наступний / попередній збіг';
+
+  @override
+  String get pfScCommit => 'Коміт (у редакторі)';
+
+  @override
+  String get pfScCreateBranch => 'Створити гілку';
+
+  @override
+  String get pfScCollapsePanel => 'Згорнути ліву панель';
+
+  @override
+  String get pfScToggleTerminal => 'Показати/сховати термінал';
+
+  @override
+  String get pfScZoom => 'Збільшити / зменшити';
+
+  @override
+  String get pfScResetZoom => 'Скинути масштаб';
+
+  @override
+  String get pfScUndo => 'Скасувати останню дію';
+
+  @override
+  String get pfScRedo => 'Повторити';
+
+  @override
+  String get pfScPreferences => 'Налаштування';
+
+  @override
+  String get pfScCloseDialog => 'Закрити діалог / скасувати';
+
+  @override
+  String get pfGenerateSshKey => 'Згенерувати ключ SSH';
+
+  @override
+  String pfAddPassphraseHint(String name) {
+    return 'Виконайте ssh-keygen -p -f ~/.ssh/$name, щоб додати її.';
+  }
+
+  @override
+  String get pfGenerateFailed => 'Не вдалося згенерувати';
+
+  @override
+  String get pfAuthentication => 'Автентифікація';
+
+  @override
+  String get pfAuthBody =>
+      'Віддалені HTTPS використовують системний помічник облікових даних git; віддалені SSH — ваш агент SSH і ключі. Mergelio ніколи не зберігає й не читає ваші паролі чи приватні ключі — тут перелічено лише публічні.';
+
+  @override
+  String get pfSshKeys => 'КЛЮЧІ SSH';
+
+  @override
+  String get pfGenerateKeyMenu => 'Згенерувати ключ…';
+
+  @override
+  String get pfNoSshKeys => 'У ~/.ssh не знайдено ключів SSH';
+
+  @override
+  String get pfCopyPublicKey => 'Копіювати публічний ключ';
+
+  @override
+  String get pfPublicKeyCopied => 'Публічний ключ скопійовано';
+
+  @override
+  String get pfThemeJsonCopied => 'JSON теми скопійовано';
+
+  @override
+  String get pfImportTheme => 'Імпортувати тему';
+
+  @override
+  String get pfPasteThemeJson => 'Вставте JSON теми';
+
+  @override
+  String get pfInvalidThemeJson => 'Некоректний JSON теми';
+
+  @override
+  String pfThemeApplied(String name) {
+    return 'Застосовано «$name»';
+  }
+
+  @override
+  String get pfSaveTheme => 'Зберегти тему';
+
+  @override
+  String get pfThemeName => 'Назва теми';
+
+  @override
+  String pfThemeSaved(String name) {
+    return 'Збережено «$name»';
+  }
+
+  @override
+  String get pfCustomColour => 'Власний колір';
+
+  @override
+  String get pfHexHint => 'Hex (напр. #6E7BFF)';
+
+  @override
+  String lgCouldNotOpen(String error) {
+    return 'Не вдалося відкрити теку журналів: $error';
+  }
+
+  @override
+  String get lgDiagnosticLogs => 'Діагностичні журнали';
+
+  @override
+  String get lgNotActive => 'Запис журналу у файл вимкнено';
+
+  @override
+  String get lgReveal => 'Показати';
+
+  @override
+  String get pdEmpty =>
+      'Профілів ще немає. Додайте один, щоб задати особу для комітів.';
+
+  @override
+  String get pdUse => 'Використати';
+
+  @override
+  String pdDeleteTitle(String label) {
+    return 'Видалити профіль $label?';
+  }
+
+  @override
+  String get pdDeleteBody =>
+      'Профіль буде вилучено. Ключі, на які він посилається у сховищі, залишаться недоторканими.';
+
+  @override
+  String get pdAddProfile => 'Додати профіль';
+
+  @override
+  String get pfmNew => 'Новий профіль';
+
+  @override
+  String get pfmEdit => 'Редагувати профіль';
+
+  @override
+  String get pfmProfileName => 'Назва профілю';
+
+  @override
+  String get pfmProfileNameHint => 'Робота, Особисте, …';
+
+  @override
+  String get pfmDeveloperName => 'Ім’я розробника';
+
+  @override
+  String get pfmDeveloperNameHint => 'Ваше ім’я в комітах';
+
+  @override
+  String get pfmEmail => 'Email';
+
+  @override
+  String get fpTitle => 'Створіть свій перший профіль';
+
+  @override
+  String get fpBody =>
+      'Кожна група й репозиторій належать до профілю. Перемикання профілів згодом показуватиме лише роботу цього профілю.';
+
+  @override
+  String get fpCreateProfile => 'Створити профіль';
+
+  @override
+  String get mtCurrent => 'Поточна';
+
+  @override
+  String mtCurrentNamed(String into) {
+    return 'Поточна — $into';
+  }
+
+  @override
+  String get mtIncoming => 'Вхідна';
+
+  @override
+  String mtIncomingNamed(String branch) {
+    return 'Вхідна — $branch';
+  }
+
+  @override
+  String get mtNeedsReview => '⚠ потребує перевірки';
+
+  @override
+  String get mtResolved => '✓ вирішено';
+
+  @override
+  String get mtBothAccepted => 'Прийнято обидві ⚠ потребує перевірки';
+
+  @override
+  String get mtAcceptBoth => 'Прийняти обидві';
+
+  @override
+  String get mtResult => 'РЕЗУЛЬТАТ';
+
+  @override
+  String get mtUseEdit => 'Використати редагування';
+
+  @override
+  String get mtAccept => 'Прийняти';
+
+  @override
+  String get rbPick => 'залишити цей коміт як є';
+
+  @override
+  String get rbReword => 'залишити цей коміт, змінити його опис';
+
+  @override
+  String get rbSquash => 'об’єднати з комітом вище, зберегти обидва описи';
+
+  @override
+  String get rbFixup => 'об’єднати з комітом вище, відкинути його опис';
+
+  @override
+  String get rbDrop => 'повністю вилучити цей коміт';
+
+  @override
+  String get rbPresetAsIs => 'Перемістити коміти як є';
+
+  @override
+  String get rbPresetSquashAll => 'Об’єднати в один коміт';
+
+  @override
+  String get rbPresetSquashKeepFirst => 'Об’єднати, зберегти перший опис';
+
+  @override
+  String rbSummaryAsIs(int count) {
+    return 'Відтворити всі $count комітів на новій основі. Історія збереже свою форму.';
+  }
+
+  @override
+  String rbSummarySquashAll(int count) {
+    return 'Об’єднати всі $count в один коміт; усі описи буде збережено, один за одним.';
+  }
+
+  @override
+  String rbSummarySquashKeepFirst(int count) {
+    return 'Об’єднати всі $count в один коміт; збережено буде лише перший опис.';
+  }
+
+  @override
+  String get rbTitle => 'Інтерактивне перебазування';
+
+  @override
+  String rbCommitCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count комітів',
+      few: '$count коміти',
+      one: '$count коміт',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String rbCommitCountOnto(int count, String onto) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count комітів на $onto',
+      few: '$count коміти на $onto',
+      one: '$count коміт на $onto',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get rbStart => 'Почати перебазування';
+
+  @override
+  String get rbNeedsTwo => 'Потрібно щонайменше 2 коміти.';
+
+  @override
+  String get rbCustomize => 'Налаштувати кожен коміт';
+
+  @override
+  String get rbCustomizeHint =>
+      'Виберіть дію для кожного коміту або перетягніть, щоб змінити порядок.';
 }

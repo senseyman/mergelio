@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/tokens.dart';
 import '../../domain/git/rebase_plan.dart';
+import '../../l10n/gen/app_localizations.dart';
 
 /// Interactive-rebase editor modal. Opens on a single whole-branch choice —
 /// move the commits as they are, or fold them into one — and only unfolds the
@@ -22,29 +23,26 @@ Future<List<RebaseStep>?> showRebaseEditor(
 
 /// What each git action does, in the words of someone who has not read the
 /// rebase man page.
-String rebaseActionSummary(RebaseAction a) => switch (a) {
-  RebaseAction.pick => 'keep this commit as it is',
-  RebaseAction.reword => 'keep this commit, change its message',
-  RebaseAction.squash => 'merge into the commit above, keep both messages',
-  RebaseAction.fixup => 'merge into the commit above, drop its message',
-  RebaseAction.drop => 'remove this commit entirely',
+String rebaseActionSummary(AppLocalizations l, RebaseAction a) => switch (a) {
+  RebaseAction.pick => l.rbPick,
+  RebaseAction.reword => l.rbReword,
+  RebaseAction.squash => l.rbSquash,
+  RebaseAction.fixup => l.rbFixup,
+  RebaseAction.drop => l.rbDrop,
 };
 
-String _presetTitle(RebasePreset p) => switch (p) {
-  RebasePreset.asIs => 'Move commits as-is',
-  RebasePreset.squashAll => 'Squash into one commit',
-  RebasePreset.squashKeepFirst => 'Squash, keep first message',
+String _presetTitle(AppLocalizations l, RebasePreset p) => switch (p) {
+  RebasePreset.asIs => l.rbPresetAsIs,
+  RebasePreset.squashAll => l.rbPresetSquashAll,
+  RebasePreset.squashKeepFirst => l.rbPresetSquashKeepFirst,
 };
 
-String _presetSummary(RebasePreset p, int count) => switch (p) {
-  RebasePreset.asIs =>
-    'Replay all $count commits on the new base. History keeps its shape.',
-  RebasePreset.squashAll =>
-    'Combine all $count into one commit; all messages are kept, '
-        'one after another.',
-  RebasePreset.squashKeepFirst =>
-    'Combine all $count into one commit; only the first message is kept.',
-};
+String _presetSummary(AppLocalizations l, RebasePreset p, int count) =>
+    switch (p) {
+      RebasePreset.asIs => l.rbSummaryAsIs(count),
+      RebasePreset.squashAll => l.rbSummarySquashAll(count),
+      RebasePreset.squashKeepFirst => l.rbSummarySquashKeepFirst(count),
+    };
 
 class _RebaseEditor extends StatefulWidget {
   final List<RebaseStep> initial;
@@ -103,6 +101,7 @@ class _RebaseEditorState extends State<_RebaseEditor> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final count = _steps.length;
     final onto = widget.onto;
@@ -125,7 +124,7 @@ class _RebaseEditorState extends State<_RebaseEditor> {
                 children: [
                   Expanded(
                     child: Text(
-                      'Interactive rebase',
+                      l.rbTitle,
                       style: TextStyle(
                         color: t.textPrimary,
                         fontSize: 16,
@@ -134,8 +133,9 @@ class _RebaseEditorState extends State<_RebaseEditor> {
                     ),
                   ),
                   Text(
-                    '$count ${count == 1 ? 'commit' : 'commits'}'
-                    '${onto == null ? '' : ' onto $onto'}',
+                    onto == null
+                        ? l.rbCommitCount(count)
+                        : l.rbCommitCountOnto(count, onto),
                     style: TextStyle(color: t.textFaint, fontSize: 12),
                   ),
                 ],
@@ -172,7 +172,7 @@ class _RebaseEditorState extends State<_RebaseEditor> {
                       Divider(height: 1, color: t.border),
                       _stepList(),
                       Divider(height: 1, color: t.border),
-                      _legend(t),
+                      _legend(t, l),
                     ],
                   ],
                 ),
@@ -195,7 +195,7 @@ class _RebaseEditorState extends State<_RebaseEditor> {
                   const SizedBox(width: 12),
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Cancel'),
+                    child: Text(l.cancel),
                   ),
                   const SizedBox(width: 10),
                   FilledButton(
@@ -205,7 +205,7 @@ class _RebaseEditorState extends State<_RebaseEditor> {
                     onPressed: error == null
                         ? () => Navigator.of(context).pop(_steps)
                         : null,
-                    child: const Text('Start rebase'),
+                    child: Text(l.rbStart),
                   ),
                 ],
               ),
@@ -238,12 +238,12 @@ class _RebaseEditorState extends State<_RebaseEditor> {
     ],
   );
 
-  Widget _legend(AppTokens t) => Padding(
+  Widget _legend(AppTokens t, AppLocalizations l) => Padding(
     padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
     child: Text(
       [
         for (final a in RebaseAction.values)
-          '${a.name} — ${rebaseActionSummary(a)}',
+          '${a.name} — ${rebaseActionSummary(l, a)}',
       ].join('  ·  '),
       style: TextStyle(color: t.textFaint, fontSize: 11.5, height: 1.5),
     ),
@@ -262,6 +262,7 @@ class _PresetTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     return RadioListTile<RebasePreset>(
       value: preset,
@@ -269,14 +270,14 @@ class _PresetTile extends StatelessWidget {
       dense: true,
       controlAffinity: ListTileControlAffinity.leading,
       title: Text(
-        _presetTitle(preset),
+        _presetTitle(l, preset),
         style: TextStyle(
           color: enabled ? t.textPrimary : t.textFaint,
           fontSize: 13.5,
         ),
       ),
       subtitle: Text(
-        enabled ? _presetSummary(preset, count) : 'Needs at least 2 commits.',
+        enabled ? _presetSummary(l, preset, count) : l.rbNeedsTwo,
         style: TextStyle(color: t.textFaint, fontSize: 12, height: 1.35),
       ),
     );
@@ -293,6 +294,7 @@ class _CustomizeTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     return ListTile(
       dense: true,
@@ -303,11 +305,11 @@ class _CustomizeTile extends StatelessWidget {
         color: selected ? t.accent : t.textFaint,
       ),
       title: Text(
-        'Customize per commit',
+        l.rbCustomize,
         style: TextStyle(color: t.textPrimary, fontSize: 13.5),
       ),
       subtitle: Text(
-        'Pick an action for each commit, or drag to reorder them.',
+        l.rbCustomizeHint,
         style: TextStyle(color: t.textFaint, fontSize: 12, height: 1.35),
       ),
     );
@@ -331,6 +333,7 @@ class _StepRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final dropped = step.action == RebaseAction.drop;
     return Padding(
@@ -370,7 +373,7 @@ class _StepRow extends StatelessWidget {
                         children: [
                           TextSpan(text: a.name),
                           TextSpan(
-                            text: ' — ${rebaseActionSummary(a)}',
+                            text: ' — ${rebaseActionSummary(l, a)}',
                             style: TextStyle(color: t.textFaint),
                           ),
                         ],

@@ -1496,4 +1496,287 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get confirmAction => 'Confirm';
+
+  @override
+  String get pfScCommandPalette => 'Command palette';
+
+  @override
+  String get pfScSearchCommits => 'Search commits';
+
+  @override
+  String get pfScNextPrevMatch => 'Next / previous search match';
+
+  @override
+  String get pfScCommit => 'Commit (in composer)';
+
+  @override
+  String get pfScCreateBranch => 'Create branch';
+
+  @override
+  String get pfScCollapsePanel => 'Collapse left panel';
+
+  @override
+  String get pfScToggleTerminal => 'Toggle terminal';
+
+  @override
+  String get pfScZoom => 'Zoom in / out';
+
+  @override
+  String get pfScResetZoom => 'Reset zoom';
+
+  @override
+  String get pfScUndo => 'Undo last action';
+
+  @override
+  String get pfScRedo => 'Redo';
+
+  @override
+  String get pfScPreferences => 'Preferences';
+
+  @override
+  String get pfScCloseDialog => 'Close dialog / cancel';
+
+  @override
+  String get pfGenerateSshKey => 'Generate SSH key';
+
+  @override
+  String pfAddPassphraseHint(String name) {
+    return 'Run ssh-keygen -p -f ~/.ssh/$name to add one.';
+  }
+
+  @override
+  String get pfGenerateFailed => 'Generate failed';
+
+  @override
+  String get pfAuthentication => 'Authentication';
+
+  @override
+  String get pfAuthBody =>
+      'HTTPS remotes use your system git credential helper; SSH remotes use your SSH agent and keys. Mergelio never stores or reads your passwords or private keys — only public keys are listed here.';
+
+  @override
+  String get pfSshKeys => 'SSH KEYS';
+
+  @override
+  String get pfGenerateKeyMenu => 'Generate key…';
+
+  @override
+  String get pfNoSshKeys => 'No SSH keys found in ~/.ssh';
+
+  @override
+  String get pfCopyPublicKey => 'Copy public key';
+
+  @override
+  String get pfPublicKeyCopied => 'Public key copied';
+
+  @override
+  String get pfThemeJsonCopied => 'Theme JSON copied';
+
+  @override
+  String get pfImportTheme => 'Import theme';
+
+  @override
+  String get pfPasteThemeJson => 'Paste theme JSON';
+
+  @override
+  String get pfInvalidThemeJson => 'Invalid theme JSON';
+
+  @override
+  String pfThemeApplied(String name) {
+    return 'Applied \"$name\"';
+  }
+
+  @override
+  String get pfSaveTheme => 'Save theme';
+
+  @override
+  String get pfThemeName => 'Theme name';
+
+  @override
+  String pfThemeSaved(String name) {
+    return 'Saved \"$name\"';
+  }
+
+  @override
+  String get pfCustomColour => 'Custom colour';
+
+  @override
+  String get pfHexHint => 'Hex (e.g. #6E7BFF)';
+
+  @override
+  String lgCouldNotOpen(String error) {
+    return 'Could not open the log folder: $error';
+  }
+
+  @override
+  String get lgDiagnosticLogs => 'Diagnostic logs';
+
+  @override
+  String get lgNotActive => 'File logging is not active';
+
+  @override
+  String get lgReveal => 'Reveal';
+
+  @override
+  String get pdEmpty => 'No profiles yet. Add one to set your commit identity.';
+
+  @override
+  String get pdUse => 'Use';
+
+  @override
+  String pdDeleteTitle(String label) {
+    return 'Delete profile $label?';
+  }
+
+  @override
+  String get pdDeleteBody =>
+      'The profile is removed. Any keys it references in the keychain are left untouched.';
+
+  @override
+  String get pdAddProfile => 'Add profile';
+
+  @override
+  String get pfmNew => 'New profile';
+
+  @override
+  String get pfmEdit => 'Edit profile';
+
+  @override
+  String get pfmProfileName => 'Profile name';
+
+  @override
+  String get pfmProfileNameHint => 'Work, Personal, …';
+
+  @override
+  String get pfmDeveloperName => 'Developer name';
+
+  @override
+  String get pfmDeveloperNameHint => 'Your name in commits';
+
+  @override
+  String get pfmEmail => 'Email';
+
+  @override
+  String get fpTitle => 'Create your first profile';
+
+  @override
+  String get fpBody =>
+      'Every group and repository belongs to a profile. Switching profiles later shows only that profile’s work.';
+
+  @override
+  String get fpCreateProfile => 'Create profile';
+
+  @override
+  String get mtCurrent => 'Current';
+
+  @override
+  String mtCurrentNamed(String into) {
+    return 'Current — $into';
+  }
+
+  @override
+  String get mtIncoming => 'Incoming';
+
+  @override
+  String mtIncomingNamed(String branch) {
+    return 'Incoming — $branch';
+  }
+
+  @override
+  String get mtNeedsReview => '⚠ needs review';
+
+  @override
+  String get mtResolved => '✓ resolved';
+
+  @override
+  String get mtBothAccepted => 'Both accepted ⚠ needs review';
+
+  @override
+  String get mtAcceptBoth => 'Accept both';
+
+  @override
+  String get mtResult => 'RESULT';
+
+  @override
+  String get mtUseEdit => 'Use edit';
+
+  @override
+  String get mtAccept => 'Accept';
+
+  @override
+  String get rbPick => 'keep this commit as it is';
+
+  @override
+  String get rbReword => 'keep this commit, change its message';
+
+  @override
+  String get rbSquash => 'merge into the commit above, keep both messages';
+
+  @override
+  String get rbFixup => 'merge into the commit above, drop its message';
+
+  @override
+  String get rbDrop => 'remove this commit entirely';
+
+  @override
+  String get rbPresetAsIs => 'Move commits as-is';
+
+  @override
+  String get rbPresetSquashAll => 'Squash into one commit';
+
+  @override
+  String get rbPresetSquashKeepFirst => 'Squash, keep first message';
+
+  @override
+  String rbSummaryAsIs(int count) {
+    return 'Replay all $count commits on the new base. History keeps its shape.';
+  }
+
+  @override
+  String rbSummarySquashAll(int count) {
+    return 'Combine all $count into one commit; all messages are kept, one after another.';
+  }
+
+  @override
+  String rbSummarySquashKeepFirst(int count) {
+    return 'Combine all $count into one commit; only the first message is kept.';
+  }
+
+  @override
+  String get rbTitle => 'Interactive rebase';
+
+  @override
+  String rbCommitCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count commits',
+      one: '$count commit',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String rbCommitCountOnto(int count, String onto) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count commits onto $onto',
+      one: '$count commit onto $onto',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get rbStart => 'Start rebase';
+
+  @override
+  String get rbNeedsTwo => 'Needs at least 2 commits.';
+
+  @override
+  String get rbCustomize => 'Customize per commit';
+
+  @override
+  String get rbCustomizeHint =>
+      'Pick an action for each commit, or drag to reorder them.';
 }
