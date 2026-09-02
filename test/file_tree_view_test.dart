@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/core/tokens.dart';
 import 'package:mergelio/ui/common/file_tree_view.dart';
 
 Widget _wrap(Widget child) => MaterialApp(
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
   theme: ThemeData(extensions: [AppTokens.dark()]),
   home: Scaffold(body: child),
 );

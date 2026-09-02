@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/core/tokens.dart';
 import 'package:mergelio/domain/git/worktree.dart';
 import 'package:mergelio/ui/workspace/worktree_dialogs.dart';
@@ -29,6 +30,8 @@ Future<_Result> _open(
   final result = _Result();
   await tester.pumpWidget(
     MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       theme: ThemeData(extensions: [AppTokens.dark()]),
       home: Builder(
         builder: (context) => Scaffold(
@@ -362,6 +365,8 @@ void main() {
     bool? answer;
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         theme: ThemeData(extensions: [AppTokens.dark()]),
         home: Builder(
           builder: (context) => Scaffold(
@@ -389,6 +394,8 @@ void main() {
     bool? answer;
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         theme: ThemeData(extensions: [AppTokens.dark()]),
         home: Builder(
           builder: (context) => Scaffold(
@@ -423,6 +430,8 @@ void main() {
     CollisionChoice? choice;
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         theme: ThemeData(extensions: [AppTokens.dark()]),
         home: Builder(
           builder: (context) => Scaffold(
@@ -456,6 +465,8 @@ void main() {
     CollisionChoice? choice;
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         theme: ThemeData(extensions: [AppTokens.dark()]),
         home: Builder(
           builder: (context) => Scaffold(
@@ -484,6 +495,8 @@ void main() {
     CollisionChoice? choice;
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         theme: ThemeData(extensions: [AppTokens.dark()]),
         home: Builder(
           builder: (context) => Scaffold(
@@ -511,6 +524,8 @@ void main() {
   testWidgets('prune dialog shows the dry-run report verbatim', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         theme: ThemeData(extensions: [AppTokens.dark()]),
         home: Builder(
           builder: (context) => Scaffold(

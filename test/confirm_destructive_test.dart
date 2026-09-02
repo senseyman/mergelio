@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/core/tokens.dart';
 import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/state/settings.dart';
@@ -21,6 +22,8 @@ void main() {
           ),
         ],
         child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           theme: ThemeData(extensions: [AppTokens.dark()]),
           home: Consumer(
             builder: (context, ref, _) => Scaffold(
