@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mergelio/data/update/installer_macos.dart';
 import 'package:mergelio/data/update/installer_windows.dart';
 import 'package:mergelio/data/update/update_installer.dart';
 
@@ -72,6 +73,77 @@ void main() {
       final launcher = FakeLauncher();
       await expectLater(
         WindowsInstaller(launcher: launcher).handOff(File('/nope/setup.exe')),
+        throwsA(isA<UpdateInstallError>()),
+      );
+      expect(launcher.detached, isEmpty);
+    });
+  });
+
+  group('macos', () {
+    Directory workDir() {
+      final work = Directory.systemTemp.createTempSync('mergelio-macos-test');
+      addTearDown(() => work.deleteSync(recursive: true));
+      Directory(
+        '${work.path}/extracted/mergelio.app',
+      ).createSync(recursive: true);
+      return work;
+    }
+
+    test('verifies the bundle before it swaps anything', () async {
+      final work = workDir();
+      final zip = File('${work.path}/update.zip')..writeAsStringSync('');
+
+      final launcher = FakeLauncher();
+      await MacosInstaller(
+        launcher: launcher,
+        bundlePath: '/Applications/mergelio.app',
+        processId: 4242,
+        workDir: work,
+      ).handOff(zip);
+
+      expect(launcher.ran[0].first, 'ditto');
+      expect(launcher.ran[1].first, 'codesign');
+      expect(launcher.ran[2].first, 'spctl');
+      expect(launcher.detached.single.first, '/bin/bash');
+      expect(launcher.detached.single, contains('4242'));
+      expect(launcher.detached.single, contains('/Applications/mergelio.app'));
+    });
+
+    test('stops when the signature does not check out', () async {
+      final work = workDir();
+      final zip = File('${work.path}/update.zip')..writeAsStringSync('');
+
+      final launcher = FakeLauncher({
+        'codesign': ProcessResult(0, 1, '', 'code object is not signed at all'),
+      });
+
+      await expectLater(
+        MacosInstaller(
+          launcher: launcher,
+          bundlePath: '/Applications/mergelio.app',
+          processId: 4242,
+          workDir: work,
+        ).handOff(zip),
+        throwsA(isA<UpdateInstallError>()),
+      );
+      expect(launcher.detached, isEmpty);
+    });
+
+    test('stops when Gatekeeper rejects the bundle', () async {
+      final work = workDir();
+      final zip = File('${work.path}/update.zip')..writeAsStringSync('');
+
+      final launcher = FakeLauncher({
+        'spctl': ProcessResult(0, 3, '', 'rejected'),
+      });
+
+      await expectLater(
+        MacosInstaller(
+          launcher: launcher,
+          bundlePath: '/Applications/mergelio.app',
+          processId: 4242,
+          workDir: work,
+        ).handOff(zip),
         throwsA(isA<UpdateInstallError>()),
       );
       expect(launcher.detached, isEmpty);
