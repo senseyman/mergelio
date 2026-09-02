@@ -905,4 +905,198 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get diffDiscardLinesBody =>
       'This removes the selected changes from the working tree. You can undo it.';
+
+  @override
+  String get bbOpenRepoFirst => 'Open a repository first';
+
+  @override
+  String get bbOperationRunning => 'An operation is already running';
+
+  @override
+  String get bbNoRemote => 'No remote configured';
+
+  @override
+  String bbUndoLabelled(String label) {
+    return 'Undo $label (⌘Z)';
+  }
+
+  @override
+  String get bbUndo => 'Undo (⌘Z)';
+
+  @override
+  String bbRedoLabelled(String label) {
+    return 'Redo $label (⌘⇧Z)';
+  }
+
+  @override
+  String get bbRedo => 'Redo (⌘⇧Z)';
+
+  @override
+  String get bbFetchOrigin => 'Fetch origin';
+
+  @override
+  String get bbFetchAllRemotes => 'Fetch all remotes';
+
+  @override
+  String get bbPullAllRemotes => 'Pull (all remotes)';
+
+  @override
+  String get bbForcePushTitle => 'Force-push?';
+
+  @override
+  String get bbForcePushBody =>
+      'This overwrites the remote branch with your local history (using --force-with-lease, which still refuses if the remote moved unexpectedly).';
+
+  @override
+  String get bbForcePush => 'Force-push';
+
+  @override
+  String get bbBranch => 'Branch';
+
+  @override
+  String get bbMerge => 'Merge';
+
+  @override
+  String get bbStash => 'Stash';
+
+  @override
+  String get sbarNoProfile => 'No profile';
+
+  @override
+  String get sbarNoRepository => 'No repository';
+
+  @override
+  String get sbarDark => 'Dark';
+
+  @override
+  String get sbarLight => 'Light';
+
+  @override
+  String sbarCancelBusy(String label) {
+    return 'Cancel $label';
+  }
+
+  @override
+  String get tbComingLater => 'Coming in a later stage';
+
+  @override
+  String get tbTerminal => 'Terminal';
+
+  @override
+  String get tbGlobalSearch => 'Global search';
+
+  @override
+  String get tbCommandPalette => 'Command palette';
+
+  @override
+  String get railExpand => 'Expand';
+
+  @override
+  String gaCheckoutBranch(String name) {
+    return 'Checkout: $name';
+  }
+
+  @override
+  String gaFlyToCommit(String sha, String message) {
+    return 'Fly to: $sha  $message';
+  }
+
+  @override
+  String get rmcMomentsAgo => 'moments ago';
+
+  @override
+  String rmcMinutesAgo(int minutes) {
+    return '${minutes}m ago';
+  }
+
+  @override
+  String rmcHoursAgo(int hours) {
+    return '${hours}h ago';
+  }
+
+  @override
+  String rmcDaysAgo(int days) {
+    return '${days}d ago';
+  }
+
+  @override
+  String get rmcNotFetched => 'This repository has not fetched yet.';
+
+  @override
+  String rmcLastFetched(String age) {
+    return 'Last fetched $age.';
+  }
+
+  @override
+  String rmcMergeFrom(String remote) {
+    return 'Merge from $remote?';
+  }
+
+  @override
+  String rmcStaleWarning(String source, String remote) {
+    return '$source is a remote-tracking branch. It is only as current as the last fetch from $remote.';
+  }
+
+  @override
+  String get rmcMergeAsIs => 'Merge as-is';
+
+  @override
+  String get rmcFetchAndMerge => 'Fetch and merge';
+
+  @override
+  String get ropCreateBranchTitle => 'Create branch';
+
+  @override
+  String get ropCurrentBranch => 'current branch';
+
+  @override
+  String ropMergeIntoTitle(String branch) {
+    return 'Merge into $branch';
+  }
+
+  @override
+  String get ropCreateTagTitle => 'Create tag';
+
+  @override
+  String get ropTagName => 'Tag name';
+
+  @override
+  String get ropType => 'Type';
+
+  @override
+  String get ropTagMessage => 'Tag message';
+
+  @override
+  String get ropStashChangesTitle => 'Stash changes';
+
+  @override
+  String get ropBranchName => 'Branch name';
+
+  @override
+  String get ropStartFrom => 'Start from';
+
+  @override
+  String get ropCheckoutAfterCreating => 'Check out after creating';
+
+  @override
+  String get ropNoOtherBranches => 'No other branches to merge.';
+
+  @override
+  String get ropBranchToMerge => 'Branch to merge';
+
+  @override
+  String get ropMerge => 'Merge';
+
+  @override
+  String get ropMessageOptional => 'Message (optional)';
+
+  @override
+  String get ropOnlyStaged => 'Only staged changes';
+
+  @override
+  String get ropStash => 'Stash';
+
+  @override
+  String get shellPrevOpUnfinished =>
+      'A previous operation may not have finished';
 }

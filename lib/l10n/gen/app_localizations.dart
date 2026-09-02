@@ -1645,6 +1645,342 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This removes the selected changes from the working tree. You can undo it.'**
   String get diffDiscardLinesBody;
+
+  /// No description provided for @bbOpenRepoFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Open a repository first'**
+  String get bbOpenRepoFirst;
+
+  /// No description provided for @bbOperationRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'An operation is already running'**
+  String get bbOperationRunning;
+
+  /// No description provided for @bbNoRemote.
+  ///
+  /// In en, this message translates to:
+  /// **'No remote configured'**
+  String get bbNoRemote;
+
+  /// No description provided for @bbUndoLabelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo {label} (⌘Z)'**
+  String bbUndoLabelled(String label);
+
+  /// No description provided for @bbUndo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo (⌘Z)'**
+  String get bbUndo;
+
+  /// No description provided for @bbRedoLabelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Redo {label} (⌘⇧Z)'**
+  String bbRedoLabelled(String label);
+
+  /// No description provided for @bbRedo.
+  ///
+  /// In en, this message translates to:
+  /// **'Redo (⌘⇧Z)'**
+  String get bbRedo;
+
+  /// No description provided for @bbFetchOrigin.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetch origin'**
+  String get bbFetchOrigin;
+
+  /// No description provided for @bbFetchAllRemotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetch all remotes'**
+  String get bbFetchAllRemotes;
+
+  /// No description provided for @bbPullAllRemotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Pull (all remotes)'**
+  String get bbPullAllRemotes;
+
+  /// No description provided for @bbForcePushTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Force-push?'**
+  String get bbForcePushTitle;
+
+  /// No description provided for @bbForcePushBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This overwrites the remote branch with your local history (using --force-with-lease, which still refuses if the remote moved unexpectedly).'**
+  String get bbForcePushBody;
+
+  /// No description provided for @bbForcePush.
+  ///
+  /// In en, this message translates to:
+  /// **'Force-push'**
+  String get bbForcePush;
+
+  /// No description provided for @bbBranch.
+  ///
+  /// In en, this message translates to:
+  /// **'Branch'**
+  String get bbBranch;
+
+  /// No description provided for @bbMerge.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge'**
+  String get bbMerge;
+
+  /// No description provided for @bbStash.
+  ///
+  /// In en, this message translates to:
+  /// **'Stash'**
+  String get bbStash;
+
+  /// No description provided for @sbarNoProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'No profile'**
+  String get sbarNoProfile;
+
+  /// No description provided for @sbarNoRepository.
+  ///
+  /// In en, this message translates to:
+  /// **'No repository'**
+  String get sbarNoRepository;
+
+  /// No description provided for @sbarDark.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark'**
+  String get sbarDark;
+
+  /// No description provided for @sbarLight.
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get sbarLight;
+
+  /// No description provided for @sbarCancelBusy.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel {label}'**
+  String sbarCancelBusy(String label);
+
+  /// No description provided for @tbComingLater.
+  ///
+  /// In en, this message translates to:
+  /// **'Coming in a later stage'**
+  String get tbComingLater;
+
+  /// No description provided for @tbTerminal.
+  ///
+  /// In en, this message translates to:
+  /// **'Terminal'**
+  String get tbTerminal;
+
+  /// No description provided for @tbGlobalSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Global search'**
+  String get tbGlobalSearch;
+
+  /// No description provided for @tbCommandPalette.
+  ///
+  /// In en, this message translates to:
+  /// **'Command palette'**
+  String get tbCommandPalette;
+
+  /// No description provided for @railExpand.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand'**
+  String get railExpand;
+
+  /// No description provided for @gaCheckoutBranch.
+  ///
+  /// In en, this message translates to:
+  /// **'Checkout: {name}'**
+  String gaCheckoutBranch(String name);
+
+  /// No description provided for @gaFlyToCommit.
+  ///
+  /// In en, this message translates to:
+  /// **'Fly to: {sha}  {message}'**
+  String gaFlyToCommit(String sha, String message);
+
+  /// No description provided for @rmcMomentsAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'moments ago'**
+  String get rmcMomentsAgo;
+
+  /// No description provided for @rmcMinutesAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes}m ago'**
+  String rmcMinutesAgo(int minutes);
+
+  /// No description provided for @rmcHoursAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours}h ago'**
+  String rmcHoursAgo(int hours);
+
+  /// No description provided for @rmcDaysAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{days}d ago'**
+  String rmcDaysAgo(int days);
+
+  /// No description provided for @rmcNotFetched.
+  ///
+  /// In en, this message translates to:
+  /// **'This repository has not fetched yet.'**
+  String get rmcNotFetched;
+
+  /// No description provided for @rmcLastFetched.
+  ///
+  /// In en, this message translates to:
+  /// **'Last fetched {age}.'**
+  String rmcLastFetched(String age);
+
+  /// No description provided for @rmcMergeFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge from {remote}?'**
+  String rmcMergeFrom(String remote);
+
+  /// No description provided for @rmcStaleWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'{source} is a remote-tracking branch. It is only as current as the last fetch from {remote}.'**
+  String rmcStaleWarning(String source, String remote);
+
+  /// No description provided for @rmcMergeAsIs.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge as-is'**
+  String get rmcMergeAsIs;
+
+  /// No description provided for @rmcFetchAndMerge.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetch and merge'**
+  String get rmcFetchAndMerge;
+
+  /// No description provided for @ropCreateBranchTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Create branch'**
+  String get ropCreateBranchTitle;
+
+  /// No description provided for @ropCurrentBranch.
+  ///
+  /// In en, this message translates to:
+  /// **'current branch'**
+  String get ropCurrentBranch;
+
+  /// No description provided for @ropMergeIntoTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge into {branch}'**
+  String ropMergeIntoTitle(String branch);
+
+  /// No description provided for @ropCreateTagTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Create tag'**
+  String get ropCreateTagTitle;
+
+  /// No description provided for @ropTagName.
+  ///
+  /// In en, this message translates to:
+  /// **'Tag name'**
+  String get ropTagName;
+
+  /// No description provided for @ropType.
+  ///
+  /// In en, this message translates to:
+  /// **'Type'**
+  String get ropType;
+
+  /// No description provided for @ropTagMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Tag message'**
+  String get ropTagMessage;
+
+  /// No description provided for @ropStashChangesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Stash changes'**
+  String get ropStashChangesTitle;
+
+  /// No description provided for @ropBranchName.
+  ///
+  /// In en, this message translates to:
+  /// **'Branch name'**
+  String get ropBranchName;
+
+  /// No description provided for @ropStartFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'Start from'**
+  String get ropStartFrom;
+
+  /// No description provided for @ropCheckoutAfterCreating.
+  ///
+  /// In en, this message translates to:
+  /// **'Check out after creating'**
+  String get ropCheckoutAfterCreating;
+
+  /// No description provided for @ropNoOtherBranches.
+  ///
+  /// In en, this message translates to:
+  /// **'No other branches to merge.'**
+  String get ropNoOtherBranches;
+
+  /// No description provided for @ropBranchToMerge.
+  ///
+  /// In en, this message translates to:
+  /// **'Branch to merge'**
+  String get ropBranchToMerge;
+
+  /// No description provided for @ropMerge.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge'**
+  String get ropMerge;
+
+  /// No description provided for @ropMessageOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Message (optional)'**
+  String get ropMessageOptional;
+
+  /// No description provided for @ropOnlyStaged.
+  ///
+  /// In en, this message translates to:
+  /// **'Only staged changes'**
+  String get ropOnlyStaged;
+
+  /// No description provided for @ropStash.
+  ///
+  /// In en, this message translates to:
+  /// **'Stash'**
+  String get ropStash;
+
+  /// No description provided for @shellPrevOpUnfinished.
+  ///
+  /// In en, this message translates to:
+  /// **'A previous operation may not have finished'**
+  String get shellPrevOpUnfinished;
 }
 
 class _AppLocalizationsDelegate

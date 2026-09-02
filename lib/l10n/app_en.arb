@@ -515,5 +515,124 @@
       "count": {"type": "int"}
     }
   },
-  "diffDiscardLinesBody": "This removes the selected changes from the working tree. You can undo it."
+  "diffDiscardLinesBody": "This removes the selected changes from the working tree. You can undo it.",
+
+  "bbOpenRepoFirst": "Open a repository first",
+  "bbOperationRunning": "An operation is already running",
+  "bbNoRemote": "No remote configured",
+  "bbUndoLabelled": "Undo {label} (⌘Z)",
+  "@bbUndoLabelled": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "bbUndo": "Undo (⌘Z)",
+  "bbRedoLabelled": "Redo {label} (⌘⇧Z)",
+  "@bbRedoLabelled": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "bbRedo": "Redo (⌘⇧Z)",
+  "bbFetchOrigin": "Fetch origin",
+  "bbFetchAllRemotes": "Fetch all remotes",
+  "bbPullAllRemotes": "Pull (all remotes)",
+  "bbForcePushTitle": "Force-push?",
+  "bbForcePushBody": "This overwrites the remote branch with your local history (using --force-with-lease, which still refuses if the remote moved unexpectedly).",
+  "bbForcePush": "Force-push",
+  "bbBranch": "Branch",
+  "bbMerge": "Merge",
+  "bbStash": "Stash",
+  "sbarNoProfile": "No profile",
+  "sbarNoRepository": "No repository",
+  "sbarDark": "Dark",
+  "sbarLight": "Light",
+  "sbarCancelBusy": "Cancel {label}",
+  "@sbarCancelBusy": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "tbComingLater": "Coming in a later stage",
+  "tbTerminal": "Terminal",
+  "tbGlobalSearch": "Global search",
+  "tbCommandPalette": "Command palette",
+  "railExpand": "Expand",
+  "gaCheckoutBranch": "Checkout: {name}",
+  "@gaCheckoutBranch": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "gaFlyToCommit": "Fly to: {sha}  {message}",
+  "@gaFlyToCommit": {
+    "placeholders": {
+      "sha": {"type": "String"},
+      "message": {"type": "String"}
+    }
+  },
+  "rmcMomentsAgo": "moments ago",
+  "rmcMinutesAgo": "{minutes}m ago",
+  "@rmcMinutesAgo": {
+    "placeholders": {
+      "minutes": {"type": "int"}
+    }
+  },
+  "rmcHoursAgo": "{hours}h ago",
+  "@rmcHoursAgo": {
+    "placeholders": {
+      "hours": {"type": "int"}
+    }
+  },
+  "rmcDaysAgo": "{days}d ago",
+  "@rmcDaysAgo": {
+    "placeholders": {
+      "days": {"type": "int"}
+    }
+  },
+  "rmcNotFetched": "This repository has not fetched yet.",
+  "rmcLastFetched": "Last fetched {age}.",
+  "@rmcLastFetched": {
+    "placeholders": {
+      "age": {"type": "String"}
+    }
+  },
+  "rmcMergeFrom": "Merge from {remote}?",
+  "@rmcMergeFrom": {
+    "placeholders": {
+      "remote": {"type": "String"}
+    }
+  },
+  "rmcStaleWarning": "{source} is a remote-tracking branch. It is only as current as the last fetch from {remote}.",
+  "@rmcStaleWarning": {
+    "placeholders": {
+      "source": {"type": "String"},
+      "remote": {"type": "String"}
+    }
+  },
+  "rmcMergeAsIs": "Merge as-is",
+  "rmcFetchAndMerge": "Fetch and merge",
+  "ropCreateBranchTitle": "Create branch",
+  "ropCurrentBranch": "current branch",
+  "ropMergeIntoTitle": "Merge into {branch}",
+  "@ropMergeIntoTitle": {
+    "placeholders": {
+      "branch": {"type": "String"}
+    }
+  },
+  "ropCreateTagTitle": "Create tag",
+  "ropTagName": "Tag name",
+  "ropType": "Type",
+  "ropTagMessage": "Tag message",
+  "ropStashChangesTitle": "Stash changes",
+  "ropBranchName": "Branch name",
+  "ropStartFrom": "Start from",
+  "ropCheckoutAfterCreating": "Check out after creating",
+  "ropNoOtherBranches": "No other branches to merge.",
+  "ropBranchToMerge": "Branch to merge",
+  "ropMerge": "Merge",
+  "ropMessageOptional": "Message (optional)",
+  "ropOnlyStaged": "Only staged changes",
+  "ropStash": "Stash",
+  "shellPrevOpUnfinished": "A previous operation may not have finished"
 }

@@ -9,6 +9,7 @@ import '../../state/repo_data.dart';
 import '../../state/settings_controller.dart';
 import '../../state/workspace.dart';
 import '../profiles/profiles_dialog.dart';
+import '../../l10n/gen/app_localizations.dart';
 
 /// Bottom status strip. Left: active profile, repo, branch + live
 /// ahead/behind. Right: theme toggle and the current zoom level.
@@ -17,6 +18,7 @@ class AppStatusBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final tab = ref.watch(workspaceProvider).activeTab;
     final branches = tab == null
@@ -67,12 +69,12 @@ class AppStatusBar extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(width: 6),
-                  Text(profile?.label ?? 'No profile'),
+                  Text(profile?.label ?? l.sbarNoProfile),
                 ],
               ),
             ),
             _dot(t),
-            Text(tab?.name ?? 'No repository'),
+            Text(tab?.name ?? l.sbarNoRepository),
             if (tab != null) ...[
               _dot(t),
               Icon(Icons.call_split, size: 12, color: t.textMuted),
@@ -96,7 +98,7 @@ class AppStatusBar extends ConsumerWidget {
                     color: t.textMuted,
                   ),
                   const SizedBox(width: 4),
-                  Text(dark ? 'Dark' : 'Light'),
+                  Text(dark ? l.sbarDark : l.sbarLight),
                 ],
               ),
             ),
@@ -122,6 +124,7 @@ class _RunningOp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     // The repository lane first: it is the one holding other actions back.
     final busy = ref.watch(busyProvider) ?? ref.watch(fetchBusyProvider);
@@ -138,7 +141,7 @@ class _RunningOp extends ConsumerWidget {
         Text(busy.label, key: runningOpLabelKey),
         if (busy.onCancel != null)
           Tooltip(
-            message: 'Cancel ${busy.label}',
+            message: l.sbarCancelBusy(busy.label),
             child: IconButton(
               key: cancelRunningOpKey,
               iconSize: 12,

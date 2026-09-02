@@ -909,4 +909,197 @@ class AppLocalizationsUk extends AppLocalizations {
   @override
   String get diffDiscardLinesBody =>
       'Це вилучить вибрані зміни з робочого дерева. Дію можна скасувати.';
+
+  @override
+  String get bbOpenRepoFirst => 'Спершу відкрийте репозиторій';
+
+  @override
+  String get bbOperationRunning => 'Операція вже виконується';
+
+  @override
+  String get bbNoRemote => 'Віддалений репозиторій не налаштовано';
+
+  @override
+  String bbUndoLabelled(String label) {
+    return 'Скасувати $label (⌘Z)';
+  }
+
+  @override
+  String get bbUndo => 'Скасувати (⌘Z)';
+
+  @override
+  String bbRedoLabelled(String label) {
+    return 'Повторити $label (⌘⇧Z)';
+  }
+
+  @override
+  String get bbRedo => 'Повторити (⌘⇧Z)';
+
+  @override
+  String get bbFetchOrigin => 'Отримати з origin';
+
+  @override
+  String get bbFetchAllRemotes => 'Отримати з усіх віддалених';
+
+  @override
+  String get bbPullAllRemotes => 'Стягнути (усі віддалені)';
+
+  @override
+  String get bbForcePushTitle => 'Примусово відправити?';
+
+  @override
+  String get bbForcePushBody =>
+      'Це перезапише віддалену гілку вашою локальною історією (через --force-with-lease, який усе одно відмовить, якщо віддалена гілка несподівано змінилася).';
+
+  @override
+  String get bbForcePush => 'Примусово відправити';
+
+  @override
+  String get bbBranch => 'Гілка';
+
+  @override
+  String get bbMerge => 'Злити';
+
+  @override
+  String get bbStash => 'Сховати';
+
+  @override
+  String get sbarNoProfile => 'Немає профілю';
+
+  @override
+  String get sbarNoRepository => 'Немає репозиторію';
+
+  @override
+  String get sbarDark => 'Темна';
+
+  @override
+  String get sbarLight => 'Світла';
+
+  @override
+  String sbarCancelBusy(String label) {
+    return 'Скасувати $label';
+  }
+
+  @override
+  String get tbComingLater => 'З’явиться на пізнішому етапі';
+
+  @override
+  String get tbTerminal => 'Термінал';
+
+  @override
+  String get tbGlobalSearch => 'Глобальний пошук';
+
+  @override
+  String get tbCommandPalette => 'Палітра команд';
+
+  @override
+  String get railExpand => 'Розгорнути';
+
+  @override
+  String gaCheckoutBranch(String name) {
+    return 'Переключитися: $name';
+  }
+
+  @override
+  String gaFlyToCommit(String sha, String message) {
+    return 'Перейти до: $sha  $message';
+  }
+
+  @override
+  String get rmcMomentsAgo => 'щойно';
+
+  @override
+  String rmcMinutesAgo(int minutes) {
+    return '$minutes хв тому';
+  }
+
+  @override
+  String rmcHoursAgo(int hours) {
+    return '$hours год тому';
+  }
+
+  @override
+  String rmcDaysAgo(int days) {
+    return '$days дн тому';
+  }
+
+  @override
+  String get rmcNotFetched => 'Цей репозиторій ще нічого не отримував.';
+
+  @override
+  String rmcLastFetched(String age) {
+    return 'Останнє отримання $age.';
+  }
+
+  @override
+  String rmcMergeFrom(String remote) {
+    return 'Злити з $remote?';
+  }
+
+  @override
+  String rmcStaleWarning(String source, String remote) {
+    return '$source — це гілка відстеження. Вона актуальна лише станом на останнє отримання з $remote.';
+  }
+
+  @override
+  String get rmcMergeAsIs => 'Злити як є';
+
+  @override
+  String get rmcFetchAndMerge => 'Отримати і злити';
+
+  @override
+  String get ropCreateBranchTitle => 'Створити гілку';
+
+  @override
+  String get ropCurrentBranch => 'поточну гілку';
+
+  @override
+  String ropMergeIntoTitle(String branch) {
+    return 'Злити в $branch';
+  }
+
+  @override
+  String get ropCreateTagTitle => 'Створити тег';
+
+  @override
+  String get ropTagName => 'Назва тегу';
+
+  @override
+  String get ropType => 'Тип';
+
+  @override
+  String get ropTagMessage => 'Опис тегу';
+
+  @override
+  String get ropStashChangesTitle => 'Сховати зміни';
+
+  @override
+  String get ropBranchName => 'Назва гілки';
+
+  @override
+  String get ropStartFrom => 'Почати від';
+
+  @override
+  String get ropCheckoutAfterCreating => 'Переключитися після створення';
+
+  @override
+  String get ropNoOtherBranches => 'Немає інших гілок для злиття.';
+
+  @override
+  String get ropBranchToMerge => 'Гілка для злиття';
+
+  @override
+  String get ropMerge => 'Злити';
+
+  @override
+  String get ropMessageOptional => 'Опис (необов’язково)';
+
+  @override
+  String get ropOnlyStaged => 'Лише проіндексовані зміни';
+
+  @override
+  String get ropStash => 'Сховати';
+
+  @override
+  String get shellPrevOpUnfinished => 'Попередня операція могла не завершитися';
 }

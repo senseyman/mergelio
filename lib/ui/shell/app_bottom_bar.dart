@@ -40,10 +40,10 @@ class AppBottomBar extends ConsumerWidget {
     // A disabled network op explains the actual reason it is unavailable.
     void whyDisabled({bool running = false}) {
       final reason = path == null
-          ? 'Open a repository first'
+          ? l.bbOpenRepoFirst
           : running
-          ? 'An operation is already running'
-          : 'No remote configured';
+          ? l.bbOperationRunning
+          : l.bbNoRemote;
       ref.read(toastProvider.notifier).show(reason, kind: ToastKind.warning);
     }
 
@@ -64,8 +64,8 @@ class AppBottomBar extends ConsumerWidget {
                 BarIconButton(
                   icon: Icons.undo,
                   tooltip: undo.canUndo
-                      ? 'Undo ${undo.undoLabel} (⌘Z)'
-                      : 'Undo (⌘Z)',
+                      ? l.bbUndoLabelled(undo.undoLabel!)
+                      : l.bbUndo,
                   onPressed: undo.canUndo && actions != null
                       ? actions.undo
                       : null,
@@ -73,8 +73,8 @@ class AppBottomBar extends ConsumerWidget {
                 BarIconButton(
                   icon: Icons.redo,
                   tooltip: undo.canRedo
-                      ? 'Redo ${undo.redoLabel} (⌘⇧Z)'
-                      : 'Redo (⌘⇧Z)',
+                      ? l.bbRedoLabelled(undo.redoLabel!)
+                      : l.bbRedo,
                   onPressed: undo.canRedo && actions != null
                       ? actions.redo
                       : null,
@@ -98,10 +98,10 @@ class AppBottomBar extends ConsumerWidget {
                           onDisabledTap: () => whyDisabled(running: fetching),
                           items: () => [
                             _Op(
-                              'Fetch origin',
+                              l.bbFetchOrigin,
                               () => actions!.fetch(remote: 'origin'),
                             ),
-                            _Op('Fetch all remotes', () => actions!.fetch()),
+                            _Op(l.bbFetchAllRemotes, () => actions!.fetch()),
                           ],
                         ),
                         _OpButton(
@@ -117,7 +117,7 @@ class AppBottomBar extends ConsumerWidget {
                             ),
                             // Fetch every remote, then pull the current
                             // branch's upstream.
-                            _Op('Pull (all remotes)', () async {
+                            _Op(l.bbPullAllRemotes, () async {
                               await actions!.fetch();
                               await actions.pull();
                             }),
@@ -134,12 +134,9 @@ class AppBottomBar extends ConsumerWidget {
                               final ok = await confirmDestructive(
                                 ref,
                                 context,
-                                title: 'Force-push?',
-                                body:
-                                    'This overwrites the remote branch with your local '
-                                    'history (using --force-with-lease, which still '
-                                    'refuses if the remote moved unexpectedly).',
-                                confirmLabel: 'Force-push',
+                                title: l.bbForcePushTitle,
+                                body: l.bbForcePushBody,
+                                confirmLabel: l.bbForcePush,
                               );
                               if (ok) await actions!.push(force: true);
                             }, danger: true),
@@ -158,21 +155,21 @@ class AppBottomBar extends ConsumerWidget {
                       children: [
                         BarTextButton(
                           icon: Icons.call_split,
-                          label: 'Branch',
+                          label: l.bbBranch,
                           onPressed: path == null
                               ? null
                               : () => showBranchDialog(context, ref, path),
                         ),
                         BarTextButton(
                           icon: Icons.merge,
-                          label: 'Merge',
+                          label: l.bbMerge,
                           onPressed: path == null
                               ? null
                               : () => showMergeDialog(context, ref, path),
                         ),
                         BarTextButton(
                           icon: Icons.inventory_2_outlined,
-                          label: 'Stash',
+                          label: l.bbStash,
                           onPressed: path == null
                               ? null
                               : () => showStashDialog(context, ref, path),

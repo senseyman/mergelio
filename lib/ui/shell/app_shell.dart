@@ -23,6 +23,7 @@ import 'app_tab_bar.dart';
 import 'app_toolbar.dart';
 import 'keyboard_shortcuts.dart';
 import 'quit_guard.dart';
+import '../../l10n/gen/app_localizations.dart';
 
 /// Root application scaffold: chrome bars framing either the workspace (a repo
 /// is open) or the Welcome screen, with global overlays on top.
@@ -113,6 +114,7 @@ class _StartupNotices extends ConsumerStatefulWidget {
 class _StartupNoticesState extends ConsumerState<_StartupNotices> {
   @override
   void initState() {
+    final l = AppLocalizations.of(context);
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final notices = ref.read(interruptedOpsProvider);
@@ -120,7 +122,7 @@ class _StartupNoticesState extends ConsumerState<_StartupNotices> {
       ref
           .read(toastProvider.notifier)
           .show(
-            'A previous operation may not have finished',
+            l.shellPrevOpUnfinished,
             description: notices.join('\n'),
             kind: ToastKind.error,
           );

@@ -7,6 +7,7 @@ import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
 import '../common/dialogs.dart';
 import 'remote_merge_confirm.dart';
+import '../../l10n/gen/app_localizations.dart';
 
 /// Create-branch dialog: name, the branch to start from (defaults to the
 /// current one) and a checkout-after toggle.
@@ -15,13 +16,14 @@ Future<void> showBranchDialog(
   WidgetRef ref,
   String repoPath,
 ) async {
+  final l = AppLocalizations.of(context);
   final branches =
       ref.read(repoDataProvider(repoPath)).valueOrNull?.branches ??
       const <Branch>[];
   final current = branches.where((b) => b.current).firstOrNull?.name;
   await showAppModal<void>(
     context: context,
-    title: 'Create branch',
+    title: l.ropCreateBranchTitle,
     icon: Icons.call_split,
     body: _BranchBody(
       repoPath: repoPath,
@@ -38,6 +40,7 @@ Future<void> showMergeDialog(
   WidgetRef ref,
   String repoPath,
 ) async {
+  final l = AppLocalizations.of(context);
   // Awaited rather than read: a snapshot taken before the repository has
   // loaded would offer an empty branch list.
   RepoData? data;
@@ -58,7 +61,7 @@ Future<void> showMergeDialog(
   ];
   await showAppModal<void>(
     context: context,
-    title: 'Merge into ${current ?? 'current branch'}',
+    title: l.ropMergeIntoTitle(current ?? l.ropCurrentBranch),
     icon: Icons.merge,
     body: _MergeBody(
       repoPath: repoPath,
@@ -77,7 +80,7 @@ Future<void> showTagDialog(
   String? at,
 }) => showAppModal<void>(
   context: context,
-  title: 'Create tag',
+  title: AppLocalizations.of(context).ropCreateTagTitle,
   icon: Icons.sell_outlined,
   body: _TagBody(repoPath: repoPath, at: at),
 );
@@ -105,12 +108,13 @@ class _TagBodyState extends ConsumerState<_TagBody> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text('Tag name', style: TextStyle(color: t.textMuted, fontSize: 12)),
+        Text(l.ropTagName, style: TextStyle(color: t.textMuted, fontSize: 12)),
         const SizedBox(height: 6),
         TextField(
           controller: _name,
@@ -129,7 +133,7 @@ class _TagBodyState extends ConsumerState<_TagBody> {
           children: [
             Expanded(
               child: Text(
-                'Type',
+                l.ropType,
                 style: TextStyle(color: t.textMuted, fontSize: 12),
               ),
             ),
@@ -153,7 +157,7 @@ class _TagBodyState extends ConsumerState<_TagBody> {
             controller: _message,
             maxLines: 2,
             decoration: InputDecoration(
-              hintText: 'Tag message',
+              hintText: l.ropTagMessage,
               isDense: true,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(t.rButton),
@@ -167,7 +171,7 @@ class _TagBodyState extends ConsumerState<_TagBody> {
           children: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: Text(l.cancel),
             ),
             const SizedBox(width: 8),
             FilledButton(
@@ -189,7 +193,7 @@ class _TagBodyState extends ConsumerState<_TagBody> {
                         message: annotated ? (msg.isEmpty ? name : msg) : null,
                       );
                     },
-              child: const Text('Create'),
+              child: Text(l.create),
             ),
           ],
         ),
@@ -205,7 +209,7 @@ Future<void> showStashDialog(
   String repoPath,
 ) => showAppModal<void>(
   context: context,
-  title: 'Stash changes',
+  title: AppLocalizations.of(context).ropStashChangesTitle,
   icon: Icons.inventory_2_outlined,
   body: _StashBody(repoPath: repoPath),
 );
@@ -249,12 +253,16 @@ class _BranchBodyState extends ConsumerState<_BranchBody> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text('Branch name', style: TextStyle(color: t.textMuted, fontSize: 12)),
+        Text(
+          l.ropBranchName,
+          style: TextStyle(color: t.textMuted, fontSize: 12),
+        ),
         const SizedBox(height: 6),
         TextField(
           controller: _name,
@@ -269,7 +277,10 @@ class _BranchBodyState extends ConsumerState<_BranchBody> {
           ),
         ),
         const SizedBox(height: 14),
-        Text('Start from', style: TextStyle(color: t.textMuted, fontSize: 12)),
+        Text(
+          l.ropStartFrom,
+          style: TextStyle(color: t.textMuted, fontSize: 12),
+        ),
         const SizedBox(height: 6),
         DropdownButtonFormField<String>(
           initialValue: _from,
@@ -294,7 +305,7 @@ class _BranchBodyState extends ConsumerState<_BranchBody> {
           contentPadding: EdgeInsets.zero,
           controlAffinity: ListTileControlAffinity.leading,
           title: Text(
-            'Check out after creating',
+            l.ropCheckoutAfterCreating,
             style: TextStyle(color: t.textPrimary, fontSize: 13),
           ),
           value: _checkout,
@@ -306,12 +317,12 @@ class _BranchBodyState extends ConsumerState<_BranchBody> {
           children: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: Text(l.cancel),
             ),
             const SizedBox(width: 8),
             FilledButton(
               onPressed: _name.text.trim().isEmpty ? null : _create,
-              child: const Text('Create'),
+              child: Text(l.create),
             ),
           ],
         ),
@@ -339,10 +350,11 @@ class _MergeBodyState extends ConsumerState<_MergeBody> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     if (widget.branches.isEmpty && widget.remoteBranches.isEmpty) {
       return Text(
-        'No other branches to merge.',
+        l.ropNoOtherBranches,
         style: TextStyle(color: t.textMuted, fontSize: 13),
       );
     }
@@ -351,7 +363,7 @@ class _MergeBodyState extends ConsumerState<_MergeBody> {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          'Branch to merge',
+          l.ropBranchToMerge,
           style: TextStyle(color: t.textMuted, fontSize: 12),
         ),
         const SizedBox(height: 6),
@@ -392,7 +404,7 @@ class _MergeBodyState extends ConsumerState<_MergeBody> {
           children: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: Text(l.cancel),
             ),
             const SizedBox(width: 8),
             FilledButton(
@@ -417,7 +429,7 @@ class _MergeBodyState extends ConsumerState<_MergeBody> {
                       navigator.pop();
                       await actions.merge(source);
                     },
-              child: const Text('Merge'),
+              child: Text(l.ropMerge),
             ),
           ],
         ),
@@ -446,13 +458,14 @@ class _StashBodyState extends ConsumerState<_StashBody> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          'Message (optional)',
+          l.ropMessageOptional,
           style: TextStyle(color: t.textMuted, fontSize: 12),
         ),
         const SizedBox(height: 6),
@@ -472,7 +485,7 @@ class _StashBodyState extends ConsumerState<_StashBody> {
           contentPadding: EdgeInsets.zero,
           controlAffinity: ListTileControlAffinity.leading,
           title: Text(
-            'Only staged changes',
+            l.ropOnlyStaged,
             style: TextStyle(color: t.textPrimary, fontSize: 13),
           ),
           value: _stagedOnly,
@@ -484,7 +497,7 @@ class _StashBodyState extends ConsumerState<_StashBody> {
           children: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: Text(l.cancel),
             ),
             const SizedBox(width: 8),
             FilledButton(
@@ -497,7 +510,7 @@ class _StashBodyState extends ConsumerState<_StashBody> {
                   stagedOnly: _stagedOnly,
                 );
               },
-              child: const Text('Stash'),
+              child: Text(l.ropStash),
             ),
           ],
         ),
