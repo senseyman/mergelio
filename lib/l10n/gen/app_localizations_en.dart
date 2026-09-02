@@ -72,19 +72,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get opForcePush => 'Force-push (with lease)';
 
   @override
-  String get opUndo => 'Undo';
-
-  @override
-  String get opRedo => 'Redo';
-
-  @override
   String get welcomeOpen => 'Open';
-
-  @override
-  String get welcomeClone => 'Clone';
-
-  @override
-  String get welcomeCreate => 'Create';
 
   @override
   String get welcomeRecents => 'Recent repositories';
@@ -1891,9 +1879,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get fepDeletedOnDisk => 'Deleted on disk — saving is disabled';
-
-  @override
-  String get pnpNavigator => 'project navigator';
 
   @override
   String get pnpNewFileMenu => 'New file…';

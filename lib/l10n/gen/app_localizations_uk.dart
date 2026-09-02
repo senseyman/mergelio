@@ -72,19 +72,7 @@ class AppLocalizationsUk extends AppLocalizations {
   String get opForcePush => 'Примусово надіслати (with lease)';
 
   @override
-  String get opUndo => 'Скасувати';
-
-  @override
-  String get opRedo => 'Повторити';
-
-  @override
   String get welcomeOpen => 'Відкрити';
-
-  @override
-  String get welcomeClone => 'Клонувати';
-
-  @override
-  String get welcomeCreate => 'Створити';
 
   @override
   String get welcomeRecents => 'Нещодавні репозиторії';
@@ -1898,9 +1886,6 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get fepDeletedOnDisk => 'Видалено з диска — збереження вимкнено';
-
-  @override
-  String get pnpNavigator => 'навігатор проєкту';
 
   @override
   String get pnpNewFileMenu => 'Новий файл…';

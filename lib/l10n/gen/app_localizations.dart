@@ -224,35 +224,11 @@ abstract class AppLocalizations {
   /// **'Force-push (with lease)'**
   String get opForcePush;
 
-  /// No description provided for @opUndo.
-  ///
-  /// In en, this message translates to:
-  /// **'Undo'**
-  String get opUndo;
-
-  /// No description provided for @opRedo.
-  ///
-  /// In en, this message translates to:
-  /// **'Redo'**
-  String get opRedo;
-
   /// No description provided for @welcomeOpen.
   ///
   /// In en, this message translates to:
   /// **'Open'**
   String get welcomeOpen;
-
-  /// No description provided for @welcomeClone.
-  ///
-  /// In en, this message translates to:
-  /// **'Clone'**
-  String get welcomeClone;
-
-  /// No description provided for @welcomeCreate.
-  ///
-  /// In en, this message translates to:
-  /// **'Create'**
-  String get welcomeCreate;
 
   /// No description provided for @welcomeRecents.
   ///
@@ -3397,12 +3373,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Deleted on disk — saving is disabled'**
   String get fepDeletedOnDisk;
-
-  /// No description provided for @pnpNavigator.
-  ///
-  /// In en, this message translates to:
-  /// **'project navigator'**
-  String get pnpNavigator;
 
   /// No description provided for @pnpNewFileMenu.
   ///

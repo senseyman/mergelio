@@ -23,12 +23,8 @@
   "opPush": "Push",
   "opPushOrigin": "Push origin",
   "opForcePush": "Force-push (with lease)",
-  "opUndo": "Undo",
-  "opRedo": "Redo",
 
   "welcomeOpen": "Open",
-  "welcomeClone": "Clone",
-  "welcomeCreate": "Create",
   "welcomeRecents": "Recent repositories",
   "welcomeNoRecents": "No recent repositories yet",
 
@@ -1019,7 +1015,6 @@
   "diffStagedLabel": "Staged",
   "fepOpenAFile": "Open a file to edit it",
   "fepDeletedOnDisk": "Deleted on disk — saving is disabled",
-  "pnpNavigator": "project navigator",
   "pnpNewFileMenu": "New file…",
   "pnpNewFolderMenu": "New folder…",
   "pnpRenameMenu": "Rename…",

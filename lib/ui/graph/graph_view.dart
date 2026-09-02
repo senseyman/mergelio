@@ -359,6 +359,7 @@ class _GraphListState extends ConsumerState<GraphList> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final d = widget.data;
     final compact = ref.watch(settingsProvider.select((s) => s.graphCompact));
     final cols = ref.watch(settingsProvider.select((s) => s.graphCols));
@@ -413,7 +414,7 @@ class _GraphListState extends ConsumerState<GraphList> {
           );
     final matchShas = _matchesFor(d, query, pathShas, content?.valueOrNull);
 
-    return Column(
+    final graph = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (query != null)
@@ -604,6 +605,7 @@ class _GraphListState extends ConsumerState<GraphList> {
         ),
       ],
     );
+    return Semantics(container: true, label: l.a11yCommitGraph, child: graph);
   }
 }
 

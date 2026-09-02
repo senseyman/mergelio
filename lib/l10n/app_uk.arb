@@ -23,12 +23,8 @@
   "opPush": "Надіслати",
   "opPushOrigin": "Надіслати origin",
   "opForcePush": "Примусово надіслати (with lease)",
-  "opUndo": "Скасувати",
-  "opRedo": "Повторити",
 
   "welcomeOpen": "Відкрити",
-  "welcomeClone": "Клонувати",
-  "welcomeCreate": "Створити",
   "welcomeRecents": "Нещодавні репозиторії",
   "welcomeNoRecents": "Ще немає нещодавніх репозиторіїв",
 
@@ -607,7 +603,6 @@
   "diffStagedLabel": "Проіндексовані",
   "fepOpenAFile": "Відкрийте файл, щоб редагувати його",
   "fepDeletedOnDisk": "Видалено з диска — збереження вимкнено",
-  "pnpNavigator": "навігатор проєкту",
   "pnpNewFileMenu": "Новий файл…",
   "pnpNewFolderMenu": "Нова тека…",
   "pnpRenameMenu": "Перейменувати…",

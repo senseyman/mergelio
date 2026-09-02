@@ -44,97 +44,101 @@ class WorkingTreePanel extends ConsumerWidget {
     final resolving = ref.watch(mergeSessionProvider(repoPath)) != null;
     final pending = ref.watch(pendingOpProvider(repoPath)).valueOrNull;
 
-    return Container(
-      color: t.bgPanel,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _Header(
-            title: l.wtpChanges,
-            trailing: clean
-                ? null
-                : Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        iconSize: 15,
-                        visualDensity: VisualDensity.compact,
-                        tooltip: l.wtpDiscardAll,
-                        icon: const Icon(Icons.backspace_outlined),
-                        onPressed: () => _confirmDiscardAll(
-                          ref,
-                          context,
-                          repoPath,
-                          untracked: data.working
-                              .where((f) => f.isUntracked)
-                              .length,
+    return Semantics(
+      container: true,
+      label: l.a11yWorkingChanges,
+      child: Container(
+        color: t.bgPanel,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _Header(
+              title: l.wtpChanges,
+              trailing: clean
+                  ? null
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          iconSize: 15,
+                          visualDensity: VisualDensity.compact,
+                          tooltip: l.wtpDiscardAll,
+                          icon: const Icon(Icons.backspace_outlined),
+                          onPressed: () => _confirmDiscardAll(
+                            ref,
+                            context,
+                            repoPath,
+                            untracked: data.working
+                                .where((f) => f.isUntracked)
+                                .length,
+                          ),
                         ),
-                      ),
-                      const FileViewToggle(),
-                    ],
-                  ),
-          ),
-          if (hasConflicts && !resolving)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 6, 8, 2),
-              child: SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: actions.openConflictResolution,
-                  icon: const Icon(Icons.merge_type, size: 16),
-                  label: Text(l.mergeResolveConflicts),
-                ),
-              ),
-            )
-          else if (!resolving && pending != null)
-            _PendingOpBar(repoPath: repoPath, pending: pending),
-          Expanded(
-            child: clean
-                ? _CleanState()
-                : ListView(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    children: [
-                      _FileSection(
-                        label: l.wtpUnstaged,
-                        repoPath: repoPath,
-                        files: unstaged,
-                        staged: false,
-                        tree: tree,
-                        onBulk: actions.stageAll,
-                        bulkLabel: l.wtpStageAll,
-                        onToggle: (f) => actions.stageFile(f.path),
-                        onOpen: (f) => _open(ref, f.path, staged: false),
-                        onDiscard: (f) =>
-                            _confirmDiscardFile(ref, context, repoPath, f),
-                      ),
-                      _FileSection(
-                        label: l.wtpStaged,
-                        repoPath: repoPath,
-                        files: staged,
-                        staged: true,
-                        tree: tree,
-                        onBulk: actions.unstageAll,
-                        bulkLabel: l.wtpUnstageAll,
-                        onToggle: (f) => actions.unstageFile(f.path),
-                        onOpen: (f) => _open(ref, f.path, staged: true),
-                        onDiscard: (f) =>
-                            _confirmDiscardFile(ref, context, repoPath, f),
-                      ),
-                    ],
-                  ),
-          ),
-          // A merge whose resolution matched HEAD leaves a clean tree, and the
-          // merge commit is still owed — the composer has to stay reachable.
-          if (!clean || pending?.kind == MergeKind.merge)
-            _Composer(
-              repoPath: repoPath,
-              stagedCount: staged.length,
-              // A paused sequence commits through its own --continue; a stray
-              // commit here would strand the rest of the sequence.
-              sequencePaused: pending?.continues ?? false,
-              merging: pending?.kind == MergeKind.merge,
+                        const FileViewToggle(),
+                      ],
+                    ),
             ),
-        ],
+            if (hasConflicts && !resolving)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 6, 8, 2),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: actions.openConflictResolution,
+                    icon: const Icon(Icons.merge_type, size: 16),
+                    label: Text(l.mergeResolveConflicts),
+                  ),
+                ),
+              )
+            else if (!resolving && pending != null)
+              _PendingOpBar(repoPath: repoPath, pending: pending),
+            Expanded(
+              child: clean
+                  ? _CleanState()
+                  : ListView(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      children: [
+                        _FileSection(
+                          label: l.wtpUnstaged,
+                          repoPath: repoPath,
+                          files: unstaged,
+                          staged: false,
+                          tree: tree,
+                          onBulk: actions.stageAll,
+                          bulkLabel: l.wtpStageAll,
+                          onToggle: (f) => actions.stageFile(f.path),
+                          onOpen: (f) => _open(ref, f.path, staged: false),
+                          onDiscard: (f) =>
+                              _confirmDiscardFile(ref, context, repoPath, f),
+                        ),
+                        _FileSection(
+                          label: l.wtpStaged,
+                          repoPath: repoPath,
+                          files: staged,
+                          staged: true,
+                          tree: tree,
+                          onBulk: actions.unstageAll,
+                          bulkLabel: l.wtpUnstageAll,
+                          onToggle: (f) => actions.unstageFile(f.path),
+                          onOpen: (f) => _open(ref, f.path, staged: true),
+                          onDiscard: (f) =>
+                              _confirmDiscardFile(ref, context, repoPath, f),
+                        ),
+                      ],
+                    ),
+            ),
+            // A merge whose resolution matched HEAD leaves a clean tree, and the
+            // merge commit is still owed — the composer has to stay reachable.
+            if (!clean || pending?.kind == MergeKind.merge)
+              _Composer(
+                repoPath: repoPath,
+                stagedCount: staged.length,
+                // A paused sequence commits through its own --continue; a stray
+                // commit here would strand the rest of the sequence.
+                sequencePaused: pending?.continues ?? false,
+                merging: pending?.kind == MergeKind.merge,
+              ),
+          ],
+        ),
       ),
     );
   }
