@@ -43,7 +43,7 @@ built on a host of the matching platform.
 | Platform | Command | Output |
 | --- | --- | --- |
 | macOS, ad-hoc signed | `make build-macos` | `dist/<APP_NAME>-<version>-macos-<arch>.zip` |
-| macOS, Developer ID | `./scripts/build-macos-dmg.sh` | `dist/<APP_NAME>-<version>-macos-<arch>.dmg` |
+| macOS, Developer ID | `./scripts/build-macos-dmg.sh` | `dist/<APP_NAME>-<version>-macos-<arch>.dmg` and `-update.zip` |
 | Linux, portable | `make build-linux` | `dist/<APP_NAME>-<version>-linux-<arch>.tar.gz` |
 | Debian / Ubuntu | `make installer-linux` | `dist/mergelio_<version>_<debarch>.deb` |
 | Fedora | `make installer-fedora` | `dist/mergelio-<version>-<release>.<dist>.<rpmarch>.rpm` |
@@ -117,6 +117,12 @@ Each variable degrades gracefully. With `MACOS_NOTARY_PROFILE` empty you get a
 signed but un-notarized DMG. With `MACOS_SIGN_IDENTITY` empty you get an ad-hoc
 signed `.app` — enough to run locally, not enough to hand to someone else.
 
+Alongside the DMG the script emits `…-macos-<arch>-update.zip`: the same bundle,
+stapled and archived with `ditto`. The notarization ticket is keyed to the
+code's cdhash rather than the container, so stapling the `.app` needs no second
+notary submission, and the zip is what the in-app updater downloads — it
+launches offline, without a Gatekeeper round trip.
+
 ## Release pipeline
 
 `.github/workflows/release.yml` runs on every pushed `v*` tag, and can also be
@@ -126,7 +132,7 @@ release is drafted in that case — a GitHub release needs a tag to hang off).
 | Job | Runner | Produces |
 | --- | --- | --- |
 | Gate | ubuntu-latest | version check, formatting, `flutter analyze`, tests |
-| macOS (arm64) | macos-15 | signed, notarized `.dmg` |
+| macOS (arm64) | macos-15 | signed, notarized `.dmg` and `-update.zip` |
 | Windows (x64) | windows-2022 | `…-setup.exe` |
 | Linux (x64) | ubuntu-22.04 | `.deb` |
 | Fedora (x64) | `fedora:41` container | signed `.rpm` |
@@ -145,12 +151,13 @@ someone has looked at the artifacts and pressed publish.
 
 ### Secrets
 
-Each is optional and degrades on its own; the pipeline never fails for a
-missing one, it publishes something less trustworthy and says so in the log.
+Most degrade on their own: the pipeline publishes something less trustworthy
+and says so in the log. The macOS certificate is the exception — without it the
+macOS job fails and no release is produced.
 
 | Secret | Missing means |
 | --- | --- |
-| `MACOS_CERT_P12`, `MACOS_CERT_PASSWORD` | an ad-hoc signed zip instead of a signed DMG |
+| `MACOS_CERT_P12`, `MACOS_CERT_PASSWORD` | the macOS job fails; a release is never signed ad-hoc |
 | `MACOS_APPLE_ID`, `MACOS_APP_PASSWORD`, `MACOS_TEAM_ID`, `MACOS_SIGN_IDENTITY` | needed alongside the certificate for notarization |
 | `LINUX_GPG_PRIVATE_KEY`, `LINUX_GPG_PASSPHRASE` | an unsigned `.rpm` and unsigned checksums |
 | `WINDOWS_SIGN_TOKEN` | an unsigned `setup.exe` — SmartScreen warns on first run |
