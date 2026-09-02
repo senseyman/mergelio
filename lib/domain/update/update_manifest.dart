@@ -1,3 +1,7 @@
+// The analyzer rejects JsonKey on a constructor parameter, but freezed forwards
+// it to the generated field where it is valid.
+// ignore_for_file: invalid_annotation_target
+
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'app_version.dart';
@@ -32,9 +36,6 @@ class UpdateManifest with _$UpdateManifest {
     required String version,
     @Default(0) int build,
     DateTime? published,
-    // The analyzer cannot tell that freezed forwards this onto the generated
-    // field, where JsonKey is valid.
-    // ignore: invalid_annotation_target
     @JsonKey(name: 'notes_url') required String notesUrl,
     @Default(<String, UpdateArtifact>{}) Map<String, UpdateArtifact> artifacts,
   }) = _UpdateManifest;
