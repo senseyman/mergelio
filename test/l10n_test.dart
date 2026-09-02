@@ -119,4 +119,23 @@ void main() {
       });
     }
   });
+
+  // Ukrainian selects three forms for whole numbers: 1/21/31 (one),
+  // 2-4/22-24 (few), 5-20/25-30 (many). Pinning the rendered text rather than
+  // the category, so this holds whichever way the ARB spells the rule.
+  testWidgets('Ukrainian picks one / few / many by count', (tester) async {
+    Future<String> render(int n) async {
+      await tester.pumpWidget(
+        _pluralApp(const Locale('uk'), (l) => l.rbCommitCount(n)),
+      );
+      await tester.pumpAndSettle();
+      return tester.widget<Text>(find.byType(Text)).data!;
+    }
+
+    expect(await render(1), '1 коміт');
+    expect(await render(2), '2 коміти');
+    expect(await render(5), '5 комітів');
+    expect(await render(21), '21 коміт');
+    expect(await render(25), '25 комітів');
+  });
 }

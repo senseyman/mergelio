@@ -123,7 +123,7 @@ class AppLocalizationsUk extends AppLocalizations {
   String get prefsDateFormat => 'Формат дати';
 
   @override
-  String get prefsGraphColumns => 'Колонки графа';
+  String get prefsGraphColumns => 'Стовпці графа';
 
   @override
   String get prefsCompactRows => 'Компактні рядки';
@@ -244,7 +244,7 @@ class AppLocalizationsUk extends AppLocalizations {
   String get menuResetHard => 'Скинути сюди (--hard)';
 
   @override
-  String get menuEditMessage => 'Редагувати опис…';
+  String get menuEditMessage => 'Редагувати повідомлення…';
 
   @override
   String get menuCopySummary => 'Копіювати заголовок';
@@ -391,7 +391,7 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String tabWorktreeOf(String parent) {
-    return 'Робоче дерево $parent';
+    return 'Робоче дерево репозиторію $parent';
   }
 
   @override
@@ -480,7 +480,7 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get wtTwoPlacesWarning =>
-      'Перемикання попри це розмістить гілку у двох місцях одночасно; коміти, зроблені в одному, залишать інше позаду.';
+      'Перемикання попри це розмістить гілку у двох місцях одночасно; коміти, зроблені в одному, не потраплять до іншого.';
 
   @override
   String get wtCheckoutAnyway => 'Усе одно переключитися';
@@ -586,6 +586,8 @@ class AppLocalizationsUk extends AppLocalizations {
       count,
       locale: localeName,
       other:
+          '$count невідправленого коміта у $branch буде вилучено. Цю дію можна скасувати.',
+      many:
           '$count невідправлених комітів у $branch буде вилучено. Цю дію можна скасувати.',
       few:
           '$count невідправлені коміти у $branch буде вилучено. Цю дію можна скасувати.',
@@ -872,7 +874,8 @@ class AppLocalizationsUk extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Також видалити $count невідстежуваних файлів',
+      other: 'Також видалити $count невідстежуваного файла',
+      many: 'Також видалити $count невідстежуваних файлів',
       few: 'Також видалити $count невідстежувані файли',
       one: 'Також видалити $count невідстежуваний файл',
     );
@@ -887,7 +890,8 @@ class AppLocalizationsUk extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Відкинути $count рядків?',
+      other: 'Відкинути $count рядка?',
+      many: 'Відкинути $count рядків?',
       few: 'Відкинути $count рядки?',
       one: 'Відкинути $count рядок?',
     );
@@ -1008,7 +1012,7 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String rmcDaysAgo(int days) {
-    return '$days дн тому';
+    return '$days дн. тому';
   }
 
   @override
@@ -1056,7 +1060,7 @@ class AppLocalizationsUk extends AppLocalizations {
   String get ropType => 'Тип';
 
   @override
-  String get ropTagMessage => 'Опис тегу';
+  String get ropTagMessage => 'Повідомлення тегу';
 
   @override
   String get ropStashChangesTitle => 'Сховати зміни';
@@ -1080,7 +1084,7 @@ class AppLocalizationsUk extends AppLocalizations {
   String get ropMerge => 'Злити';
 
   @override
-  String get ropMessageOptional => 'Опис (необов’язково)';
+  String get ropMessageOptional => 'Повідомлення (необов’язково)';
 
   @override
   String get ropOnlyStaged => 'Лише проіндексовані зміни';
@@ -1164,7 +1168,7 @@ class AppLocalizationsUk extends AppLocalizations {
       'Продовжте або перервіть її вище; коміт тут залишить решту послідовності незавершеною.';
 
   @override
-  String get wtpMessageEmpty => 'Опис коміту порожній';
+  String get wtpMessageEmpty => 'Повідомлення коміту порожнє';
 
   @override
   String get wtpNothingStaged => 'Нічого не проіндексовано для коміту';
@@ -1427,7 +1431,8 @@ class AppLocalizationsUk extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Незакомічені зміни · $count файлів',
+      other: 'Незакомічені зміни · $count файла',
+      many: 'Незакомічені зміни · $count файлів',
       few: 'Незакомічені зміни · $count файли',
       one: 'Незакомічені зміни · $count файл',
     );
@@ -1439,7 +1444,7 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String gvCannotRebaseBody(String sha) {
-    return 'Коміти вище $sha містять злиття, яке перебазування злило б в один рядок.';
+    return 'Коміти вище $sha містять злиття, яке перебазування розгорнуло б у лінійну історію.';
   }
 
   @override
@@ -1457,7 +1462,7 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get gvResetBody =>
-      'Переміщує поточну гілку на цей коміт і відкидає всі незакомічені зміни. Це не можна скасувати з диска.';
+      'Переміщує поточну гілку на цей коміт і відкидає всі незакомічені зміни. Їх буде втрачено безповоротно.';
 
   @override
   String get gvResetHard => 'Reset --hard';
@@ -1700,13 +1705,14 @@ class AppLocalizationsUk extends AppLocalizations {
   String get rbPick => 'залишити цей коміт як є';
 
   @override
-  String get rbReword => 'залишити цей коміт, змінити його опис';
+  String get rbReword => 'залишити цей коміт, змінити його повідомлення';
 
   @override
-  String get rbSquash => 'об’єднати з комітом вище, зберегти обидва описи';
+  String get rbSquash =>
+      'об’єднати з комітом вище, зберегти обидва повідомлення';
 
   @override
-  String get rbFixup => 'об’єднати з комітом вище, відкинути його опис';
+  String get rbFixup => 'об’єднати з комітом вище, відкинути його повідомлення';
 
   @override
   String get rbDrop => 'повністю вилучити цей коміт';
@@ -1718,7 +1724,8 @@ class AppLocalizationsUk extends AppLocalizations {
   String get rbPresetSquashAll => 'Об’єднати в один коміт';
 
   @override
-  String get rbPresetSquashKeepFirst => 'Об’єднати, зберегти перший опис';
+  String get rbPresetSquashKeepFirst =>
+      'Об’єднати, зберегти перше повідомлення';
 
   @override
   String rbSummaryAsIs(int count) {
@@ -1727,12 +1734,12 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String rbSummarySquashAll(int count) {
-    return 'Об’єднати всі $count в один коміт; усі описи буде збережено, один за одним.';
+    return 'Об’єднати всі $count в один коміт; усі повідомлення буде збережено, одне за одним.';
   }
 
   @override
   String rbSummarySquashKeepFirst(int count) {
-    return 'Об’єднати всі $count в один коміт; збережено буде лише перший опис.';
+    return 'Об’єднати всі $count в один коміт; збережено буде лише перше повідомлення.';
   }
 
   @override
@@ -1743,7 +1750,8 @@ class AppLocalizationsUk extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count комітів',
+      other: '$count коміта',
+      many: '$count комітів',
       few: '$count коміти',
       one: '$count коміт',
     );
@@ -1755,7 +1763,8 @@ class AppLocalizationsUk extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count комітів на $onto',
+      other: '$count коміта на $onto',
+      many: '$count комітів на $onto',
       few: '$count коміти на $onto',
       one: '$count коміт на $onto',
     );
@@ -1776,7 +1785,7 @@ class AppLocalizationsUk extends AppLocalizations {
       'Виберіть дію для кожного коміту або перетягніть, щоб змінити порядок.';
 
   @override
-  String get dlgEditCommitMessage => 'Редагувати опис коміту';
+  String get dlgEditCommitMessage => 'Редагувати повідомлення коміту';
 
   @override
   String dlgUnsavedOne(String path) {
@@ -1852,10 +1861,10 @@ class AppLocalizationsUk extends AppLocalizations {
   String get diffShowWholeFile => 'Показати весь файл';
 
   @override
-  String get diffCouldNotLoad => 'Не вдалося завантажити відмінності';
+  String get diffCouldNotLoad => 'Не вдалося завантажити зміни';
 
   @override
-  String get diffBinaryFile => 'Двійковий файл — відмінності не показано';
+  String get diffBinaryFile => 'Двійковий файл — зміни не показано';
 
   @override
   String get diffCouldNotStage => 'Не вдалося проіндексувати';
