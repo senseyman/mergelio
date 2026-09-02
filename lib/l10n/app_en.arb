@@ -500,5 +500,20 @@
     }
   },
   "filesRefresh": "Refresh",
-  "filesCollapse": "Collapse"
+  "filesCollapse": "Collapse",
+
+  "wtpAlsoDeleteUntracked": "{count, plural, one{Also delete {count} untracked file} other{Also delete {count} untracked files}}",
+  "@wtpAlsoDeleteUntracked": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "diffDiscardHunkTitle": "Discard hunk?",
+  "diffDiscardLinesTitle": "{count, plural, one{Discard {count} line?} other{Discard {count} lines?}}",
+  "@diffDiscardLinesTitle": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "diffDiscardLinesBody": "This removes the selected changes from the working tree. You can undo it."
 }

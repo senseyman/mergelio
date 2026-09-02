@@ -18,6 +18,7 @@ import '../common/confirm.dart';
 import '../common/dialogs.dart';
 import '../common/file_tree_view.dart';
 import '../insight/file_insight_dialog.dart';
+import '../../l10n/gen/app_localizations.dart';
 
 /// Right panel shown when no commit is selected: STAGED / UNSTAGED file lists
 /// and the commit composer. A partially-staged file appears in both lists.
@@ -857,6 +858,7 @@ Future<void> _confirmDiscardAll(
   required int untracked,
 }) async {
   var deleteUntracked = false;
+  final l = AppLocalizations.of(context);
   final t = context.tokens;
   final ok = await showAppModal<bool>(
     context: context,
@@ -886,8 +888,7 @@ Future<void> _confirmDiscardAll(
                   ),
                   Expanded(
                     child: Text(
-                      'Also delete $untracked untracked '
-                      '${untracked == 1 ? 'file' : 'files'}',
+                      l.wtpAlsoDeleteUntracked(untracked),
                       style: TextStyle(color: t.textMuted, fontSize: 13),
                     ),
                   ),

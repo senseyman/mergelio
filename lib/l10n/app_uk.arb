@@ -304,5 +304,10 @@
   "filesDeleteTitle": "Видалити {name}?",
   "filesDiscardChangesTitle": "Відкинути зміни у {name}?",
   "filesRefresh": "Оновити",
-  "filesCollapse": "Згорнути"
+  "filesCollapse": "Згорнути",
+
+  "wtpAlsoDeleteUntracked": "{count, plural, one{Також видалити {count} невідстежуваний файл} few{Також видалити {count} невідстежувані файли} other{Також видалити {count} невідстежуваних файлів}}",
+  "diffDiscardHunkTitle": "Відкинути блок змін?",
+  "diffDiscardLinesTitle": "{count, plural, one{Відкинути {count} рядок?} few{Відкинути {count} рядки?} other{Відкинути {count} рядків?}}",
+  "diffDiscardLinesBody": "Це вилучить вибрані зміни з робочого дерева. Дію можна скасувати."
 }

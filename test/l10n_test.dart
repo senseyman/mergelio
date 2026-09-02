@@ -81,4 +81,42 @@ void main() {
       }
     });
   });
+
+  // These three read a count the caller already has, so a form that drops it
+  // is silently wrong rather than ungrammatical: it names some other number.
+  group('counted strings name their count', () {
+    Future<String> render(
+      WidgetTester tester,
+      Locale locale,
+      String Function(AppLocalizations) pick,
+    ) async {
+      await tester.pumpWidget(_pluralApp(locale, pick));
+      await tester.pumpAndSettle();
+      return tester.widget<Text>(find.byType(Text)).data!;
+    }
+
+    for (final locale in [const Locale('en'), const Locale('uk')]) {
+      testWidgets('untracked-file count in ${locale.languageCode}', (
+        tester,
+      ) async {
+        for (final n in [1, 2, 5, 21]) {
+          expect(
+            await render(tester, locale, (l) => l.wtpAlsoDeleteUntracked(n)),
+            contains('$n'),
+          );
+        }
+      });
+
+      testWidgets('discarded-line count in ${locale.languageCode}', (
+        tester,
+      ) async {
+        for (final n in [1, 2, 5, 21]) {
+          expect(
+            await render(tester, locale, (l) => l.diffDiscardLinesTitle(n)),
+            contains('$n'),
+          );
+        }
+      });
+    }
+  });
 }

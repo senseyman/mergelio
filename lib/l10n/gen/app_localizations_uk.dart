@@ -878,4 +878,35 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get filesCollapse => 'Згорнути';
+
+  @override
+  String wtpAlsoDeleteUntracked(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Також видалити $count невідстежуваних файлів',
+      few: 'Також видалити $count невідстежувані файли',
+      one: 'Також видалити $count невідстежуваний файл',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get diffDiscardHunkTitle => 'Відкинути блок змін?';
+
+  @override
+  String diffDiscardLinesTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Відкинути $count рядків?',
+      few: 'Відкинути $count рядки?',
+      one: 'Відкинути $count рядок?',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get diffDiscardLinesBody =>
+      'Це вилучить вибрані зміни з робочого дерева. Дію можна скасувати.';
 }

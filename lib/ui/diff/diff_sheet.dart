@@ -523,12 +523,9 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
                 ref,
                 context,
                 title: lineIndexes == null
-                    ? 'Discard hunk?'
-                    : 'Discard ${lineIndexes.length} '
-                          '${lineIndexes.length == 1 ? 'line' : 'lines'}?',
-                body:
-                    'This removes the selected changes from the working tree. '
-                    'You can undo it.',
+                    ? l.diffDiscardHunkTitle
+                    : l.diffDiscardLinesTitle(lineIndexes.length),
+                body: l.diffDiscardLinesBody,
                 confirmLabel: l.discard,
               );
               if (!ok) return;

@@ -1621,6 +1621,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Collapse'**
   String get filesCollapse;
+
+  /// No description provided for @wtpAlsoDeleteUntracked.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{Also delete {count} untracked file} other{Also delete {count} untracked files}}'**
+  String wtpAlsoDeleteUntracked(int count);
+
+  /// No description provided for @diffDiscardHunkTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard hunk?'**
+  String get diffDiscardHunkTitle;
+
+  /// No description provided for @diffDiscardLinesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{Discard {count} line?} other{Discard {count} lines?}}'**
+  String diffDiscardLinesTitle(int count);
+
+  /// No description provided for @diffDiscardLinesBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This removes the selected changes from the working tree. You can undo it.'**
+  String get diffDiscardLinesBody;
 }
 
 class _AppLocalizationsDelegate

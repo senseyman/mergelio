@@ -876,4 +876,33 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get filesCollapse => 'Collapse';
+
+  @override
+  String wtpAlsoDeleteUntracked(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Also delete $count untracked files',
+      one: 'Also delete $count untracked file',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get diffDiscardHunkTitle => 'Discard hunk?';
+
+  @override
+  String diffDiscardLinesTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Discard $count lines?',
+      one: 'Discard $count line?',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get diffDiscardLinesBody =>
+      'This removes the selected changes from the working tree. You can undo it.';
 }
