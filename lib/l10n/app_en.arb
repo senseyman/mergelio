@@ -118,7 +118,7 @@
       "sha": {"type": "String"}
     }
   },
-  "mergeInto": "Merge {branch} \u2192 {into}",
+  "mergeInto": "Merge {branch} → {into}",
   "@mergeInto": {
     "placeholders": {
       "branch": {"type": "String"},
