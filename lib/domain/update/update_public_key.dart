@@ -4,4 +4,5 @@
 ///
 /// Raw 32-byte Ed25519 public key, base64. Rotating it invalidates every
 /// manifest signed with the previous key.
-const String kUpdatePublicKeyBase64 = '+sdKhMN5GQQlHcqSuDvPC4XRgN6hXZ5/P5xBWKAy4J0=';
+const String kUpdatePublicKeyBase64 =
+    '+sdKhMN5GQQlHcqSuDvPC4XRgN6hXZ5/P5xBWKAy4J0=';
