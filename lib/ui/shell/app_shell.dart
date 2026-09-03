@@ -117,9 +117,13 @@ class _StartupNotices extends ConsumerStatefulWidget {
 class _StartupNoticesState extends ConsumerState<_StartupNotices> {
   @override
   void initState() {
-    final l = AppLocalizations.of(context);
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // Read after the first frame, not in initState: an inherited widget
+      // cannot be depended on before initState has finished.
+      final l = AppLocalizations.of(context);
+
       final notices = ref.read(interruptedOpsProvider);
       if (notices.isNotEmpty) {
         ref
@@ -131,7 +135,6 @@ class _StartupNoticesState extends ConsumerState<_StartupNotices> {
             );
       }
 
-      if (!mounted) return;
       final consent = ref.read(settingsProvider).updateConsent;
       if (consent.isEmpty) {
         // First launch: put the question once and record the answer. Until it
