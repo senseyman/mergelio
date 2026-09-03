@@ -1971,4 +1971,77 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get pnpHideIgnored => 'Сховати ігноровані файли';
+
+  @override
+  String get prefsTabUpdates => 'Оновлення';
+
+  @override
+  String updateBannerAvailable(String version) {
+    return 'Доступна Mergelio $version';
+  }
+
+  @override
+  String get updateBannerDownloading => 'Завантаження оновлення…';
+
+  @override
+  String get updateBannerReady => 'Оновлення готове до встановлення';
+
+  @override
+  String get updateActionDownload => 'Завантажити';
+
+  @override
+  String get updateActionInstall => 'Встановити й перезапустити';
+
+  @override
+  String get updateActionNotes => 'Опис змін';
+
+  @override
+  String get updateActionSkip => 'Пропустити цю версію';
+
+  @override
+  String get updateActionLater => 'Пізніше';
+
+  @override
+  String get updateBlockedBusy => 'Чекаємо, поки завершиться поточна операція';
+
+  @override
+  String get updateManualNone => 'У вас найновіша версія';
+
+  @override
+  String get updateManualFailed => 'Не вдалося перевірити оновлення';
+
+  @override
+  String get updateLinuxHint => 'Встановіть через менеджер пакетів';
+
+  @override
+  String get updateConsentTitle => 'Перевіряти оновлення?';
+
+  @override
+  String get updateConsentBody =>
+      'Mergelio може раз на добу питати GitHub про новий реліз. Без акаунта, без ідентифікаторів, нічого про ваші репозиторії не надсилається.';
+
+  @override
+  String get updateConsentYes => 'Перевіряти';
+
+  @override
+  String get updateConsentNo => 'Не перевіряти';
+
+  @override
+  String updatePrefsCurrent(String version) {
+    return 'Поточна версія: $version';
+  }
+
+  @override
+  String get updatePrefsAuto => 'Перевіряти оновлення автоматично';
+
+  @override
+  String get updatePrefsCheckNow => 'Перевірити зараз';
+
+  @override
+  String updatePrefsLastCheck(String when) {
+    return 'Остання перевірка: $when';
+  }
+
+  @override
+  String get updatePrefsNever => 'ніколи';
 }
