@@ -10,6 +10,7 @@ import '../../state/profile_workspace_sync.dart';
 import '../../state/profiles.dart';
 import '../../state/repo_watcher.dart';
 import '../../state/settings_controller.dart';
+import '../../state/update_controller.dart';
 import '../../state/workspace.dart';
 import '../terminal/terminal_panel.dart';
 import '../common/progress_top_bar.dart';
@@ -120,14 +121,25 @@ class _StartupNoticesState extends ConsumerState<_StartupNotices> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final notices = ref.read(interruptedOpsProvider);
-      if (notices.isEmpty) return;
-      ref
-          .read(toastProvider.notifier)
-          .show(
-            l.shellPrevOpUnfinished,
-            description: notices.join('\n'),
-            kind: ToastKind.error,
-          );
+      if (notices.isNotEmpty) {
+        ref
+            .read(toastProvider.notifier)
+            .show(
+              l.shellPrevOpUnfinished,
+              description: notices.join('\n'),
+              kind: ToastKind.error,
+            );
+      }
+
+      if (!mounted) return;
+      final consent = ref.read(settingsProvider).updateConsent;
+      if (consent.isEmpty) {
+        // First launch: put the question once and record the answer. Until it
+        // is answered nothing reaches the network.
+        showUpdateConsentDialog(context, ref);
+      } else if (consent == 'on') {
+        ref.read(updateStatusProvider.notifier).check();
+      }
     });
   }
 
