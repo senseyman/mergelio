@@ -149,6 +149,28 @@ their draft is meant to be deleted afterwards.
 The release is left as a **draft** deliberately. Nothing reaches users until
 someone has looked at the artifacts and pressed publish.
 
+### Publishing is what ships the update
+
+Pressing publish is not only a visibility change. `.github/workflows/appcast.yml`
+runs on `release: published`, builds `appcast.json` from that release's
+`SHA256SUMS.txt`, signs it with `UPDATE_SIGNING_KEY`, and attaches both files to
+the release. Installed copies of Mergelio read that manifest from
+`releases/latest/download/appcast.json`, which does not resolve for a draft — so
+a release that is never published is a release no existing install will ever be
+offered.
+
+Prereleases deliberately get no manifest. `releases/latest` skips them, so a
+manifest there would advertise a build that stable users were never meant to
+receive. To rehearse the flow against a release candidate, run the Appcast
+workflow by hand with the tag as its input: that path is exempt from the
+prerelease check and attaches a manifest to that one release without making it
+the latest.
+
+Losing `UPDATE_SIGNING_KEY` is not recoverable from the app side. Every
+installed copy carries the matching public key and rejects a manifest signed by
+anything else, so a new key means those installs stop accepting updates until
+they are reinstalled by hand.
+
 ### Secrets
 
 Most degrade on their own: the pipeline publishes something less trustworthy
