@@ -178,6 +178,11 @@ class UpdateController extends StateNotifier<UpdateStatus> {
 
   /// Hides the banner for this session without silencing the release.
   void dismiss() => state = const UpdateIdle();
+
+  /// StateNotifier.state is protected, so parking a widget test on a given
+  /// status needs an explicit way in.
+  @visibleForTesting
+  void debugSetStatus(UpdateStatus status) => state = status;
 }
 
 final updateStatusProvider =
