@@ -23,6 +23,7 @@ import 'app_tab_bar.dart';
 import 'app_toolbar.dart';
 import 'keyboard_shortcuts.dart';
 import 'quit_guard.dart';
+import 'update_banner.dart';
 import '../../l10n/gen/app_localizations.dart';
 
 /// Root application scaffold: chrome bars framing either the workspace (a repo
@@ -88,6 +89,7 @@ class AppShell extends ConsumerWidget {
                           )
                         : const WelcomeScreen(),
                   ),
+                  const UpdateBanner(),
                   const AppStatusBar(),
                 ],
               ),
