@@ -31,10 +31,13 @@ class WindowsInstaller implements UpdateInstaller {
 
     if (verifySignature) await _checkAuthenticode(artifact);
 
+    // The installer brings the app back itself, through a [Run] entry that
+    // fires only in silent mode. Restart Manager is deliberately not asked to
+    // do it as well: it would relaunch from the elevated installer, leaving
+    // the app running as administrator, and two relaunch paths would race.
     await _launcher.startDetached(artifact.path, const [
       '/SILENT',
       '/CLOSEAPPLICATIONS',
-      '/RESTARTAPPLICATIONS',
       '/NORESTART',
     ]);
   }

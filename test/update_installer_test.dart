@@ -62,11 +62,13 @@ void main() {
       await WindowsInstaller(launcher: launcher).handOff(file);
 
       expect(launcher.detached, hasLength(1));
+      // No /RESTARTAPPLICATIONS: the installer relaunches through its own
+      // [Run] entry instead, so Restart Manager must not also bring the app
+      // back or the upgrade would end with two copies running.
       expect(launcher.detached.single, [
         file.path,
         '/SILENT',
         '/CLOSEAPPLICATIONS',
-        '/RESTARTAPPLICATIONS',
         '/NORESTART',
       ]);
     });
