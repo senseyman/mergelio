@@ -27,8 +27,10 @@ UpdateController _controller({
   Future<UpdateManifest> Function()? fetch,
   bool busy = false,
   List<String>? installed,
+  Duration? pollInterval,
 }) {
   return UpdateController(
+    pollInterval: pollInterval,
     settings: SettingsController(InMemorySettingsRepository(), settings),
     fetchManifest: fetch ?? () async => _manifest,
     currentVersion: () async => AppVersion.parse('1.4.1+15'),
@@ -114,5 +116,69 @@ void main() {
     expect(c.state, isA<UpdateReady>());
     await c.install();
     expect(installed, ['/tmp/app.zip']);
+  });
+
+  test('keeps checking while the app stays open', () async {
+    var calls = 0;
+    final c = _controller(
+      fetch: () async {
+        calls++;
+        return _manifest;
+      },
+      pollInterval: const Duration(milliseconds: 20),
+    );
+    addTearDown(c.dispose);
+
+    expect(calls, 0, reason: 'the timer must not fire immediately');
+    await Future<void>.delayed(const Duration(milliseconds: 120));
+    expect(calls, greaterThanOrEqualTo(1));
+  });
+
+  test('the throttle still applies to a polled check', () async {
+    var calls = 0;
+    final c = _controller(
+      settings: AppSettings(
+        updateConsent: 'on',
+        updateLastCheckMs: DateTime.now().millisecondsSinceEpoch,
+      ),
+      fetch: () async {
+        calls++;
+        return _manifest;
+      },
+      pollInterval: const Duration(milliseconds: 20),
+    );
+    addTearDown(c.dispose);
+
+    await Future<void>.delayed(const Duration(milliseconds: 120));
+    expect(calls, 0, reason: 'checked less than a day ago');
+  });
+
+  test('stops polling once disposed', () async {
+    var calls = 0;
+    final c = _controller(
+      fetch: () async {
+        calls++;
+        return _manifest;
+      },
+      pollInterval: const Duration(milliseconds: 20),
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 60));
+    final before = calls;
+    c.dispose();
+    await Future<void>.delayed(const Duration(milliseconds: 80));
+    expect(calls, before);
+  });
+
+  test('does not poll at all when no interval is given', () async {
+    var calls = 0;
+    final c = _controller(
+      fetch: () async {
+        calls++;
+        return _manifest;
+      },
+    );
+    addTearDown(c.dispose);
+    await Future<void>.delayed(const Duration(milliseconds: 80));
+    expect(calls, 0);
   });
 }

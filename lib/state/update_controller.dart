@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -77,6 +78,17 @@ class UpdateController extends StateNotifier<UpdateStatus> {
 
   final bool canInstallInPlace;
 
+  /// How often to give the throttle a chance to expire while the app stays
+  /// open. A Git client is left running for days, and a check that only
+  /// happens at launch would never happen at all for those users. The network
+  /// call is still governed by [kUpdateCheckInterval] - this only decides how
+  /// promptly the app notices that the interval has passed.
+  ///
+  /// Null disables polling entirely, which is what tests want by default.
+  final Duration? pollInterval;
+
+  Timer? _poll;
+
   UpdateController({
     required this.settings,
     required this.fetchManifest,
@@ -87,7 +99,17 @@ class UpdateController extends StateNotifier<UpdateStatus> {
     required this.canInstallInPlace,
     required this.isBusy,
     required this.exitApp,
-  }) : super(const UpdateIdle());
+    this.pollInterval,
+  }) : super(const UpdateIdle()) {
+    final every = pollInterval;
+    if (every != null) _poll = Timer.periodic(every, (_) => check());
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
+  }
 
   Future<void> check({bool manual = false}) async {
     if (!manual) {
@@ -207,5 +229,8 @@ final updateStatusProvider =
         canInstallInPlace: installer.canInstallInPlace,
         isBusy: () => ref.read(busyProvider) != null,
         exitApp: () => exit(0),
+        // Ticks often enough that a long-running window notices a release the
+        // same day; the daily throttle is what keeps it to one request.
+        pollInterval: const Duration(hours: 1),
       );
     });
