@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:pub_semver/pub_semver.dart';
 
 /// A release identity in the form pubspec writes it: a semantic version plus
@@ -7,7 +6,6 @@ import 'package:pub_semver/pub_semver.dart';
 /// Semver deliberately ignores build metadata when ordering releases. This app
 /// does not: two builds of the same version are a real sequence here, and a
 /// hotfix that only moves the build number still has to win.
-@immutable
 class AppVersion implements Comparable<AppVersion> {
   final Version semver;
   final int build;
