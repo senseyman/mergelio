@@ -161,10 +161,12 @@ offered.
 
 Prereleases deliberately get no manifest. `releases/latest` skips them, so a
 manifest there would advertise a build that stable users were never meant to
-receive. To rehearse the flow against a release candidate, run the Appcast
-workflow by hand with the tag as its input: that path is exempt from the
-prerelease check and attaches a manifest to that one release without making it
-the latest.
+receive.
+
+The Appcast workflow can also be run by hand with a tag as its input. That is
+the recovery path: if the manifest job fails, fix the cause, move the tag to the
+fixed commit and run the workflow against it — the release keeps its artifacts
+and only the manifest is rebuilt, so nothing has to be rebuilt or republished.
 
 Losing `UPDATE_SIGNING_KEY` is not recoverable from the app side. Every
 installed copy carries the matching public key and rejects a manifest signed by
