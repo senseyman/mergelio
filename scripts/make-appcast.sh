@@ -28,10 +28,15 @@ SUMS="$ASSETS/SHA256SUMS.txt"
 openssl pkeyutl -help 2>&1 | grep -q -- -rawin \
   || { echo "openssl lacks -rawin (LibreSSL?); use OpenSSL 3.x" >&2; exit 1; }
 
-# The runner is Linux and the developers are on macOS, so neither stat flavour
-# can be assumed.
+# The runner is Linux and the developers are on macOS. `stat` cannot bridge the
+# two: -f is "size" on BSD and "file system" on GNU, and the GNU form succeeds
+# while printing something else entirely, so a fallback chain silently yields
+# garbage. wc -c means the same thing everywhere.
 file_size() {
-  stat -f %z "$1" 2>/dev/null || stat -c %s "$1"
+  local size
+  size=$(wc -c < "$1" | tr -d '[:space:]')
+  [[ $size =~ ^[0-9]+$ ]] || { echo "cannot size $1: got '$size'" >&2; exit 1; }
+  printf '%s' "$size"
 }
 
 VERSION=${TAG#v}
