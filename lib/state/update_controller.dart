@@ -129,7 +129,10 @@ class UpdateController extends StateNotifier<UpdateStatus> {
         manifest: manifest,
         current: await currentVersion(),
         platformKey: await platformKey(),
-        skippedVersion: settings.state.updateSkippedVersion,
+        // A skip silences the banner, not the user. Someone who just pressed
+        // "Check now" is asking about this release again, so honouring the
+        // skip there would answer with silence.
+        skippedVersion: manual ? '' : settings.state.updateSkippedVersion,
       );
 
       state = switch (decision) {

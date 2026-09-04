@@ -88,14 +88,34 @@ void main() {
     expect(c.state, isA<UpdateFailed>());
   });
 
-  test('skipping a version silences it and clears the state', () async {
+  test('skipping a version records it and clears the state', () async {
     final c = _controller();
     await c.check(manual: true);
     c.skip();
     expect(c.state, isA<UpdateIdle>());
+    expect(c.settings.state.updateSkippedVersion, '1.5.0+16');
+  });
 
-    await c.check(manual: true);
+  test('an automatic check stays quiet about a skipped version', () async {
+    final c = _controller(
+      settings: const AppSettings(
+        updateConsent: 'on',
+        updateSkippedVersion: '1.5.0+16',
+      ),
+    );
+    await c.check();
     expect(c.state, isA<UpdateIdle>());
+  });
+
+  test('a check the user asked for ignores the skip', () async {
+    final c = _controller(
+      settings: const AppSettings(
+        updateConsent: 'on',
+        updateSkippedVersion: '1.5.0+16',
+      ),
+    );
+    await c.check(manual: true);
+    expect(c.state, isA<UpdateFound>());
   });
 
   test('refuses to install while a git operation is running', () async {
