@@ -46,6 +46,14 @@ class AppSettings with _$AppSettings {
     @Default('') String localeCode,
     // Opt-in anonymised telemetry + crash reporting. Off by default.
     @Default(false) bool telemetryEnabled,
+    // Update checks. '' means the question has not been put to the user yet;
+    // 'on' and 'off' are their answer. Checking is a network call out of a Git
+    // client, so it never starts on its own.
+    @Default('') String updateConsent,
+    // A release the user dismissed, as "1.5.0+16". Cleared by the next one.
+    @Default('') String updateSkippedVersion,
+    // Epoch ms of the last completed check; 0 means never.
+    @Default(0) int updateLastCheckMs,
     // UI zoom (text/icon scale), 1.0–2.0 per the 100–200% accessibility NFR.
     @Default(1.0) double uiScale,
     // Repo-group switcher style: 'dropdown' | 'pills' | 'rail'.

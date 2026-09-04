@@ -1,0 +1,57 @@
+# The manifest is attached when a release is published, not when the tag is
+# pushed: releases/latest/download/ does not resolve for a draft, and every
+# release starts as one.
+name: Appcast
+
+on:
+  release:
+    types: [published]
+  # Rehearsal path: attach a manifest to one named release without publishing
+  # it as the latest one. Used to try the whole flow against a release
+  # candidate before a real release depends on it.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag of the release to attach a manifest to
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  TAG: ${{ github.event.inputs.tag || github.event.release.tag_name }}
+
+jobs:
+  appcast:
+    name: Publish the update manifest
+    # A prerelease must never reach stable users, and releases/latest skips
+    # prereleases anyway - publishing a manifest for one would only confuse.
+    # A manual run is exempt: that is the rehearsal.
+    if: github.event_name == 'workflow_dispatch' || github.event.release.prerelease == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      # Everything except a manifest from an earlier run of this workflow.
+      - name: Download the release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p assets
+          gh release download "$TAG" --dir assets \
+            --pattern '*' --skip-existing
+          rm -f assets/appcast.json assets/appcast.json.sig
+
+      - name: Build and sign the manifest
+        env:
+          UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: ./scripts/make-appcast.sh "$TAG" assets out
+
+      - name: Attach it to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" out/appcast.json out/appcast.json.sig --clobber

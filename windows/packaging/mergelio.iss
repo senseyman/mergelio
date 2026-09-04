@@ -73,6 +73,9 @@ ArchitecturesInstallIn64BitMode=x64
 
 ; Offer to close a running copy rather than failing on a locked Mergelio.exe.
 CloseApplications=yes
+; Restart Manager must not bring the app back: it would relaunch it from this
+; elevated installer, so Mergelio would end up running as administrator. The
+; [Run] entry below does it instead, as the user who was logged in.
 RestartApplications=no
 
 [Languages]
@@ -99,3 +102,7 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopico
 
 [Run]
 Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent
+; A silent run is an in-app update: the app closed itself to be replaced and
+; has to come back. runasoriginaluser keeps it out of the elevated context the
+; installer runs in.
+Filename: "{app}\{#AppExe}"; Flags: nowait postinstall runasoriginaluser; Check: WizardSilent

@@ -3511,6 +3511,138 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Hide ignored files'**
   String get pnpHideIgnored;
+
+  /// No description provided for @prefsTabUpdates.
+  ///
+  /// In en, this message translates to:
+  /// **'Updates'**
+  String get prefsTabUpdates;
+
+  /// No description provided for @updateBannerAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Mergelio {version} is available'**
+  String updateBannerAvailable(String version);
+
+  /// No description provided for @updateBannerDownloading.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading update…'**
+  String get updateBannerDownloading;
+
+  /// No description provided for @updateBannerReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Update ready to install'**
+  String get updateBannerReady;
+
+  /// No description provided for @updateActionDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Download'**
+  String get updateActionDownload;
+
+  /// No description provided for @updateActionInstall.
+  ///
+  /// In en, this message translates to:
+  /// **'Install and restart'**
+  String get updateActionInstall;
+
+  /// No description provided for @updateActionNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Release notes'**
+  String get updateActionNotes;
+
+  /// No description provided for @updateActionSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip this version'**
+  String get updateActionSkip;
+
+  /// No description provided for @updateActionLater.
+  ///
+  /// In en, this message translates to:
+  /// **'Later'**
+  String get updateActionLater;
+
+  /// No description provided for @updateBlockedBusy.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for the current operation to finish'**
+  String get updateBlockedBusy;
+
+  /// No description provided for @updateManualNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Mergelio is up to date'**
+  String get updateManualNone;
+
+  /// No description provided for @updateManualFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not check for updates'**
+  String get updateManualFailed;
+
+  /// No description provided for @updateLinuxHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Install it through your package manager'**
+  String get updateLinuxHint;
+
+  /// No description provided for @updateConsentTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Check for updates?'**
+  String get updateConsentTitle;
+
+  /// No description provided for @updateConsentBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Mergelio can check GitHub once a day for a new release. No account, no identifiers, nothing about your repositories is sent.'**
+  String get updateConsentBody;
+
+  /// No description provided for @updateConsentYes.
+  ///
+  /// In en, this message translates to:
+  /// **'Check for updates'**
+  String get updateConsentYes;
+
+  /// No description provided for @updateConsentNo.
+  ///
+  /// In en, this message translates to:
+  /// **'Don\'t check'**
+  String get updateConsentNo;
+
+  /// No description provided for @updatePrefsCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'Current version: {version}'**
+  String updatePrefsCurrent(String version);
+
+  /// No description provided for @updatePrefsAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Check for updates automatically'**
+  String get updatePrefsAuto;
+
+  /// No description provided for @updatePrefsCheckNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Check now'**
+  String get updatePrefsCheckNow;
+
+  /// No description provided for @updatePrefsLastCheck.
+  ///
+  /// In en, this message translates to:
+  /// **'Last checked: {when}'**
+  String updatePrefsLastCheck(String when);
+
+  /// No description provided for @updatePrefsNever.
+  ///
+  /// In en, this message translates to:
+  /// **'never'**
+  String get updatePrefsNever;
 }
 
 class _AppLocalizationsDelegate

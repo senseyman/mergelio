@@ -11,6 +11,8 @@ import '../../state/settings_controller.dart';
 import '../common/dialogs.dart';
 import '../graph/commit_columns.dart';
 import 'logs_row.dart';
+import 'prefs_rows.dart';
+import 'updates_tab.dart';
 
 /// Preferences with General and Appearance tabs. All edits apply live and
 /// persist through the settings controller.
@@ -30,7 +32,7 @@ class _PrefsBody extends StatelessWidget {
     final t = context.tokens;
     final l = AppLocalizations.of(context);
     return DefaultTabController(
-      length: 4,
+      length: 5,
       child: Column(
         children: [
           TabBar(
@@ -43,6 +45,7 @@ class _PrefsBody extends StatelessWidget {
               Tab(text: l.prefsTabAppearance),
               Tab(text: l.prefsTabShortcuts),
               Tab(text: l.prefsTabCredentials),
+              Tab(text: l.prefsTabUpdates),
             ],
           ),
           const Expanded(
@@ -52,6 +55,7 @@ class _PrefsBody extends StatelessWidget {
                 _AppearanceTab(),
                 _ShortcutsTab(),
                 _CredentialsTab(),
+                UpdatesTab(),
               ],
             ),
           ),
@@ -84,7 +88,7 @@ class _GeneralTab extends ConsumerWidget {
             _ => l.languageSystem,
           },
         ),
-        _SwitchRow(l.prefsAutoFetch, s.autoFetch, c.setAutoFetch),
+        SwitchRow(l.prefsAutoFetch, s.autoFetch, c.setAutoFetch),
         if (s.autoFetch)
           _ChoiceRow(
             l.prefsAutoFetchInterval,
@@ -97,13 +101,13 @@ class _GeneralTab extends ConsumerWidget {
               _ => '${v}s',
             },
           ),
-        _SwitchRow(
+        SwitchRow(
           l.prefsConfirmDestructive,
           s.confirmDestructive,
           c.setConfirmDestructive,
         ),
-        _SwitchRow(l.prefsRestoreTabs, s.restoreTabs, c.setRestoreTabs),
-        _SwitchRow(l.prefsTelemetry, s.telemetryEnabled, c.setTelemetryEnabled),
+        SwitchRow(l.prefsRestoreTabs, s.restoreTabs, c.setRestoreTabs),
+        SwitchRow(l.prefsTelemetry, s.telemetryEnabled, c.setTelemetryEnabled),
         _ZoomRow(label: l.prefsZoom, scale: s.uiScale, controller: c),
         _ChoiceRow(
           l.prefsPullStrategy,
@@ -139,12 +143,12 @@ class _GeneralTab extends ConsumerWidget {
           ),
         ),
         for (final e in graphColumnLabels(l).entries)
-          _SwitchRow(
+          SwitchRow(
             e.value,
             s.graphCols[e.key] ?? true,
             (_) => c.toggleGraphCol(e.key),
           ),
-        _SwitchRow(
+        SwitchRow(
           l.prefsCompactRows,
           s.graphCompact,
           (_) => c.toggleGraphCompact(),
@@ -604,26 +608,6 @@ class _AppearanceTab extends ConsumerWidget {
           ],
         ),
       ],
-    );
-  }
-}
-
-class _SwitchRow extends StatelessWidget {
-  final String label;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-  const _SwitchRow(this.label, this.value, this.onChanged);
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.tokens;
-    return SwitchListTile(
-      dense: true,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-      title: Text(label, style: TextStyle(color: t.textPrimary, fontSize: 13)),
-      value: value,
-      activeThumbColor: t.accent,
-      onChanged: onChanged,
     );
   }
 }

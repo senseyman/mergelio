@@ -260,6 +260,23 @@ first run: **More info → Run anyway**. Check the download against
 [SHA256SUMS.txt](#verifying-a-download) first — that is what the checksum file
 is for.
 
+### Staying up to date
+
+Mergelio asks once, on first launch, whether it may check GitHub for new
+releases; until you answer, it makes no network requests of its own. With
+checking on it looks once a day and shows a strip above the status bar when a
+release is out. On macOS and Windows it can download and install the update
+itself — the download is checked against a signed manifest, and on macOS against
+Gatekeeper too, before anything is replaced. An install never interrupts a
+running Git operation.
+
+Linux packages are updated through your package manager, not by the app: `.deb`
+and `.rpm` files belong to dpkg and rpm, and rewriting them from inside the app
+would leave the package database describing an install that no longer exists.
+There Mergelio tells you a release is out and links to it.
+
+You can change your mind at any time in **Preferences → Updates**.
+
 ### Runtime requirement
 
 Mergelio drives the `git` binary on your `PATH` — install
@@ -469,6 +486,10 @@ Mergelio has no accounts and phones home to nothing by default.
 - **Telemetry is opt-in** and off until you enable it in Preferences. When
   enabled, values are scrubbed of file paths, e-mail addresses, remote names
   and URLs before leaving the machine.
+- **Update checks are opt-in** and asked about once, on first launch. Until you
+  answer, nothing is requested. With them on, Mergelio fetches a small manifest
+  from this repository's releases once a day — no account, no identifiers, and
+  nothing about your repositories is sent.
 - Credentials are handled by your existing git credential helper and
   `ssh-agent`; Mergelio does not store passwords or tokens itself.
 - Everything else — settings, recents, open tabs, the operation journal — stays

@@ -104,6 +104,32 @@ Fedora packages carry the same signature in the RPM header. See
 If a signature does not verify, treat the download as hostile and report it
 through the private advisory process above.
 
+## Update manifest signing
+
+The in-app update check reads `appcast.json` from the latest release and a
+detached signature, `appcast.json.sig`, beside it. The manifest is Ed25519
+signed at release time; the public half is compiled into the app. Verification
+happens over the exact bytes received, before they are parsed, so what is
+checked is what is read.
+
+A manifest that fails verification is discarded and never retried — control of
+the download host alone is not enough to point an install at a foreign build.
+Each artifact is then checked against the SHA-256 recorded in that signed
+manifest, and a mismatch deletes the download before it can be run. On macOS the
+unpacked bundle must also pass `codesign --verify --deep --strict` and
+`spctl -a -t exec` before the running app is replaced.
+
+Plaintext HTTP is refused. The manifest URL and public key can be overridden at
+build time to rehearse the flow against a local server, but those overrides are
+ignored in a release build: honouring them there would let anyone able to set an
+environment variable choose which binary the app installs.
+
+If you believe the update signing key has been compromised, report it through
+the private advisory process above and do not install any update Mergelio
+offers. A compromised key is grounds for an out-of-band advisory, a new key, and
+a release that must be installed by hand — installs carrying the old key cannot
+be updated into safety, since that is the very channel in question.
+
 ## Security-relevant design
 
 Useful context when assessing a finding:

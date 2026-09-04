@@ -1042,5 +1042,42 @@
   },
   "pnpProject": "Project",
   "pnpShowIgnored": "Show ignored files",
-  "pnpHideIgnored": "Hide ignored files"
+  "pnpHideIgnored": "Hide ignored files",
+  "prefsTabUpdates": "Updates",
+  "updateBannerAvailable": "Mergelio {version} is available",
+  "@updateBannerAvailable": {
+    "placeholders": {
+      "version": {"type": "String"}
+    }
+  },
+  "updateBannerDownloading": "Downloading update…",
+  "updateBannerReady": "Update ready to install",
+  "updateActionDownload": "Download",
+  "updateActionInstall": "Install and restart",
+  "updateActionNotes": "Release notes",
+  "updateActionSkip": "Skip this version",
+  "updateActionLater": "Later",
+  "updateBlockedBusy": "Waiting for the current operation to finish",
+  "updateManualNone": "Mergelio is up to date",
+  "updateManualFailed": "Could not check for updates",
+  "updateLinuxHint": "Install it through your package manager",
+  "updateConsentTitle": "Check for updates?",
+  "updateConsentBody": "Mergelio can check GitHub once a day for a new release. No account, no identifiers, nothing about your repositories is sent.",
+  "updateConsentYes": "Check for updates",
+  "updateConsentNo": "Don't check",
+  "updatePrefsCurrent": "Current version: {version}",
+  "@updatePrefsCurrent": {
+    "placeholders": {
+      "version": {"type": "String"}
+    }
+  },
+  "updatePrefsAuto": "Check for updates automatically",
+  "updatePrefsCheckNow": "Check now",
+  "updatePrefsLastCheck": "Last checked: {when}",
+  "@updatePrefsLastCheck": {
+    "placeholders": {
+      "when": {"type": "String"}
+    }
+  },
+  "updatePrefsNever": "never"
 }

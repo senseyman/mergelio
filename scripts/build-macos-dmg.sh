@@ -288,6 +288,19 @@ xcrun stapler staple "$DMG_PATH"
 xcrun stapler validate "$DMG_PATH" >/dev/null
 ok "Ticket stapled"
 
+# The notarization ticket is keyed to the code's cdhash, not to the container
+# it travelled in. Stapling the app as well means the in-app updater can ship a
+# plain zip: it launches offline, without a Gatekeeper round trip.
+xcrun stapler staple "$APP_PATH"
+xcrun stapler validate "$APP_PATH" >/dev/null
+ok "Ticket stapled to the bundle"
+
+UPDATE_ZIP="${DIST_DIR}/${APP_NAME}-${VERSION}-macos-${ARCH}-update.zip"
+rm -f "$UPDATE_ZIP"
+# ditto rather than zip: it preserves the bundle's symlinks and metadata.
+ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$UPDATE_ZIP"
+ok "Update archive: $UPDATE_ZIP"
+
 SPCTL_OUT=$(spctl -a -vvv -t install "$DMG_PATH" 2>&1)
 
 if grep -q "Developer ID" <<<"$SPCTL_OUT"; then
@@ -300,4 +313,5 @@ fi
 SIZE=$(du -h "$DMG_PATH" | cut -f1)
 
 printf '\n%s✓ Done%s\n' "$GREEN" "$OFF"
-printf '  %s (%s)\n\n' "$DMG_PATH" "$SIZE"
+printf '  %s (%s)\n' "$DMG_PATH" "$SIZE"
+printf '  %s (%s)\n\n' "$UPDATE_ZIP" "$(du -h "$UPDATE_ZIP" | cut -f1)"

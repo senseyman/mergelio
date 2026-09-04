@@ -1954,4 +1954,77 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pnpHideIgnored => 'Hide ignored files';
+
+  @override
+  String get prefsTabUpdates => 'Updates';
+
+  @override
+  String updateBannerAvailable(String version) {
+    return 'Mergelio $version is available';
+  }
+
+  @override
+  String get updateBannerDownloading => 'Downloading update…';
+
+  @override
+  String get updateBannerReady => 'Update ready to install';
+
+  @override
+  String get updateActionDownload => 'Download';
+
+  @override
+  String get updateActionInstall => 'Install and restart';
+
+  @override
+  String get updateActionNotes => 'Release notes';
+
+  @override
+  String get updateActionSkip => 'Skip this version';
+
+  @override
+  String get updateActionLater => 'Later';
+
+  @override
+  String get updateBlockedBusy => 'Waiting for the current operation to finish';
+
+  @override
+  String get updateManualNone => 'Mergelio is up to date';
+
+  @override
+  String get updateManualFailed => 'Could not check for updates';
+
+  @override
+  String get updateLinuxHint => 'Install it through your package manager';
+
+  @override
+  String get updateConsentTitle => 'Check for updates?';
+
+  @override
+  String get updateConsentBody =>
+      'Mergelio can check GitHub once a day for a new release. No account, no identifiers, nothing about your repositories is sent.';
+
+  @override
+  String get updateConsentYes => 'Check for updates';
+
+  @override
+  String get updateConsentNo => 'Don\'t check';
+
+  @override
+  String updatePrefsCurrent(String version) {
+    return 'Current version: $version';
+  }
+
+  @override
+  String get updatePrefsAuto => 'Check for updates automatically';
+
+  @override
+  String get updatePrefsCheckNow => 'Check now';
+
+  @override
+  String updatePrefsLastCheck(String when) {
+    return 'Last checked: $when';
+  }
+
+  @override
+  String get updatePrefsNever => 'never';
 }

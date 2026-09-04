@@ -113,23 +113,21 @@ jobs:
           key: pub-macos-${{ hashFiles('pubspec.lock') }}
           restore-keys: pub-macos-
 
-      # A step's if: cannot read the secrets context, so the decision is turned
-      # into an output here and the steps below branch on that.
-      - name: Look for a signing certificate
-        id: signing
+      # A step's if: cannot read the secrets context, so the check happens in a
+      # run: block instead. An unsigned macOS build is not shippable: other Macs
+      # refuse it, and the updater would be handing users an app weaker than the
+      # one they already run. Fail the release rather than publish one.
+      - name: Require a signing certificate
         env:
           MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
         run: |
-          if [ -n "$MACOS_CERT_P12" ]; then
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-            echo "Certificate present - building a signed, notarized DMG."
-          else
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::No Developer ID certificate - publishing an ad-hoc signed zip instead of a DMG. Other Macs will refuse it."
+          if [ -z "$MACOS_CERT_P12" ]; then
+            echo "::error::No Developer ID certificate (MACOS_CERT_P12). A macOS release must be signed and notarized."
+            exit 1
           fi
+          echo "Certificate present - building a signed, notarized DMG."
 
       - name: Install create-dmg
-        if: steps.signing.outputs.enabled == 'true'
         run: brew install create-dmg
 
       # The repository carries a Podfile and no Package.swift, so CocoaPods is
@@ -144,7 +142,6 @@ jobs:
       # job. It has to join the search list as well as become the default one:
       # codesign looks the identity up through the search list.
       - name: Import Developer ID certificate
-        if: steps.signing.outputs.enabled == 'true'
         env:
           MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
           MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
@@ -179,7 +176,6 @@ jobs:
       # the build script expects is created here. This also fails early if the
       # credentials are wrong, before a 20 minute build.
       - name: Create notary profile
-        if: steps.signing.outputs.enabled == 'true'
         env:
           MACOS_APPLE_ID: ${{ secrets.MACOS_APPLE_ID }}
           MACOS_APP_PASSWORD: ${{ secrets.MACOS_APP_PASSWORD }}
@@ -191,20 +187,13 @@ jobs:
             --password "$MACOS_APP_PASSWORD"
 
       - name: Build signed & notarized DMG
-        if: steps.signing.outputs.enabled == 'true'
         env:
           MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
           MACOS_TEAM_ID: ${{ secrets.MACOS_TEAM_ID }}
           MACOS_NOTARY_PROFILE: mergelio-ci
         run: ./scripts/build-macos-dmg.sh "${{ needs.gate.outputs.version }}"
 
-      # Without a certificate build-macos-dmg.sh stops after the .app and never
-      # reaches the DMG, so the zip script is what produces something to ship.
-      - name: Build ad-hoc signed zip
-        if: steps.signing.outputs.enabled != 'true'
-        run: ./scripts/build-macos-app.sh "${{ needs.gate.outputs.version }}"
-
-      # Matches the DMG and the zip alike, whichever of the two was built.
+      # Picks up the DMG and the updater's zip alike.
       - uses: actions/upload-artifact@v4
         with:
           name: macos-arm64
@@ -214,7 +203,7 @@ jobs:
 
       # Takes the certificate and the notary profile with it, failure or not.
       - name: Tear down the keychain
-        if: always() && steps.signing.outputs.enabled == 'true'
+        if: always()
         run: security delete-keychain "$KEYCHAIN_PATH" || true
 
   windows-x64:

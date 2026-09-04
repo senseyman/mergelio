@@ -10,6 +10,7 @@ import '../../state/profile_workspace_sync.dart';
 import '../../state/profiles.dart';
 import '../../state/repo_watcher.dart';
 import '../../state/settings_controller.dart';
+import '../../state/update_controller.dart';
 import '../../state/workspace.dart';
 import '../terminal/terminal_panel.dart';
 import '../common/progress_top_bar.dart';
@@ -23,6 +24,7 @@ import 'app_tab_bar.dart';
 import 'app_toolbar.dart';
 import 'keyboard_shortcuts.dart';
 import 'quit_guard.dart';
+import 'update_banner.dart';
 import '../../l10n/gen/app_localizations.dart';
 
 /// Root application scaffold: chrome bars framing either the workspace (a repo
@@ -88,6 +90,7 @@ class AppShell extends ConsumerWidget {
                           )
                         : const WelcomeScreen(),
                   ),
+                  const UpdateBanner(),
                   const AppStatusBar(),
                 ],
               ),
@@ -114,18 +117,32 @@ class _StartupNotices extends ConsumerStatefulWidget {
 class _StartupNoticesState extends ConsumerState<_StartupNotices> {
   @override
   void initState() {
-    final l = AppLocalizations.of(context);
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // Read after the first frame, not in initState: an inherited widget
+      // cannot be depended on before initState has finished.
+      final l = AppLocalizations.of(context);
+
       final notices = ref.read(interruptedOpsProvider);
-      if (notices.isEmpty) return;
-      ref
-          .read(toastProvider.notifier)
-          .show(
-            l.shellPrevOpUnfinished,
-            description: notices.join('\n'),
-            kind: ToastKind.error,
-          );
+      if (notices.isNotEmpty) {
+        ref
+            .read(toastProvider.notifier)
+            .show(
+              l.shellPrevOpUnfinished,
+              description: notices.join('\n'),
+              kind: ToastKind.error,
+            );
+      }
+
+      final consent = ref.read(settingsProvider).updateConsent;
+      if (consent.isEmpty) {
+        // First launch: put the question once and record the answer. Until it
+        // is answered nothing reaches the network.
+        showUpdateConsentDialog(context, ref);
+      } else if (consent == 'on') {
+        ref.read(updateStatusProvider.notifier).check();
+      }
     });
   }
 
