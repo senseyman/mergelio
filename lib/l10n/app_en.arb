@@ -824,6 +824,23 @@
   "fiHistory": "History",
   "fiCouldNotLoad": "Could not load history",
   "fiCouldNotBlame": "Could not blame this file",
+  "lhTitleLine": "{path} · line {line}",
+  "@lhTitleLine": {
+    "placeholders": {
+      "path": {"type": "String"},
+      "line": {"type": "String"}
+    }
+  },
+  "lhTitleRange": "{path} · lines {range}",
+  "@lhTitleRange": {
+    "placeholders": {
+      "path": {"type": "String"},
+      "range": {"type": "String"}
+    }
+  },
+  "lhLineHistory": "Line history",
+  "lhCouldNotLoad": "Could not load line history",
+  "lhNoChanges": "No commit changed these lines",
   "ftvFlatList": "Show as flat list",
   "ftvGroupByFolder": "Group by folder",
   "confirmAction": "Confirm",

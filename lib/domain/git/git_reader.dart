@@ -1,6 +1,8 @@
 import 'dart:convert';
 
+import 'commit_fields.dart';
 import 'git_service.dart';
+import 'line_history.dart';
 import 'models.dart';
 import 'worktree.dart';
 
@@ -113,12 +115,12 @@ class GitReader {
           author: f[2],
           authorEmail: f[3],
           date: DateTime.parse(f[4]),
-          dateOffset: _isoOffset(f[4]),
+          dateOffset: isoOffset(f[4]),
           refs: _parseRefs(f[5]),
           message: f[6],
           body: f[7].trimRight(),
           coauthor: f[7].toLowerCase().contains('co-authored-by:'),
-          avatarValue: _avatarFor(f[3]),
+          avatarValue: avatarFor(f[3]),
         ),
       );
     }
@@ -484,13 +486,47 @@ class GitReader {
           author: f[2],
           authorEmail: f[3],
           date: DateTime.parse(f[4]),
-          dateOffset: _isoOffset(f[4]),
+          dateOffset: isoOffset(f[4]),
           message: f[6],
-          avatarValue: _avatarFor(f[3]),
+          avatarValue: avatarFor(f[3]),
         ),
       );
     }
     return out;
+  }
+
+  /// Commits that changed lines [start]..[end] of [path], newest first, each
+  /// carrying the range's diff (`git log -L`).
+  ///
+  /// The range is resolved against [rev] — the revision the line numbers were
+  /// read from. Numbers taken off a working-tree or staged diff count lines
+  /// that [rev] does not have, so uncommitted edits above the range shift it.
+  ///
+  /// `-L` walks the range through renames by itself and rejects `--follow`, so
+  /// this cannot reuse [fileHistory]'s arguments. Commits that left the range
+  /// untouched — a pure rename, say — are dropped by git, not by this method.
+  Future<List<LineHistoryEntry>> lineHistory(
+    String path,
+    int start,
+    int end, {
+    String rev = 'HEAD',
+  }) async {
+    final r = await _run([
+      'log',
+      '--no-color',
+      '-L$start,$end:$path',
+      '--pretty=format:$kLineHistoryFormat',
+      rev,
+    ], timeout: _historyTimeout);
+    if (!r.ok) {
+      // Asking for lines the file does not have ("file X has only N lines") is
+      // a normal outcome of a selection made against a different revision, not
+      // a failure. A path missing from [rev] entirely still throws: both
+      // callers read the range off [rev], so that would be a real mismatch.
+      if (r.err.contains('has only')) return const [];
+      throw GitException('git log -L failed', r);
+    }
+    return parseLineHistory(r.stdout);
   }
 
   /// `%G?` verification for one commit, on demand. Bulk history reads skip
@@ -659,34 +695,4 @@ class GitReader {
     '?' => GitChange.untracked,
     _ => GitChange.modified,
   };
-
-  static const _avatarPalette = <int>[
-    0xFF6C8CFF,
-    0xFFF5C451,
-    0xFF3DD68C,
-    0xFFEB6F92,
-    0xFF9D7CFF,
-    0xFF4CC9F0,
-    0xFFF08C4C,
-    0xFF57C7A0,
-  ];
-
-  static int _avatarFor(String email) {
-    var h = 0;
-    for (final c in email.codeUnits) {
-      h = (h * 31 + c) & 0x7fffffff;
-    }
-    return _avatarPalette[h % _avatarPalette.length];
-  }
-
-  /// The trailing UTC offset of an ISO-8601 stamp (`%aI` always writes one,
-  /// down to `+00:00`). `DateTime.parse` folds the offset away into a UTC
-  /// instant, so it has to be read off the text before it is lost. Null when
-  /// the stamp carries no offset at all.
-  static Duration? _isoOffset(String s) {
-    final m = RegExp(r'([+-])(\d{2}):?(\d{2})$').firstMatch(s);
-    if (m == null) return null;
-    final d = Duration(hours: int.parse(m[2]!), minutes: int.parse(m[3]!));
-    return m[1] == '-' ? -d : d;
-  }
 }

@@ -1482,6 +1482,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fiCouldNotBlame => 'Could not blame this file';
 
   @override
+  String lhTitleLine(String path, String line) {
+    return '$path · line $line';
+  }
+
+  @override
+  String lhTitleRange(String path, String range) {
+    return '$path · lines $range';
+  }
+
+  @override
+  String get lhLineHistory => 'Line history';
+
+  @override
+  String get lhCouldNotLoad => 'Could not load line history';
+
+  @override
+  String get lhNoChanges => 'No commit changed these lines';
+
+  @override
   String get ftvFlatList => 'Show as flat list';
 
   @override
