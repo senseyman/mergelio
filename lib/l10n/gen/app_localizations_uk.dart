@@ -1491,6 +1491,25 @@ class AppLocalizationsUk extends AppLocalizations {
   String get fiCouldNotBlame => 'Не вдалося визначити авторство цього файлу';
 
   @override
+  String lhTitleLine(String path, String line) {
+    return '$path · рядок $line';
+  }
+
+  @override
+  String lhTitleRange(String path, String range) {
+    return '$path · рядки $range';
+  }
+
+  @override
+  String get lhLineHistory => 'Історія рядків';
+
+  @override
+  String get lhCouldNotLoad => 'Не вдалося завантажити історію рядків';
+
+  @override
+  String get lhNoChanges => 'Жоден коміт не змінював ці рядки';
+
+  @override
   String get ftvFlatList => 'Показати плоским списком';
 
   @override

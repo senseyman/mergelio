@@ -2666,6 +2666,36 @@ abstract class AppLocalizations {
   /// **'Could not blame this file'**
   String get fiCouldNotBlame;
 
+  /// No description provided for @lhTitleLine.
+  ///
+  /// In en, this message translates to:
+  /// **'{path} · line {line}'**
+  String lhTitleLine(String path, String line);
+
+  /// No description provided for @lhTitleRange.
+  ///
+  /// In en, this message translates to:
+  /// **'{path} · lines {range}'**
+  String lhTitleRange(String path, String range);
+
+  /// No description provided for @lhLineHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Line history'**
+  String get lhLineHistory;
+
+  /// No description provided for @lhCouldNotLoad.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load line history'**
+  String get lhCouldNotLoad;
+
+  /// No description provided for @lhNoChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'No commit changed these lines'**
+  String get lhNoChanges;
+
   /// No description provided for @ftvFlatList.
   ///
   /// In en, this message translates to:

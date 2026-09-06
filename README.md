@@ -112,6 +112,9 @@ change never needs a second window.*
   indicators and full keyboard navigation.
 - Commit details with per-file stats, and a diff for any commit.
 - **File history** and per-line **blame** for any changed file.
+- **Line history** (`git log -L`): pick a line or a run of lines — in blame, or
+  in any diff — and see every commit that changed just those lines, each with
+  what it did to them. Follows the lines back through renames.
 - Global search with filters, plus in-graph match highlighting.
 - Content search (pickaxe): find the commits that added or removed a string, literally or by regular expression.
 - **Command palette** (`⌘K` / `Ctrl+K`) with fuzzy matching and fly-to.
@@ -120,7 +123,8 @@ change never needs a second window.*
 
 - Stage and unstage by **file, hunk, line or a run of lines**, including partial
   patches. Drag down the diff's gutter (or shift-click) to pick out a run, then
-  stage or discard exactly those lines from the right-click menu.
+  stage or discard exactly those lines from the right-click menu — or ask for
+  their line history.
 - Side-by-side or unified diffs with word-level intra-line highlighting and
   syntax colouring. Long lines scroll sideways instead of being cut off, and in
   split view each column scrolls on its own — a new file's empty left half no

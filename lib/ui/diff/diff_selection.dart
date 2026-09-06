@@ -13,12 +13,15 @@ import '../common/dialogs.dart';
 /// menu is always available, and matches the menus used elsewhere in the app.
 /// [stageLabel], [onStageLines] and [onDiscardLines] are supplied when a run of
 /// lines is picked out and the diff can be staged; they act on that run only.
+/// [onLineHistory] is supplied whenever a run is picked out, staged or not —
+/// asking what happened to those lines does not change anything.
 Future<void> showDiffSelectionMenu(
   BuildContext context,
   Offset at, {
   String? stageLabel,
   VoidCallback? onStageLines,
   VoidCallback? onDiscardLines,
+  VoidCallback? onLineHistory,
 }) async {
   final l = AppLocalizations.of(context);
   final region = context.findAncestorStateOfType<SelectableRegionState>();
@@ -46,7 +49,15 @@ Future<void> showDiffSelectionMenu(
             style: TextStyle(fontSize: 13),
           ),
         ),
-      if (onStageLines != null || onDiscardLines != null)
+      if (onLineHistory != null)
+        PopupMenuItem(
+          height: 34,
+          onTap: onLineHistory,
+          child: Text(l.lhLineHistory, style: const TextStyle(fontSize: 13)),
+        ),
+      if (onStageLines != null ||
+          onDiscardLines != null ||
+          onLineHistory != null)
         const PopupMenuDivider(height: 1),
       PopupMenuItem(
         height: 34,

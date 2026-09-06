@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
 import '../../domain/git/diff.dart';
+import '../../domain/git/line_history.dart';
 import '../../domain/git/models.dart';
 import '../../domain/git/stage_patch.dart';
 import '../../l10n/gen/app_localizations.dart';
@@ -15,6 +16,7 @@ import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
 import '../../state/settings_controller.dart';
 import '../common/confirm.dart';
+import '../insight/line_history_dialog.dart';
 import 'diff_editor.dart';
 import 'diff_metrics.dart';
 import 'diff_selection.dart';
@@ -574,6 +576,32 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
               clearRun();
             }
 
+            /// The picked run as a line range in the file, ready for
+            /// `git log -L`. Null when nothing is picked.
+            (String, int, int)? runRange() {
+              final run = selectedRun();
+              if (run == null) return null;
+              final hunk = run.$1.hunks[run.$2.hunkIndex];
+              final range = lineRangeOfHunk(hunk, run.$2.lines);
+              return range == null ? null : (run.$1.path, range.$1, range.$2);
+            }
+
+            void openLineHistory(BuildContext menuContext) {
+              final range = runRange();
+              if (range == null) return;
+              showLineHistory(
+                menuContext,
+                repoPath: target.repoPath,
+                path: range.$1,
+                start: range.$2,
+                end: range.$3,
+                // A commit diff numbers lines as that commit left them; a
+                // working-tree diff is read against HEAD, so uncommitted edits
+                // above the run shift what the range points at.
+                rev: target.commitSha ?? 'HEAD',
+              );
+            }
+
             void openMenu(BuildContext menuContext, Offset at) {
               final hasRun = selectedRun() != null;
               showDiffSelectionMenu(
@@ -586,6 +614,9 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
                 onDiscardLines: hasRun && doc.editable && !doc.staged
                     ? discardRun
                     : null,
+                onLineHistory: runRange() == null
+                    ? null
+                    : () => openLineHistory(menuContext),
               );
             }
 
