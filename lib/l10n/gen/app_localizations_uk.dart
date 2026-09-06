@@ -762,6 +762,11 @@ class AppLocalizationsUk extends AppLocalizations {
   String get sbCopyName => 'Копіювати назву';
 
   @override
+  String sbCopyNamed(String name) {
+    return 'Копіювати «$name»';
+  }
+
+  @override
   String sbDeleteTagTitle(String tag) {
     return 'Видалити тег $tag?';
   }

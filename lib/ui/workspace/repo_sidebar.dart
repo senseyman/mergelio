@@ -494,6 +494,10 @@ class _BranchRow extends ConsumerWidget {
               ahead: branch.ahead,
             ),
           ),
+        item(
+          l.sbCopyName,
+          () => Clipboard.setData(ClipboardData(text: branch.name)),
+        ),
         item(l.sbRenameItem, () async {
           final name = await showInputDialog(
             context,
@@ -995,6 +999,11 @@ Future<void> _remoteBranchMenu(
             style: const TextStyle(fontSize: 13),
           ),
         ),
+      PopupMenuItem(
+        height: 34,
+        onTap: () => Clipboard.setData(ClipboardData(text: rb.name)),
+        child: Text(l.sbCopyName, style: const TextStyle(fontSize: 13)),
+      ),
       const PopupMenuDivider(),
       PopupMenuItem(
         height: 34,

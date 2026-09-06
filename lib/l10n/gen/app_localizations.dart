@@ -1424,6 +1424,12 @@ abstract class AppLocalizations {
   /// **'Copy name'**
   String get sbCopyName;
 
+  /// No description provided for @sbCopyNamed.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy «{name}»'**
+  String sbCopyNamed(String name);
+
   /// No description provided for @sbDeleteTagTitle.
   ///
   /// In en, this message translates to:

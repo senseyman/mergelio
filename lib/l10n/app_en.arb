@@ -422,6 +422,12 @@
   "sbRemoveRemoteItem": "Remove remote…",
   "sbPushTag": "Push tag",
   "sbCopyName": "Copy name",
+  "sbCopyNamed": "Copy «{name}»",
+  "@sbCopyNamed": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
   "sbDeleteTagTitle": "Delete tag {tag}?",
   "@sbDeleteTagTitle": {
     "placeholders": {
