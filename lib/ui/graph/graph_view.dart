@@ -299,6 +299,35 @@ class _GraphListState extends ConsumerState<GraphList> {
     );
   }
 
+  /// Right-click menu for a chip in the graph's left gutter. Labels carry the
+  /// name as shown — a remote-only branch keeps its `remote/` prefix — so the
+  /// copied name is the one git accepts as a ref. The '+N' chip stands for
+  /// several branches at once, so each gets its own named entry.
+  Future<void> _branchChipMenu(
+    BuildContext context,
+    List<String> labels,
+    Offset at,
+  ) async {
+    if (labels.isEmpty) return;
+    final l = AppLocalizations.of(context);
+    final single = labels.length == 1;
+    await showContextMenu<void>(
+      context: context,
+      position: at,
+      items: [
+        for (final label in labels)
+          PopupMenuItem(
+            height: 34,
+            onTap: () => Clipboard.setData(ClipboardData(text: label)),
+            child: Text(
+              single ? l.sbCopyName : l.sbCopyNamed(label),
+              style: const TextStyle(fontSize: 13),
+            ),
+          ),
+      ],
+    );
+  }
+
   KeyEventResult _onKey(FocusNode node, KeyEvent event, double rowHeight) {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
@@ -491,6 +520,8 @@ class _GraphListState extends ConsumerState<GraphList> {
                             _focus.requestFocus();
                             _select(c.sha, metrics.rowHeight);
                           },
+                          onBranchMenu: (labels, at) =>
+                              _branchChipMenu(context, labels, at),
                           onBranchActivated: (label) {
                             final repoPath = ref
                                 .read(workspaceProvider)

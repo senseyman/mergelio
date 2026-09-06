@@ -271,6 +271,7 @@
   "sbRemoveRemoteItem": "Вилучити віддалений…",
   "sbPushTag": "Відправити тег",
   "sbCopyName": "Копіювати назву",
+  "sbCopyNamed": "Копіювати «{name}»",
   "sbDeleteTagTitle": "Видалити тег {tag}?",
   "sbDeleteTagBody": "Тег буде вилучено локально. Цю дію можна скасувати.",
   "sbDeleteTag": "Видалити тег",

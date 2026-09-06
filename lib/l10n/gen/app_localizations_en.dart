@@ -758,6 +758,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sbCopyName => 'Copy name';
 
   @override
+  String sbCopyNamed(String name) {
+    return 'Copy «$name»';
+  }
+
+  @override
   String sbDeleteTagTitle(String tag) {
     return 'Delete tag $tag?';
   }

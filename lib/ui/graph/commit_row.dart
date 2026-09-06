@@ -39,6 +39,12 @@ class CommitRow extends StatelessWidget {
   /// the gesture (the chip renders plain).
   final void Function(String label)? onBranchActivated;
 
+  /// Right-click on a chip in the left gutter: called with the branches that
+  /// chip stands for — one for a branch chip, the collapsed remainder for the
+  /// '+N' chip — and the global position to anchor the menu at. Null lets the
+  /// click fall through to the row's own commit menu.
+  final void Function(List<String> labels, Offset at)? onBranchMenu;
+
   const CommitRow({
     super.key,
     required this.commit,
@@ -53,6 +59,7 @@ class CommitRow extends StatelessWidget {
     this.searchMatch,
     required this.onTap,
     this.onBranchActivated,
+    this.onBranchMenu,
   });
 
   bool _on(String id) => cols[id] ?? true;
@@ -164,6 +171,9 @@ class CommitRow extends StatelessWidget {
       shown = chips.sublist(0, maxChips - 1);
       overflow = chips.length - shown.length;
     }
+    // What the '+N' chip stands for: named in its tooltip, copyable from its
+    // menu.
+    final hidden = [for (final h in chips.skip(shown.length)) h.name];
     return SizedBox(
       width: metrics.branchWidth,
       child: Padding(
@@ -180,12 +190,20 @@ class CommitRow extends StatelessWidget {
                   onDoubleTap: onBranchActivated == null
                       ? null
                       : () => onBranchActivated!(chip.name),
+                  onSecondaryTapUp: onBranchMenu == null
+                      ? null
+                      : (d) => onBranchMenu!([chip.name], d.globalPosition),
                   child: _branchChip(chip.name, colorFor(chip)),
                 ),
             if (overflow > 0)
-              Tooltip(
-                message: chips.skip(maxChips - 1).map((e) => e.name).join('\n'),
-                child: _branchChip('+$overflow', t.textFaint, dot: false),
+              GestureDetector(
+                onSecondaryTapUp: onBranchMenu == null
+                    ? null
+                    : (d) => onBranchMenu!(hidden, d.globalPosition),
+                child: Tooltip(
+                  message: hidden.join('\n'),
+                  child: _branchChip('+$overflow', t.textFaint, dot: false),
+                ),
               ),
           ],
         ),
