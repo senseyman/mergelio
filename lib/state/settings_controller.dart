@@ -59,9 +59,11 @@ class SettingsController extends StateNotifier<AppSettings> {
   void setTerminalHeight(double h) =>
       _update(state.copyWith(terminalHeight: h.clamp(140, 520)));
 
-  /// Persists the window size (min-size clamped by the window manager).
-  void setWindowSize(double w, double h) =>
-      _update(state.copyWith(windowWidth: w, windowHeight: h));
+  /// Persists the window geometry (min-size clamped by the window manager).
+  /// The position is re-validated against the connected displays on launch.
+  void setWindowBounds(double x, double y, double w, double h) => _update(
+    state.copyWith(windowX: x, windowY: y, windowWidth: w, windowHeight: h),
+  );
 
   /// UI zoom, clamped to the 100–200% accessibility range.
   void setUiScale(double v) =>

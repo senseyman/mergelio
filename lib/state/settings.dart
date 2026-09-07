@@ -64,6 +64,10 @@ class AppSettings with _$AppSettings {
     // Window size, restored on launch.
     @Default(1440.0) double windowWidth,
     @Default(900.0) double windowHeight,
+    // Window position, restored on launch. Null until the window is first
+    // moved, and re-validated against the connected displays on every launch.
+    double? windowX,
+    double? windowY,
     // Show changed-file lists grouped into a directory tree vs a flat list.
     @Default(true) bool filesAsTree,
     // Files mode: navigator width, and whether gitignored entries are hidden.
