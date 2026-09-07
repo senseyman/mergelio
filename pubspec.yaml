@@ -26,6 +26,8 @@ dependencies:
   path: ^1.9.0
   # Desktop window
   window_manager: ^0.4.3
+  # Display bounds, to keep a restored window on a screen that still exists
+  screen_retriever: ^0.2.0
   # Native open-folder dialog
   file_selector: ^1.0.3
   # Update checks: manifest fetch, artifact download, hashing, signature check.

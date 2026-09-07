@@ -1,7 +1,8 @@
-import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:screen_retriever/screen_retriever.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'app.dart';
@@ -9,12 +10,14 @@ import 'core/logging.dart';
 import 'data/app_database.dart';
 import 'data/kv_store.dart';
 import 'data/settings_repository.dart';
+import 'domain/window_placement.dart';
 import 'state/diagnostics.dart';
 import 'state/operation_journal.dart';
 import 'state/profiles.dart';
 import 'state/recents.dart';
 import 'state/settings.dart';
 import 'state/settings_controller.dart';
+import 'state/window_persist.dart';
 import 'state/workspace.dart';
 
 Future<void> main() async {
@@ -80,18 +83,42 @@ Future<void> main() async {
     appLog.error('state load failed, using defaults', e, st, 'startup');
   }
 
-  // Restore the persisted window size (the manager enforces the minimum).
+  // Restore the window where the user left it, but only if that place still
+  // exists — monitors get unplugged and resolutions change between runs.
+  const minimumSize = Size(960, 600);
+  final displays = await _connectedDisplays();
+  final trustPosition = positionIsTrustworthy(
+    displays,
+    isWindows: Platform.isWindows,
+  );
+  final placement = resolveWindowPlacement(
+    x: trustPosition ? settings.windowX : null,
+    y: trustPosition ? settings.windowY : null,
+    savedSize: Size(settings.windowWidth, settings.windowHeight),
+    minimumSize: minimumSize,
+    displays: displayBounds(displays),
+  );
   final options = WindowOptions(
-    size: Size(settings.windowWidth, settings.windowHeight),
-    minimumSize: const Size(960, 600),
-    center: true,
+    size: placement.size,
+    minimumSize: minimumSize,
+    center: placement.position == null,
     title: 'Mergelio',
     titleBarStyle: TitleBarStyle.normal,
   );
   await windowManager.waitUntilReadyToShow(options);
+  final position = placement.position;
+  if (position != null) await windowManager.setPosition(position);
 
   final settingsController = SettingsController(settingsRepo, settings);
-  windowManager.addListener(_WindowPersist(settingsController));
+  windowManager.addListener(
+    WindowGeometryPersist(
+      readBounds: windowManager.getBounds,
+      readMaximized: windowManager.isMaximized,
+      readFullScreen: windowManager.isFullScreen,
+      write: (b) =>
+          settingsController.setWindowBounds(b.left, b.top, b.width, b.height),
+    ),
+  );
 
   runApp(
     ProviderScope(
@@ -126,32 +153,25 @@ Future<void> main() async {
   });
 }
 
-/// Persists the window size so the next launch reopens at the same dimensions.
-/// Handles both `onWindowResized` (emitted once at the end on macOS/Windows)
-/// and `onWindowResize` (emitted continuously during the drag on Linux), with
-/// a debounce so the continuous stream does not hammer the store.
-class _WindowPersist with WindowListener {
-  final SettingsController _settings;
-  Timer? _debounce;
-  _WindowPersist(this._settings);
-
-  Future<void> _persistNow() async {
-    _debounce?.cancel();
-    final size = await windowManager.getSize();
-    _settings.setWindowSize(size.width, size.height);
-  }
-
-  // End-of-resize (macOS/Windows): persist immediately so a quick quit can't
-  // drop the final size.
-  @override
-  void onWindowResized() => _persistNow();
-
-  // Continuous during-drag (Linux only fires this): debounce so the stream
-  // doesn't hammer the store.
-  @override
-  void onWindowResize() {
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 300), _persistNow);
+/// Every connected display, with the primary one flagged. An empty list means
+/// the platform could not tell us, in which case the window is simply centred.
+Future<List<DisplayInfo>> _connectedDisplays() async {
+  try {
+    final displays = await screenRetriever.getAllDisplays();
+    final primary = await screenRetriever.getPrimaryDisplay();
+    return [
+      for (final d in displays)
+        DisplayInfo(
+          size: d.size,
+          visiblePosition: d.visiblePosition,
+          visibleSize: d.visibleSize,
+          scaleFactor: d.scaleFactor?.toDouble(),
+          isPrimary: d.id == primary.id,
+        ),
+    ];
+  } catch (e, st) {
+    appLog.error('display query failed, centring window', e, st, 'startup');
+    return const [];
   }
 }
 
