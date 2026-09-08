@@ -1,0 +1,124 @@
+# A release is cut from whatever version pubspec.yaml carries on main, so
+# bumping it is the whole release ritual: merging a PR or pushing straight to
+# main both land here, and the tag follows either way.
+#
+# Keyed off CI rather than the push itself. A tag is permanent in a way a failed
+# build is not - undoing one that landed on a broken commit means deleting it,
+# fixing, and tagging again - so main has to go green first.
+name: Auto tag
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  # Recovery path: a bump that landed while this workflow was broken still needs
+  # its tag, and one that got a tag but no pipeline still needs the pipeline. A
+  # manual run is safe to repeat but is not a no-op - it restarts the release
+  # build for whatever version main currently carries.
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  # Needed to hand the tag to the release pipeline - see the dispatch step.
+  actions: write
+
+# Two bumps in quick succession must not race for the same tag.
+concurrency:
+  group: auto-tag
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    name: Tag the pubspec version
+    # CI runs on pull requests too, and a fork's branch can itself be called
+    # main, which the branches filter above cannot tell from ours. Tagging and
+    # releasing a commit from someone else's fork is the thing to avoid here, so
+    # narrow to pushes to this repository.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The commit CI just passed, not whatever main has drifted to since:
+          # the tag has to name the tree that was actually tested.
+          ref: ${{ github.event.workflow_run.head_sha || github.ref }}
+          # Existing tags are what tell us whether this version already shipped.
+          fetch-depth: 0
+
+      - name: Resolve version
+        id: version
+        run: |
+          version=$(grep -m1 '^version:' pubspec.yaml \
+            | sed -E 's/^version:[[:space:]]*//; s/\+.*$//')
+
+          # The build number moves on its own and must not reach the tag, and a
+          # malformed version would otherwise create a tag no release can match.
+          if ! printf '%s' "$version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+            echo "::error::pubspec version '$version' is not a release version"
+            exit 1
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+      - name: Look for an existing tag
+        id: check
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          # Every green run on main reaches this point, so an unchanged version
+          # is the ordinary case and not worth any noise. A build-number bump, a
+          # re-run and a revert-and-reland all land here too.
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "$TAG already exists - version unchanged, nothing to release"
+            echo "create=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::$TAG is new - cutting a release"
+            echo "create=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create and push the tag
+        if: steps.check.outputs.create == 'true'
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git tag -a "$TAG" -m "Mergelio $VERSION"
+          git push origin "$TAG"
+
+      # A tag pushed with GITHUB_TOKEN does not trigger workflows, so the
+      # release pipeline has to be asked for by name. Its release job keys off
+      # the ref rather than the event, so dispatching it on the tag builds and
+      # drafts the release exactly as a human-pushed tag would.
+      #
+      # A manual run dispatches even when the tag is already there: pushing the
+      # tag and starting the pipeline cannot be made one atomic step, so a
+      # failure between them leaves a tag with no release, and skipping on an
+      # existing tag would make that state unrecoverable from here. Re-drafting
+      # a release that did work is the cheaper mistake.
+      - name: Start the release pipeline
+        if: steps.check.outputs.create == 'true' || github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          # The tag can take a moment to become visible to the API.
+          for attempt in 1 2 3 4 5; do
+            if gh workflow run release.yml --ref "$TAG"; then
+              echo "::notice::Release pipeline started for $TAG"
+              exit 0
+            fi
+            echo "Dispatch attempt $attempt failed - retrying"
+            sleep 10
+          done
+          echo "::error::Could not start the release pipeline for $TAG"
+          exit 1

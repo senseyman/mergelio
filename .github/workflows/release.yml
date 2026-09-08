@@ -3,8 +3,11 @@ name: Release
 on:
   push:
     tags: ['v*']
-  # Lets the pipeline be exercised without creating a tag. The release job is
-  # skipped in that case — GitHub releases need a tag to hang off.
+  # Lets the pipeline be exercised without creating a tag; the release job is
+  # skipped in that case, since GitHub releases need a tag to hang off. Also how
+  # the auto-tag workflow starts a real release: a tag it pushed cannot trigger
+  # this workflow on its own, so it dispatches it on the tag ref instead, and
+  # every ref-keyed step below behaves as it would for a human-pushed tag.
   workflow_dispatch:
 
 # Only the release job writes anything; the build jobs run third-party actions
