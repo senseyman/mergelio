@@ -363,6 +363,13 @@
   "ropMessageOptional": "Повідомлення (необов’язково)",
   "ropOnlyStaged": "Лише проіндексовані зміни",
   "ropStash": "Сховати",
+  "ropMainlineRevertTitle": "Відкотити злиття {sha}",
+  "ropMainlineCherryPickTitle": "Cherry-pick злиття {sha}",
+  "ropMainlineRevertBody": "Злиття поєднало дві лінії історії, тож git має знати, яку з них залишити. Зміни з іншої гілки буде скасовано.",
+  "ropMainlineCherryPickBody": "У злиття немає єдиного набору змін для повторення, тож git потрібен батьківський коміт для порівняння. Зміни з іншої гілки буде застосовано.",
+  "ropMainlineParent": "Батьківський коміт {n}",
+  "ropMainlineParentFirst": "гілка, у яку зливали",
+  "ropMainlineParentOther": "злита гілка",
   "shellPrevOpUnfinished": "Попередня операція могла не завершитися",
 
   "wtpChanges": "ЗМІНИ",

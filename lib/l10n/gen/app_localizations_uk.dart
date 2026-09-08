@@ -1098,6 +1098,35 @@ class AppLocalizationsUk extends AppLocalizations {
   String get ropStash => 'Сховати';
 
   @override
+  String ropMainlineRevertTitle(String sha) {
+    return 'Відкотити злиття $sha';
+  }
+
+  @override
+  String ropMainlineCherryPickTitle(String sha) {
+    return 'Cherry-pick злиття $sha';
+  }
+
+  @override
+  String get ropMainlineRevertBody =>
+      'Злиття поєднало дві лінії історії, тож git має знати, яку з них залишити. Зміни з іншої гілки буде скасовано.';
+
+  @override
+  String get ropMainlineCherryPickBody =>
+      'У злиття немає єдиного набору змін для повторення, тож git потрібен батьківський коміт для порівняння. Зміни з іншої гілки буде застосовано.';
+
+  @override
+  String ropMainlineParent(int n) {
+    return 'Батьківський коміт $n';
+  }
+
+  @override
+  String get ropMainlineParentFirst => 'гілка, у яку зливали';
+
+  @override
+  String get ropMainlineParentOther => 'злита гілка';
+
+  @override
   String get shellPrevOpUnfinished => 'Попередня операція могла не завершитися';
 
   @override

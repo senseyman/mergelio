@@ -293,8 +293,14 @@ class GitWriter {
 
   // --- Commit-context ops ---------------------------------------------------
 
-  Future<void> cherryPick(String sha) =>
-      _ok(['cherry-pick', sha], 'git cherry-pick');
+  /// Cherry-picks [sha]. A merge commit has no single diff to replay, so git
+  /// demands the parent to diff it against: [mainline] is that parent's 1-based
+  /// number. Give it for a merge; git rejects it on any other commit.
+  Future<void> cherryPick(String sha, {int? mainline}) => _ok([
+    'cherry-pick',
+    if (mainline != null) ...['-m', '$mainline'],
+    sha,
+  ], 'git cherry-pick');
 
   /// Aborts an in-progress cherry-pick, restoring the pre-pick HEAD and tree.
   Future<void> cherryPickAbort() =>
@@ -314,8 +320,14 @@ class GitWriter {
   Future<void> cherryPickSkip() =>
       _ok(['cherry-pick', '--skip'], 'git cherry-pick --skip');
 
-  Future<void> revert(String sha) =>
-      _ok(['revert', '--no-edit', sha], 'git revert');
+  /// Reverts [sha]. As with [cherryPick], reverting a merge needs [mainline] —
+  /// the 1-based parent whose side of the merge is kept.
+  Future<void> revert(String sha, {int? mainline}) => _ok([
+    'revert',
+    '--no-edit',
+    if (mainline != null) ...['-m', '$mainline'],
+    sha,
+  ], 'git revert');
 
   Future<void> revertAbort() =>
       _ok(['revert', '--abort'], 'git revert --abort');

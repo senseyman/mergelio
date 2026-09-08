@@ -1090,6 +1090,35 @@ class AppLocalizationsEn extends AppLocalizations {
   String get ropStash => 'Stash';
 
   @override
+  String ropMainlineRevertTitle(String sha) {
+    return 'Revert merge $sha';
+  }
+
+  @override
+  String ropMainlineCherryPickTitle(String sha) {
+    return 'Cherry-pick merge $sha';
+  }
+
+  @override
+  String get ropMainlineRevertBody =>
+      'A merge joined two lines of history, so git needs to know which one to keep. The changes that came in from the other parent are undone.';
+
+  @override
+  String get ropMainlineCherryPickBody =>
+      'A merge has no single set of changes to replay, so git needs a parent to compare it against. The changes that came in from the other parent are applied.';
+
+  @override
+  String ropMainlineParent(int n) {
+    return 'Parent $n';
+  }
+
+  @override
+  String get ropMainlineParentFirst => 'the branch merged into';
+
+  @override
+  String get ropMainlineParentOther => 'the merged branch';
+
+  @override
   String get shellPrevOpUnfinished =>
       'A previous operation may not have finished';
 

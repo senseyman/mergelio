@@ -1172,6 +1172,32 @@ class _CommitContextMenu extends ConsumerWidget {
   final Widget child;
   const _CommitContextMenu({required this.commit, required this.child});
 
+  /// Cherry-picks or reverts this commit. A merge has no single set of changes
+  /// to replay, so git needs the mainline parent first — asking beats the bare
+  /// "commit is a merge but no -m option was given" git would otherwise
+  /// return.
+  Future<void> _replay(
+    BuildContext context,
+    WidgetRef ref,
+    String path,
+    MainlineOp op,
+  ) => replayCommit(
+    commit: commit,
+    op: op,
+    actions: ref.read(repoActionsProvider(path)),
+    pick: () {
+      final commits =
+          ref.read(repoDataProvider(path)).valueOrNull?.commits ??
+          const <Commit>[];
+      return showMainlineDialog(
+        context,
+        commit: commit,
+        op: op,
+        subjects: parentSubjects(commit, commits),
+      );
+    },
+  );
+
   Future<void> _open(BuildContext context, WidgetRef ref, Offset at) async {
     final path = ref.read(workspaceProvider).activeTab?.path;
     if (path == null) return;
@@ -1209,8 +1235,14 @@ class _CommitContextMenu extends ConsumerWidget {
           if (name != null) await actions.createBranch(name, at: sha);
         }),
         item(l.menuCreateTag, () => showTagDialog(context, ref, path, at: sha)),
-        item(l.menuCherryPick, () => actions.cherryPick(sha)),
-        item(l.menuRevert, () => actions.revert(sha)),
+        item(
+          l.menuCherryPick,
+          () => _replay(context, ref, path, MainlineOp.cherryPick),
+        ),
+        item(
+          l.menuRevert,
+          () => _replay(context, ref, path, MainlineOp.revert),
+        ),
         item(l.menuRebaseHere, () async {
           final steps = await actions.rebaseStepsFrom(sha);
           if (steps.isEmpty) return;

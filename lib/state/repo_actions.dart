@@ -837,19 +837,23 @@ class RepoActions {
     );
   }
 
-  Future<void> cherryPick(String sha) => _sequencerOp(
+  /// Cherry-picks [sha]. [mainline] is the 1-based parent to replay the merge
+  /// against, and must be given when [sha] is a merge commit — the caller picks
+  /// it, since only the user knows which side of the merge they want.
+  Future<void> cherryPick(String sha, {int? mainline}) => _sequencerOp(
     label: 'Cherry-pick ${_short(sha)}',
     branch: _short(sha),
     kind: MergeKind.cherryPick,
-    op: () => _writer.cherryPick(sha),
+    op: () => _writer.cherryPick(sha, mainline: mainline),
     abort: _writer.cherryPickAbort,
   );
 
-  Future<void> revert(String sha) => _sequencerOp(
+  /// Reverts [sha], with the same [mainline] requirement for merge commits.
+  Future<void> revert(String sha, {int? mainline}) => _sequencerOp(
     label: 'Revert ${_short(sha)}',
     branch: _short(sha),
     kind: MergeKind.revert,
-    op: () => _writer.revert(sha),
+    op: () => _writer.revert(sha, mainline: mainline),
     abort: _writer.revertAbort,
   );
 
