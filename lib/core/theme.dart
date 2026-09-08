@@ -20,8 +20,31 @@ class AppFonts {
     letterSpacing: -0.2,
   );
 
-  static TextStyle mns({double size = 12, Color? color}) =>
-      GoogleFonts.jetBrainsMono(fontSize: size, color: color);
+  /// Real monospace families, in the order a platform is likely to have one.
+  /// JetBrains Mono arrives over the network, so a first run offline still
+  /// needs a face to land on, and 'monospace' on its own is a fontconfig alias
+  /// that resolves on Linux and Android only — elsewhere it quietly falls back
+  /// to a proportional face, which shrinks every leading space in a diff.
+  static const monoFallback = <String>[
+    'SF Mono',
+    'Menlo',
+    'Monaco',
+    'Consolas',
+    'Courier New',
+    'monospace',
+  ];
+
+  static TextStyle mns({
+    double size = 12,
+    Color? color,
+    double? height,
+    FontWeight? weight,
+  }) => GoogleFonts.jetBrainsMono(
+    fontSize: size,
+    color: color,
+    height: height,
+    fontWeight: weight,
+  ).copyWith(fontFamilyFallback: monoFallback);
 }
 
 /// Builds a [ThemeData] for the given [brightness] using Mergelio tokens.

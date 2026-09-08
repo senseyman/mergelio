@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme.dart';
 import '../../core/tokens.dart';
+import '../../domain/text_tabs.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/diff_target.dart';
 import '../../state/file_insight.dart';
@@ -111,11 +113,7 @@ class _HistoryTab extends ConsumerWidget {
                           width: 66,
                           child: Text(
                             c.shortSha,
-                            style: TextStyle(
-                              color: t.textFaint,
-                              fontSize: 11.5,
-                              fontFamily: 'monospace',
-                            ),
+                            style: AppFonts.mns(size: 11.5, color: t.textFaint),
                           ),
                         ),
                         Expanded(
@@ -244,11 +242,7 @@ class _BlameTabState extends ConsumerState<_BlameTab> {
                         width: 66,
                         child: Text(
                           newBlock ? line.shortSha : '',
-                          style: TextStyle(
-                            color: t.accent,
-                            fontSize: 11,
-                            fontFamily: 'monospace',
-                          ),
+                          style: AppFonts.mns(size: 11, color: t.accent),
                         ),
                       ),
                       SizedBox(
@@ -270,12 +264,8 @@ class _BlameTabState extends ConsumerState<_BlameTab> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          line.content,
-                          style: TextStyle(
-                            color: t.textMuted,
-                            fontSize: 12,
-                            fontFamily: 'monospace',
-                          ),
+                          expandTabs(line.content),
+                          style: AppFonts.mns(size: 12, color: t.textMuted),
                         ),
                       ),
                     ],

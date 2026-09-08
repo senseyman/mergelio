@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme.dart';
 import '../../core/tokens.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/diagnostics.dart';
@@ -53,11 +54,7 @@ class _LogsRowState extends ConsumerState<LogsRow> {
                     Text(
                       path ?? l.lgNotActive,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: t.textFaint,
-                        fontSize: 11,
-                        fontFamily: 'monospace',
-                      ),
+                      style: AppFonts.mns(size: 11, color: t.textFaint),
                     ),
                   ],
                 ),

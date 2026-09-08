@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:xterm/xterm.dart';
 
+import '../../core/theme.dart';
 import '../../core/tokens.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/settings_controller.dart';
@@ -56,11 +57,7 @@ class TerminalPanel extends ConsumerWidget {
                   child: Text(
                     tab.path,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: t.textFaint,
-                      fontSize: 11.5,
-                      fontFamily: 'monospace',
-                    ),
+                    style: AppFonts.mns(size: 11.5, color: t.textFaint),
                   ),
                 ),
                 IconButton(
