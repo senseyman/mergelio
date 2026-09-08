@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import '../../domain/git/diff.dart';
+import '../../domain/text_tabs.dart';
 
 /// How wide the fixed chrome to the left of the code is in the inline view:
 /// stage button, both line-number columns, the +/- marker and their spacing.
@@ -12,10 +13,9 @@ const kDiffGutterWidth = 120.0;
 /// the half's own padding.
 const kSplitGutterWidth = 64.0;
 
-/// Columns a tab is budgeted for. Flutter lays a tab out as a single glyph
-/// rather than expanding it, so this is a reserve against under-measuring an
-/// indented line, not a rendering rule.
-const _tabColumns = 4;
+/// Columns a tab is budgeted for. The renderer expands a tab to the next stop,
+/// which is never wider than a whole tab, so counting every tab at full width
+/// keeps this an upper bound on the columns a line occupies.
 
 /// Characters in the widest line the diff will render, hunk headers included.
 /// The code font is monospace, so a character count stands in for a measured
@@ -57,7 +57,7 @@ int longestLineChars(List<FileDiff> files) {
 int _columns(String s) {
   var n = s.length;
   for (final c in s.codeUnits) {
-    if (c == 0x09) n += _tabColumns - 1;
+    if (c == 0x09) n += kTabColumns - 1;
   }
   return n;
 }

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme.dart';
 import '../../core/tokens.dart';
 import '../../domain/git/diff.dart';
 import '../../domain/git/line_history.dart';
+import '../../domain/text_tabs.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/diff_target.dart';
 import '../../state/file_insight.dart';
@@ -136,11 +138,7 @@ class _EntryTile extends ConsumerWidget {
                   width: 66,
                   child: Text(
                     c.shortSha,
-                    style: TextStyle(
-                      color: t.textFaint,
-                      fontSize: 11.5,
-                      fontFamily: 'monospace',
-                    ),
+                    style: AppFonts.mns(size: 11.5, color: t.textFaint),
                   ),
                 ),
                 Expanded(
@@ -161,11 +159,7 @@ class _EntryTile extends ConsumerWidget {
                 ),
                 Text(
                   entry.path,
-                  style: TextStyle(
-                    color: t.textFaint,
-                    fontSize: 11,
-                    fontFamily: 'monospace',
-                  ),
+                  style: AppFonts.mns(size: 11, color: t.textFaint),
                 ),
               ],
             ),
@@ -211,23 +205,12 @@ class _RangeLine extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          Text(
-            sign,
-            style: TextStyle(
-              color: t.textFaint,
-              fontSize: 12,
-              fontFamily: 'monospace',
-            ),
-          ),
+          Text(sign, style: AppFonts.mns(size: 12, color: t.textFaint)),
           const SizedBox(width: 4),
           Expanded(
             child: Text(
-              line.text,
-              style: TextStyle(
-                color: t.textMuted,
-                fontSize: 12,
-                fontFamily: 'monospace',
-              ),
+              expandTabs(line.text),
+              style: AppFonts.mns(size: 12, color: t.textMuted),
             ),
           ),
         ],

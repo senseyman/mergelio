@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme.dart';
 import '../../core/tokens.dart';
 import '../../domain/git/models.dart';
 import '../../l10n/gen/app_localizations.dart';
@@ -293,7 +294,11 @@ class CommitRow extends StatelessWidget {
       if (_on('sha'))
         Text(
           c.shortSha,
-          style: style.copyWith(fontFamily: 'monospace', letterSpacing: 0.3),
+          style: style.copyWith(
+            fontFamily: AppFonts.mono,
+            fontFamilyFallback: AppFonts.monoFallback,
+            letterSpacing: 0.3,
+          ),
         ),
     ];
     return Row(

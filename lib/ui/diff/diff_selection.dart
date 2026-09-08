@@ -80,11 +80,16 @@ Future<void> showDiffSelectionMenu(
 /// aggregating delegate underneath, and that is where the rows are flattened.
 /// So each row carries its own break instead.
 class _LineBreakDelegate extends StaticSelectionContainerDelegate {
-  _LineBreakDelegate(this.rowText);
+  _LineBreakDelegate(this.rowText, this.rawText);
 
-  /// The row's full text, used to tell a selection that runs off the end of
-  /// this row from one that stops inside it.
+  /// The row's full text as painted, used to tell a selection that runs off
+  /// the end of this row from one that stops inside it.
   String rowText;
+
+  /// The same row before its tabs were expanded for painting. A whole row is
+  /// handed back in this form, so a copied line pastes with the indentation
+  /// the file actually holds — a Go or Makefile line needs its tabs back.
+  String rawText;
 
   @override
   SelectedContent? getSelectedContent() {
@@ -95,20 +100,28 @@ class _LineBreakDelegate extends StaticSelectionContainerDelegate {
     // row or takes the whole line, and in both cases carries the line break.
     // One that stops mid-row is where the drag ended, so it takes no break.
     if (selected.isEmpty || !rowText.endsWith(selected)) return content;
-    return SelectedContent(plainText: '$selected\n');
+    // Only a run that covers the row can be swapped back wholesale; a partial
+    // one would need every expanded column mapped to its source character.
+    final text = selected == rowText ? rawText : selected;
+    return SelectedContent(plainText: '$text\n');
   }
 }
 
 /// Wraps the text of a single diff row so copying a multi-row selection keeps
 /// the rows on separate lines.
 class DiffSelectableLine extends StatefulWidget {
-  /// The row's full text, as it would be copied.
+  /// The row's full text as painted, tabs already expanded.
   final String text;
+
+  /// The row as the file stores it. Copying a whole row hands this back
+  /// instead, so expanded tabs do not travel to the clipboard.
+  final String rawText;
   final Widget child;
 
   const DiffSelectableLine({
     super.key,
     required this.text,
+    required this.rawText,
     required this.child,
   });
 
@@ -117,13 +130,14 @@ class DiffSelectableLine extends StatefulWidget {
 }
 
 class _DiffSelectableLineState extends State<DiffSelectableLine> {
-  late final _delegate = _LineBreakDelegate(widget.text);
+  late final _delegate = _LineBreakDelegate(widget.text, widget.rawText);
 
   @override
   void didUpdateWidget(DiffSelectableLine oldWidget) {
     super.didUpdateWidget(oldWidget);
     // List rows are recycled onto different lines as the diff scrolls.
     _delegate.rowText = widget.text;
+    _delegate.rawText = widget.rawText;
   }
 
   @override

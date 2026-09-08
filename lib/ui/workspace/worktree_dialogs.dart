@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/theme.dart';
 import '../../core/tokens.dart';
 import '../../domain/git/worktree.dart';
 import '../../domain/path_key.dart';
@@ -682,11 +683,7 @@ class _PruneBody extends StatelessWidget {
               // way to be wrong about what is about to happen.
               child: Text(
                 report.trimRight(),
-                style: TextStyle(
-                  color: t.textPrimary,
-                  fontSize: 12,
-                  fontFamily: 'monospace',
-                ),
+                style: AppFonts.mns(size: 12, color: t.textPrimary),
               ),
             ),
           ),

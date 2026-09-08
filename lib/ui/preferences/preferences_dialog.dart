@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme.dart';
 import '../../core/tokens.dart';
 import '../../domain/ssh_keys.dart';
 import '../../domain/theme_io.dart';
@@ -256,11 +257,7 @@ class _ShortcutsTab extends StatelessWidget {
                   ),
                   child: Text(
                     keys,
-                    style: TextStyle(
-                      color: t.textPrimary,
-                      fontSize: 12,
-                      fontFamily: 'monospace',
-                    ),
+                    style: AppFonts.mns(size: 12, color: t.textPrimary),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -401,10 +398,9 @@ class _CredentialsTabState extends ConsumerState<_CredentialsTab> {
                               Text(
                                 k.publicKey.split(' ').take(2).join(' '),
                                 overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
+                                style: AppFonts.mns(
+                                  size: 11,
                                   color: t.textFaint,
-                                  fontSize: 11,
-                                  fontFamily: 'monospace',
                                 ),
                               ),
                             ],

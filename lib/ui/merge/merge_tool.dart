@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme.dart';
 import '../../core/tokens.dart';
 import '../../domain/git/conflict.dart';
 import '../../domain/git/diff.dart';
+import '../../domain/text_tabs.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/merge_session.dart';
 import '../../state/repo_actions.dart';
@@ -314,12 +316,8 @@ class _ConflictView extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Text(
-                  block.lines.join('\n'),
-                  style: TextStyle(
-                    color: t.textFaint,
-                    fontSize: 12.5,
-                    fontFamily: 'monospace',
-                  ),
+                  expandTabs(block.lines.join('\n')),
+                  style: AppFonts.mns(size: 12.5, color: t.textFaint),
                 ),
               ),
       ],
@@ -385,11 +383,7 @@ class _HunkCardState extends State<_HunkCard> {
                 children: [
                   Text(
                     '@@ line ${hunk.line} @@',
-                    style: TextStyle(
-                      color: t.textFaint,
-                      fontSize: 11,
-                      fontFamily: 'monospace',
-                    ),
+                    style: AppFonts.mns(size: 11, color: t.textFaint),
                   ),
                   const Spacer(),
                   if (res == Resolution.both)
@@ -460,11 +454,7 @@ class _HunkCardState extends State<_HunkCard> {
                     TextField(
                       controller: _editor,
                       maxLines: null,
-                      style: TextStyle(
-                        color: t.textPrimary,
-                        fontSize: 12.5,
-                        fontFamily: 'monospace',
-                      ),
+                      style: AppFonts.mns(size: 12.5, color: t.textPrimary),
                       decoration: InputDecoration(
                         isDense: true,
                         border: const OutlineInputBorder(),
@@ -497,16 +487,14 @@ class _HunkCardState extends State<_HunkCard> {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  resolveConflicts(
-                    [hunk],
-                    {0: res},
-                    custom: {0: widget.custom ?? const []},
-                  ).trimRight(),
-                  style: TextStyle(
-                    color: t.textMuted,
-                    fontSize: 12.5,
-                    fontFamily: 'monospace',
+                  expandTabs(
+                    resolveConflicts(
+                      [hunk],
+                      {0: res},
+                      custom: {0: widget.custom ?? const []},
+                    ).trimRight(),
                   ),
+                  style: AppFonts.mns(size: 12.5, color: t.textMuted),
                 ),
               ),
           ],
@@ -595,20 +583,29 @@ class _HunkCardState extends State<_HunkCard> {
   /// Highlights the tokens of [line] that differ from [against] (its opposite-
   /// side counterpart), so the changed part of a modified line stands out.
   TextSpan _lineSpans(AppTokens t, String line, String? against, Color bg) {
-    const base = TextStyle(fontSize: 12.5, fontFamily: 'monospace');
+    final base = AppFonts.mns(size: 12.5);
     if (against == null || against == line) {
       return TextSpan(
-        text: line,
+        text: expandTabs(line),
         style: base.copyWith(color: t.textMuted),
       );
     }
+    // A tab advances to the next stop from wherever it sits, so the column has
+    // to run across the joins between the segments.
+    var column = 0;
+    String expand(String text) {
+      final r = expandTabsFrom(text, column);
+      column = r.column;
+      return r.text;
+    }
+
     // diffWords(against, line): the second side's changed segments.
     final (_, segs) = diffWords(against, line);
     return TextSpan(
       children: [
         for (final s in segs)
           TextSpan(
-            text: s.text,
+            text: expand(s.text),
             style: base.copyWith(
               color: t.textPrimary,
               backgroundColor: s.changed ? bg : null,

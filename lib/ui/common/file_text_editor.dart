@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme.dart';
 import '../../core/tokens.dart';
 import '../../domain/file_edit.dart';
 import '../../domain/text_find.dart';
@@ -355,12 +356,8 @@ class _FileTextEditorState extends ConsumerState<FileTextEditor> {
     );
   }
 
-  static TextStyle _codeStyle(Color color) => TextStyle(
-    color: color,
-    fontSize: 12.5,
-    fontFamily: 'monospace',
-    height: 1.35,
-  );
+  static TextStyle _codeStyle(Color color) =>
+      AppFonts.mns(size: 12.5, color: color, height: 1.35);
 
   /// Line numbers beside the text, held at the same offset by the shared
   /// controller. Numbers count lines as the file stores them, so a line long

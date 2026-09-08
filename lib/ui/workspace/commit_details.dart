@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme.dart';
 import '../../core/tokens.dart';
 import '../../domain/git/commit_message.dart';
 import '../../domain/git/models.dart';
@@ -349,11 +350,9 @@ class _Meta extends StatelessWidget {
           Expanded(
             child: Text(
               value,
-              style: TextStyle(
-                color: t.textMuted,
-                fontSize: 11.5,
-                fontFamily: mono ? 'monospace' : null,
-              ),
+              style: mono
+                  ? AppFonts.mns(size: 11.5, color: t.textMuted)
+                  : TextStyle(color: t.textMuted, fontSize: 11.5),
             ),
           ),
         ],
@@ -382,14 +381,7 @@ class _MetaSha extends StatelessWidget {
               style: TextStyle(color: t.textFaint, fontSize: 11.5),
             ),
           ),
-          Text(
-            short,
-            style: TextStyle(
-              color: t.textMuted,
-              fontSize: 11.5,
-              fontFamily: 'monospace',
-            ),
-          ),
+          Text(short, style: AppFonts.mns(size: 11.5, color: t.textMuted)),
           const SizedBox(width: 4),
           InkWell(
             onTap: () => Clipboard.setData(ClipboardData(text: sha)),

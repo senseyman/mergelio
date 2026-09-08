@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme.dart';
 import '../../core/tokens.dart';
 import '../../domain/git/diff.dart';
+import '../../domain/text_tabs.dart';
 import '../../domain/git/line_history.dart';
 import '../../domain/git/models.dart';
 import '../../domain/git/stage_patch.dart';
@@ -184,10 +186,8 @@ class _DiffHeader extends ConsumerWidget {
             child: Text(
               target.path,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
+              style: _codeStyle.copyWith(
                 color: t.textPrimary,
-                fontSize: 12.5,
-                fontFamily: 'monospace',
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -772,14 +772,10 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
   }
 }
 
-const _codeStyle = TextStyle(
-  fontSize: 12.5,
-  fontFamily: 'monospace',
-  height: 1.35,
-);
+final _codeStyle = AppFonts.mns(size: 12.5, height: 1.35);
 
 TextPainter _codeMetrics(BuildContext context) => TextPainter(
-  text: const TextSpan(text: 'M', style: _codeStyle),
+  text: TextSpan(text: 'M', style: _codeStyle),
   textDirection: TextDirection.ltr,
   textScaler: MediaQuery.textScalerOf(context),
 )..layout();
@@ -904,11 +900,10 @@ class _HunkHeaderRow extends StatelessWidget {
             Expanded(
               child: showMarker
                   ? Text(
-                      header,
-                      style: TextStyle(
+                      expandTabs(header),
+                      style: _codeStyle.copyWith(
                         color: t.textFaint,
                         fontSize: 11,
-                        fontFamily: 'monospace',
                       ),
                     )
                   : const SizedBox.shrink(),
@@ -1166,18 +1161,15 @@ class _SplitHalf extends ConsumerWidget {
               child: Text(
                 (isLeft ? line.oldNo : line.newNo)?.toString() ?? '',
                 textAlign: TextAlign.right,
-                style: TextStyle(
-                  color: t.textFaint,
-                  fontSize: 11,
-                  fontFamily: 'monospace',
-                ),
+                style: _codeStyle.copyWith(color: t.textFaint, fontSize: 11),
               ),
             ),
           ),
           const SizedBox(width: 6),
           Expanded(
             child: DiffSelectableLine(
-              text: line.text,
+              text: expandTabs(line.text),
+              rawText: line.text,
               child: Text.rich(
                 _lineSpans(t, line),
                 softWrap: false,
@@ -1261,10 +1253,9 @@ class _LineRow extends ConsumerWidget {
                   const SizedBox(width: 6),
                   Text(
                     sign,
-                    style: TextStyle(
+                    style: _codeStyle.copyWith(
                       color: t.textFaint,
                       fontSize: 12,
-                      fontFamily: 'monospace',
                     ),
                   ),
                   const SizedBox(width: 4),
@@ -1274,7 +1265,8 @@ class _LineRow extends ConsumerWidget {
           ),
           Expanded(
             child: DiffSelectableLine(
-              text: line.text,
+              text: expandTabs(line.text),
+              rawText: line.text,
               child: Text.rich(
                 _lineSpans(t, line),
                 softWrap: false,
@@ -1292,11 +1284,7 @@ class _LineRow extends ConsumerWidget {
     child: Text(
       n?.toString() ?? '',
       textAlign: TextAlign.right,
-      style: TextStyle(
-        color: t.textFaint,
-        fontSize: 11,
-        fontFamily: 'monospace',
-      ),
+      style: _codeStyle.copyWith(color: t.textFaint, fontSize: 11),
     ),
   );
 }
@@ -1304,15 +1292,23 @@ class _LineRow extends ConsumerWidget {
 /// Left-aligned monospace spans: word-level highlight for a modified line,
 /// else syntax colouring.
 TextSpan _lineSpans(AppTokens t, DiffLine line) {
-  const base = TextStyle(fontSize: 12.5, fontFamily: 'monospace', height: 1.35);
+  // A line arrives as separate coloured spans, and a tab advances to the next
+  // stop from wherever it sits, so the column has to run across the joins.
+  var column = 0;
+  String expand(String s) {
+    final r = expandTabsFrom(s, column);
+    column = r.column;
+    return r.text;
+  }
+
   if (line.words != null) {
     final wordBg = line.type == DiffLineType.add ? t.addWord : t.delWord;
     return TextSpan(
       children: [
         for (final seg in line.words!)
           TextSpan(
-            text: seg.text,
-            style: base.copyWith(
+            text: expand(seg.text),
+            style: _codeStyle.copyWith(
               color: t.textPrimary,
               backgroundColor: seg.changed ? wordBg : null,
             ),
@@ -1324,8 +1320,8 @@ TextSpan _lineSpans(AppTokens t, DiffLine line) {
     children: [
       for (final tok in highlightLine(line.text))
         TextSpan(
-          text: tok.text,
-          style: base.copyWith(color: syntaxColor(t, tok.kind)),
+          text: expand(tok.text),
+          style: _codeStyle.copyWith(color: syntaxColor(t, tok.kind)),
         ),
     ],
   );
