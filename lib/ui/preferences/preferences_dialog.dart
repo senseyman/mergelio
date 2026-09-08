@@ -93,12 +93,14 @@ class _GeneralTab extends ConsumerWidget {
         if (s.autoFetch)
           _ChoiceRow(
             l.prefsAutoFetchInterval,
-            const ['5', '15', '30', '60', '300'],
+            const ['30', '60', '300', '900', '1800'],
             '${s.autoFetchIntervalSeconds}',
             (v) => c.setAutoFetchInterval(int.parse(v)),
             labelFor: (v) => switch (v) {
               '60' => '1m',
               '300' => '5m',
+              '900' => '15m',
+              '1800' => '30m',
               _ => '${v}s',
             },
           ),

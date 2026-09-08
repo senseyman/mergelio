@@ -22,9 +22,16 @@ class SettingsController extends StateNotifier<AppSettings> {
 
   void setAutoFetch(bool v) => _update(state.copyWith(autoFetch: v));
 
-  /// Auto-fetch poll interval, floored at 5s so it cannot hammer the network.
-  void setAutoFetchInterval(int seconds) =>
-      _update(state.copyWith(autoFetchIntervalSeconds: seconds.clamp(5, 3600)));
+  /// Auto-fetch poll interval, floored at [kMinAutoFetchIntervalSeconds] so it
+  /// cannot hammer the network.
+  void setAutoFetchInterval(int seconds) => _update(
+    state.copyWith(
+      autoFetchIntervalSeconds: seconds.clamp(
+        kMinAutoFetchIntervalSeconds,
+        3600,
+      ),
+    ),
+  );
   void setConfirmDestructive(bool v) =>
       _update(state.copyWith(confirmDestructive: v));
   void setRestoreTabs(bool v) => _update(state.copyWith(restoreTabs: v));

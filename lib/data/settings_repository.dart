@@ -26,7 +26,9 @@ class DriftSettingsRepository implements SettingsRepository {
     final raw = await db.getValue(_key);
     if (raw == null) return const AppSettings();
     try {
-      return AppSettings.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+      return migrateSettings(
+        AppSettings.fromJson(jsonDecode(raw) as Map<String, dynamic>),
+      );
     } catch (e) {
       // Keep the unreadable blob for recovery/diagnostics instead of letting
       // the next save overwrite it.

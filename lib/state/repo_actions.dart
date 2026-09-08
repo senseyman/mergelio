@@ -74,8 +74,10 @@ class RepoActions {
   }
 
   /// Runs a network op behind the top progress bar, refreshes on success and
-  /// toasts the outcome. Errors never escape — they surface as a toast.
-  Future<void> _network(
+  /// toasts the outcome. Errors never escape — they surface as a toast, and as
+  /// a false return for callers (auto-fetch) that pace themselves on failure.
+  /// A skip, because the lane is busy, counts as no failure.
+  Future<bool> _network(
     String label,
     Future<void> Function(GitCancel cancel) op, {
     // Background ops (auto-fetch) run silent: no success/failure toast.
@@ -97,7 +99,7 @@ class RepoActions {
       if (!silent) {
         toasts.show('An operation is already running', kind: ToastKind.warning);
       }
-      return;
+      return true;
     }
     // Handed to the UI so a stalled remote can be given up on rather than
     // holding the lane until the network timeout expires.
@@ -110,11 +112,14 @@ class RepoActions {
       await _timed(label, () => op(cancel));
       await _journalDone(opId);
       if (!silent) toasts.show('$label complete', kind: ToastKind.success);
+      return true;
     } on GitCancelledException {
       await _journalFail(opId);
       if (!silent) {
         toasts.show('$label cancelled', kind: ToastKind.warning);
       }
+      // Giving up on purpose is not the remote failing.
+      return true;
     } on GitException catch (e) {
       await _journalFail(opId);
       // Prefer git's own stderr; fall back to the short message.
@@ -126,6 +131,7 @@ class RepoActions {
           kind: ToastKind.error,
         );
       }
+      return false;
     } on Object catch (_) {
       await _journalFail(opId);
       if (!silent) {
@@ -135,6 +141,7 @@ class RepoActions {
           kind: ToastKind.error,
         );
       }
+      return false;
     } finally {
       // Refresh even on failure: a failed pull/merge can still leave the repo
       // mid-operation (conflicts, MERGING) that the UI must show.
@@ -143,7 +150,7 @@ class RepoActions {
     }
   }
 
-  Future<void> fetch({String? remote, bool silent = false}) => _network(
+  Future<bool> fetch({String? remote, bool silent = false}) => _network(
     'Fetch',
     (cancel) => _writer.fetch(remote: remote, cancel: cancel),
     silent: silent,

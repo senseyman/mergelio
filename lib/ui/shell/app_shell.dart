@@ -11,6 +11,7 @@ import '../../state/profiles.dart';
 import '../../state/repo_watcher.dart';
 import '../../state/settings_controller.dart';
 import '../../state/update_controller.dart';
+import '../../state/window_focus.dart';
 import '../../state/workspace.dart';
 import '../terminal/terminal_panel.dart';
 import '../common/progress_top_bar.dart';
@@ -37,6 +38,7 @@ class AppShell extends ConsumerWidget {
     // Keep the auto-fetch scheduler, per-profile theme + workspace sync and the
     // disk watcher alive for the app's lifetime.
     ref.watch(autoFetchProvider);
+    ref.watch(windowFocusSyncProvider);
     ref.watch(profileThemeSyncProvider);
     ref.watch(profileWorkspaceSyncProvider);
     ref.watch(repoWatcherProvider);

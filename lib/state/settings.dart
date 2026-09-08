@@ -4,6 +4,23 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'settings.freezed.dart';
 part 'settings.g.dart';
 
+/// Auto-fetch poll interval floor, in seconds. A tick is a full
+/// `git fetch --all --prune` — a connection handshake per remote, per repo —
+/// so a shorter period looks like abuse to a host and keeps the git
+/// subprocess pool busy on work nobody asked for.
+const kMinAutoFetchIntervalSeconds = 30;
+
+/// Default auto-fetch poll interval, in seconds (5 minutes).
+const kDefaultAutoFetchIntervalSeconds = 300;
+
+/// Brings a stored settings blob forward to the current rules. Earlier builds
+/// offered 5s and 15s poll intervals; those values are raised to the floor
+/// rather than left to poll at a rate the app no longer allows.
+AppSettings migrateSettings(AppSettings s) =>
+    s.autoFetchIntervalSeconds < kMinAutoFetchIntervalSeconds
+    ? s.copyWith(autoFetchIntervalSeconds: kMinAutoFetchIntervalSeconds)
+    : s;
+
 /// Persisted app settings. Immutable (freezed), JSON-serialisable for storage.
 @freezed
 class AppSettings with _$AppSettings {
@@ -29,7 +46,7 @@ class AppSettings with _$AppSettings {
     // General preferences.
     @Default(false) bool autoFetch,
     // Auto-fetch poll interval in seconds (only used while autoFetch is on).
-    @Default(5) int autoFetchIntervalSeconds,
+    @Default(kDefaultAutoFetchIntervalSeconds) int autoFetchIntervalSeconds,
     @Default(true) bool confirmDestructive,
     @Default(true) bool restoreTabs,
     // 'merge' | 'rebase' — default strategy for Pull.
