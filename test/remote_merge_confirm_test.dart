@@ -33,8 +33,9 @@ class _RecordingActions extends RepoActions {
   final fetched = <String?>[];
 
   @override
-  Future<void> fetch({String? remote, bool silent = false}) async {
+  Future<bool> fetch({String? remote, bool silent = false}) async {
     fetched.add(remote);
+    return true;
   }
 }
 
