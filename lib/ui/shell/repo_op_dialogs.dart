@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme.dart';
 import '../../core/tokens.dart';
 import '../../domain/git/models.dart';
 import '../../l10n/gen/app_localizations.dart';
@@ -515,6 +516,226 @@ class _StashBodyState extends ConsumerState<_StashBody> {
           ],
         ),
       ],
+    );
+  }
+}
+
+/// Cherry-picks or reverts [commit], asking [pick] for the mainline parent
+/// first when it is a merge. A null from [pick] is a cancellation: nothing
+/// runs. Split from the menu that calls it so the branching is testable
+/// without a graph on screen.
+Future<void> replayCommit({
+  required Commit commit,
+  required MainlineOp op,
+  required RepoActions actions,
+  required Future<int?> Function() pick,
+}) async {
+  int? mainline;
+  if (needsMainline(commit)) {
+    mainline = await pick();
+    if (mainline == null) return;
+  }
+  switch (op) {
+    case MainlineOp.cherryPick:
+      await actions.cherryPick(commit.sha, mainline: mainline);
+    case MainlineOp.revert:
+      await actions.revert(commit.sha, mainline: mainline);
+  }
+}
+
+/// Whether git will refuse to replay [commit] without being told which parent
+/// to treat as the mainline — true for merge commits only.
+bool needsMainline(Commit commit) => commit.parents.length > 1;
+
+/// Subjects of [commit]'s parents, taken from the already-loaded [commits].
+/// A parent outside the loaded walk is simply absent, and shows as a sha.
+Map<String, String> parentSubjects(Commit commit, List<Commit> commits) {
+  final wanted = commit.parents.toSet();
+  return {
+    for (final c in commits)
+      if (wanted.contains(c.sha)) c.sha: c.message,
+  };
+}
+
+/// The two commands git refuses to run on a merge commit without `-m`.
+enum MainlineOp { cherryPick, revert }
+
+/// Asks which parent of a merge commit git should work against. Returns the
+/// 1-based parent number, or null when the user backs out. [subjects] maps a
+/// parent sha to its commit subject, so the choice reads as branches rather
+/// than hashes; a parent that is missing from it just shows its sha.
+Future<int?> showMainlineDialog(
+  BuildContext context, {
+  required Commit commit,
+  required MainlineOp op,
+  Map<String, String> subjects = const {},
+}) {
+  final l = AppLocalizations.of(context);
+  return showAppModal<int>(
+    context: context,
+    title: op == MainlineOp.revert
+        ? l.ropMainlineRevertTitle(commit.shortSha)
+        : l.ropMainlineCherryPickTitle(commit.shortSha),
+    icon: Icons.merge_type,
+    width: 480,
+    body: _MainlineBody(commit: commit, op: op, subjects: subjects),
+  );
+}
+
+class _MainlineBody extends StatefulWidget {
+  final Commit commit;
+  final MainlineOp op;
+  final Map<String, String> subjects;
+  const _MainlineBody({
+    required this.commit,
+    required this.op,
+    required this.subjects,
+  });
+
+  @override
+  State<_MainlineBody> createState() => _MainlineBodyState();
+}
+
+class _MainlineBodyState extends State<_MainlineBody> {
+  // 1-based, like git's -m: parent 1 is the branch the merge landed on, which
+  // is what people mean nearly every time.
+  int _parent = 1;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final t = context.tokens;
+    final parents = widget.commit.parents;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          widget.op == MainlineOp.revert
+              ? l.ropMainlineRevertBody
+              : l.ropMainlineCherryPickBody,
+          style: TextStyle(color: t.textMuted, fontSize: 12, height: 1.4),
+        ),
+        const SizedBox(height: 14),
+        for (var i = 0; i < parents.length; i++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: _ParentTile(
+              number: i + 1,
+              sha: parents[i],
+              subject: widget.subjects[parents[i]],
+              selected: _parent == i + 1,
+              onTap: () => setState(() => _parent = i + 1),
+            ),
+          ),
+        const SizedBox(height: 14),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(l.cancel),
+            ),
+            const SizedBox(width: 8),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(_parent),
+              child: Text(
+                widget.op == MainlineOp.revert
+                    ? l.menuRevert
+                    : l.menuCherryPick,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _ParentTile extends StatelessWidget {
+  final int number;
+  final String sha;
+  final String? subject;
+  final bool selected;
+  final VoidCallback onTap;
+  const _ParentTile({
+    required this.number,
+    required this.sha,
+    required this.subject,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final t = context.tokens;
+    final role = number == 1
+        ? l.ropMainlineParentFirst
+        : l.ropMainlineParentOther;
+    return Semantics(
+      inMutuallyExclusiveGroup: true,
+      selected: selected,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(t.rButton),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(t.rButton),
+            border: Border.all(color: selected ? t.accent : t.border),
+            color: selected ? t.accent.withValues(alpha: 0.08) : null,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                selected
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_unchecked,
+                size: 16,
+                color: selected ? t.accent : t.textMuted,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            '${l.ropMainlineParent(number)} · $role',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: t.textPrimary,
+                              fontSize: 12.5,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          sha.length > 7 ? sha.substring(0, 7) : sha,
+                          style: AppFonts.mns(size: 11.5, color: t.textMuted),
+                        ),
+                      ],
+                    ),
+                    if (subject != null && subject!.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subject!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: t.textMuted, fontSize: 11.5),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

@@ -636,6 +636,28 @@
   "ropMessageOptional": "Message (optional)",
   "ropOnlyStaged": "Only staged changes",
   "ropStash": "Stash",
+  "ropMainlineRevertTitle": "Revert merge {sha}",
+  "@ropMainlineRevertTitle": {
+    "placeholders": {
+      "sha": {"type": "String"}
+    }
+  },
+  "ropMainlineCherryPickTitle": "Cherry-pick merge {sha}",
+  "@ropMainlineCherryPickTitle": {
+    "placeholders": {
+      "sha": {"type": "String"}
+    }
+  },
+  "ropMainlineRevertBody": "A merge joined two lines of history, so git needs to know which one to keep. The changes that came in from the other parent are undone.",
+  "ropMainlineCherryPickBody": "A merge has no single set of changes to replay, so git needs a parent to compare it against. The changes that came in from the other parent are applied.",
+  "ropMainlineParent": "Parent {n}",
+  "@ropMainlineParent": {
+    "placeholders": {
+      "n": {"type": "int"}
+    }
+  },
+  "ropMainlineParentFirst": "the branch merged into",
+  "ropMainlineParentOther": "the merged branch",
   "shellPrevOpUnfinished": "A previous operation may not have finished",
 
   "wtpChanges": "CHANGES",

@@ -1958,6 +1958,48 @@ abstract class AppLocalizations {
   /// **'Stash'**
   String get ropStash;
 
+  /// No description provided for @ropMainlineRevertTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Revert merge {sha}'**
+  String ropMainlineRevertTitle(String sha);
+
+  /// No description provided for @ropMainlineCherryPickTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Cherry-pick merge {sha}'**
+  String ropMainlineCherryPickTitle(String sha);
+
+  /// No description provided for @ropMainlineRevertBody.
+  ///
+  /// In en, this message translates to:
+  /// **'A merge joined two lines of history, so git needs to know which one to keep. The changes that came in from the other parent are undone.'**
+  String get ropMainlineRevertBody;
+
+  /// No description provided for @ropMainlineCherryPickBody.
+  ///
+  /// In en, this message translates to:
+  /// **'A merge has no single set of changes to replay, so git needs a parent to compare it against. The changes that came in from the other parent are applied.'**
+  String get ropMainlineCherryPickBody;
+
+  /// No description provided for @ropMainlineParent.
+  ///
+  /// In en, this message translates to:
+  /// **'Parent {n}'**
+  String ropMainlineParent(int n);
+
+  /// No description provided for @ropMainlineParentFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'the branch merged into'**
+  String get ropMainlineParentFirst;
+
+  /// No description provided for @ropMainlineParentOther.
+  ///
+  /// In en, this message translates to:
+  /// **'the merged branch'**
+  String get ropMainlineParentOther;
+
   /// No description provided for @shellPrevOpUnfinished.
   ///
   /// In en, this message translates to:
