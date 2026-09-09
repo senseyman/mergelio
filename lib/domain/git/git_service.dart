@@ -77,6 +77,49 @@ String sshCommandWith(String? base) {
       '${sshWatchdogOptions.join(' ')}';
 }
 
+/// Environment for a command that talks to a remote.
+///
+/// [sshCommand] is whatever ssh command git would use anyway, which the
+/// watchdog options are appended to. [askpass] is the helper git and ssh ask
+/// for a passphrase or password with; without one there is nowhere for a
+/// credential to come from, and an authentication that needs input can only
+/// fail.
+Map<String, String> networkEnv({String? sshCommand, String? askpass}) => {
+  'GIT_SSH_COMMAND': sshCommandWith(sshCommand),
+  // A GUI app has no terminal to prompt on. Left enabled, git opens /dev/tty
+  // and waits for input that never arrives; disabled, it fails with a message
+  // the user can act on — or reaches the askpass helper below instead.
+  'GIT_TERMINAL_PROMPT': '0',
+  if (askpass != null && askpass.isNotEmpty) ...{
+    'GIT_ASKPASS': askpass,
+    'SSH_ASKPASS': askpass,
+    // ssh only falls back to the helper when it finds no terminal, and it may
+    // well find the one the app was launched from. `force` skips that check.
+    'SSH_ASKPASS_REQUIRE': 'force',
+  },
+};
+
+/// [networkEnv] with the ssh command git itself would pick, following git's own
+/// precedence: an inherited `GIT_SSH_COMMAND` first, then `core.sshCommand`
+/// from [repoPath]'s config — global and system config when there is no
+/// repository yet, as with a clone.
+Future<Map<String, String>> resolveNetworkEnv(
+  GitService git, {
+  String? repoPath,
+  String? askpass,
+}) async {
+  var base = Platform.environment['GIT_SSH_COMMAND'];
+  if (base == null || base.trim().isEmpty) {
+    final configured = await git.run([
+      'config',
+      '--get',
+      'core.sshCommand',
+    ], repoPath: repoPath);
+    base = configured.ok ? configured.out : null;
+  }
+  return networkEnv(sshCommand: base, askpass: askpass);
+}
+
 /// Abstraction over the Git engine. UI never shells out directly; it depends
 /// on this interface. [SystemGitService] uses the system `git` binary;
 /// libgit2 FFI may be added later for fast reads.

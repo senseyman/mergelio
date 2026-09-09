@@ -2097,4 +2097,19 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get updatePrefsNever => 'ніколи';
+
+  @override
+  String get askpassTitle => 'Потрібна автентифікація';
+
+  @override
+  String get askpassFallback => 'Введіть облікові дані';
+
+  @override
+  String get askpassSubmit => 'OK';
+
+  @override
+  String get askpassYes => 'Так';
+
+  @override
+  String get askpassNo => 'Ні';
 }

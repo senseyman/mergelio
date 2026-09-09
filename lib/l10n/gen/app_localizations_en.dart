@@ -2080,4 +2080,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get updatePrefsNever => 'never';
+
+  @override
+  String get askpassTitle => 'Authentication required';
+
+  @override
+  String get askpassFallback => 'Enter your credentials';
+
+  @override
+  String get askpassSubmit => 'OK';
+
+  @override
+  String get askpassYes => 'Yes';
+
+  @override
+  String get askpassNo => 'No';
 }
