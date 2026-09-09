@@ -120,6 +120,9 @@ class AppLocalizationsUk extends AppLocalizations {
   String get prefsPullStrategy => 'Стратегія стягування';
 
   @override
+  String get prefsPullAutostash => 'Автосхов під час стягування';
+
+  @override
   String get prefsDateFormat => 'Формат дати';
 
   @override
@@ -945,6 +948,12 @@ class AppLocalizationsUk extends AppLocalizations {
   String get bbPullAllRemotes => 'Стягнути (усі віддалені)';
 
   @override
+  String get bbPullFfOnly => 'Стягнути (лише перемотка)';
+
+  @override
+  String get bbPullMerge => 'Стягнути (злиття)';
+
+  @override
   String get bbForcePushTitle => 'Примусово відправити?';
 
   @override
@@ -1090,6 +1099,24 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get ropMerge => 'Злити';
+
+  @override
+  String get ropSquash => 'Стиснути (проіндексувати, без коміту)';
+
+  @override
+  String get ropNoCommit => 'Проіндексувати злиття, без коміту';
+
+  @override
+  String get ropFavorLabel => 'Якщо обидві сторони змінили ті самі рядки';
+
+  @override
+  String get ropFavorAsk => 'Запитати';
+
+  @override
+  String get ropFavorOurs => 'Наші';
+
+  @override
+  String get ropFavorTheirs => 'Їхні';
 
   @override
   String get ropMessageOptional => 'Повідомлення (необов’язково)';

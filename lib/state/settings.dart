@@ -21,6 +21,12 @@ AppSettings migrateSettings(AppSettings s) =>
     ? s.copyWith(autoFetchIntervalSeconds: kMinAutoFetchIntervalSeconds)
     : s;
 
+/// The flags a pull carries when the user asked for a pull and nothing more:
+/// the strategy preference decides rebase vs merge, and autostash decides
+/// whether a dirty working tree stops the pull or is shelved for it.
+({bool rebase, bool autostash}) pullDefaults(AppSettings s) =>
+    (rebase: s.pullStrategy == 'rebase', autostash: s.pullAutostash);
+
 /// Persisted app settings. Immutable (freezed), JSON-serialisable for storage.
 @freezed
 class AppSettings with _$AppSettings {
@@ -51,6 +57,9 @@ class AppSettings with _$AppSettings {
     @Default(true) bool restoreTabs,
     // 'merge' | 'rebase' — default strategy for Pull.
     @Default('merge') String pullStrategy,
+    // Shelve and restore uncommitted work around a pull, so a dirty tree does
+    // not turn every pull into an error.
+    @Default(true) bool pullAutostash,
     // 'medium' (Jul 2, 2026) | 'iso' (2026-07-02) | 'short' (07/02/26).
     @Default('medium') String dateFormat,
     // '24h' (14:33) | '12h' (2:33 PM) — used wherever a clock is shown.

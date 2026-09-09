@@ -36,6 +36,7 @@ class SettingsController extends StateNotifier<AppSettings> {
       _update(state.copyWith(confirmDestructive: v));
   void setRestoreTabs(bool v) => _update(state.copyWith(restoreTabs: v));
   void setPullStrategy(String s) => _update(state.copyWith(pullStrategy: s));
+  void setPullAutostash(bool v) => _update(state.copyWith(pullAutostash: v));
   void setDateFormat(String s) => _update(state.copyWith(dateFormat: s));
   void setClockFormat(String s) => _update(state.copyWith(clockFormat: s));
 

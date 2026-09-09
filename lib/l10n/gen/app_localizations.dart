@@ -320,6 +320,12 @@ abstract class AppLocalizations {
   /// **'Pull strategy'**
   String get prefsPullStrategy;
 
+  /// No description provided for @prefsPullAutostash.
+  ///
+  /// In en, this message translates to:
+  /// **'Autostash on pull'**
+  String get prefsPullAutostash;
+
   /// No description provided for @prefsDateFormat.
   ///
   /// In en, this message translates to:
@@ -1694,6 +1700,18 @@ abstract class AppLocalizations {
   /// **'Pull (all remotes)'**
   String get bbPullAllRemotes;
 
+  /// No description provided for @bbPullFfOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Pull (fast-forward only)'**
+  String get bbPullFfOnly;
+
+  /// No description provided for @bbPullMerge.
+  ///
+  /// In en, this message translates to:
+  /// **'Pull (merge)'**
+  String get bbPullMerge;
+
   /// No description provided for @bbForcePushTitle.
   ///
   /// In en, this message translates to:
@@ -1945,6 +1963,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Merge'**
   String get ropMerge;
+
+  /// No description provided for @ropSquash.
+  ///
+  /// In en, this message translates to:
+  /// **'Squash (stage, do not commit)'**
+  String get ropSquash;
+
+  /// No description provided for @ropNoCommit.
+  ///
+  /// In en, this message translates to:
+  /// **'Stage the merge, do not commit'**
+  String get ropNoCommit;
+
+  /// No description provided for @ropFavorLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'If both sides changed the same lines'**
+  String get ropFavorLabel;
+
+  /// No description provided for @ropFavorAsk.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask'**
+  String get ropFavorAsk;
+
+  /// No description provided for @ropFavorOurs.
+  ///
+  /// In en, this message translates to:
+  /// **'Ours'**
+  String get ropFavorOurs;
+
+  /// No description provided for @ropFavorTheirs.
+  ///
+  /// In en, this message translates to:
+  /// **'Theirs'**
+  String get ropFavorTheirs;
 
   /// No description provided for @ropMessageOptional.
   ///

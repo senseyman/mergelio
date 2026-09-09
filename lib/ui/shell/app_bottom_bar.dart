@@ -6,6 +6,8 @@ import '../../l10n/gen/app_localizations.dart';
 import '../../state/feedback.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
+import '../../state/settings.dart';
+import '../../state/settings_controller.dart';
 import '../../state/undo_stack.dart';
 import '../../state/workspace.dart';
 import '../common/confirm.dart';
@@ -33,6 +35,10 @@ class AppBottomBar extends ConsumerWidget {
     // Fetching has its own lane, so only another fetch stands in its way.
     final fetching = ref.watch(fetchBusyProvider) != null;
     final actions = path == null ? null : ref.read(repoActionsProvider(path));
+    // Pull strategy and autostash are preferences, not menu entries: the plain
+    // Pull obeys them, and the menu still offers the other strategy outright.
+    final defaults = ref.watch(settingsProvider.select(pullDefaults));
+    final autostash = defaults.autostash;
     final undo = path == null
         ? const UndoState()
         : ref.watch(undoProvider(path));
@@ -110,16 +116,39 @@ class AppBottomBar extends ConsumerWidget {
                           enabled: hasRemote && !busy,
                           onDisabledTap: () => whyDisabled(running: busy),
                           items: () => [
-                            _Op(l.opPull, () => actions!.pull()),
                             _Op(
-                              l.opPullRebase,
-                              () => actions!.pull(rebase: true),
+                              l.opPull,
+                              () => actions!.pull(
+                                rebase: defaults.rebase,
+                                autostash: autostash,
+                              ),
+                            ),
+                            // The strategy the preference did not pick, so
+                            // both are always one click away.
+                            _Op(
+                              defaults.rebase ? l.bbPullMerge : l.opPullRebase,
+                              () => actions!.pull(
+                                rebase: !defaults.rebase,
+                                autostash: autostash,
+                              ),
+                            ),
+                            // Refuses to reconcile a diverged history instead
+                            // of writing a merge nobody asked for.
+                            _Op(
+                              l.bbPullFfOnly,
+                              () => actions!.pull(
+                                ffOnly: true,
+                                autostash: autostash,
+                              ),
                             ),
                             // Fetch every remote, then pull the current
                             // branch's upstream.
                             _Op(l.bbPullAllRemotes, () async {
                               await actions!.fetch();
-                              await actions.pull();
+                              await actions.pull(
+                                rebase: defaults.rebase,
+                                autostash: autostash,
+                              );
                             }),
                           ],
                         ),

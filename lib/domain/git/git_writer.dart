@@ -5,6 +5,11 @@ import 'askpass.dart';
 import 'commit_message.dart';
 import 'git_service.dart';
 
+/// Which side wins a hunk both branches changed (`-X ours` / `-X theirs`).
+/// Only overlapping hunks are decided this way; work the two sides did in
+/// different places is still combined.
+enum MergeFavor { none, ours, theirs }
+
 /// Write-side git operations: staging the index and committing. Kept separate
 /// from [GitReader] so the read and mutate paths stay distinct. Every method
 /// throws [GitException] on failure so the UI can surface a toast.
@@ -76,10 +81,25 @@ class GitWriter {
     cancel: cancel,
   );
 
-  /// Pulls the current branch's upstream; [rebase] replays local commits on top
-  /// instead of creating a merge.
-  Future<void> pull({bool rebase = false, GitCancel? cancel}) =>
-      _net(['pull', if (rebase) '--rebase'], 'git pull', cancel: cancel);
+  /// Pulls the current branch's upstream. [rebase] replays local commits on top
+  /// instead of creating a merge; [ffOnly] refuses to reconcile a diverged
+  /// history at all; [autostash] shelves and restores uncommitted work, which
+  /// is what turns a pull with a dirty tree from an error into a pull.
+  Future<void> pull({
+    bool rebase = false,
+    bool ffOnly = false,
+    bool autostash = false,
+    GitCancel? cancel,
+  }) => _net(
+    [
+      'pull',
+      if (rebase) '--rebase',
+      if (ffOnly) '--ff-only',
+      if (autostash) '--autostash',
+    ],
+    'git pull',
+    cancel: cancel,
+  );
 
   /// Prunes remote-tracking refs under [remote] that no longer exist upstream.
   Future<void> pruneRemote(String remote, {GitCancel? cancel}) =>
@@ -136,19 +156,40 @@ class GitWriter {
 
   /// Merges [branch] into the current branch. Throws on conflict (the caller
   /// inspects [GitReader.conflictedFiles] to open the Merge Tool) or error.
+  ///
+  /// [squash] applies the other branch's work as one staged change with no
+  /// commit and no second parent; git refuses to pair it with `--no-ff`, so it
+  /// takes precedence. [noCommit] stops after staging the merge, leaving
+  /// MERGE_HEAD set so the user's own commit is still a merge commit. [favor]
+  /// picks a side for hunks both branches touched.
   Future<void> merge(
     String branch, {
     bool noFf = false,
+    bool squash = false,
+    bool noCommit = false,
+    MergeFavor favor = MergeFavor.none,
     String? authorName,
     String? authorEmail,
   }) => _ok([
     ..._identity(authorName, authorEmail),
     'merge',
-    if (noFf) '--no-ff',
+    if (squash)
+      '--squash'
+    else ...[
+      if (noFf) '--no-ff',
+      if (noCommit) '--no-commit',
+    ],
+    if (favor != MergeFavor.none) ...['-X', favor.name],
     branch,
   ], 'git merge');
 
-  Future<void> mergeAbort() => _ok(['merge', '--abort'], 'git merge --abort');
+  /// Backs out a merge in progress. A conflicted `--squash` merge never wrote
+  /// MERGE_HEAD, so git refuses `--abort` there; `git reset --merge` is git's
+  /// own recovery for that state and leaves unrelated uncommitted work alone.
+  Future<void> mergeAbort() async {
+    if ((await _run(['merge', '--abort'])).ok) return;
+    await _ok(['reset', '--merge'], 'git merge --abort');
+  }
 
   /// Per-commit identity config args, prepended before a subcommand.
   static List<String> _identity(String? name, String? email) => [
