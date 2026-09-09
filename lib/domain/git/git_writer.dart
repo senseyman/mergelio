@@ -211,6 +211,11 @@ class GitWriter {
   Future<void> rebaseAbort() =>
       _ok(['rebase', '--abort'], 'git rebase --abort');
 
+  /// Drops the paused commit from the rebase sequence — the way out when the
+  /// pick applied to nothing, either because the resolution left no change or
+  /// because the commit already reached the base under a different sha.
+  Future<void> rebaseSkip() => _ok(['rebase', '--skip'], 'git rebase --skip');
+
   /// Continues a paused rebase after conflicts were resolved and staged.
   Future<void> rebaseContinue({String? authorName, String? authorEmail}) => _ok(
     [..._identity(authorName, authorEmail), 'rebase', '--continue'],

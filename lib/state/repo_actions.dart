@@ -1301,6 +1301,31 @@ class RepoActions {
     return false;
   }
 
+  /// True when a paused rebase actually started running its sequence, so there
+  /// is a step to skip or continue and replayed commits to lose.
+  ///
+  /// Distinguishes a rebase paused partway (git records which step it is on)
+  /// from one git refused before executing anything — a todo it would not
+  /// parse, say. Both leave the state directory behind, but only the first is
+  /// worth handing back to the user; the second has nothing to salvage.
+  Future<bool> isRebasePartlyDone() async {
+    for (final entry in const [
+      // The merge backend counts steps in msgnum; the am backend uses next.
+      ('rebase-merge', 'msgnum'),
+      ('rebase-apply', 'next'),
+    ]) {
+      final p = (await _out(['rev-parse', '--git-path', entry.$1])).trim();
+      if (p.isEmpty) continue;
+      final abs = p.startsWith('/') ? p : '$path/$p';
+      final counter = File('$abs/${entry.$2}');
+      if (counter.existsSync() &&
+          counter.readAsStringSync().trim().isNotEmpty) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   /// True when running [plan] would leave history exactly as it is: the plan
   /// still picks every commit in its original order, *and* [base] is a commit
   /// HEAD already contains, so replaying onto it lands where we started. An
@@ -1520,10 +1545,33 @@ class RepoActions {
     } on GitException catch (e) {
       final conflicts = await GitReader(_git, path).conflictedFiles();
       if (conflicts.isEmpty) {
-        // Nothing to resolve, so there is no session to hand the user. git may
-        // still have left the repository mid-rebase (a todo it refused, a
-        // failed exec); roll that back rather than stranding the repository in
-        // a state only a terminal can escape.
+        // Nothing to resolve, so there is no session to hand the user. A rebase
+        // that got partway through its sequence is paused on something they can
+        // act on rather than broken — a pick that applied to nothing (its
+        // commit already reached the base under another sha) is the common
+        // case, and it wants a skip. Leave it and let the working-tree panel
+        // offer Continue and Abort; unwinding here would throw away every
+        // commit already replayed.
+        if (await isRebasePartlyDone()) {
+          // Same base the conflict path records, so continuing stays undoable.
+          _ref.read(_opBaseProvider(path).notifier).state = prev.isEmpty
+              ? null
+              : prev;
+          _refresh();
+          _ref
+              .read(toastProvider.notifier)
+              .show(
+                'Rebase paused',
+                description:
+                    'Nothing to resolve — continue it from the Changes panel, '
+                    'or abort to go back.',
+                kind: ToastKind.warning,
+              );
+          return;
+        }
+        // Refused before it replayed anything (or already unwound): a plain
+        // failure. Clear any state directory git left, which would otherwise
+        // poison every later rebase.
         if (await isRebaseInProgress()) await _writer.rebaseAbort();
         _toastErr('Rebase', e);
         return;
@@ -1609,16 +1657,22 @@ class RepoActions {
     final id = _identity;
     // A resolution that matches HEAD leaves nothing to commit. git refuses
     // `--continue` there and wants the paused commit skipped instead.
-    final empty =
-        pending.kind != MergeKind.rebase &&
-        (await _git.run(['diff', '--cached', '--quiet'], repoPath: path)).ok;
+    final empty = (await _git.run([
+      'diff',
+      '--cached',
+      '--quiet',
+    ], repoPath: path)).ok;
     try {
       switch (pending.kind) {
         case MergeKind.rebase:
-          await _writer.rebaseContinue(
-            authorName: id.name,
-            authorEmail: id.email,
-          );
+          if (empty) {
+            await _writer.rebaseSkip();
+          } else {
+            await _writer.rebaseContinue(
+              authorName: id.name,
+              authorEmail: id.email,
+            );
+          }
         case MergeKind.cherryPick:
           if (empty) {
             await _writer.cherryPickSkip();
@@ -1649,8 +1703,12 @@ class RepoActions {
     }
     if (await _reopenIfStillConflicted(pending)) return;
     final base = _ref.read(_opBaseProvider(path));
-    // A skipped commit left HEAD where it was — nothing to undo.
-    if (base != null && !empty) {
+    // Skipping the paused commit of a lone cherry-pick or revert ends the
+    // sequence with HEAD where it started — nothing to undo. A rebase is a
+    // sequence of its own: the steps after the skipped one still replay, so the
+    // branch moves either way.
+    final moved = !empty || pending.kind == MergeKind.rebase;
+    if (base != null && moved) {
       await _recordFinishUndo(base, switch (pending.kind) {
         MergeKind.rebase => 'Rebase',
         MergeKind.cherryPick => 'Cherry-pick ${pending.branch}',
