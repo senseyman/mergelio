@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'askpass.dart';
 import 'commit_message.dart';
 import 'git_service.dart';
 
@@ -16,8 +17,8 @@ class GitWriter {
   // well beyond the default read timeout so they are not killed mid-transfer.
   static const _netTimeout = Duration(minutes: 5);
 
-  /// Resolved once per repository: the ssh command git would use anyway, which
-  /// the watchdog options are appended to.
+  /// Resolved once per repository: the ssh command git would use anyway, plus
+  /// what a command that hits an authentication prompt needs.
   Map<String, String>? _netEnvCache;
 
   Future<GitResult> _run(
@@ -63,18 +64,10 @@ class GitWriter {
     cancel: cancel,
   );
 
-  /// git's own precedence: an inherited `GIT_SSH_COMMAND` first, then the
-  /// repository's `core.sshCommand`, then plain ssh. Whichever wins becomes the
-  /// base the watchdog options are added to, so a user's key or proxy survives.
-  Future<Map<String, String>> _netEnv() async {
-    if (_netEnvCache != null) return _netEnvCache!;
-    var base = Platform.environment['GIT_SSH_COMMAND'];
-    if (base == null || base.trim().isEmpty) {
-      final configured = await _run(['config', '--get', 'core.sshCommand']);
-      base = configured.ok ? configured.out : null;
-    }
-    return _netEnvCache = {'GIT_SSH_COMMAND': sshCommandWith(base)};
-  }
+  /// The ssh watchdog options over whatever ssh command the user configured,
+  /// plus the credential prompt wiring. Resolved once per repository.
+  Future<Map<String, String>> _netEnv() async => _netEnvCache ??=
+      await resolveNetworkEnv(git, repoPath: repoPath, askpass: askpassHelper);
 
   /// Fetches [remote] (or every remote when null), pruning deleted refs.
   Future<void> fetch({String? remote, GitCancel? cancel}) => _net(
@@ -288,8 +281,11 @@ class GitWriter {
 
   Future<void> deleteTag(String name) => _ok(['tag', '-d', name], 'git tag -d');
 
-  Future<void> pushTag(String name, {String remote = 'origin'}) =>
-      _ok(['push', remote, name], 'git push tag', timeout: _netTimeout);
+  Future<void> pushTag(
+    String name, {
+    String remote = 'origin',
+    GitCancel? cancel,
+  }) => _net(['push', remote, name], 'git push tag', cancel: cancel);
 
   // --- Commit-context ops ---------------------------------------------------
 

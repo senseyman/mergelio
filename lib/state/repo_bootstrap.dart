@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
+import '../domain/git/askpass.dart';
 import '../domain/git/git_providers.dart';
 import '../domain/git/git_service.dart';
 import 'feedback.dart';
@@ -74,29 +75,77 @@ class RepoBootstrap {
       return null;
     }
     final target = p.join(parentDir, name);
-    if (Directory(target).existsSync() &&
-        Directory(target).listSync().isNotEmpty) {
+    final destinationExisted = Directory(target).existsSync();
+    if (destinationExisted && Directory(target).listSync().isNotEmpty) {
       _toast('Clone failed', 'Destination already exists: $target');
       return null;
     }
-    _ref.read(busyProvider.notifier).state = const BusyState('Clone');
+    // Handed to the progress bar so a clone stalled on an unreachable host can
+    // be given up on, instead of holding the app for the whole 15 minutes.
+    final cancel = GitCancel();
+    _ref.read(busyProvider.notifier).state = BusyState(
+      'Clone',
+      onCancel: cancel.cancel,
+    );
     try {
-      final r = await _git.run([
-        'clone',
-        url.trim(),
-        target,
-      ], timeout: const Duration(minutes: 15));
+      final r = await _git.run(
+        [
+          'clone',
+          // A superproject cloned without them comes up with empty directories
+          // where its submodules should be.
+          '--recurse-submodules',
+          url.trim(),
+          target,
+        ],
+        timeout: const Duration(minutes: 15),
+        // No repository exists yet, so this reads the global and system config
+        // for the ssh command the user set.
+        environment: await resolveNetworkEnv(_git, askpass: askpassHelper),
+        cancel: cancel,
+      );
       if (!r.ok) {
         _toast('Clone failed', r.err);
+        await _discardPartialClone(target, keepDirectory: destinationExisted);
         return null;
       }
       _open(name, target);
       return target;
+    } on GitCancelledException {
+      _ref
+          .read(toastProvider.notifier)
+          .show('Clone cancelled', kind: ToastKind.warning);
+      await _discardPartialClone(target, keepDirectory: destinationExisted);
+      return null;
     } on GitException catch (e) {
       _toast('Clone failed', e.result?.err ?? e.message);
+      await _discardPartialClone(target, keepDirectory: destinationExisted);
       return null;
     } finally {
       _ref.read(busyProvider.notifier).state = null;
+    }
+  }
+
+  /// Clears out what a failed or abandoned clone left behind, so the next
+  /// attempt is not refused for a destination that already exists. The
+  /// destination was verified empty beforehand, so everything in it now came
+  /// from the clone. [keepDirectory] holds on to a folder the user had already
+  /// made — only its contents are ours to remove.
+  Future<void> _discardPartialClone(
+    String target, {
+    required bool keepDirectory,
+  }) async {
+    try {
+      final dir = Directory(target);
+      if (!dir.existsSync()) return;
+      if (keepDirectory) {
+        for (final entry in dir.listSync()) {
+          await entry.delete(recursive: true);
+        }
+      } else {
+        await dir.delete(recursive: true);
+      }
+    } on Object catch (e) {
+      debugPrint('bootstrap: partial clone cleanup failed: $e');
     }
   }
 

@@ -3721,6 +3721,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'never'**
   String get updatePrefsNever;
+
+  /// No description provided for @askpassTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Authentication required'**
+  String get askpassTitle;
+
+  /// No description provided for @askpassFallback.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your credentials'**
+  String get askpassFallback;
+
+  /// No description provided for @askpassSubmit.
+  ///
+  /// In en, this message translates to:
+  /// **'OK'**
+  String get askpassSubmit;
+
+  /// No description provided for @askpassYes.
+  ///
+  /// In en, this message translates to:
+  /// **'Yes'**
+  String get askpassYes;
+
+  /// No description provided for @askpassNo.
+  ///
+  /// In en, this message translates to:
+  /// **'No'**
+  String get askpassNo;
 }
 
 class _AppLocalizationsDelegate

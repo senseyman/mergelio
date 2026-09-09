@@ -1012,17 +1012,11 @@ class RepoActions {
     return ref;
   }
 
-  Future<void> pushTag(String name) async {
-    if (_blockedByRepoOp) return;
-    try {
-      await _timed('Push tag $name', () => _writer.pushTag(name));
-      _ref
-          .read(toastProvider.notifier)
-          .show('Pushed tag $name', kind: ToastKind.success);
-    } on GitException catch (e) {
-      _toastErr('Push tag', e);
-    }
-  }
+  Future<void> pushTag(String name) => _network(
+    'Push tag $name',
+    (cancel) => _writer.pushTag(name, cancel: cancel),
+    writesWorkingTree: false,
+  );
 
   Future<void> stashPush({String? message, bool stagedOnly = false}) async {
     if (_blockedByRepoOp) return;

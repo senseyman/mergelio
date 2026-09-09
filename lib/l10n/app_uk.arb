@@ -660,5 +660,11 @@
   "updatePrefsAuto": "Перевіряти оновлення автоматично",
   "updatePrefsCheckNow": "Перевірити зараз",
   "updatePrefsLastCheck": "Остання перевірка: {when}",
-  "updatePrefsNever": "ніколи"
+  "updatePrefsNever": "ніколи",
+
+  "askpassTitle": "Потрібна автентифікація",
+  "askpassFallback": "Введіть облікові дані",
+  "askpassSubmit": "OK",
+  "askpassYes": "Так",
+  "askpassNo": "Ні"
 }

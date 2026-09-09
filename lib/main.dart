@@ -10,6 +10,7 @@ import 'core/logging.dart';
 import 'data/app_database.dart';
 import 'data/kv_store.dart';
 import 'data/settings_repository.dart';
+import 'domain/git/askpass.dart';
 import 'domain/window_placement.dart';
 import 'state/diagnostics.dart';
 import 'state/operation_journal.dart';
@@ -19,14 +20,26 @@ import 'state/settings.dart';
 import 'state/settings_controller.dart';
 import 'state/window_persist.dart';
 import 'state/workspace.dart';
+import 'ui/askpass/askpass_app.dart';
 
-Future<void> main() async {
+Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // git and ssh re-launch the app with this flag when they need a passphrase or
+  // password; that launch is one small dialog, not the workspace.
+  final prompt = askpassPrompt(args);
+  if (prompt != null) {
+    return runAskpassApp(prompt, marked: askpassWantsMarker(args));
+  }
 
   // Start the log file first, so everything below — including a startup crash —
   // leaves a trace the user can hand over in a bug report.
   await initFileLogging();
   appLog.info('launching', scope: 'startup');
+
+  // Put the credential-prompt helper in place before anything can talk to a
+  // remote, so the first fetch of the session can already ask.
+  await initAskpass();
 
   // Error boundary: log framework and async errors instead of taking the whole
   // app down, and show a contained fallback in place of a failed subtree.

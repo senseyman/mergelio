@@ -97,6 +97,14 @@ void main() {
       );
     });
 
+    test('pushing a tag is hardened like any other remote command', () async {
+      await writer.pushTag('v1.0.0');
+
+      final env = git.envFor('push');
+      expect(env?['GIT_SSH_COMMAND'], contains('ConnectTimeout=10'));
+      expect(env?['GIT_TERMINAL_PROMPT'], '0');
+    });
+
     test("builds on the repository's core.sshCommand when it is set", () async {
       git.coreSshCommand = 'ssh -i /keys/deploy';
 

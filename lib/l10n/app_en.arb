@@ -1124,5 +1124,11 @@
       "when": {"type": "String"}
     }
   },
-  "updatePrefsNever": "never"
+  "updatePrefsNever": "never",
+
+  "askpassTitle": "Authentication required",
+  "askpassFallback": "Enter your credentials",
+  "askpassSubmit": "OK",
+  "askpassYes": "Yes",
+  "askpassNo": "No"
 }
