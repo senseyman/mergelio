@@ -195,6 +195,9 @@ class AppLocalizationsUk extends AppLocalizations {
   String get graphHistory => 'ІСТОРІЯ';
 
   @override
+  String get graphLoadingOlder => 'Завантаження давніших комітів…';
+
+  @override
   String get graphCompact => 'Компактно';
 
   @override

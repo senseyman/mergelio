@@ -70,6 +70,7 @@
   "languageUkrainian": "Українська",
 
   "graphHistory": "HISTORY",
+  "graphLoadingOlder": "Loading older commits…",
   "graphCompact": "Compact",
   "filterHideMerges": "Hide merges",
   "filterHideTags": "Hide tags",

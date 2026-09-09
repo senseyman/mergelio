@@ -69,6 +69,34 @@ class GraphView extends ConsumerWidget {
   }
 }
 
+/// The trailing row shown while history is still being paged in.
+const loadMoreCommitsKey = ValueKey('graph-load-more');
+
+/// Sits below the oldest loaded commit when the walk was cut off at the page
+/// limit. Scrolling it into view is what asks for the next page, so it is on
+/// screen exactly while that page is being walked. Deliberately not a spinner:
+/// the row appears and disappears within a frame or two on a small repository,
+/// and a running animation there would only flicker.
+class _LoadingOlderRow extends StatelessWidget {
+  final double height;
+  const _LoadingOlderRow({required this.height});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return SizedBox(
+      key: loadMoreCommitsKey,
+      height: height,
+      child: Center(
+        child: Text(
+          AppLocalizations.of(context).graphLoadingOlder,
+          style: TextStyle(color: t.textMuted, fontSize: 12),
+        ),
+      ),
+    );
+  }
+}
+
 /// The graph itself: header with the Columns menu, then a virtualised list of
 /// fixed-height rows — a WIP row on top when the working tree is dirty,
 /// followed by the commits. Arrow keys move the selection and keep it visible.
@@ -171,6 +199,32 @@ class _GraphListState extends ConsumerState<GraphList> {
   }
 
   bool get _hasWip => widget.data.working.isNotEmpty;
+
+  // The (repo, limit) the trailing row has already asked to grow past, so it
+  // requests each page once instead of on every rebuild while it sits on
+  // screen. Keyed by repo as well as limit because this state survives a tab
+  // switch: two repos sitting at the same limit are two separate requests.
+  (String, int)? _moreRequested;
+
+  /// Extends the loaded history by one page. Called from the trailing row's
+  /// builder, so the provider write is deferred past the frame being built.
+  ///
+  /// Each page doubles the limit rather than adding a fixed amount. A raised
+  /// limit re-walks from scratch, so growing by a constant would walk
+  /// 2k+4k+6k+… to reach the end of a long history; doubling keeps the total
+  /// walked within twice what the last page alone costs.
+  void _requestMoreCommits(String repo) {
+    final limit = ref.read(commitLimitProvider(repo));
+    if (_moreRequested == (repo, limit)) return;
+    _moreRequested = (repo, limit);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final limits = ref.read(commitLimitProvider(repo).notifier);
+      // Something else already paged (a second graph, a repo switch); leave it.
+      if (limits.state != limit) return;
+      limits.state = limit * 2;
+    });
+  }
 
   // Cached squash-dash geometry, rebuilt only when the segments or metrics
   // change — not on every scroll frame.
@@ -422,6 +476,7 @@ class _GraphListState extends ConsumerState<GraphList> {
     final stashBySha = {for (final s in d.stashes) s.sha: s.ref};
 
     final wipRows = _hasWip ? 1 : 0;
+    final moreRows = d.hasMoreCommits ? 1 : 0;
 
     final query = ref.watch(searchQueryProvider);
     // The commits that touched the followed file, if one is being followed.
@@ -475,8 +530,18 @@ class _GraphListState extends ConsumerState<GraphList> {
                   ListView.builder(
                     controller: _scroll,
                     itemExtent: metrics.rowHeight,
-                    itemCount: d.commits.length + wipRows,
+                    itemCount: d.commits.length + wipRows + moreRows,
                     itemBuilder: (context, i) {
+                      // Trailing row on truncated history: reaching it means
+                      // the user scrolled to the end of what is loaded, so ask
+                      // for the next page. The row is returned whether or not
+                      // a repo is active — the data outlives a closing tab by
+                      // a frame, and falling through would index past the end
+                      // of the commit list.
+                      if (moreRows == 1 && i == d.commits.length + wipRows) {
+                        if (repo != null) _requestMoreCommits(repo);
+                        return _LoadingOlderRow(height: metrics.rowHeight);
+                      }
                       if (_hasWip && i == 0) {
                         return _WipRow(
                           metrics: metrics,

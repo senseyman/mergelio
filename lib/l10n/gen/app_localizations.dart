@@ -470,6 +470,12 @@ abstract class AppLocalizations {
   /// **'HISTORY'**
   String get graphHistory;
 
+  /// No description provided for @graphLoadingOlder.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading older commits…'**
+  String get graphLoadingOlder;
+
   /// No description provided for @graphCompact.
   ///
   /// In en, this message translates to:

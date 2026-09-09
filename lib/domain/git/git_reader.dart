@@ -46,10 +46,36 @@ class GitReader {
   /// into a failed one.
   static const _historyTimeout = Duration(minutes: 5);
 
+  /// Object names of every ref the history walk in [commits] would start from.
+  /// Reads refs, not commits, so it costs the same on a monorepo as on a toy
+  /// repository, and it changes exactly when the walk's result could — letting
+  /// a caller reuse a history it already walked while the signature holds.
+  ///
+  /// Stash entries are not included: they reach the walk from `git stash list`,
+  /// which the caller already has, and `refs/stash` alone misses a drop of an
+  /// older entry.
+  Future<String> refSignature() async {
+    final r = await _run(['for-each-ref', '--format=%(objectname) %(refname)']);
+    if (!r.ok) throw GitException('git for-each-ref failed', r);
+    // `--all` walks HEAD too, and a detached HEAD is under no ref.
+    final head = await _run(['rev-parse', '--quiet', '--verify', 'HEAD']);
+    return '${r.stdout}\nHEAD ${head.ok ? head.out : ''}';
+  }
+
   /// Commits across all refs in topological order, newest first. Layout fields
   /// are left at their defaults; run [assignLanes] to populate them. Returns an
   /// empty list for a repository with no commits yet.
-  Future<List<Commit>> commits({int? maxCount}) async {
+  Future<List<Commit>> commits({int? maxCount}) async =>
+      (await commitPage(maxCount: maxCount)).commits;
+
+  /// [commits], plus whether the walk stopped because it filled [maxCount]
+  /// rather than because it ran out of history. A pager needs the distinction
+  /// and cannot recover it from the list length: the stash bookkeeping nodes
+  /// below are dropped after the walk, so a truncated page can come back
+  /// shorter than [maxCount].
+  Future<({List<Commit> commits, bool truncated})> commitPage({
+    int? maxCount,
+  }) async {
     // Stash commits live outside any ref `--all` walks, so fetch their shas and
     // pass them as extra revisions below; `stash@{0}` is already reachable via
     // `--all` but duplicate revs are harmless to `git log`.
@@ -98,15 +124,19 @@ class GitReader {
       if (e.contains('does not have any commits') ||
           e.contains('bad default revision') ||
           e.contains('bad revision')) {
-        return const [];
+        return (commits: const <Commit>[], truncated: false);
       }
       throw GitException('git log failed', r);
     }
 
     final out = <Commit>[];
+    // Records git emitted, before the stash nodes are dropped — the only exact
+    // measure of whether `--max-count` cut the walk short.
+    var records = 0;
     for (final rec in r.stdout.split(_rs)) {
       final f = rec.split(_fs);
       if (f.length < 8) continue;
+      records++;
       if (auxShas.contains(f[0])) continue; // drop stash index/untracked nodes
       out.add(
         Commit(
@@ -124,7 +154,7 @@ class GitReader {
         ),
       );
     }
-    return out;
+    return (commits: out, truncated: maxCount != null && records >= maxCount);
   }
 
   /// Local branches with tracking info, in git's default (alphabetical) order.
