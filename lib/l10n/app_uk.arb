@@ -70,6 +70,7 @@
   "languageUkrainian": "Українська",
 
   "graphHistory": "ІСТОРІЯ",
+  "graphLoadingOlder": "Завантаження давніших комітів…",
   "graphCompact": "Компактно",
   "filterHideMerges": "Сховати злиття",
   "filterHideTags": "Сховати теги",

@@ -195,6 +195,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get graphHistory => 'HISTORY';
 
   @override
+  String get graphLoadingOlder => 'Loading older commits…';
+
+  @override
   String get graphCompact => 'Compact';
 
   @override
