@@ -118,9 +118,11 @@ mkdir -p "$(dirname "$SIGNING_XCCONFIG")"
   if (( SIGNED )); then
     printf 'MERGELIO_CODE_SIGN_IDENTITY = Developer ID Application\n'
     printf 'MERGELIO_TEAM_ID = %s\n' "$TEAM_ID"
+    printf 'MERGELIO_HARDENED_RUNTIME = YES\n'
   else
     printf 'MERGELIO_CODE_SIGN_IDENTITY = -\n'
     printf 'MERGELIO_TEAM_ID =\n'
+    printf 'MERGELIO_HARDENED_RUNTIME = NO\n'
   fi
 } > "$SIGNING_XCCONFIG"
 
@@ -148,6 +150,11 @@ APP_PATH=$(find "$PRODUCTS_DIR" -maxdepth 1 -name '*.app' -print -quit 2>/dev/nu
 ok "Built: $APP_PATH"
 
 if (( ! SIGNED )); then
+  STRAYS=$(adhoc_seal_bundle "$APP_PATH" "$ENTITLEMENTS")
+  if (( STRAYS )); then
+    warn "$STRAYS framework(s) did not match the app and were re-signed"
+  fi
+
   printf '\n%s✓ Done: %s%s\n' "$GREEN" "$APP_PATH" "$OFF"
   printf '  The build is ad-hoc signed — fine to run locally.\n\n'
   exit 0
