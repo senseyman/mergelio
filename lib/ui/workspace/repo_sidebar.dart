@@ -6,6 +6,7 @@ import '../../core/tokens.dart';
 import '../../domain/git/models.dart';
 import '../../domain/path_key.dart';
 import '../../l10n/gen/app_localizations.dart';
+import '../../state/compare_target.dart';
 import '../../state/graph_selection.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
@@ -473,6 +474,22 @@ class _BranchRow extends ConsumerWidget {
               .firstOrNull;
           if (current != null) actions.rebaseOnto(branch.name, current.name);
         }),
+        item(l.sbCompareWithCurrent, () {
+          final current = ref
+              .read(repoDataProvider(path))
+              .valueOrNull
+              ?.branches
+              .where((b) => b.current)
+              .firstOrNull;
+          if (current == null) return;
+          // Current branch on the left: the comparison reads as what this
+          // branch would bring in.
+          ref.read(compareTargetProvider.notifier).state = CompareTarget(
+            repoPath: path,
+            from: current.name,
+            to: branch.name,
+          );
+        }, enabled: !branch.current),
         const PopupMenuDivider(),
         item(l.sbSetUpstreamItem, () async {
           final up = await showInputDialog(

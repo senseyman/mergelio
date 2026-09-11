@@ -11,6 +11,7 @@ import '../../domain/git/models.dart';
 import '../../domain/git/stage_patch.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/diff_document.dart';
+import '../../state/compare_target.dart';
 import '../../state/diff_target.dart';
 import '../../state/feedback.dart';
 import '../../state/file_editor.dart';
@@ -168,9 +169,13 @@ class _DiffHeader extends ConsumerWidget {
       }
     }
     final partial = target.commitSha == null && (wf?.isPartial ?? false);
-    final context0 = target.commitSha != null
-        ? 'commit ${target.commitSha!.length > 7 ? target.commitSha!.substring(0, 7) : target.commitSha}'
-        : l.diffUncommittedWorkingTree;
+    final context0 = switch (target) {
+      final t when t.isComparison =>
+        '${compareRefLabel(t.baseRev!)} → ${compareRefLabel(t.commitSha!)}',
+      final t when t.commitSha != null =>
+        'commit ${t.commitSha!.length > 7 ? t.commitSha!.substring(0, 7) : t.commitSha}',
+      _ => l.diffUncommittedWorkingTree,
+    };
 
     return Container(
       height: 38,
@@ -271,7 +276,25 @@ class _StatusBadge extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final t = context.tokens;
     GitChange? change;
-    if (target.commitSha == null) {
+    if (target.isComparison) {
+      final files = ref
+          .watch(
+            compareFilesProvider(
+              CompareTarget(
+                repoPath: target.repoPath,
+                from: target.baseRev!,
+                to: target.commitSha!,
+              ),
+            ),
+          )
+          .valueOrNull;
+      for (final f in files ?? const <CommitFileChange>[]) {
+        if (f.path == target.path) {
+          change = f.change;
+          break;
+        }
+      }
+    } else if (target.commitSha == null) {
       final files =
           ref.watch(repoDataProvider(target.repoPath)).valueOrNull?.working ??
           const <WorkingFile>[];

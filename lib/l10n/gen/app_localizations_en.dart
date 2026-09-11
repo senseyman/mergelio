@@ -265,6 +265,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get menuCopySha => 'Copy SHA';
 
   @override
+  String get menuMarkCompare => 'Mark for comparison';
+
+  @override
+  String get menuClearCompareMark => 'Clear comparison mark';
+
+  @override
+  String menuCompareWith(String ref) {
+    return 'Compare with $ref';
+  }
+
+  @override
   String get rewordTitle => 'Edit commit message';
 
   @override
@@ -612,6 +623,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sbRebaseOntoCurrent => 'Rebase onto current';
+
+  @override
+  String get sbCompareWithCurrent => 'Compare with current';
 
   @override
   String get sbSetUpstreamItem => 'Set upstream…';
@@ -1346,6 +1360,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cdSha => 'SHA';
+
+  @override
+  String get cmpTitle => 'COMPARE';
+
+  @override
+  String get cmpSwap => 'Swap sides';
+
+  @override
+  String get cmpNoDifferences => 'No differences';
+
+  @override
+  String get cmpCouldNotRead => 'Could not read the comparison';
 
   @override
   String get asdTitle => 'Add submodule';
