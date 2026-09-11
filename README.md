@@ -419,11 +419,29 @@ them.
 > flutter config --no-enable-swift-package-manager
 > ```
 
+> **macOS note** — if the app aborts at launch with
+>
+> ```
+> Library not loaded: @rpath/<something>.framework/...
+> Reason: ... not valid for use in process: mapping process and
+> mapped file (non-platform) have different Team IDs
+> ```
+>
+> the bundle is signed inconsistently: its frameworks and its main binary do not
+> carry the same identity, and macOS will not load them together. The framework
+> named in the message is only the first one tried, not the one at fault. It
+> happens when a locally built app is mixed with one from a release download.
+> Rebuild with `./scripts/build-macos-app.sh`, which re-signs the whole bundle
+> ad-hoc and refuses to finish if anything still does not match.
+
 ### Optional: macOS code signing
 
 `make build-macos` produces an ad-hoc signed app that runs on the machine that
 built it. Nothing further is needed to build and use Mergelio locally, on any
-platform — no Apple Developer account, no certificates.
+platform — no Apple Developer account, no certificates. Ad-hoc builds are made
+without the hardened runtime: it enforces library validation, which an app with
+no team identity cannot satisfy. The Developer ID build turns it back on, since
+notarization requires it.
 
 To produce a build other machines will accept, copy the template, fill in your
 own Apple Developer values, and run the release pipeline:

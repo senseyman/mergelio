@@ -10,3 +10,10 @@
 
 MERGELIO_CODE_SIGN_IDENTITY = -
 MERGELIO_TEAM_ID =
+
+// The hardened runtime enforces library validation, which only loads libraries
+// signed by the same team as the app, or by Apple. An ad-hoc app has no team,
+// so every framework it embeds gets rejected and it dies at launch with
+// "different Team IDs". Only notarization needs the hardened runtime, and only
+// the Developer ID build is notarized -- that build turns it back on.
+MERGELIO_HARDENED_RUNTIME = NO
