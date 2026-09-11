@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/concurrency.dart';
 import '../core/logging.dart';
 import '../domain/file_edit.dart';
 import '../domain/git/commit_message.dart';
@@ -27,15 +28,40 @@ import 'worktrees.dart';
 /// index and ref locks.
 enum _Lane { repo, fetch }
 
+/// How long operations have to stop arriving before the graph reloads.
+///
+/// Well under what a reload itself costs, so the graph still looks like it
+/// updated with the click, but long enough to cover the gap between the two
+/// operations one gesture can be — creating a branch and checking it out are
+/// milliseconds apart, and reloading after each reads the whole repository
+/// twice. The watcher settles for far longer because disk events arrive in
+/// storms; these are deliberate acts, and there are never many in a row.
+const actionSettle = Duration(milliseconds: 80);
+
 /// Mutating git operations for one repo, each followed by a refresh of
 /// [repoDataProvider] so the graph, counts and file lists update in lockstep.
 class RepoActions {
   final Ref _ref;
   final String path;
   final GitWriter _writer;
-  RepoActions(this._ref, this.path, this._writer);
+  late final RefreshCoalescer _refreshes;
 
-  void _refresh() => _ref.invalidate(repoDataProvider(path));
+  RepoActions(this._ref, this.path, this._writer) {
+    _refreshes = RefreshCoalescer(
+      settle: actionSettle,
+      busy: () => _ref.read(repoDataProvider(path)).isLoading,
+      onRefresh: () => _ref.invalidate(repoDataProvider(path)),
+    );
+  }
+
+  /// One gesture can be several operations — creating a branch and checking it
+  /// out, or resolving conflicts and staging — and each one lands here. Asking
+  /// for the reload rather than starting it lets a run of them share a single
+  /// read of the repository instead of racing each other through one.
+  void _refresh() => _refreshes.schedule();
+
+  /// Drops a reload that has not run yet. The provider disposes this.
+  void dispose() => _refreshes.cancel();
 
   /// Every repo action runs through here so the log records what ran, on
   /// which repo, and how long it took — success and failure alike.
@@ -2043,7 +2069,12 @@ final pendingOpProvider = FutureProvider.family<PendingOp?, String>((
   return ref.read(repoActionsProvider(path)).pendingOp();
 });
 
-final repoActionsProvider = Provider.family<RepoActions, String>(
-  (ref, path) =>
-      RepoActions(ref, path, GitWriter(ref.watch(gitServiceProvider), path)),
-);
+final repoActionsProvider = Provider.family<RepoActions, String>((ref, path) {
+  final actions = RepoActions(
+    ref,
+    path,
+    GitWriter(ref.watch(gitServiceProvider), path),
+  );
+  ref.onDispose(actions.dispose);
+  return actions;
+});
