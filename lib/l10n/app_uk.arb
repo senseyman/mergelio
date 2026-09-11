@@ -93,6 +93,14 @@
   "menuCopyDescription": "Копіювати опис",
   "menuCopyMessage": "Копіювати повідомлення",
   "menuCopySha": "Копіювати SHA",
+  "menuMarkCompare": "Позначити для порівняння",
+  "menuClearCompareMark": "Зняти позначку порівняння",
+  "menuCompareWith": "Порівняти з {ref}",
+  "@menuCompareWith": {
+    "placeholders": {
+      "ref": {"type": "String"}
+    }
+  },
   "rewordTitle": "Редагувати повідомлення коміту",
   "rewordPushedTitle": "Переписати відправлений коміт?",
   "rewordPushedBody": "Цей коміт уже є в {branches}. Зміна повідомлення переписує історію, тож гілку доведеться відправити примусово, а всі, хто її отримав, муситимуть зробити reset.",
@@ -236,6 +244,7 @@
   "sbCheckout": "Переключитися",
   "sbMergeIntoCurrent": "Злити в поточну",
   "sbRebaseOntoCurrent": "Перебазувати на поточну",
+  "sbCompareWithCurrent": "Порівняти з поточною",
   "sbSetUpstreamItem": "Встановити відстеження…",
   "sbSetUpstreamTitle": "Відстеження для {branch}",
   "sbSetUpstreamHint": "напр. origin/{branch}",
@@ -441,6 +450,10 @@
   "cdCouldNotRead": "Не вдалося прочитати зміни",
   "cdNoChanges": "Немає змін",
   "cdSha": "SHA",
+  "cmpTitle": "ПОРІВНЯННЯ",
+  "cmpSwap": "Поміняти сторони",
+  "cmpNoDifferences": "Немає відмінностей",
+  "cmpCouldNotRead": "Не вдалося прочитати порівняння",
   "asdTitle": "Додати підмодуль",
   "asdRepoUrl": "URL репозиторію",
   "asdPath": "Шлях",

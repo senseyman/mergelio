@@ -477,8 +477,13 @@ class GitReader {
   }
 
   /// Unified diff introduced by [sha] for [path], against its first parent.
-  /// See [workingDiff] for [context].
-  Future<String> commitDiff(String sha, String path, {int? context}) async {
+  /// Pass [origPath] for a renamed file. See [workingDiff] for [context].
+  Future<String> commitDiff(
+    String sha,
+    String path, {
+    int? context,
+    String? origPath,
+  }) async {
     final r = await _run([
       'show',
       '--no-color',
@@ -487,11 +492,19 @@ class GitReader {
       ..._contextArgs(context),
       sha,
       '--',
-      path,
+      ..._renamePathspec(path, origPath),
     ]);
     if (!r.ok) throw GitException('git show failed', r);
     return r.stdout;
   }
+
+  /// Pathspec for one file of a diff. Rename detection runs after the pathspec
+  /// has filtered the diff, so a pathspec holding only the new name leaves git
+  /// nothing to pair it with: it reports a file that came from nowhere and
+  /// renders the whole thing as added, hiding the edit that rode along with the
+  /// rename. Naming both sides keeps the pair together.
+  List<String> _renamePathspec(String path, String? origPath) =>
+      origPath == null || origPath == path ? [path] : [origPath, path];
 
   /// Commit history for [path], following renames (`git log --follow`).
   Future<List<Commit>> fileHistory(String path) async {
@@ -593,9 +606,59 @@ class GitReader {
       sha,
     ]);
     if (!r.ok) throw GitException('git show failed', r);
+    return _parseNameStatus(r.stdout);
+  }
 
+  /// Files that differ between [from] and [to], read in that direction: a file
+  /// only [to] has counts as added, one only [from] has as deleted. Both sides
+  /// may be any revision git resolves — a sha, a branch, a tag.
+  ///
+  /// This is `git diff from to` (two-dot), the state-to-state comparison, not
+  /// `from...to` — what the two trees differ by, regardless of which commits
+  /// got them there.
+  Future<List<CommitFileChange>> compareFiles(String from, String to) async {
+    final r = await _run([
+      'diff',
+      '--no-color',
+      '--name-status',
+      '--find-renames',
+      '-z',
+      from,
+      to,
+    ]);
+    if (!r.ok) throw GitException('git diff --name-status failed', r);
+    return _parseNameStatus(r.stdout);
+  }
+
+  /// Unified diff of [path] between [from] and [to], matching what
+  /// [compareFiles] listed. Pass [origPath] for a renamed file. See
+  /// [workingDiff] for [context].
+  Future<String> compareDiff(
+    String from,
+    String to,
+    String path, {
+    int? context,
+    String? origPath,
+  }) async {
+    final r = await _run([
+      'diff',
+      '--no-color',
+      '--find-renames',
+      ..._contextArgs(context),
+      from,
+      to,
+      '--',
+      ..._renamePathspec(path, origPath),
+    ]);
+    if (!r.ok) throw GitException('git diff failed', r);
+    return r.stdout;
+  }
+
+  /// `--name-status -z` records: a status token followed by one path, or by
+  /// two (original, then new) for a rename or copy.
+  List<CommitFileChange> _parseNameStatus(String stdout) {
     final out = <CommitFileChange>[];
-    final toks = r.stdout.split(_rs);
+    final toks = stdout.split(_rs);
     var i = 0;
     while (i + 1 < toks.length && toks[i].isNotEmpty) {
       final status = toks[i];

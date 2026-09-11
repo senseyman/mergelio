@@ -265,6 +265,17 @@ class AppLocalizationsUk extends AppLocalizations {
   String get menuCopySha => 'Копіювати SHA';
 
   @override
+  String get menuMarkCompare => 'Позначити для порівняння';
+
+  @override
+  String get menuClearCompareMark => 'Зняти позначку порівняння';
+
+  @override
+  String menuCompareWith(String ref) {
+    return 'Порівняти з $ref';
+  }
+
+  @override
   String get rewordTitle => 'Редагувати повідомлення коміту';
 
   @override
@@ -616,6 +627,9 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get sbRebaseOntoCurrent => 'Перебазувати на поточну';
+
+  @override
+  String get sbCompareWithCurrent => 'Порівняти з поточною';
 
   @override
   String get sbSetUpstreamItem => 'Встановити відстеження…';
@@ -1353,6 +1367,18 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get cdSha => 'SHA';
+
+  @override
+  String get cmpTitle => 'ПОРІВНЯННЯ';
+
+  @override
+  String get cmpSwap => 'Поміняти сторони';
+
+  @override
+  String get cmpNoDifferences => 'Немає відмінностей';
+
+  @override
+  String get cmpCouldNotRead => 'Не вдалося прочитати порівняння';
 
   @override
   String get asdTitle => 'Додати підмодуль';

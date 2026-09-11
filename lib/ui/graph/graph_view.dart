@@ -11,6 +11,7 @@ import '../../domain/git/models.dart';
 import '../../domain/search.dart';
 import '../../state/content_search.dart';
 import '../../state/feedback.dart';
+import '../../state/compare_target.dart';
 import '../../state/graph_selection.dart';
 import '../../state/path_history.dart';
 import '../../state/repo_actions.dart';
@@ -1268,6 +1269,8 @@ class _CommitContextMenu extends ConsumerWidget {
     if (path == null) return;
     final actions = ref.read(repoActionsProvider(path));
     final sha = commit.sha;
+    final mark = ref.read(compareMarkProvider);
+    final marked = mark != null && mark.repoPath == path && mark.sha == sha;
     final l = AppLocalizations.of(context);
 
     PopupMenuItem<void> item(
@@ -1349,6 +1352,34 @@ class _CommitContextMenu extends ConsumerWidget {
           );
           if (ok) await actions.resetHard(sha);
         }, danger: true),
+        const PopupMenuDivider(),
+        // The marked commit is the one place the mark can be taken back: it
+        // has no second side to compare against, and re-marking it would be a
+        // no-op that leaves the user stuck with a mark they changed their mind
+        // about.
+        if (marked)
+          item(l.menuClearCompareMark, () {
+            ref.read(compareMarkProvider.notifier).state = null;
+          })
+        else
+          item(l.menuMarkCompare, () {
+            ref.read(compareMarkProvider.notifier).state = CompareMark(
+              repoPath: path,
+              sha: sha,
+            );
+          }),
+        // The mark is the left side; this commit is the right one. A mark from
+        // another repository resolves against the wrong history, so it is not
+        // offered here either.
+        if (mark != null && mark.repoPath == path && !marked)
+          item(l.menuCompareWith(compareRefLabel(mark.sha)), () {
+            ref.read(compareTargetProvider.notifier).state = CompareTarget(
+              repoPath: path,
+              from: mark.sha,
+              to: sha,
+            );
+            ref.read(compareMarkProvider.notifier).state = null;
+          }),
         const PopupMenuDivider(),
         item(
           l.menuEditMessage,

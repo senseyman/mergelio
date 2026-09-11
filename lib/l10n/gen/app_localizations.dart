@@ -608,6 +608,24 @@ abstract class AppLocalizations {
   /// **'Copy SHA'**
   String get menuCopySha;
 
+  /// No description provided for @menuMarkCompare.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark for comparison'**
+  String get menuMarkCompare;
+
+  /// No description provided for @menuClearCompareMark.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear comparison mark'**
+  String get menuClearCompareMark;
+
+  /// No description provided for @menuCompareWith.
+  ///
+  /// In en, this message translates to:
+  /// **'Compare with {ref}'**
+  String menuCompareWith(String ref);
+
   /// No description provided for @rewordTitle.
   ///
   /// In en, this message translates to:
@@ -1213,6 +1231,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Rebase onto current'**
   String get sbRebaseOntoCurrent;
+
+  /// No description provided for @sbCompareWithCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'Compare with current'**
+  String get sbCompareWithCurrent;
 
   /// No description provided for @sbSetUpstreamItem.
   ///
@@ -2419,6 +2443,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'SHA'**
   String get cdSha;
+
+  /// No description provided for @cmpTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'COMPARE'**
+  String get cmpTitle;
+
+  /// No description provided for @cmpSwap.
+  ///
+  /// In en, this message translates to:
+  /// **'Swap sides'**
+  String get cmpSwap;
+
+  /// No description provided for @cmpNoDifferences.
+  ///
+  /// In en, this message translates to:
+  /// **'No differences'**
+  String get cmpNoDifferences;
+
+  /// No description provided for @cmpCouldNotRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read the comparison'**
+  String get cmpCouldNotRead;
 
   /// No description provided for @asdTitle.
   ///

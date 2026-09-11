@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../domain/git/diff.dart';
 import '../domain/git/git_providers.dart';
 import '../domain/git/git_reader.dart';
+import 'compare_target.dart';
 import 'diff_target.dart';
 
 /// A loaded diff for the sheet. [editable] enables the staging gutter/buttons.
@@ -31,11 +32,38 @@ final diffDocumentProvider = FutureProvider.family
       // whole-file view; null keeps git's default of 3 lines.
       final ctx = target.wholeFile ? kWholeFileContext : null;
 
+      // Two revisions: what it takes to get from one to the other. Read-only,
+      // like a commit diff — there is no index to stage into.
+      if (target.isComparison) {
+        // The list of files follows the refs as they move; an open diff of one
+        // of those files has to follow them too, or the panel and the sheet
+        // end up describing different states.
+        followRefMoves(
+          ref,
+          repoPath: target.repoPath,
+          from: target.baseRev!,
+          to: target.commitSha!,
+        );
+        final raw = await reader.compareDiff(
+          target.baseRev!,
+          target.commitSha!,
+          target.path,
+          context: ctx,
+          origPath: target.origPath,
+        );
+        return DiffDoc(
+          files: parseUnifiedDiff(raw),
+          editable: false,
+          staged: false,
+        );
+      }
+
       if (target.commitSha != null) {
         final raw = await reader.commitDiff(
           target.commitSha!,
           target.path,
           context: ctx,
+          origPath: target.origPath,
         );
         return DiffDoc(
           files: parseUnifiedDiff(raw),

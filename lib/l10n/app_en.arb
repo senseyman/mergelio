@@ -93,6 +93,14 @@
   "menuCopyDescription": "Copy description",
   "menuCopyMessage": "Copy message",
   "menuCopySha": "Copy SHA",
+  "menuMarkCompare": "Mark for comparison",
+  "menuClearCompareMark": "Clear comparison mark",
+  "menuCompareWith": "Compare with {ref}",
+  "@menuCompareWith": {
+    "placeholders": {
+      "ref": {"type": "String"}
+    }
+  },
   "rewordTitle": "Edit commit message",
   "rewordPushedTitle": "Rewrite a pushed commit?",
   "rewordPushedBody": "This commit is already on {branches}. Changing its message rewrites history, so the branch will need a force push and anyone who pulled it will have to reset.",
@@ -294,6 +302,7 @@
   "sbCheckout": "Checkout",
   "sbMergeIntoCurrent": "Merge into current",
   "sbRebaseOntoCurrent": "Rebase onto current",
+  "sbCompareWithCurrent": "Compare with current",
   "sbSetUpstreamItem": "Set upstream…",
   "sbSetUpstreamTitle": "Set upstream for {branch}",
   "@sbSetUpstreamTitle": {
@@ -765,6 +774,10 @@
   "cdCouldNotRead": "Could not read changes",
   "cdNoChanges": "No changes",
   "cdSha": "SHA",
+  "cmpTitle": "COMPARE",
+  "cmpSwap": "Swap sides",
+  "cmpNoDifferences": "No differences",
+  "cmpCouldNotRead": "Could not read the comparison",
   "asdTitle": "Add submodule",
   "asdRepoUrl": "Repository URL",
   "asdPath": "Path",

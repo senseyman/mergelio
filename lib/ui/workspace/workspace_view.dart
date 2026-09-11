@@ -14,7 +14,9 @@ import '../merge/merge_tool.dart';
 import '../graph/graph_view.dart';
 import '../shell/collapsed_rail.dart';
 import '../shell/resize_handle.dart';
+import '../../state/compare_target.dart';
 import 'commit_details.dart';
+import 'compare_details.dart';
 import 'panel_placeholder.dart';
 import 'repo_sidebar.dart';
 import 'working_tree_panel.dart';
@@ -50,7 +52,7 @@ class WorkspaceView extends ConsumerWidget {
           ],
           const Expanded(child: _CenterWithDiff()),
           ResizeHandle(onDrag: (dx) => ctl.setRightWidth(s.rightWidth - dx)),
-          SizedBox(width: s.rightWidth, child: const _RightPanel()),
+          SizedBox(width: s.rightWidth, child: const RightPanel()),
         ],
       ),
     );
@@ -97,10 +99,10 @@ class _CenterWithDiff extends ConsumerWidget {
   }
 }
 
-/// Right panel: details of the selected commit; otherwise the working-tree
-/// placeholder (staging lands in a later stage).
-class _RightPanel extends ConsumerWidget {
-  const _RightPanel();
+/// Right panel: the comparison being read, else details of the selected
+/// commit, else the working tree.
+class RightPanel extends ConsumerWidget {
+  const RightPanel({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -108,6 +110,21 @@ class _RightPanel extends ConsumerWidget {
     final t = context.tokens;
     final path = ref.watch(workspaceProvider).activeTab?.path;
     final selected = ref.watch(selectedCommitProvider);
+
+    // Picking a commit anywhere — graph, sidebar, palette — is a request for
+    // that commit, so it puts an open comparison away instead of leaving the
+    // panel stuck on it.
+    ref.listen(selectedCommitProvider, (_, _) {
+      ref.read(compareTargetProvider.notifier).state = null;
+    });
+
+    // A comparison is the question the user asked last, so until it is closed
+    // it outranks the selection. One left over from another repository is not
+    // this repository's answer, so it stays hidden.
+    final compare = ref.watch(compareTargetProvider);
+    if (compare != null && compare.repoPath == path) {
+      return const CompareDetails();
+    }
 
     if (path != null && selected != null && selected != wipSelection) {
       final data = ref.watch(repoDataProvider(path)).valueOrNull;
