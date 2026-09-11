@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
 import '../../core/tokens.dart';
+import '../../domain/git/git_writer.dart';
 import '../../domain/git/models.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/repo_actions.dart';
@@ -347,6 +348,9 @@ class _MergeBody extends ConsumerStatefulWidget {
 }
 
 class _MergeBodyState extends ConsumerState<_MergeBody> {
+  bool _squash = false;
+  bool _noCommit = false;
+  MergeFavor _favor = MergeFavor.none;
   String? _branch;
 
   @override
@@ -399,6 +403,67 @@ class _MergeBodyState extends ConsumerState<_MergeBody> {
           ],
           onChanged: (v) => setState(() => _branch = v),
         ),
+        CheckboxListTile(
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          controlAffinity: ListTileControlAffinity.leading,
+          title: Text(
+            l.ropSquash,
+            style: TextStyle(color: t.textPrimary, fontSize: 13),
+          ),
+          value: _squash,
+          // A squash never commits, so it subsumes the choice below rather
+          // than leaving a checked-but-ignored box behind.
+          onChanged: (v) => setState(() {
+            _squash = v ?? false;
+            if (_squash) _noCommit = false;
+          }),
+        ),
+        CheckboxListTile(
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          controlAffinity: ListTileControlAffinity.leading,
+          title: Text(
+            l.ropNoCommit,
+            style: TextStyle(
+              color: _squash ? t.textFaint : t.textPrimary,
+              fontSize: 13,
+            ),
+          ),
+          value: _noCommit,
+          onChanged: _squash
+              ? null
+              : (v) => setState(() => _noCommit = v ?? false),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          l.ropFavorLabel,
+          style: TextStyle(color: t.textMuted, fontSize: 12),
+        ),
+        const SizedBox(height: 6),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: SegmentedButton<MergeFavor>(
+            showSelectedIcon: false,
+            style: const ButtonStyle(
+              visualDensity: VisualDensity.compact,
+              textStyle: WidgetStatePropertyAll(TextStyle(fontSize: 12)),
+            ),
+            segments: [
+              ButtonSegment(value: MergeFavor.none, label: Text(l.ropFavorAsk)),
+              ButtonSegment(
+                value: MergeFavor.ours,
+                label: Text(l.ropFavorOurs),
+              ),
+              ButtonSegment(
+                value: MergeFavor.theirs,
+                label: Text(l.ropFavorTheirs),
+              ),
+            ],
+            selected: {_favor},
+            onSelectionChanged: (v) => setState(() => _favor = v.first),
+          ),
+        ),
         const SizedBox(height: 14),
         Row(
           mainAxisAlignment: MainAxisAlignment.end,
@@ -428,7 +493,12 @@ class _MergeBodyState extends ConsumerState<_MergeBody> {
                         return;
                       }
                       navigator.pop();
-                      await actions.merge(source);
+                      await actions.merge(
+                        source,
+                        squash: _squash,
+                        noCommit: _noCommit,
+                        favor: _favor,
+                      );
                     },
               child: Text(l.ropMerge),
             ),

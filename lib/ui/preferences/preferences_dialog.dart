@@ -119,6 +119,7 @@ class _GeneralTab extends ConsumerWidget {
           c.setPullStrategy,
           labelFor: (v) => v == 'rebase' ? l.strategyRebase : l.strategyMerge,
         ),
+        SwitchRow(l.prefsPullAutostash, s.pullAutostash, c.setPullAutostash),
         _ChoiceRow(
           l.prefsDateFormat,
           const ['medium', 'iso', 'short'],

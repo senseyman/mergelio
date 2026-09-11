@@ -246,9 +246,21 @@ class RepoActions {
     await _undoable('Edit remote $from', forward, undo: back, redo: forward);
   }
 
-  Future<void> pull({bool rebase = false}) => _network(
+  /// Pulls the current branch's upstream. [ffOnly] declines to reconcile a
+  /// diverged history rather than writing a merge the user did not ask for;
+  /// [autostash] shelves uncommitted work for the duration and puts it back.
+  Future<void> pull({
+    bool rebase = false,
+    bool ffOnly = false,
+    bool autostash = false,
+  }) => _network(
     'Pull',
-    (cancel) => _writer.pull(rebase: rebase, cancel: cancel),
+    (cancel) => _writer.pull(
+      rebase: rebase,
+      ffOnly: ffOnly,
+      autostash: autostash,
+      cancel: cancel,
+    ),
   );
 
   Future<void> push({bool force = false}) => _network(
@@ -1102,45 +1114,60 @@ class RepoActions {
 
   /// Merges [branch] into the current branch. A clean merge commits and is
   /// undoable; a conflict opens the Merge Tool via [mergeSessionProvider].
-  Future<void> merge(String branch) async {
+  ///
+  /// [squash] collapses the other branch's work into a staged change with no
+  /// second parent, [noCommit] stages a real merge; both stop before the
+  /// commit, so the user makes it. Nothing was committed, so nothing is
+  /// recorded for undo. [favor] decides hunks both sides changed instead of
+  /// raising a conflict.
+  Future<void> merge(
+    String branch, {
+    bool squash = false,
+    bool noCommit = false,
+    MergeFavor favor = MergeFavor.none,
+  }) async {
     if (_blockedByRepoOp) return;
     final prev = await _headSha();
+    final staged = squash || noCommit;
     _ref.read(busyProvider.notifier).state = BusyState('Merge $branch');
     final id = _identity;
+    Future<void> apply() => _writer.merge(
+      branch,
+      noFf: true,
+      squash: squash,
+      noCommit: noCommit,
+      favor: favor,
+      authorName: id.name,
+      authorEmail: id.email,
+    );
     try {
-      await _timed(
-        'Merge $branch',
-        () => _writer.merge(
-          branch,
-          noFf: true,
-          authorName: id.name,
-          authorEmail: id.email,
-        ),
-      );
-      _ref
-          .read(undoProvider(path).notifier)
-          .record(
-            UndoEntry(
-              'Merge $branch',
-              undo: () async {
-                await _undoReset(prev);
-                _refresh();
-              },
-              redo: () async {
-                await _writer.merge(
-                  branch,
-                  noFf: true,
-                  authorName: id.name,
-                  authorEmail: id.email,
-                );
-                _refresh();
-              },
-            ),
-          );
+      await _timed('Merge $branch', apply);
+      if (!staged) {
+        _ref
+            .read(undoProvider(path).notifier)
+            .record(
+              UndoEntry(
+                'Merge $branch',
+                undo: () async {
+                  await _undoReset(prev);
+                  _refresh();
+                },
+                redo: () async {
+                  await apply();
+                  _refresh();
+                },
+              ),
+            );
+      }
       _refresh();
       _ref
           .read(toastProvider.notifier)
-          .show('Merged $branch', kind: ToastKind.success);
+          .show(
+            staged
+                ? 'Merged $branch — staged, not committed'
+                : 'Merged $branch',
+            kind: ToastKind.success,
+          );
     } on GitException catch (e) {
       final conflicts = await GitReader(_git, path).conflictedFiles();
       if (conflicts.isEmpty) {

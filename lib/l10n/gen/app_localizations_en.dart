@@ -120,6 +120,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get prefsPullStrategy => 'Pull strategy';
 
   @override
+  String get prefsPullAutostash => 'Autostash on pull';
+
+  @override
   String get prefsDateFormat => 'Date format';
 
   @override
@@ -937,6 +940,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bbPullAllRemotes => 'Pull (all remotes)';
 
   @override
+  String get bbPullFfOnly => 'Pull (fast-forward only)';
+
+  @override
+  String get bbPullMerge => 'Pull (merge)';
+
+  @override
   String get bbForcePushTitle => 'Force-push?';
 
   @override
@@ -1082,6 +1091,24 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ropMerge => 'Merge';
+
+  @override
+  String get ropSquash => 'Squash (stage, do not commit)';
+
+  @override
+  String get ropNoCommit => 'Stage the merge, do not commit';
+
+  @override
+  String get ropFavorLabel => 'If both sides changed the same lines';
+
+  @override
+  String get ropFavorAsk => 'Ask';
+
+  @override
+  String get ropFavorOurs => 'Ours';
+
+  @override
+  String get ropFavorTheirs => 'Theirs';
 
   @override
   String get ropMessageOptional => 'Message (optional)';

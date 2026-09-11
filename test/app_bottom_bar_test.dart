@@ -40,15 +40,16 @@ class _FakeGit implements GitService {
   Future<bool> isRepository(String path) async => true;
 }
 
-Future<ProviderContainer> _pump(WidgetTester tester, _FakeGit git) async {
+Future<ProviderContainer> _pump(
+  WidgetTester tester,
+  _FakeGit git, {
+  AppSettings settings = const AppSettings(),
+}) async {
   final widget = ProviderScope(
     overrides: [
       gitServiceProvider.overrideWithValue(git),
       settingsProvider.overrideWith(
-        (ref) => SettingsController(
-          InMemorySettingsRepository(),
-          const AppSettings(),
-        ),
+        (ref) => SettingsController(InMemorySettingsRepository(), settings),
       ),
     ],
     child: MaterialApp(
@@ -126,5 +127,107 @@ void main() {
       isTrue,
     );
     expect(git.calls.any((c) => c.first == 'fetch'), isFalse);
+  });
+
+  testWidgets('Pull menu offers a fast-forward-only pull', (tester) async {
+    final git = _FakeGit();
+    await _pump(tester, git);
+
+    await tester.tap(find.text('Pull'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Pull (fast-forward only)'));
+    await tester.pumpAndSettle();
+
+    final pull = git.calls.firstWhere((c) => c.first == 'pull');
+    expect(pull, contains('--ff-only'));
+  });
+
+  testWidgets('Pull autostashes while the preference is on', (tester) async {
+    final git = _FakeGit();
+    await _pump(tester, git);
+
+    await tester.tap(find.text('Pull'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Pull (rebase)'));
+    await tester.pumpAndSettle();
+
+    final pull = git.calls.firstWhere((c) => c.first == 'pull');
+    expect(pull, containsAll(['--rebase', '--autostash']));
+  });
+
+  testWidgets('Pull leaves a dirty tree alone with autostash off', (
+    tester,
+  ) async {
+    final git = _FakeGit();
+    await _pump(tester, git, settings: const AppSettings(pullAutostash: false));
+
+    await tester.tap(find.text('Pull'));
+    await tester.pumpAndSettle();
+    // The plain "Pull" item, below the button that carries the same label.
+    await tester.tap(find.text('Pull').last);
+    await tester.pumpAndSettle();
+
+    final pull = git.calls.firstWhere((c) => c.first == 'pull');
+    expect(pull, isNot(contains('--autostash')));
+  });
+
+  testWidgets('the plain Pull follows the rebase strategy preference', (
+    tester,
+  ) async {
+    final git = _FakeGit();
+    await _pump(
+      tester,
+      git,
+      settings: const AppSettings(pullStrategy: 'rebase'),
+    );
+
+    await tester.tap(find.text('Pull'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Pull').last);
+    await tester.pumpAndSettle();
+
+    expect(
+      git.calls.firstWhere((c) => c.first == 'pull'),
+      contains('--rebase'),
+    );
+  });
+
+  testWidgets('the other strategy stays one click away', (tester) async {
+    final git = _FakeGit();
+    await _pump(
+      tester,
+      git,
+      settings: const AppSettings(pullStrategy: 'rebase'),
+    );
+
+    await tester.tap(find.text('Pull'));
+    await tester.pumpAndSettle();
+    // Preference is rebase, so the explicit escape hatch is a merge pull.
+    await tester.tap(find.text('Pull (merge)'));
+    await tester.pumpAndSettle();
+
+    final pull = git.calls.firstWhere((c) => c.first == 'pull');
+    expect(pull, isNot(contains('--rebase')));
+  });
+
+  testWidgets('pulling every remote follows the preference too', (
+    tester,
+  ) async {
+    final git = _FakeGit();
+    await _pump(
+      tester,
+      git,
+      settings: const AppSettings(pullStrategy: 'rebase'),
+    );
+
+    await tester.tap(find.text('Pull'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Pull (all remotes)'));
+    await tester.pumpAndSettle();
+
+    expect(
+      git.calls.firstWhere((c) => c.first == 'pull'),
+      contains('--rebase'),
+    );
   });
 }
