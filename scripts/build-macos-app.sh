@@ -64,6 +64,15 @@ SIGN_INFO=$(codesign -dvv "$APP_PATH" 2>&1 || true)
 if grep -q '^Signature=adhoc' <<<"$SIGN_INFO"; then
   ADHOC=1
   ok "Signature: ad-hoc"
+
+  # Every framework in an ad-hoc bundle has to be ad-hoc too, or the app dies
+  # at launch. A clean build already satisfies that; this catches the cases
+  # where something else signed a framework first.
+  STRAYS=$(adhoc_seal_bundle "$APP_PATH" macos/Runner/Release.entitlements)
+  if (( STRAYS )); then
+    warn "$STRAYS framework(s) did not match the app and were re-signed"
+  fi
+  ok "Bundle is consistently signed"
 else
   ADHOC=0
   AUTHORITY=$(grep -m1 '^Authority=' <<<"$SIGN_INFO" | sed 's/^Authority=//' || true)

@@ -38,5 +38,17 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_macos_build_settings(target)
+
+    # That helper only turns off per-pod signing for pods that link
+    # FlutterMacOS. The rest keep Xcode's defaults and get signed with whatever
+    # certificate is in the keychain, which on a machine that has one leaves a
+    # framework whose Team ID does not match the app -- and dyld refuses to load
+    # it. The app's embed phase signs every framework with the app's own
+    # identity anyway, so nothing is lost by letting it be the only signer.
+    target.build_configurations.each do |config|
+      config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
+      config.build_settings['CODE_SIGNING_REQUIRED'] = 'NO'
+      config.build_settings.delete('EXPANDED_CODE_SIGN_IDENTITY')
+    end
   end
 end

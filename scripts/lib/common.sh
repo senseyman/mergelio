@@ -147,3 +147,72 @@ maybe_clean() {
     ok "flutter clean done"
   fi
 }
+
+# macOS refuses to map a library whose Team ID differs from the running
+# process — dyld aborts at launch with "mapping process and mapped file
+# (non-platform) have different Team IDs". An ad-hoc app therefore needs every
+# framework inside it to be ad-hoc as well.
+#
+# A clean build already is. A bundle stops being one when a pod signs itself
+# with whichever certificate happens to sit in the keychain, or when an app
+# built here is dropped on top of one downloaded from a release. Neither shows
+# up until the app is started, and the framework dyld names is only whichever
+# loads first, not the one that is actually wrong.
+#
+# Signing runs inside out: sealing the bundle captures the nested signatures as
+# they are at that moment, so they have to be right first.
+adhoc_seal_bundle() {
+  local app=$1
+  local entitlements=${2:-}
+  local item target status was strays=0
+
+  while IFS= read -r -d '' item; do
+    # Versioned frameworks are signed at Versions/A; codesign rejects the
+    # .framework wrapper for those.
+    target=$item
+    [[ -d "$item/Versions/A" ]] && target="$item/Versions/A"
+
+    status=$(codesign -dvv "$target" 2>&1 || true)
+    grep -q '^TeamIdentifier=not set' <<<"$status" && continue
+
+    if grep -q 'not signed at all' <<<"$status"; then
+      was="unsigned"
+    else
+      was="Team ID $(grep -m1 '^TeamIdentifier=' <<<"$status" | cut -d= -f2)"
+    fi
+
+    codesign --force --sign - "$target" >/dev/null 2>&1 \
+      || die "Could not re-sign ad-hoc: $target"
+
+    # Progress goes to stderr: stdout carries the count back to the caller.
+    warn "Re-signed $(basename "$item") ad-hoc — was $was" >&2
+    strays=$((strays + 1))
+  done < <(find "${app}/Contents" -depth \
+    \( -name '*.framework' -o -name '*.dylib' \) -print0)
+
+  # An ad-hoc bundle built with the hardened runtime cannot start either: the
+  # runtime enforces library validation, and a bundle with no team has nothing
+  # its frameworks can match. Re-signing without it is what makes the app
+  # launchable; only the notarized build needs the flag.
+  local hardened=0
+  codesign -dvvv "$app" 2>&1 | grep -qE '^CodeDirectory .*flags=.*runtime' && hardened=1
+
+  if (( strays || hardened )) || ! codesign --verify --deep --strict "$app" 2>/dev/null; then
+    if [[ -n $entitlements && -f $entitlements ]]; then
+      codesign --force --sign - --entitlements "$entitlements" "$app" >/dev/null 2>&1 \
+        || die "Could not re-seal ad-hoc: $app"
+    else
+      codesign --force --sign - "$app" >/dev/null 2>&1 \
+        || die "Could not re-seal ad-hoc: $app"
+    fi
+  fi
+
+  if (( hardened )); then
+    warn "Dropped the hardened runtime: an ad-hoc app cannot satisfy it" >&2
+  fi
+
+  codesign --verify --deep --strict "$app" 2>/dev/null \
+    || die "The bundle is still not consistently signed: $app"
+
+  printf '%s' "$strays"
+}
