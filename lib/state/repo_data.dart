@@ -6,6 +6,7 @@ import '../domain/git/git_providers.dart';
 import '../domain/git/git_reader.dart';
 import '../domain/git/lane_layout.dart';
 import '../domain/git/models.dart';
+import 'squash_link_cache.dart';
 
 part 'repo_data.freezed.dart';
 
@@ -53,8 +54,9 @@ final commitSignatureProvider = FutureProvider.family
       return reader.signatureStatus(key.sha);
     });
 
-/// Per-repo cache of the last squash-link inference, keyed by branch tips.
-final _squashCache = <String, ({String sig, List<SquashLink> links})>{};
+/// Squash-link inference, remembered per repository and per branch so that a
+/// refresh only pays for the branches that actually moved.
+final squashLinkCache = SquashLinkCache();
 
 /// Commits loaded on open. The graph extends the limit when the user scrolls
 /// to the end, so the cost of opening a monorepo no longer scales with its
@@ -135,27 +137,14 @@ final repoDataProvider = FutureProvider.family<RepoData, String>(
     }
     final walkDone = DateTime.now();
     final branches = assignBranchColors(results[0] as List<Branch>, commits);
-    final current = branches.where((b) => b.current);
-    // Squash-link inference spawns ~5 git subprocesses per branch — very heavy.
-    // Cache it per repo, keyed by the branch tips + current branch, so a
-    // working-tree-only refresh (tips unchanged) reuses the result instead of
-    // re-running the whole storm.
-    final List<SquashLink> squash;
-    if (current.isEmpty) {
-      squash = const [];
-    } else {
-      final sig = [
-        current.first.name,
-        for (final b in branches) '${b.name}@${b.tip}',
-      ].join(',');
-      final cached = _squashCache[path];
-      if (cached != null && cached.sig == sig) {
-        squash = cached.links;
-      } else {
-        squash = await reader.squashLinks(branches, into: current.first.name);
-        _squashCache[path] = (sig: sig, links: squash);
-      }
-    }
+    // Squash-link inference spawns ~5 git subprocesses per branch, so it is by
+    // far the most expensive phase on a repository with many branches. The
+    // cache narrows each refresh to the branches whose tips moved.
+    final squash = await squashLinkCache.resolve(
+      path: path,
+      branches: branches,
+      compute: (subset, into) => reader.squashLinks(subset, into: into),
+    );
     // Phase breakdown so a slow open points at its cause: ref reads, the
     // history walk plus lane layout (both scale with commit count) or
     // squash-link inference. A refresh that hits either cache says so.
