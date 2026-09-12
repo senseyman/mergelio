@@ -247,6 +247,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get menuRebaseHere => 'Rebase to here…';
 
   @override
+  String get menuResetMixed => 'Reset here (--mixed)';
+
+  @override
   String get menuResetHard => 'Reset here (--hard)';
 
   @override
@@ -1547,6 +1550,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get gvResetHard => 'Reset --hard';
+
+  @override
+  String gvResetMixedTitle(String sha) {
+    return 'Reset to $sha?';
+  }
+
+  @override
+  String get gvResetMixedBody =>
+      'Moves the current branch to this commit and keeps the changes as unstaged edits in the working tree. This can be undone.';
+
+  @override
+  String get gvResetMixed => 'Reset --mixed';
 
   @override
   String get ccBranch => 'Branch';

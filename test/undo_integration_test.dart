@@ -220,4 +220,42 @@ void main() {
       after,
     );
   });
+
+  test('undo of reset --mixed restores the commit and the index', () async {
+    final c = container();
+    final actions = c.read(repoActionsProvider(dir.path));
+    final before = (await svc.run([
+      'rev-parse',
+      'HEAD',
+    ], repoPath: dir.path)).out;
+    await File('${dir.path}/b.txt').writeAsString('B\n');
+    await g(['add', '.']);
+    await g(['commit', '-q', '-m', 'B']);
+    final after = (await svc.run([
+      'rev-parse',
+      'HEAD',
+    ], repoPath: dir.path)).out;
+
+    await actions.resetMixed(before);
+    expect(
+      (await svc.run(['rev-parse', 'HEAD'], repoPath: dir.path)).out,
+      before,
+    );
+    // The commit's content stays on disk, unstaged.
+    expect(File('${dir.path}/b.txt').existsSync(), isTrue);
+    expect(
+      (await svc.run(['status', '--porcelain'], repoPath: dir.path)).out,
+      contains('?? b.txt'),
+    );
+
+    await actions.undo();
+    expect(
+      (await svc.run(['rev-parse', 'HEAD'], repoPath: dir.path)).out,
+      after,
+    );
+    expect(
+      (await svc.run(['status', '--porcelain'], repoPath: dir.path)).out.trim(),
+      isEmpty,
+    );
+  });
 }

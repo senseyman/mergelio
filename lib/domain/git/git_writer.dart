@@ -458,6 +458,11 @@ class GitWriter {
   Future<void> resetSoft(String sha) =>
       _ok(['reset', '--soft', sha], 'git reset --soft');
 
+  /// Moves HEAD to [sha] and resets the index to match it, leaving the working
+  /// tree alone: the changes stay on disk, unstaged.
+  Future<void> resetMixed(String sha) =>
+      _ok(['reset', '--mixed', sha], 'git reset --mixed');
+
   // --- Stash ops ------------------------------------------------------------
 
   /// [stagedOnly] stashes only what is in the index (`--staged`), leaving

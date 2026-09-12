@@ -572,6 +572,12 @@ abstract class AppLocalizations {
   /// **'Rebase to here…'**
   String get menuRebaseHere;
 
+  /// No description provided for @menuResetMixed.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset here (--mixed)'**
+  String get menuResetMixed;
+
   /// No description provided for @menuResetHard.
   ///
   /// In en, this message translates to:
@@ -2779,6 +2785,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Reset --hard'**
   String get gvResetHard;
+
+  /// No description provided for @gvResetMixedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset to {sha}?'**
+  String gvResetMixedTitle(String sha);
+
+  /// No description provided for @gvResetMixedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Moves the current branch to this commit and keeps the changes as unstaged edits in the working tree. This can be undone.'**
+  String get gvResetMixedBody;
+
+  /// No description provided for @gvResetMixed.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset --mixed'**
+  String get gvResetMixed;
 
   /// No description provided for @ccBranch.
   ///

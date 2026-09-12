@@ -154,4 +154,37 @@ void main() {
       );
     },
   );
+
+  test(
+    'reset --mixed refuses a conflicted index instead of half-undoing',
+    () async {
+      final base = (await svc.run([
+        'rev-parse',
+        'HEAD',
+      ], repoPath: dir.path)).out;
+      await g(['checkout', '-q', '-b', 'feature']);
+      await File('${dir.path}/a.txt').writeAsString('feature\n');
+      await g(['add', '.']);
+      await g(['commit', '-q', '-m', 'feature']);
+      await g(['checkout', '-q', 'main']);
+      await File('${dir.path}/a.txt').writeAsString('main\n');
+      await g(['add', '.']);
+      await g(['commit', '-q', '-m', 'main']);
+      final head = (await svc.run([
+        'rev-parse',
+        'HEAD',
+      ], repoPath: dir.path)).out;
+      // Leaves the index unmerged, so no tree can be written to undo against.
+      await svc.run(['merge', 'feature'], repoPath: dir.path);
+
+      final c = ProviderContainer();
+      addTearDown(c.dispose);
+      await c.read(repoActionsProvider(dir.path)).resetMixed(base);
+
+      expect(
+        (await svc.run(['rev-parse', 'HEAD'], repoPath: dir.path)).out,
+        head,
+      );
+    },
+  );
 }
