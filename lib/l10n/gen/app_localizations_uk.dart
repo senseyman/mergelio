@@ -247,6 +247,9 @@ class AppLocalizationsUk extends AppLocalizations {
   String get menuRebaseHere => 'Перебазувати сюди…';
 
   @override
+  String get menuResetMixed => 'Скинути сюди (--mixed)';
+
+  @override
   String get menuResetHard => 'Скинути сюди (--hard)';
 
   @override
@@ -1556,6 +1559,18 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get gvResetHard => 'Reset --hard';
+
+  @override
+  String gvResetMixedTitle(String sha) {
+    return 'Скинути до $sha?';
+  }
+
+  @override
+  String get gvResetMixedBody =>
+      'Переміщує поточну гілку на цей коміт і залишає зміни незакоміченими в робочій копії. Дію можна скасувати.';
+
+  @override
+  String get gvResetMixed => 'Reset --mixed';
 
   @override
   String get ccBranch => 'Гілка';

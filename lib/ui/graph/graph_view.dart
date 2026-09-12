@@ -1342,6 +1342,16 @@ class _CommitContextMenu extends ConsumerWidget {
           }
           await actions.rebase(sha, plan);
         }),
+        item(l.menuResetMixed, () async {
+          final ok = await confirmDestructive(
+            ref,
+            context,
+            title: l.gvResetMixedTitle(commit.shortSha),
+            body: l.gvResetMixedBody,
+            confirmLabel: l.gvResetMixed,
+          );
+          if (ok) await actions.resetMixed(sha);
+        }),
         item(l.menuResetHard, () async {
           final ok = await confirmDestructive(
             ref,

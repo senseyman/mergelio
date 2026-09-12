@@ -1009,6 +1009,37 @@ class RepoActions {
   Future<void> resetHard(String sha) =>
       _resetTo(sha, 'Reset to ${_short(sha)}');
 
+  /// Moves the current branch to [sha] with git's default `--mixed`: the
+  /// commits' content stays on disk as unstaged edits, so nothing is lost.
+  Future<void> resetMixed(String sha) async {
+    final prev = await _headSha();
+    // The index is captured as a tree so undo can put back exactly what was
+    // staged; a soft reset alone would restore HEAD and leave it unstaged.
+    final index = (await _out(['write-tree'])).trim();
+    // An unmerged index has no tree to write, which would leave undo unable to
+    // put the staging area back. Refuse the reset rather than undo it halfway.
+    if (index.isEmpty) {
+      _ref
+          .read(toastProvider.notifier)
+          .show(
+            'Cannot reset with unresolved conflicts',
+            description: 'Finish or abort the operation in progress first',
+            kind: ToastKind.warning,
+          );
+      return;
+    }
+    Future<void> run() => _writer.resetMixed(sha);
+    await _undoable(
+      'Reset to ${_short(sha)} (mixed)',
+      run,
+      undo: () async {
+        await _writer.resetSoft(prev);
+        await _out(['read-tree', index]);
+      },
+      redo: run,
+    );
+  }
+
   /// Resets the current branch to a remote-tracking ref (e.g. `origin/x`),
   /// discarding any unpushed commits. Uncommitted work is auto-stashed and the
   /// whole reset is undoable, exactly like [resetHard].

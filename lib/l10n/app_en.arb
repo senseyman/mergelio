@@ -87,6 +87,7 @@
   "menuCherryPick": "Cherry-pick",
   "menuRevert": "Revert",
   "menuRebaseHere": "Rebase to here…",
+  "menuResetMixed": "Reset here (--mixed)",
   "menuResetHard": "Reset here (--hard)",
   "menuEditMessage": "Edit message…",
   "menuCopySummary": "Copy summary",
@@ -863,6 +864,14 @@
   },
   "gvResetBody": "Moves the current branch to this commit and discards all uncommitted changes. This cannot be undone from disk.",
   "gvResetHard": "Reset --hard",
+  "gvResetMixedTitle": "Reset to {sha}?",
+  "@gvResetMixedTitle": {
+    "placeholders": {
+      "sha": {"type": "String"}
+    }
+  },
+  "gvResetMixedBody": "Moves the current branch to this commit and keeps the changes as unstaged edits in the working tree. This can be undone.",
+  "gvResetMixed": "Reset --mixed",
   "ccBranch": "Branch",
   "cpTypeCommand": "Type a command…",
   "termClose": "Close terminal (⌘`)",

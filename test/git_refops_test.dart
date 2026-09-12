@@ -116,6 +116,19 @@ void main() {
     expect(File('${dir.path}/e.txt').existsSync(), isFalse);
   });
 
+  test('reset --mixed moves the branch but keeps the work unstaged', () async {
+    final base = await out(['rev-parse', 'HEAD']);
+    await commit('e.txt', 'E');
+
+    await writer().resetMixed(base);
+
+    expect(await out(['rev-parse', 'HEAD']), base);
+    // The file survives, and nothing is left staged.
+    expect(File('${dir.path}/e.txt').existsSync(), isTrue);
+    expect((await out(['diff', '--cached', '--name-only'])).trim(), isEmpty);
+    expect(await out(['status', '--porcelain']), contains('?? e.txt'));
+  });
+
   test('stash push --staged keeps unstaged work in the tree', () async {
     // One staged change, one unstaged change.
     await File('${dir.path}/staged.txt').writeAsString('S\n');
