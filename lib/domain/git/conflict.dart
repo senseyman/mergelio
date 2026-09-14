@@ -1,6 +1,23 @@
 /// How a single conflict hunk is resolved.
 enum Resolution { ours, theirs, both, custom }
 
+/// How a conflict with nothing to pick line by line is resolved: keep our
+/// side, keep the incoming side, or drop the path entirely.
+enum FileResolution { ours, theirs, delete }
+
+/// How much of a file decides whether it is binary, matching git's own rule.
+const binarySniffBytes = 8000;
+
+/// Bytes git could not merge as text: a NUL byte in the first
+/// [binarySniffBytes] means binary.
+bool isBinaryContent(List<int> bytes) {
+  final end = bytes.length < binarySniffBytes ? bytes.length : binarySniffBytes;
+  for (var i = 0; i < end; i++) {
+    if (bytes[i] == 0) return true;
+  }
+  return false;
+}
+
 /// A parsed piece of a conflicted file: either unchanged [ContextBlock] lines
 /// or a [ConflictHunk] with the two sides.
 sealed class ConflictPart {

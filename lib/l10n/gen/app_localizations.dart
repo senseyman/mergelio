@@ -3266,6 +3266,66 @@ abstract class AppLocalizations {
   /// **'Accept'**
   String get mtAccept;
 
+  /// No description provided for @mtKeepMine.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep mine'**
+  String get mtKeepMine;
+
+  /// No description provided for @mtKeepTheirs.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep theirs'**
+  String get mtKeepTheirs;
+
+  /// No description provided for @mtDeleteFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete file'**
+  String get mtDeleteFile;
+
+  /// No description provided for @mtBinaryConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'Binary file — git cannot merge its contents. Keep one version.'**
+  String get mtBinaryConflict;
+
+  /// No description provided for @mtSubmoduleConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'Submodule — the branches point it at different commits. Keep one.'**
+  String get mtSubmoduleConflict;
+
+  /// No description provided for @mtDeletedByUs.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted on this branch, changed by the incoming one.'**
+  String get mtDeletedByUs;
+
+  /// No description provided for @mtDeletedByThem.
+  ///
+  /// In en, this message translates to:
+  /// **'Changed on this branch, deleted by the incoming one.'**
+  String get mtDeletedByThem;
+
+  /// No description provided for @mtAddedByUs.
+  ///
+  /// In en, this message translates to:
+  /// **'Added on this branch only.'**
+  String get mtAddedByUs;
+
+  /// No description provided for @mtAddedByThem.
+  ///
+  /// In en, this message translates to:
+  /// **'Added by the incoming branch only.'**
+  String get mtAddedByThem;
+
+  /// No description provided for @mtBothDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted on both branches.'**
+  String get mtBothDeleted;
+
   /// No description provided for @rbPick.
   ///
   /// In en, this message translates to:
