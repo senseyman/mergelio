@@ -6,6 +6,7 @@ import '../../core/theme.dart';
 import '../../core/tokens.dart';
 import '../../domain/git/conflict.dart';
 import '../../domain/git/diff.dart';
+import '../../domain/git/models.dart';
 import '../../domain/text_tabs.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/merge_session.dart';
@@ -39,6 +40,15 @@ class _MergeToolState extends ConsumerState<MergeTool> {
     );
     ref.read(mergeSessionProvider(widget.repoPath).notifier).state = session
         .replaceFile(_fileIndex, file);
+  }
+
+  /// Settles a conflict that has no hunks to pick between — a delete/modify
+  /// pair, or binary content — by choosing what the path becomes.
+  void _resolveFile(FileResolution r) {
+    final session = _session;
+    if (session == null) return;
+    ref.read(mergeSessionProvider(widget.repoPath).notifier).state = session
+        .replaceFile(_fileIndex, session.files[_fileIndex].withFileChoice(r));
   }
 
   /// True when a text field currently has focus, so letter shortcuts (N) must
@@ -128,6 +138,7 @@ class _MergeToolState extends ConsumerState<MergeTool> {
                             ? l.mtIncoming
                             : l.mtIncomingNamed(session.branch),
                         onResolve: _resolve,
+                        onResolveFile: _resolveFile,
                       ),
                     ),
                   ],
@@ -287,16 +298,24 @@ class _ConflictView extends StatelessWidget {
   final String oursLabel;
   final String theirsLabel;
   final void Function(int hunk, Resolution r, {List<String>? lines}) onResolve;
+  final ValueChanged<FileResolution> onResolveFile;
   const _ConflictView({
     required this.file,
     required this.oursLabel,
     required this.theirsLabel,
     required this.onResolve,
+    required this.onResolveFile,
   });
 
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
+    if (file.wholeFile) {
+      return ListView(
+        padding: const EdgeInsets.all(12),
+        children: [_WholeFileCard(file: file, onChoose: onResolveFile)],
+      );
+    }
     return ListView(
       padding: const EdgeInsets.all(12),
       children: [
@@ -321,6 +340,92 @@ class _ConflictView extends StatelessWidget {
                 ),
               ),
       ],
+    );
+  }
+}
+
+/// A conflict git left without markers: binary content, or a path one side
+/// deleted. There is nothing to merge line by line, so the whole file is
+/// settled with one choice — and a side that deleted the path is not offered,
+/// since it has no content to keep.
+class _WholeFileCard extends StatelessWidget {
+  final ConflictFile file;
+  final ValueChanged<FileResolution> onChoose;
+  const _WholeFileCard({required this.file, required this.onChoose});
+
+  /// Why there is nothing to merge line by line. Which side did what comes
+  /// first: it is the more specific fact, and the one that explains why a
+  /// choice may be missing.
+  String _reason(AppLocalizations l) => switch (file.kind) {
+    ConflictKind.deletedByUs => l.mtDeletedByUs,
+    ConflictKind.deletedByThem => l.mtDeletedByThem,
+    ConflictKind.addedByUs => l.mtAddedByUs,
+    ConflictKind.addedByThem => l.mtAddedByThem,
+    ConflictKind.bothDeleted => l.mtBothDeleted,
+    _ => file.submodule ? l.mtSubmoduleConflict : l.mtBinaryConflict,
+  };
+
+  String _label(AppLocalizations l, FileResolution r) => switch (r) {
+    FileResolution.ours => l.mtKeepMine,
+    FileResolution.theirs => l.mtKeepTheirs,
+    FileResolution.delete => l.mtDeleteFile,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final t = context.tokens;
+    final chosen = file.fileChoice;
+    return Card(
+      color: t.bgPanel,
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    file.path,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppFonts.mns(size: 12.5, color: t.textPrimary),
+                  ),
+                ),
+                if (chosen != null)
+                  Text(
+                    l.mtResolved,
+                    style: TextStyle(color: t.success, fontSize: 11),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _reason(l),
+              style: TextStyle(color: t.textMuted, fontSize: 12.5),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final r in file.fileOptions)
+                  if (r == chosen)
+                    FilledButton(
+                      onPressed: () => onChoose(r),
+                      child: Text(_label(l, r)),
+                    )
+                  else
+                    OutlinedButton(
+                      onPressed: () => onChoose(r),
+                      child: Text(_label(l, r)),
+                    ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

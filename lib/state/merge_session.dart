@@ -1,19 +1,40 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/git/conflict.dart';
+import '../domain/git/models.dart';
 
 /// A conflicted file inside a merge session: its parsed [parts] plus the
 /// per-hunk [resolutions] chosen so far.
+///
+/// Some conflicts have no hunks to choose between — one side deleted the path,
+/// or the content is binary. Those are [wholeFile] conflicts, settled with a
+/// single [fileChoice] instead.
 class ConflictFile {
   final String path;
   final List<ConflictPart> parts;
   final Map<int, Resolution> resolutions;
   final Map<int, List<String>> custom;
+
+  /// Which sides of the merge still have content for this path.
+  final ConflictKind kind;
+
+  /// Content git could not merge as text.
+  final bool binary;
+
+  /// A gitlink: the conflict is over which commit the submodule points at.
+  final bool submodule;
+
+  /// The whole-file outcome chosen so far, when [wholeFile].
+  final FileResolution? fileChoice;
   const ConflictFile({
     required this.path,
     required this.parts,
     this.resolutions = const {},
     this.custom = const {},
+    this.kind = ConflictKind.bothModified,
+    this.binary = false,
+    this.submodule = false,
+    this.fileChoice,
   });
 
   List<int> get hunkIndices => [
@@ -21,20 +42,52 @@ class ConflictFile {
       if (parts[i] is ConflictHunk) i,
   ];
 
-  int get total => hunkIndices.length;
-  int get resolvedCount => hunkIndices.where(resolutions.containsKey).length;
+  /// True when there is nothing to merge line by line: binary content, a
+  /// submodule gitlink, or a side that no longer has the path. A text file
+  /// whose markers the user already edited away is not one of these — that
+  /// content is the answer.
+  bool get wholeFile => binary || submodule || !kind.hasOurs || !kind.hasTheirs;
+
+  /// The outcomes this conflict can be resolved to. A side that deleted the
+  /// path has no content to keep, so it is left out.
+  List<FileResolution> get fileOptions => [
+    if (kind.hasOurs) FileResolution.ours,
+    if (kind.hasTheirs) FileResolution.theirs,
+    FileResolution.delete,
+  ];
+
+  int get total => wholeFile ? 1 : hunkIndices.length;
+  int get resolvedCount => wholeFile
+      ? (fileChoice == null ? 0 : 1)
+      : hunkIndices.where(resolutions.containsKey).length;
   bool get resolved => resolvedCount == total;
 
-  /// Resolved file body, honouring the chosen resolutions.
+  /// Resolved file body, honouring the chosen resolutions. Meaningless for a
+  /// [wholeFile] conflict, which git resolves by checking out a side instead.
   String content() => resolveConflicts(parts, resolutions, custom: custom);
 
+  ConflictFile _copy({
+    Map<int, Resolution>? resolutions,
+    Map<int, List<String>>? custom,
+    FileResolution? fileChoice,
+  }) => ConflictFile(
+    path: path,
+    parts: parts,
+    resolutions: resolutions ?? this.resolutions,
+    custom: custom ?? this.custom,
+    kind: kind,
+    binary: binary,
+    submodule: submodule,
+    fileChoice: fileChoice ?? this.fileChoice,
+  );
+
   ConflictFile withResolution(int hunk, Resolution r, {List<String>? lines}) =>
-      ConflictFile(
-        path: path,
-        parts: parts,
+      _copy(
         resolutions: {...resolutions, hunk: r},
-        custom: lines == null ? custom : {...custom, hunk: lines},
+        custom: lines == null ? null : {...custom, hunk: lines},
       );
+
+  ConflictFile withFileChoice(FileResolution r) => _copy(fileChoice: r);
 }
 
 /// What produced the conflicts being resolved. Resolving only ever stages the

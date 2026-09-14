@@ -242,6 +242,31 @@ class GitReader {
     return r.stdout.split(_rs).where((s) => s.isNotEmpty).toList();
   }
 
+  /// Unmerged paths carrying which sides of each conflict still have content.
+  /// Read from `git status`, the only listing that reports the XY code and
+  /// gitlink flag [conflictedFiles] throws away.
+  Future<List<WorkingFile>> unmergedFiles() async =>
+      (await status()).where((f) => f.isConflicted).toList();
+
+  /// The blob or commit sha recorded at each merge stage of an unmerged
+  /// [path]: 1 the common base, 2 our side, 3 theirs. A stage the merge has no
+  /// content for is absent — a path one side deleted has no entry for it.
+  Future<Map<int, String>> conflictStages(String path) async {
+    final r = await _run(['ls-files', '-u', '-z', '--', path]);
+    if (!r.ok) return const {};
+    final out = <int, String>{};
+    for (final entry in r.stdout.split(_rs)) {
+      // "<mode> <sha> <stage>\t<path>"
+      final tab = entry.indexOf('\t');
+      if (tab < 0) continue;
+      final f = entry.substring(0, tab).split(' ');
+      if (f.length < 3) continue;
+      final stage = int.tryParse(f[2]);
+      if (stage != null) out[stage] = f[1];
+    }
+    return out;
+  }
+
   /// Fetch URL configured for [remote], or empty if none.
   Future<String> remoteUrl(String remote) async {
     final r = await _run(['remote', 'get-url', remote]);
@@ -405,12 +430,18 @@ class GitReader {
           }
         case 'u':
           final p = e.split(' ');
-          if (p.length > 10) {
+          if (p.length > 10 && p[1].length >= 2) {
             out.add(
               WorkingFile(
                 path: p.sublist(10).join(' '),
                 index: GitChange.conflicted,
                 worktree: GitChange.conflicted,
+                // The XY code says which sides still have content; a
+                // delete/modify conflict cannot be resolved to the side that
+                // deleted the path. The next field is `N...` for a file and
+                // `S<c><m><u>` for a submodule, which has no text to merge.
+                conflict: conflictKindFromXy(p[1]),
+                submodule: p[2].startsWith('S'),
               ),
             );
           }

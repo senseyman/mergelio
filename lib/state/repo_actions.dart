@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -958,7 +959,7 @@ class RepoActions {
       _refresh();
     } on GitException catch (e) {
       await _journalFail(opId);
-      final conflicts = await GitReader(_git, path).conflictedFiles();
+      final conflicts = await _conflictFiles();
       if (conflicts.isEmpty) {
         if (await _sequencerInProgress()) await abort();
         _refresh();
@@ -969,7 +970,7 @@ class RepoActions {
         branch: branch,
         prevSha: prev,
         kind: kind,
-        files: [for (final p in conflicts) await _conflictFileFor(p)],
+        files: conflicts,
       );
       _refresh();
     } finally {
@@ -1128,7 +1129,7 @@ class RepoActions {
     GitException e, {
     required String? dropRef,
   }) async {
-    final conflicts = await GitReader(_git, path).conflictedFiles();
+    final conflicts = await _conflictFiles();
     if (conflicts.isEmpty) {
       _toastErr(label, e);
       return;
@@ -1137,7 +1138,7 @@ class RepoActions {
       kind: MergeKind.stash,
       branch: 'Stashed changes',
       dropStashRef: dropRef,
-      files: [for (final p in conflicts) await _conflictFileFor(p)],
+      files: conflicts,
     );
     _refresh();
   }
@@ -1226,17 +1227,16 @@ class RepoActions {
             kind: ToastKind.success,
           );
     } on GitException catch (e) {
-      final conflicts = await GitReader(_git, path).conflictedFiles();
+      final conflicts = await _conflictFiles();
       if (conflicts.isEmpty) {
         _toastErr('Merge', e);
         return;
       }
-      final files = [for (final p in conflicts) await _conflictFileFor(p)];
       _ref.read(mergeSessionProvider(path).notifier).state = MergeSession(
         branch: branch,
         prevSha: prev,
         kind: MergeKind.merge,
-        files: files,
+        files: conflicts,
       );
       _refresh();
     } finally {
@@ -1303,10 +1303,57 @@ class RepoActions {
     return true;
   }
 
-  Future<ConflictFile> _conflictFileFor(String rel) async => ConflictFile(
-    path: rel,
-    parts: parseConflicts(await File('$path/$rel').readAsString()),
-  );
+  /// Every unmerged path as a [ConflictFile]. Binary content, and a path one
+  /// side deleted, have no markers to parse — they carry no parts and are
+  /// resolved as a whole file instead.
+  Future<List<ConflictFile>> _conflictFiles() async => [
+    for (final f in await GitReader(_git, path).unmergedFiles())
+      await _conflictFileFor(f),
+  ];
+
+  Future<ConflictFile> _conflictFileFor(WorkingFile f) async {
+    final kind = f.conflict ?? ConflictKind.bothModified;
+    // A gitlink has no text in the worktree to read — and reading the
+    // directory as a file would fail. It is settled by picking a side.
+    if (f.submodule) {
+      return ConflictFile(
+        path: f.path,
+        parts: const [],
+        kind: kind,
+        submodule: true,
+      );
+    }
+    final file = File('$path/${f.path}');
+    // Both sides deleted: nothing is left in the worktree to read.
+    if (!await file.exists()) {
+      return ConflictFile(path: f.path, parts: const [], kind: kind);
+    }
+    // Sniff a prefix first: a binary conflict can be a very large file, and
+    // its content is never shown, only chosen between.
+    final handle = await file.open();
+    final List<int> bytes;
+    try {
+      if (isBinaryContent(await handle.read(binarySniffBytes))) {
+        return ConflictFile(
+          path: f.path,
+          parts: const [],
+          kind: kind,
+          binary: true,
+        );
+      }
+      await handle.setPosition(0);
+      bytes = await handle.read(await file.length());
+    } finally {
+      await handle.close();
+    }
+    return ConflictFile(
+      path: f.path,
+      kind: kind,
+      // Malformed bytes are tolerated: a file that is not quite UTF-8 still
+      // has markers worth showing, and the bytes it keeps are the user's.
+      parts: parseConflicts(utf8.decode(bytes, allowMalformed: true)),
+    );
+  }
 
   /// Runs an interactive rebase of the plan [steps] onto [base].
   Future<void> rebase(String base, List<RebaseStep> steps) async {
@@ -1627,7 +1674,7 @@ class RepoActions {
           .read(toastProvider.notifier)
           .show('Rebase complete', description: note, kind: ToastKind.success);
     } on GitException catch (e) {
-      final conflicts = await GitReader(_git, path).conflictedFiles();
+      final conflicts = await _conflictFiles();
       if (conflicts.isEmpty) {
         // Nothing to resolve, so there is no session to hand the user. A rebase
         // that got partway through its sequence is paused on something they can
@@ -1664,7 +1711,7 @@ class RepoActions {
         branch: 'rebase',
         prevSha: prev,
         kind: MergeKind.rebase,
-        files: [for (final p in conflicts) await _conflictFileFor(p)],
+        files: conflicts,
       );
       _refresh();
     } finally {
@@ -1685,8 +1732,36 @@ class RepoActions {
     }
   }
 
+  /// Settles a conflict that has nothing to merge line by line: check out the
+  /// chosen side, or drop the path. An unchosen one is left conflicted — the
+  /// Resolve button is gated on every file having an answer.
+  Future<void> _applyFileChoice(ConflictFile f) async {
+    final ours = f.fileChoice == FileResolution.ours;
+    switch (f.fileChoice) {
+      case FileResolution.ours:
+      case FileResolution.theirs:
+        if (f.submodule) {
+          // Stage 2 is our side of the merge, stage 3 theirs.
+          final stages = await GitReader(_git, path).conflictStages(f.path);
+          final sha = stages[ours ? 2 : 3];
+          if (sha != null) await _writer.setGitlink(f.path, sha);
+          return;
+        }
+        await _writer.checkoutConflictSide(f.path, ours: ours);
+        await _writer.stageFile(f.path);
+      case FileResolution.delete:
+        await _writer.removeConflicted(f.path);
+      case null:
+        return;
+    }
+  }
+
   Future<void> _resolveConflicts(MergeSession session) async {
     for (final f in session.files) {
+      if (f.wholeFile) {
+        await _applyFileChoice(f);
+        continue;
+      }
       await File('$path/${f.path}').writeAsString(f.content());
       await _writer.stageFile(f.path);
     }
@@ -1851,13 +1926,13 @@ class RepoActions {
   /// A paused sequence can stop again on its next commit: reopen the session on
   /// the fresh conflicts and report that the continue is not done yet.
   Future<bool> _reopenIfStillConflicted(PendingOp pending) async {
-    final more = await GitReader(_git, path).conflictedFiles();
+    final more = await _conflictFiles();
     if (more.isEmpty) return false;
     _ref.read(mergeSessionProvider(path).notifier).state = MergeSession(
       branch: pending.branch,
       kind: pending.kind,
       prevSha: _ref.read(_opBaseProvider(path)) ?? '',
-      files: [for (final p in more) await _conflictFileFor(p)],
+      files: more,
     );
     _refresh();
     return true;
@@ -1892,7 +1967,7 @@ class RepoActions {
   /// afterwards from the working-tree panel.
   Future<void> openConflictResolution() async {
     if (_ref.read(mergeSessionProvider(path)) != null) return;
-    final conflicts = await GitReader(_git, path).conflictedFiles();
+    final conflicts = await _conflictFiles();
     if (conflicts.isEmpty) return;
     // No prevSha: the operation was found already in progress, so where it
     // started is not known here and finishing it records no undo entry.
@@ -1900,7 +1975,7 @@ class RepoActions {
     _ref.read(mergeSessionProvider(path).notifier).state = MergeSession(
       kind: pending?.kind ?? MergeKind.stash,
       branch: pending?.branch ?? '',
-      files: [for (final p in conflicts) await _conflictFileFor(p)],
+      files: conflicts,
     );
   }
 

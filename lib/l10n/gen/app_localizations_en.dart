@@ -1816,6 +1816,40 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mtAccept => 'Accept';
 
   @override
+  String get mtKeepMine => 'Keep mine';
+
+  @override
+  String get mtKeepTheirs => 'Keep theirs';
+
+  @override
+  String get mtDeleteFile => 'Delete file';
+
+  @override
+  String get mtBinaryConflict =>
+      'Binary file — git cannot merge its contents. Keep one version.';
+
+  @override
+  String get mtSubmoduleConflict =>
+      'Submodule — the branches point it at different commits. Keep one.';
+
+  @override
+  String get mtDeletedByUs =>
+      'Deleted on this branch, changed by the incoming one.';
+
+  @override
+  String get mtDeletedByThem =>
+      'Changed on this branch, deleted by the incoming one.';
+
+  @override
+  String get mtAddedByUs => 'Added on this branch only.';
+
+  @override
+  String get mtAddedByThem => 'Added by the incoming branch only.';
+
+  @override
+  String get mtBothDeleted => 'Deleted on both branches.';
+
+  @override
   String get rbPick => 'keep this commit as it is';
 
   @override

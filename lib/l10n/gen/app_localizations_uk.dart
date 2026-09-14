@@ -1826,6 +1826,38 @@ class AppLocalizationsUk extends AppLocalizations {
   String get mtAccept => 'Прийняти';
 
   @override
+  String get mtKeepMine => 'Залишити мою';
+
+  @override
+  String get mtKeepTheirs => 'Залишити вхідну';
+
+  @override
+  String get mtDeleteFile => 'Видалити файл';
+
+  @override
+  String get mtBinaryConflict =>
+      'Двійковий файл — git не може злити його вміст. Залишіть одну версію.';
+
+  @override
+  String get mtSubmoduleConflict =>
+      'Підмодуль — гілки вказують на різні коміти. Залишіть один.';
+
+  @override
+  String get mtDeletedByUs => 'Видалено в цій гілці, змінено у вхідній.';
+
+  @override
+  String get mtDeletedByThem => 'Змінено в цій гілці, видалено у вхідній.';
+
+  @override
+  String get mtAddedByUs => 'Додано лише в цій гілці.';
+
+  @override
+  String get mtAddedByThem => 'Додано лише вхідною гілкою.';
+
+  @override
+  String get mtBothDeleted => 'Видалено в обох гілках.';
+
+  @override
   String get rbPick => 'залишити цей коміт як є';
 
   @override

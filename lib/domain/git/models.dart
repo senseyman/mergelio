@@ -136,6 +136,41 @@ class Submodule with _$Submodule {
   }) = _Submodule;
 }
 
+/// Which sides of an unmerged path still have content, read from the XY code
+/// of a `status --porcelain=v2` `u` record. A side that deleted the path has
+/// no content to keep, so the kind decides which resolutions a conflict can
+/// offer at all.
+enum ConflictKind {
+  bothModified(hasOurs: true, hasTheirs: true), // UU
+  bothAdded(hasOurs: true, hasTheirs: true), // AA
+  bothDeleted(hasOurs: false, hasTheirs: false), // DD
+  addedByUs(hasOurs: true, hasTheirs: false), // AU
+  addedByThem(hasOurs: false, hasTheirs: true), // UA
+  deletedByUs(hasOurs: false, hasTheirs: true), // DU
+  deletedByThem(hasOurs: true, hasTheirs: false); // UD
+
+  const ConflictKind({required this.hasOurs, required this.hasTheirs});
+
+  /// Whether our side of the merge still has content for the path.
+  final bool hasOurs;
+
+  /// Whether the incoming side still has content for the path.
+  final bool hasTheirs;
+}
+
+/// Maps the two-letter XY code of an unmerged status entry to [ConflictKind].
+/// An unrecognised code is treated as an ordinary two-sided conflict — the
+/// widest set of choices, and the only safe guess.
+ConflictKind conflictKindFromXy(String xy) => switch (xy) {
+  'AA' => ConflictKind.bothAdded,
+  'DD' => ConflictKind.bothDeleted,
+  'AU' => ConflictKind.addedByUs,
+  'UA' => ConflictKind.addedByThem,
+  'DU' => ConflictKind.deletedByUs,
+  'UD' => ConflictKind.deletedByThem,
+  _ => ConflictKind.bothModified,
+};
+
 /// A working-tree file with its staged ([index]) and unstaged ([worktree])
 /// change state. A file changed on both sides is "partial" and shows in both
 /// STAGED and UNSTAGED lists. [origPath] is set for renames/copies.
@@ -147,6 +182,10 @@ class WorkingFile with _$WorkingFile {
     @Default(GitChange.none) GitChange index,
     @Default(GitChange.none) GitChange worktree,
     String? origPath,
+    // Set only on unmerged paths: which sides of the conflict still exist.
+    ConflictKind? conflict,
+    // A gitlink rather than a file: its content lives in another repository.
+    @Default(false) bool submodule,
   }) = _WorkingFile;
 
   bool get isStaged => index != GitChange.none;

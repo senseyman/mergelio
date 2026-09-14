@@ -494,6 +494,38 @@ class GitWriter {
 
   Future<void> stageFile(String path) => _ok(['add', '--', path], 'git add');
 
+  /// Resolves a conflict by taking one whole side of it: the worktree copy is
+  /// replaced with that stage of the merge. Only valid while [path] is still
+  /// unmerged, and only for a side that has content there.
+  Future<void> checkoutConflictSide(String path, {required bool ours}) => _ok([
+    'checkout',
+    ours ? '--ours' : '--theirs',
+    '--',
+    path,
+  ], 'git checkout ${ours ? '--ours' : '--theirs'}');
+
+  /// Resolves a conflicted submodule by recording [sha] as its gitlink.
+  /// `checkout --ours/--theirs` cannot do this: it has no directory to write,
+  /// and a later `git add` would record whatever the submodule happens to have
+  /// checked out instead of the side that was chosen.
+  ///
+  /// The checkout inside the submodule is then best-effort — the chosen commit
+  /// may not have been fetched there yet, which leaves the gitlink correct and
+  /// the submodule's own worktree behind it.
+  Future<void> setGitlink(String path, String sha) async {
+    await _ok([
+      'update-index',
+      '--cacheinfo',
+      '160000,$sha,$path',
+    ], 'git update-index');
+    await _run(['-C', path, 'checkout', '-q', sha]);
+  }
+
+  /// Resolves a conflict by dropping the path from the index and the worktree.
+  /// `-f` because an unmerged path always looks like it has staged changes.
+  Future<void> removeConflicted(String path) =>
+      _ok(['rm', '-f', '-q', '--', path], 'git rm');
+
   Future<void> unstageFile(String path) =>
       _ok(['restore', '--staged', '--', path], 'git restore --staged');
 
