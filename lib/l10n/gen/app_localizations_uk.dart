@@ -72,6 +72,9 @@ class AppLocalizationsUk extends AppLocalizations {
   String get opForcePush => 'Примусово відправити (with lease)';
 
   @override
+  String get opPushOptions => 'Відправити…';
+
+  @override
   String get welcomeOpen => 'Відкрити';
 
   @override
@@ -782,6 +785,18 @@ class AppLocalizationsUk extends AppLocalizations {
   String get sbPushTag => 'Відправити тег';
 
   @override
+  String get sbDeleteRemoteTag => 'Видалити тег на віддаленому…';
+
+  @override
+  String sbDeleteRemoteTagTitle(String tag, String remote) {
+    return 'Видалити тег $tag на $remote?';
+  }
+
+  @override
+  String get sbDeleteRemoteTagBody =>
+      'Тег буде видалено з віддаленого репозиторію. Локальний тег залишиться, і цю дію не можна скасувати.';
+
+  @override
   String get sbCopyName => 'Копіювати назву';
 
   @override
@@ -1095,6 +1110,22 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get ropTagMessage => 'Повідомлення тегу';
+
+  @override
+  String get ropPushTitle => 'Відправити';
+
+  @override
+  String get ropPushRemote => 'Віддалений репозиторій';
+
+  @override
+  String get ropPushTags => 'Також відправити всі теги';
+
+  @override
+  String get ropPushForce => 'Примусово (with lease)';
+
+  @override
+  String get ropPushNoRemotes =>
+      'У цьому репозиторії немає віддалених репозиторіїв. Додайте один перед відправленням.';
 
   @override
   String get ropStashChangesTitle => 'Сховати зміни';

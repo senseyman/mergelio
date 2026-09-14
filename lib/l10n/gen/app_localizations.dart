@@ -224,6 +224,12 @@ abstract class AppLocalizations {
   /// **'Force-push (with lease)'**
   String get opForcePush;
 
+  /// No description provided for @opPushOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Push…'**
+  String get opPushOptions;
+
   /// No description provided for @welcomeOpen.
   ///
   /// In en, this message translates to:
@@ -1460,6 +1466,24 @@ abstract class AppLocalizations {
   /// **'Push tag'**
   String get sbPushTag;
 
+  /// No description provided for @sbDeleteRemoteTag.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete tag on remote…'**
+  String get sbDeleteRemoteTag;
+
+  /// No description provided for @sbDeleteRemoteTagTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete tag {tag} on {remote}?'**
+  String sbDeleteRemoteTagTitle(String tag, String remote);
+
+  /// No description provided for @sbDeleteRemoteTagBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The tag is removed from the remote. The local tag is kept, and this cannot be undone.'**
+  String get sbDeleteRemoteTagBody;
+
   /// No description provided for @sbCopyName.
   ///
   /// In en, this message translates to:
@@ -1951,6 +1975,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Tag message'**
   String get ropTagMessage;
+
+  /// No description provided for @ropPushTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Push'**
+  String get ropPushTitle;
+
+  /// No description provided for @ropPushRemote.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote'**
+  String get ropPushRemote;
+
+  /// No description provided for @ropPushTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Also push all tags'**
+  String get ropPushTags;
+
+  /// No description provided for @ropPushForce.
+  ///
+  /// In en, this message translates to:
+  /// **'Force (with lease)'**
+  String get ropPushForce;
+
+  /// No description provided for @ropPushNoRemotes.
+  ///
+  /// In en, this message translates to:
+  /// **'This repository has no remotes. Add one before pushing.'**
+  String get ropPushNoRemotes;
 
   /// No description provided for @ropStashChangesTitle.
   ///

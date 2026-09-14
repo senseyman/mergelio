@@ -42,6 +42,31 @@ void main() {
   Future<Set<String>> branchNames() async =>
       (await GitReader(svc, dir.path).branches()).map((b) => b.name).toSet();
 
+  test('deleting a remote tag records nothing to undo', () async {
+    final bare = await Directory.systemTemp.createTemp('mergelio_bare_');
+    addTearDown(() async {
+      if (await bare.exists()) await bare.delete(recursive: true);
+    });
+    await svc.run(['init', '--bare', '-q', '-b', 'main'], repoPath: bare.path);
+    await g(['remote', 'add', 'origin', bare.path]);
+    await g(['tag', 'v1']);
+    await g(['push', '-q', 'origin', 'refs/tags/v1:refs/tags/v1']);
+
+    final c = container();
+    final actions = c.read(repoActionsProvider(dir.path));
+
+    await actions.deleteRemoteTag('v1');
+
+    expect(
+      (await svc.run(['tag'], repoPath: bare.path)).stdout,
+      isNot(contains('v1')),
+    );
+    // Nothing local moved, so the journal must not offer an undo it has no way
+    // to carry out.
+    expect(c.read(undoProvider(dir.path)).canUndo, isFalse);
+    expect(await GitReader(svc, dir.path).tags(), contains('v1'));
+  });
+
   test('undo removes a created branch; redo restores it', () async {
     final c = container();
     final actions = c.read(repoActionsProvider(dir.path));

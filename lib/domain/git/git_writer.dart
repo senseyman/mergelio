@@ -125,8 +125,15 @@ class GitWriter {
   /// Pushes the current branch. A branch with no upstream is published with
   /// `--set-upstream` to origin (or the only/first remote), so a first push
   /// works instead of failing. [force] uses `--force-with-lease`, which refuses
-  /// to overwrite remote work the local ref has not seen.
-  Future<void> push({bool force = false, GitCancel? cancel}) async {
+  /// to overwrite remote work the local ref has not seen. [remote] sends the
+  /// branch to that remote rather than its upstream, and leaves the tracking
+  /// configuration as it was. [tags] publishes tags alongside the branch.
+  Future<void> push({
+    bool force = false,
+    String? remote,
+    bool tags = false,
+    GitCancel? cancel,
+  }) async {
     final hasUpstream = (await _run([
       'rev-parse',
       '--abbrev-ref',
@@ -134,11 +141,14 @@ class GitWriter {
       '@{u}',
     ])).ok;
     final args = <String>['push', if (force) '--force-with-lease'];
-    if (!hasUpstream) {
-      final branch = (await _run(['rev-parse', '--abbrev-ref', 'HEAD'])).out;
-      if (branch == 'HEAD') {
-        throw GitException('cannot push in detached HEAD state');
-      }
+    if (remote != null) {
+      final branch = await _branchToPush();
+      // Tracking is published only for a branch that has none; naming a remote
+      // for a single push must not re-point an upstream that already exists.
+      if (!hasUpstream) args.add('--set-upstream');
+      args.addAll([remote, branch]);
+    } else if (!hasUpstream) {
+      final branch = await _branchToPush();
       final remotes = const LineSplitter()
           .convert((await _run(['remote'])).stdout)
           .where((s) => s.isNotEmpty)
@@ -146,10 +156,21 @@ class GitWriter {
       if (remotes.isEmpty) {
         throw GitException('no remote configured to push to');
       }
-      final remote = remotes.contains('origin') ? 'origin' : remotes.first;
-      args.addAll(['--set-upstream', remote, branch]);
+      final auto = remotes.contains('origin') ? 'origin' : remotes.first;
+      args.addAll(['--set-upstream', auto, branch]);
     }
+    if (tags) args.add('--tags');
     await _net(args, 'git push', cancel: cancel);
+  }
+
+  /// The current branch name, for a push that has to spell out its refspec.
+  /// Detached HEAD has no branch to name, so it cannot be pushed this way.
+  Future<String> _branchToPush() async {
+    final branch = (await _run(['rev-parse', '--abbrev-ref', 'HEAD'])).out;
+    if (branch == 'HEAD') {
+      throw GitException('cannot push in detached HEAD state');
+    }
+    return branch;
   }
 
   // --- Merge ops ------------------------------------------------------------
@@ -332,6 +353,19 @@ class GitWriter {
     String remote = 'origin',
     GitCancel? cancel,
   }) => _net(['push', remote, name], 'git push tag', cancel: cancel);
+
+  /// Deletes tag [name] on [remote]. The ref is spelled out in full because a
+  /// branch and a tag can carry the same name, and the short form leaves git to
+  /// guess which of the two was meant.
+  Future<void> deleteRemoteTag(
+    String name, {
+    String remote = 'origin',
+    GitCancel? cancel,
+  }) => _net(
+    ['push', remote, '--delete', 'refs/tags/$name'],
+    'git push --delete tag',
+    cancel: cancel,
+  );
 
   // --- Commit-context ops ---------------------------------------------------
 

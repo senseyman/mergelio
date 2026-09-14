@@ -290,11 +290,17 @@ class RepoActions {
     ),
   );
 
-  Future<void> push({bool force = false}) => _network(
-    force ? 'Force push' : 'Push',
-    (cancel) => _writer.push(force: force, cancel: cancel),
-    writesWorkingTree: false,
-  );
+  Future<void> push({bool force = false, String? remote, bool tags = false}) =>
+      _network(
+        force ? 'Force push' : 'Push',
+        (cancel) => _writer.push(
+          force: force,
+          remote: remote,
+          tags: tags,
+          cancel: cancel,
+        ),
+        writesWorkingTree: false,
+      );
 
   /// True (and toasts) when something already holds the repository lane, so an
   /// index-touching mutation must not run concurrently and race on
@@ -1087,6 +1093,17 @@ class RepoActions {
     (cancel) => _writer.pushTag(name, cancel: cancel),
     writesWorkingTree: false,
   );
+
+  /// Deletes tag [name] on [remote]. Deliberately outside the undo journal:
+  /// nothing local moves, and an undo entry here would promise to put a ref
+  /// back on a remote that other people may have already re-synced against.
+  Future<void> deleteRemoteTag(String name, {String remote = 'origin'}) =>
+      _network(
+        'Delete tag $name on $remote',
+        (cancel) =>
+            _writer.deleteRemoteTag(name, remote: remote, cancel: cancel),
+        writesWorkingTree: false,
+      );
 
   Future<void> stashPush({String? message, bool stagedOnly = false}) async {
     if (_blockedByRepoOp) return;
