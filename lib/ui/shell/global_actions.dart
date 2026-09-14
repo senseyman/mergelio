@@ -13,6 +13,7 @@ import '../../state/workspace.dart';
 import '../palette/command_palette.dart';
 import '../workspace/branch_switch.dart';
 import '../workspace/remote_dialog.dart';
+import 'repo_op_dialogs.dart';
 
 /// App-wide actions shared by the keyboard dispatcher and toolbar buttons, so
 /// clicking the toolbar and pressing the shortcut do exactly the same thing.
@@ -37,6 +38,10 @@ void openGlobalPalette(BuildContext context, WidgetRef ref) {
       return actions.pull(rebase: pull.rebase, autostash: pull.autostash);
     }),
     PaletteCommand('Push', Icons.north_east, () => actions.push()),
+    PaletteCommand(l.opPushOptions, Icons.north_east, () async {
+      if (!context.mounted) return;
+      await showPushDialog(context, ref, path);
+    }),
     PaletteCommand(
       l.tbGlobalSearch,
       Icons.search,

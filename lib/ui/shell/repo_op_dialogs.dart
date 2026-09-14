@@ -8,6 +8,7 @@ import '../../domain/git/models.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
+import '../common/confirm.dart';
 import '../common/dialogs.dart';
 import 'remote_merge_confirm.dart';
 
@@ -215,6 +216,167 @@ Future<void> showStashDialog(
   icon: Icons.inventory_2_outlined,
   body: _StashBody(repoPath: repoPath),
 );
+
+/// Push dialog: choose the remote to push to, optionally publish tags along
+/// with the branch, optionally force.
+Future<void> showPushDialog(
+  BuildContext context,
+  WidgetRef ref,
+  String repoPath,
+) async {
+  // Awaited rather than read: a snapshot taken before the repository finished
+  // loading would offer an empty remote list.
+  RepoData? data;
+  try {
+    data = await ref.read(repoDataProvider(repoPath).future);
+  } on Object catch (_) {
+    data = null;
+  }
+  if (!context.mounted) return;
+  await showAppModal<void>(
+    context: context,
+    title: AppLocalizations.of(context).ropPushTitle,
+    icon: Icons.north_east,
+    body: _PushBody(
+      repoPath: repoPath,
+      remotes: data?.remotes ?? const <String>[],
+    ),
+  );
+}
+
+class _PushBody extends ConsumerStatefulWidget {
+  final String repoPath;
+  final List<String> remotes;
+  const _PushBody({required this.repoPath, required this.remotes});
+
+  @override
+  ConsumerState<_PushBody> createState() => _PushBodyState();
+}
+
+class _PushBodyState extends ConsumerState<_PushBody> {
+  late String? _remote = widget.remotes.contains('origin')
+      ? 'origin'
+      : widget.remotes.firstOrNull;
+  bool _tags = false;
+  bool _force = false;
+
+  Future<void> _push() async {
+    // Captured before the awaits: the route's dispose runs while they are in
+    // flight, so reading widget state afterwards would throw.
+    final l = AppLocalizations.of(context);
+    final actions = ref.read(repoActionsProvider(widget.repoPath));
+    final navigator = Navigator.of(context);
+    final remote = _remote;
+    final tags = _tags;
+    final force = _force;
+
+    if (force) {
+      final ok = await confirmDestructive(
+        ref,
+        context,
+        title: l.bbForcePushTitle,
+        body: l.bbForcePushBody,
+        confirmLabel: l.bbForcePush,
+      );
+      if (!ok) return;
+    }
+    // The confirm can outlive this route, and popping a disposed navigator
+    // throws. The push itself no longer depends on the widget being alive.
+    if (mounted) navigator.pop();
+    await actions.push(force: force, remote: remote, tags: tags);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final t = context.tokens;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Without a remote there is nothing to configure, and an empty picker
+        // beside a dead Push button explains nothing.
+        if (widget.remotes.isEmpty)
+          Text(
+            l.ropPushNoRemotes,
+            style: TextStyle(color: t.textMuted, fontSize: 13),
+          )
+        else ...[
+          Text(
+            l.ropPushRemote,
+            style: TextStyle(color: t.textMuted, fontSize: 12),
+          ),
+          const SizedBox(height: 6),
+          DropdownButtonFormField<String>(
+            initialValue: _remote,
+            isDense: true,
+            decoration: InputDecoration(
+              isDense: true,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(t.rButton),
+              ),
+            ),
+            items: [
+              for (final r in widget.remotes)
+                DropdownMenuItem(
+                  value: r,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.dns_outlined, size: 13, color: t.textFaint),
+                      const SizedBox(width: 6),
+                      Text(
+                        r,
+                        style: TextStyle(fontSize: 13, color: t.textMuted),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+            onChanged: (v) => setState(() => _remote = v),
+          ),
+          CheckboxListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: ListTileControlAffinity.leading,
+            title: Text(
+              l.ropPushTags,
+              style: TextStyle(color: t.textPrimary, fontSize: 13),
+            ),
+            value: _tags,
+            onChanged: (v) => setState(() => _tags = v ?? false),
+          ),
+          CheckboxListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: ListTileControlAffinity.leading,
+            title: Text(
+              l.ropPushForce,
+              style: TextStyle(color: t.danger, fontSize: 13),
+            ),
+            value: _force,
+            onChanged: (v) => setState(() => _force = v ?? false),
+          ),
+        ],
+        const SizedBox(height: 14),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(l.cancel),
+            ),
+            const SizedBox(width: 8),
+            FilledButton(
+              onPressed: _remote == null ? null : _push,
+              child: Text(l.opPush),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
 
 class _BranchBody extends ConsumerStatefulWidget {
   final String repoPath;

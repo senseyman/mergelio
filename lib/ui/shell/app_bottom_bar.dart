@@ -169,6 +169,11 @@ class AppBottomBar extends ConsumerWidget {
                               );
                               if (ok) await actions!.push(force: true);
                             }, danger: true),
+                            _Op(l.opPushOptions, () async {
+                              if (path != null) {
+                                await showPushDialog(context, ref, path);
+                              }
+                            }),
                           ],
                         ),
                       ],

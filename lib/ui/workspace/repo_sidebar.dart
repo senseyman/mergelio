@@ -252,7 +252,14 @@ class _Sections extends ConsumerWidget {
                 label: tag,
                 onMenu: actions == null
                     ? null
-                    : (at) => _tagMenu(context, ref, actions, tag, at),
+                    : (at) => _tagMenu(
+                        context,
+                        ref,
+                        actions,
+                        tag,
+                        at,
+                        remotes: data.remotes,
+                      ),
               ),
           ],
         ),
@@ -1126,8 +1133,9 @@ Future<void> _tagMenu(
   WidgetRef ref,
   RepoActions actions,
   String tag,
-  Offset at,
-) async {
+  Offset at, {
+  required List<String> remotes,
+}) async {
   final l = AppLocalizations.of(context);
   final t = context.tokens;
   await showContextMenu<void>(
@@ -1167,6 +1175,41 @@ Future<void> _tagMenu(
           style: TextStyle(fontSize: 13, color: t.danger),
         ),
       ),
+      if (remotes.isNotEmpty)
+        PopupMenuItem(
+          height: 34,
+          onTap: () async {
+            // With a single remote there is nothing to choose; past that, the
+            // remote has to be named before anything is deleted on it.
+            final remote = remotes.length == 1
+                ? remotes.first
+                : await showContextMenu<String>(
+                    context: context,
+                    position: at,
+                    items: [
+                      for (final r in remotes)
+                        PopupMenuItem(
+                          height: 34,
+                          value: r,
+                          child: Text(r, style: const TextStyle(fontSize: 13)),
+                        ),
+                    ],
+                  );
+            if (remote == null || !context.mounted) return;
+            final ok = await confirmDestructive(
+              ref,
+              context,
+              title: l.sbDeleteRemoteTagTitle(tag, remote),
+              body: l.sbDeleteRemoteTagBody,
+              confirmLabel: l.delete,
+            );
+            if (ok) await actions.deleteRemoteTag(tag, remote: remote);
+          },
+          child: Text(
+            l.sbDeleteRemoteTag,
+            style: TextStyle(fontSize: 13, color: t.danger),
+          ),
+        ),
     ],
   );
 }

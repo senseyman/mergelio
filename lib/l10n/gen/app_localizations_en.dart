@@ -72,6 +72,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get opForcePush => 'Force-push (with lease)';
 
   @override
+  String get opPushOptions => 'Push…';
+
+  @override
   String get welcomeOpen => 'Open';
 
   @override
@@ -778,6 +781,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sbPushTag => 'Push tag';
 
   @override
+  String get sbDeleteRemoteTag => 'Delete tag on remote…';
+
+  @override
+  String sbDeleteRemoteTagTitle(String tag, String remote) {
+    return 'Delete tag $tag on $remote?';
+  }
+
+  @override
+  String get sbDeleteRemoteTagBody =>
+      'The tag is removed from the remote. The local tag is kept, and this cannot be undone.';
+
+  @override
   String get sbCopyName => 'Copy name';
 
   @override
@@ -1087,6 +1102,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ropTagMessage => 'Tag message';
+
+  @override
+  String get ropPushTitle => 'Push';
+
+  @override
+  String get ropPushRemote => 'Remote';
+
+  @override
+  String get ropPushTags => 'Also push all tags';
+
+  @override
+  String get ropPushForce => 'Force (with lease)';
+
+  @override
+  String get ropPushNoRemotes =>
+      'This repository has no remotes. Add one before pushing.';
 
   @override
   String get ropStashChangesTitle => 'Stash changes';

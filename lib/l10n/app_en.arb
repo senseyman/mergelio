@@ -23,6 +23,7 @@
   "opPush": "Push",
   "opPushOrigin": "Push origin",
   "opForcePush": "Force-push (with lease)",
+  "opPushOptions": "Push…",
 
   "welcomeOpen": "Open",
   "welcomeRecents": "Recent repositories",
@@ -433,6 +434,15 @@
   "sbRemove": "Remove",
   "sbRemoveRemoteItem": "Remove remote…",
   "sbPushTag": "Push tag",
+  "sbDeleteRemoteTag": "Delete tag on remote…",
+  "sbDeleteRemoteTagTitle": "Delete tag {tag} on {remote}?",
+  "@sbDeleteRemoteTagTitle": {
+    "placeholders": {
+      "tag": {"type": "String"},
+      "remote": {"type": "String"}
+    }
+  },
+  "sbDeleteRemoteTagBody": "The tag is removed from the remote. The local tag is kept, and this cannot be undone.",
   "sbCopyName": "Copy name",
   "sbCopyNamed": "Copy «{name}»",
   "@sbCopyNamed": {
@@ -640,6 +650,11 @@
   "ropTagName": "Tag name",
   "ropType": "Type",
   "ropTagMessage": "Tag message",
+  "ropPushTitle": "Push",
+  "ropPushRemote": "Remote",
+  "ropPushTags": "Also push all tags",
+  "ropPushForce": "Force (with lease)",
+  "ropPushNoRemotes": "This repository has no remotes. Add one before pushing.",
   "ropStashChangesTitle": "Stash changes",
   "ropBranchName": "Branch name",
   "ropStartFrom": "Start from",
