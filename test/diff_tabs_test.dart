@@ -63,9 +63,9 @@ Widget _harness() => ProviderScope(
 
 Future<void> _open(WidgetTester tester) async {
   await tester.pumpWidget(_harness());
-  ProviderScope.containerOf(
-    tester.element(find.byType(DiffSheet)),
-  ).read(diffTargetProvider.notifier).state = const DiffTarget(
+  ProviderScope.containerOf(tester.element(find.byType(DiffSheet)))
+      .read(diffTargetProvider.notifier)
+      .state = const DiffTarget(
     repoPath: '/r',
     path: 'a.go',
   );

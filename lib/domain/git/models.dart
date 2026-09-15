@@ -8,7 +8,7 @@ enum RefKind { head, local, remote, tag }
 
 /// A ref label shown on a commit (branch/tag/HEAD chip).
 @freezed
-class GitRef with _$GitRef {
+abstract class GitRef with _$GitRef {
   const factory GitRef({required RefKind kind, required String name}) = _GitRef;
 }
 
@@ -29,7 +29,7 @@ enum GitChange {
 /// [mergeFrom], [branchStart]) are zero/empty until [assignLanes] fills them;
 /// the render stage consumes them. [merge] is derived from [parents].
 @freezed
-class Commit with _$Commit {
+abstract class Commit with _$Commit {
   const Commit._();
   const factory Commit({
     required String sha,
@@ -69,7 +69,7 @@ class Commit with _$Commit {
 /// A local branch with tracking info. [ahead]/[behind] are relative to its
 /// upstream (0 when there is none). [ci] is its graph colour index.
 @freezed
-class Branch with _$Branch {
+abstract class Branch with _$Branch {
   const factory Branch({
     required String name,
     @Default(false) bool current,
@@ -86,7 +86,7 @@ class Branch with _$Branch {
 /// A remote-tracking branch, e.g. `origin/main`. [hasLocal] is true when a
 /// local branch of the same short name already exists.
 @freezed
-class RemoteBranch with _$RemoteBranch {
+abstract class RemoteBranch with _$RemoteBranch {
   const RemoteBranch._();
   const factory RemoteBranch({
     required String remote,
@@ -101,7 +101,7 @@ class RemoteBranch with _$RemoteBranch {
 
 /// A stash entry, e.g. `stash@{0}` with its message.
 @freezed
-class Stash with _$Stash {
+abstract class Stash with _$Stash {
   const factory Stash({
     required String ref,
     required String sha,
@@ -125,7 +125,7 @@ SubmoduleStatus submoduleStatusFromChar(String c) => switch (c) {
 /// A git submodule: its [name]/[path] and [url] from `.gitmodules`, the [sha]
 /// currently checked out, an optional tracked [branch], and its [status].
 @freezed
-class Submodule with _$Submodule {
+abstract class Submodule with _$Submodule {
   const factory Submodule({
     required String name,
     required String path,
@@ -175,7 +175,7 @@ ConflictKind conflictKindFromXy(String xy) => switch (xy) {
 /// change state. A file changed on both sides is "partial" and shows in both
 /// STAGED and UNSTAGED lists. [origPath] is set for renames/copies.
 @freezed
-class WorkingFile with _$WorkingFile {
+abstract class WorkingFile with _$WorkingFile {
   const WorkingFile._();
   const factory WorkingFile({
     required String path,
@@ -199,7 +199,7 @@ class WorkingFile with _$WorkingFile {
 /// A file touched by a commit, as shown in the commit details panel.
 /// [origPath] is set for renames/copies.
 @freezed
-class CommitFileChange with _$CommitFileChange {
+abstract class CommitFileChange with _$CommitFileChange {
   const factory CommitFileChange({
     required String path,
     required GitChange change,
@@ -211,7 +211,7 @@ class CommitFileChange with _$CommitFileChange {
 /// at [toSha]. There is no git parent edge for this — it is inferred from tree
 /// equality — so the graph draws it as a dashed connector.
 @freezed
-class SquashLink with _$SquashLink {
+abstract class SquashLink with _$SquashLink {
   const factory SquashLink({required String fromSha, required String toSha}) =
       _SquashLink;
 }

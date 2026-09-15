@@ -120,9 +120,8 @@ void main() {
     await g(['commit', '-q', '-m', 'b']);
 
     // Capture a one-hunk patch that only touches line 2.
-    await File(
-      '${dir.path}/b.txt',
-    ).writeAsString('${([...lines]..[1] = 'TOP').join('\n')}\n');
+    await File('${dir.path}/b.txt')
+        .writeAsString('${([...lines]..[1] = 'TOP').join('\n')}\n');
     final patch = (await svc.run([
       'diff',
       '--',

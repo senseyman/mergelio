@@ -60,9 +60,8 @@ void main() {
   });
 
   test('refuses a file past the size cap', () async {
-    File(
-      '${dir.path}/a.txt',
-    ).writeAsBytesSync(List<int>.filled(maxEditableBytes + 1, 0x61));
+    File('${dir.path}/a.txt')
+        .writeAsBytesSync(List<int>.filled(maxEditableBytes + 1, 0x61));
     final f = await load();
 
     expect(f.canEdit, isFalse);

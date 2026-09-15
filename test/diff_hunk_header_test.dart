@@ -66,9 +66,9 @@ void main() {
         ),
       ),
     );
-    ProviderScope.containerOf(
-      tester.element(find.byType(DiffSheet)),
-    ).read(diffTargetProvider.notifier).state = const DiffTarget(
+    ProviderScope.containerOf(tester.element(find.byType(DiffSheet)))
+        .read(diffTargetProvider.notifier)
+        .state = const DiffTarget(
       repoPath: '/r',
       path: 'a.txt',
     );

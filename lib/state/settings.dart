@@ -29,7 +29,7 @@ AppSettings migrateSettings(AppSettings s) =>
 
 /// Persisted app settings. Immutable (freezed), JSON-serialisable for storage.
 @freezed
-class AppSettings with _$AppSettings {
+abstract class AppSettings with _$AppSettings {
   const factory AppSettings({
     @Default(ThemeMode.dark) ThemeMode themeMode,
     @Default(0xFF6E7BFF) int accentValue,

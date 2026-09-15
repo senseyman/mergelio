@@ -89,29 +89,26 @@ void main() {
     },
   );
 
-  test(
-    'an empty pick leaves the rebase paused rather than aborting it',
-    () async {
-      final c = ProviderContainer();
-      addTearDown(c.dispose);
-      final actions = c.read(repoActionsProvider(dir.path));
-      final (onto, upstream, work) = await divergedUpstream();
+  test('an empty pick leaves the rebase paused rather than aborting it', () async {
+    final c = ProviderContainer();
+    addTearDown(c.dispose);
+    final actions = c.read(repoActionsProvider(dir.path));
+    final (onto, upstream, work) = await divergedUpstream();
 
-      await actions.rebase(onto, [
-        RebaseStep(upstream, RebaseAction.pick),
-        RebaseStep(work, RebaseAction.pick),
-      ]);
+    await actions.rebase(onto, [
+      RebaseStep(upstream, RebaseAction.pick),
+      RebaseStep(work, RebaseAction.pick),
+    ]);
 
-      // Nothing to resolve, but the rebase is recoverable — throwing it away
-      // would discard the work already replayed and leave the user with only the
-      // terminal as a way back in.
-      expect(c.read(mergeSessionProvider(dir.path)), isNull);
-      expect(rebaseInProgress(), isTrue);
-      final pending = await actions.pendingOp();
-      expect(pending?.kind, MergeKind.rebase);
-      expect(pending?.continues, isTrue);
-    },
-  );
+    // Nothing to resolve, but the rebase is recoverable — throwing it away
+    // would discard the work already replayed and leave the user with only the
+    // terminal as a way back in.
+    expect(c.read(mergeSessionProvider(dir.path)), isNull);
+    expect(rebaseInProgress(), isTrue);
+    final pending = await actions.pendingOp();
+    expect(pending?.kind, MergeKind.rebase);
+    expect(pending?.continues, isTrue);
+  });
 
   test('aborting from the paused state puts the branch back', () async {
     final c = ProviderContainer();

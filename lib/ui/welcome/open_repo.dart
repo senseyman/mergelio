@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/git/git_providers.dart';
+import '../../domain/git/git_service.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/feedback.dart';
 import '../../state/recents.dart';
@@ -24,7 +25,19 @@ Future<void> openRepositoryPath(
   AppLocalizations l,
 ) async {
   final toasts = ref.read(toastProvider.notifier);
-  final isRepo = await ref.read(gitServiceProvider).isRepository(path);
+  final bool isRepo;
+  try {
+    isRepo = await ref.read(gitServiceProvider).isRepository(path);
+  } on GitUnavailableException catch (e) {
+    // The path was never inspected, so saying it is not a repository would be
+    // guesswork. Pass on what actually went wrong and how to fix it.
+    toasts.show(
+      l.welGitUnavailable,
+      description: e.message,
+      kind: ToastKind.error,
+    );
+    return;
+  }
   if (!isRepo) {
     toasts.show(l.welNotARepo, description: path, kind: ToastKind.error);
     return;

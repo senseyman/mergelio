@@ -48,9 +48,8 @@ Future<_FakeGit> _openDialog(WidgetTester tester, List<String> remotes) async {
     ProviderScope(
       overrides: [
         gitServiceProvider.overrideWithValue(git),
-        repoDataProvider(
-          _repoPath,
-        ).overrideWith((ref) async => RepoData(remotes: remotes)),
+        repoDataProvider(_repoPath)
+            .overrideWith((ref) async => RepoData(remotes: remotes)),
         settingsProvider.overrideWith(
           (ref) => SettingsController(
             InMemorySettingsRepository(),

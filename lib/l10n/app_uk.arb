@@ -503,6 +503,7 @@
   "welPin": "Закріпити",
   "welRemoveRecent": "Прибрати з нещодавніх",
   "welNotARepo": "Це не репозиторій git",
+  "welGitUnavailable": "Git не може запуститися",
   "gvSearchCommits": "Пошук комітів…",
   "gvAuthorFilter": "Автор…",
   "gvPrevMatch": "Попередній (⇧N)",

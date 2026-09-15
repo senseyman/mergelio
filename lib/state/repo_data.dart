@@ -13,7 +13,7 @@ part 'repo_data.freezed.dart';
 /// Everything read from an open repository: refs, commit graph (lanes already
 /// assigned) and working-tree state. All UI panels derive from this.
 @freezed
-class RepoData with _$RepoData {
+abstract class RepoData with _$RepoData {
   const factory RepoData({
     @Default([]) List<Commit> commits,
     @Default([]) List<Branch> branches,

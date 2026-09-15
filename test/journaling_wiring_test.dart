@@ -31,23 +31,20 @@ void main() {
     if (await dir.exists()) await dir.delete(recursive: true);
   });
 
-  test(
-    'a successful mutation leaves a completed (not interrupted) journal',
-    () async {
-      final kv = InMemoryKeyValueStore();
-      final c = ProviderContainer(
-        overrides: [kvStoreProvider.overrideWithValue(kv)],
-      );
-      addTearDown(c.dispose);
+  test('a successful mutation leaves a completed (not interrupted) journal', () async {
+    final kv = InMemoryKeyValueStore();
+    final c = ProviderContainer(
+      overrides: [kvStoreProvider.overrideWithValue(kv)],
+    );
+    addTearDown(c.dispose);
 
-      await c.read(repoActionsProvider(dir.path)).createBranch('feature');
+    await c.read(repoActionsProvider(dir.path)).createBranch('feature');
 
-      // A fresh journal over the same store sees the op recorded and NOT pending.
-      final j = OperationJournal(kv, dir.path);
-      await j.load();
-      expect(j.interrupted, isEmpty);
-      expect(j.records.map((r) => r.label), contains('Create branch feature'));
-      expect(j.records.every((r) => r.status != OpStatus.pending), isTrue);
-    },
-  );
+    // A fresh journal over the same store sees the op recorded and NOT pending.
+    final j = OperationJournal(kv, dir.path);
+    await j.load();
+    expect(j.interrupted, isEmpty);
+    expect(j.records.map((r) => r.label), contains('Create branch feature'));
+    expect(j.records.every((r) => r.status != OpStatus.pending), isTrue);
+  });
 }

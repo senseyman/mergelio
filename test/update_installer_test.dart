@@ -87,9 +87,8 @@ void main() {
     Directory workDir() {
       final work = Directory.systemTemp.createTempSync('mergelio-macos-test');
       addTearDown(() => work.deleteSync(recursive: true));
-      Directory(
-        '${work.path}/extracted/mergelio.app',
-      ).createSync(recursive: true);
+      Directory('${work.path}/extracted/mergelio.app')
+          .createSync(recursive: true);
       return work;
     }
 

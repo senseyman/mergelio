@@ -1399,11 +1399,10 @@ class RepoActions {
   static bool _isSigned(String status) => status.isNotEmpty && status != 'N';
 
   /// Whether any commit in [base]..HEAD carries a signature.
-  Future<bool> _rangeIsSigned(String base) async => (await _out([
-    'log',
-    '--format=%G?',
-    '$base..HEAD',
-  ])).split('\n').any(_isSigned);
+  Future<bool> _rangeIsSigned(String base) async =>
+      (await _out(['log', '--format=%G?', '$base..HEAD']))
+          .split('\n')
+          .any(_isSigned);
 
   /// Whether this repository can produce a signature: an explicit key, or the
   /// blanket setting that has git pick one for every commit.

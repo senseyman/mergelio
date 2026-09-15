@@ -27,7 +27,7 @@ enum RepoViewMode {
 
 /// An open repository tab. [groupId] scopes it to a repo group (null = none).
 @freezed
-class RepoTab with _$RepoTab {
+abstract class RepoTab with _$RepoTab {
   const factory RepoTab({
     required int id,
     required String name,
@@ -43,7 +43,7 @@ class RepoTab with _$RepoTab {
 
 /// A named set of tabs with a colour, e.g. "Work" / "OSS".
 @freezed
-class RepoGroup with _$RepoGroup {
+abstract class RepoGroup with _$RepoGroup {
   const factory RepoGroup({
     required int id,
     required String name,
@@ -52,7 +52,7 @@ class RepoGroup with _$RepoGroup {
 }
 
 @freezed
-class WorkspaceState with _$WorkspaceState {
+abstract class WorkspaceState with _$WorkspaceState {
   const WorkspaceState._();
   const factory WorkspaceState({
     @Default([]) List<RepoTab> tabs,

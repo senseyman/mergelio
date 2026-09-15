@@ -1,5 +1,6 @@
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
+
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -1531,6 +1532,9 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get welNotARepo => 'Це не репозиторій git';
+
+  @override
+  String get welGitUnavailable => 'Git не може запуститися';
 
   @override
   String get gvSearchCommits => 'Пошук комітів…';

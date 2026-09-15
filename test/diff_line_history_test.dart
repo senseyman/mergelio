@@ -55,9 +55,8 @@ void main() {
   late String menuLabel;
 
   setUpAll(() async {
-    menuLabel = (await AppLocalizations.delegate.load(
-      const Locale('en'),
-    )).lhLineHistory;
+    menuLabel = (await AppLocalizations.delegate.load(const Locale('en')))
+        .lhLineHistory;
   });
 
   setUp(() => asked = []);
@@ -88,9 +87,9 @@ void main() {
         ),
       ),
     );
-    ProviderScope.containerOf(
-      tester.element(find.byType(DiffSheet)),
-    ).read(diffTargetProvider.notifier).state = DiffTarget(
+    ProviderScope.containerOf(tester.element(find.byType(DiffSheet)))
+        .read(diffTargetProvider.notifier)
+        .state = DiffTarget(
       repoPath: '/r',
       path: 'a.txt',
       commitSha: commitSha,

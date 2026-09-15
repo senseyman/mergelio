@@ -65,9 +65,8 @@ final editableFileProvider = FutureProvider.family
         );
       }
       return ref.watch(
-        editableFileForPathProvider(
-          FileRef(target.repoPath, target.path),
-        ).future,
+        editableFileForPathProvider(FileRef(target.repoPath, target.path))
+            .future,
       );
     });
 

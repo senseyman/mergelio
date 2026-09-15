@@ -4,6 +4,7 @@ import 'dart:io';
 
 import '../../core/concurrency.dart';
 import '../../core/logging.dart';
+import 'git_toolchain.dart';
 
 /// Result of a git invocation. [stdout]/[stderr] are the raw, undecorated
 /// streams (whitespace preserved — diffs and blob content depend on it);
@@ -26,6 +27,16 @@ class GitException implements Exception {
   @override
   String toString() =>
       'GitException: $message${result != null ? '\n${result!.err}' : ''}';
+}
+
+/// The git binary itself cannot run — an unlicensed or missing toolchain,
+/// not anything about the repository or the command. Every command will fail
+/// the same way until the user fixes it, so [message] says how.
+class GitUnavailableException extends GitException {
+  /// No [GitResult] on purpose. Handlers prefer a result's stderr over the
+  /// message, so carrying one would hide the advice this exception exists to
+  /// give.
+  GitUnavailableException(super.message);
 }
 
 /// The operation was abandoned on purpose. Separate from a plain
@@ -152,7 +163,9 @@ abstract class GitService {
 final ConcurrencyGate _sharedGitGate = ConcurrencyGate(12);
 
 class SystemGitService implements GitService {
-  final String gitBinary;
+  /// Path to the git executable, or null to discover one. Tests pass a stand-in
+  /// binary; the app leaves it unset.
+  final String? gitBinary;
 
   /// Default guard against hung git processes (e.g. a network op that stalls).
   final Duration defaultTimeout;
@@ -168,12 +181,24 @@ class SystemGitService implements GitService {
   final Duration slowAfter;
 
   const SystemGitService({
-    this.gitBinary = 'git',
+    this.gitBinary,
     this.defaultTimeout = const Duration(seconds: 30),
     this.gate,
     this.logger,
     this.slowAfter = const Duration(seconds: 5),
   });
+
+  /// Resolved once per process: the answer depends on the filesystem, which
+  /// does not change under a running app, and every command would otherwise
+  /// re-probe it.
+  static String? _discovered;
+
+  String get _binary =>
+      gitBinary ??
+      (_discovered ??= resolveGitBinary(
+        candidates: gitBinaryCandidates(Platform.operatingSystem),
+        exists: (path) => File(path).existsSync(),
+      ));
 
   @override
   Future<GitResult> run(
@@ -207,14 +232,24 @@ class SystemGitService implements GitService {
     final Process proc;
     try {
       proc = await Process.start(
-        gitBinary,
+        _binary,
         args,
         workingDirectory: repoPath,
         environment: environment,
         runInShell: false,
       );
     } on ProcessException catch (e) {
-      throw GitException('failed to run git ${args.join(' ')}: ${e.message}');
+      // Process.start reports the same failure whether the executable or the
+      // working directory is the one missing. A working directory that is
+      // gone is the repository's problem and git is blameless, so only the
+      // other case earns the install hint.
+      final cwdIsGone = repoPath != null && !Directory(repoPath).existsSync();
+      final detail = 'failed to run git ${args.join(' ')}: ${e.message}';
+      if (cwdIsGone) throw GitException(detail);
+      throw GitUnavailableException(
+        '${missingGitMessage(Platform.operatingSystem)} '
+        '(tried `$_binary`: ${e.message})',
+      );
     }
 
     cancel?._attach(proc);
@@ -250,7 +285,13 @@ class SystemGitService implements GitService {
       if (cancel?.isCancelled ?? false) {
         throw GitCancelledException('git ${args.join(' ')} cancelled');
       }
-      return GitResult(exitCode, output[0], output[1]);
+      final result = GitResult(exitCode, output[0], output[1]);
+      // Deliberately carries no result: handlers show `result.err` in
+      // preference to the message, and for a broken toolchain the shim's own
+      // complaint is the less useful of the two.
+      final broken = toolchainFailure(exitCode, result.stderr);
+      if (broken != null) throw GitUnavailableException(broken);
+      return result;
     } on TimeoutException {
       proc.kill(ProcessSignal.sigkill);
       // Wait briefly for the killed process to release its resources. Without
@@ -281,7 +322,7 @@ class SystemGitService implements GitService {
     final where = repoPath == null ? '' : ' in $repoPath';
     final size = bytes == null ? '' : ', ${bytes}B';
     final message =
-        '${gitBinary.split('/').last} ${args.join(' ')}$where — '
+        '${_binary.split('/').last} ${args.join(' ')}$where — '
         '${elapsed.inMilliseconds}ms, $inFlight in flight$size'
         '${timedOut ? ', TIMED OUT' : ''}';
     final log = logger ?? appLog;
@@ -307,6 +348,10 @@ class SystemGitService implements GitService {
         '--is-inside-work-tree',
       ], repoPath: path);
       return r.ok && r.out == 'true';
+    } on GitUnavailableException {
+      // A git that cannot run says nothing about this path. Answering "no"
+      // here would report a missing repository instead of a broken toolchain.
+      rethrow;
     } on GitException {
       // Nonexistent/inaccessible working directory → not a repository.
       return false;
