@@ -133,6 +133,12 @@ class _GraphListState extends ConsumerState<GraphList> {
 
   int _matchGen = 0;
 
+  // A selection whose commit the loaded history does not hold yet — what a
+  // pull produces, naming the new HEAD before the reloaded graph arrives. Held
+  // until the next reload and then dropped, so a sha that never loads (a stash
+  // commit, a tip past the commit cap) cannot yank the view much later.
+  String? _pendingSha;
+
   /// Current match set. Small histories compute inline; big ones kick a
   /// background-isolate computation and keep showing the previous set until
   /// it lands (generation counter drops stale results).
@@ -190,6 +196,24 @@ class _GraphListState extends ConsumerState<GraphList> {
     _ordinals = m;
     _ordinalsFor = matches;
     return _ordinals;
+  }
+
+  @override
+  void didUpdateWidget(GraphList oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final pending = _pendingSha;
+    if (pending == null || identical(oldWidget.data, widget.data)) return;
+    // Spent whether or not the commit turned up, so this is the one retry.
+    _pendingSha = null;
+    final s = ref.read(settingsProvider);
+    final rowHeight = RailMetrics(
+      compact: s.graphCompact,
+      branchWidth: s.graphBranchWidth,
+      railFixedWidth: s.graphRailWidth,
+    ).rowHeight;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _scrollToSha(pending, rowHeight);
+    });
   }
 
   @override
@@ -260,15 +284,21 @@ class _GraphListState extends ConsumerState<GraphList> {
   /// sha→index map (O(1)) rather than scanning the commit list, so clicking a
   /// branch on a 50k-commit repo flies instantly. No-op when the sha isn't a
   /// loaded commit (e.g. a branch tip beyond the commit cap).
-  void _scrollToSha(String? sha, double rowHeight) {
+  void _scrollToSha(String? sha, double rowHeight, {bool arm = false}) {
     if (sha == null || !_scroll.hasClients) return;
+    if (arm) _pendingSha = null;
     final wipRows = _hasWip ? 1 : 0;
     final int i;
     if (sha == wipSelection) {
       i = 0;
     } else {
       final ci = _deriveFor(widget.data).rowIndex[sha];
-      if (ci == null) return;
+      if (ci == null) {
+        // Only a fresh request waits for its commit; a retry that misses is
+        // the end of it.
+        if (arm) _pendingSha = sha;
+        return;
+      }
       i = ci + wipRows;
     }
     final top = i * rowHeight;
@@ -466,7 +496,7 @@ class _GraphListState extends ConsumerState<GraphList> {
     // so the ListView has its dimensions when a selection arrives on load.
     ref.listen(selectedCommitProvider, (_, sha) {
       WidgetsBinding.instance.addPostFrameCallback(
-        (_) => _scrollToSha(sha, metrics.rowHeight),
+        (_) => _scrollToSha(sha, metrics.rowHeight, arm: true),
       );
     });
 

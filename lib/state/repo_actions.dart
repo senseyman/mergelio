@@ -18,6 +18,7 @@ import 'feedback.dart';
 import 'merge_session.dart';
 import 'operation_journal.dart';
 import 'profiles.dart';
+import 'graph_selection.dart';
 import 'repo_data.dart';
 import 'undo_stack.dart';
 import 'workspace.dart';
@@ -280,15 +281,25 @@ class RepoActions {
     bool rebase = false,
     bool ffOnly = false,
     bool autostash = false,
-  }) => _network(
-    'Pull',
-    (cancel) => _writer.pull(
-      rebase: rebase,
-      ffOnly: ffOnly,
-      autostash: autostash,
-      cancel: cancel,
-    ),
-  );
+  }) async {
+    final ok = await _network(
+      'Pull',
+      (cancel) => _writer.pull(
+        rebase: rebase,
+        ffOnly: ffOnly,
+        autostash: autostash,
+        cancel: cancel,
+      ),
+    );
+    // A pull that did not land leaves the reader wherever they were; moving
+    // the cursor would lose their place for nothing.
+    if (!ok) return;
+    // `--quiet --verify` so an unborn branch answers with nothing instead of
+    // an error: there is no commit to put the cursor on yet.
+    final sha = await _out(['rev-parse', '--quiet', '--verify', 'HEAD']);
+    if (sha.isEmpty) return;
+    _ref.read(selectedCommitProvider.notifier).state = sha;
+  }
 
   Future<void> push({bool force = false, String? remote, bool tags = false}) =>
       _network(
