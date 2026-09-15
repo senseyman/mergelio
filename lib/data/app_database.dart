@@ -31,9 +31,8 @@ class AppDatabase extends _$AppDatabase {
     return row?.value;
   }
 
-  Future<void> putValue(String key, String value) => into(
-    keyValue,
-  ).insertOnConflictUpdate(KeyValueCompanion.insert(key: key, value: value));
+  Future<void> putValue(String key, String value) => into(keyValue)
+      .insertOnConflictUpdate(KeyValueCompanion.insert(key: key, value: value));
 
   static QueryExecutor _open() {
     return LazyDatabase(() async {

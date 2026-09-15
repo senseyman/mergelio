@@ -60,9 +60,8 @@ void main() {
         ),
       });
 
-      final tracked = await _container(
-        git,
-      ).read(trackedPathsProvider('/r').future);
+      final tracked = await _container(git)
+          .read(trackedPathsProvider('/r').future);
 
       expect(tracked, {'lib/main.dart', 'README.md'});
       expect(git.calls.single, ['ls-files', '-z']);
@@ -73,9 +72,8 @@ void main() {
       // off instead.
       final git = _FakeGit({'ls-files': const GitResult(128, '', 'boom')});
 
-      final tracked = await _container(
-        git,
-      ).read(trackedPathsProvider('/r').future);
+      final tracked = await _container(git)
+          .read(trackedPathsProvider('/r').future);
 
       expect(tracked, isNull);
     });

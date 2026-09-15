@@ -66,9 +66,9 @@ Future<void> _open(WidgetTester tester) async {
       ),
     ),
   );
-  ProviderScope.containerOf(
-    tester.element(find.byType(DiffSheet)),
-  ).read(diffTargetProvider.notifier).state = _target.fileTarget(
+  ProviderScope.containerOf(tester.element(find.byType(DiffSheet)))
+      .read(diffTargetProvider.notifier)
+      .state = _target.fileTarget(
     'a.txt',
   );
   await tester.pumpAndSettle();

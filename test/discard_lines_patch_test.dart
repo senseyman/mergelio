@@ -39,9 +39,9 @@ void main() {
     if (await repo.exists()) await repo.delete(recursive: true);
   });
 
-  Future<FileDiff> workingDiff() async => parseUnifiedDiff(
-    await GitReader(svc, repo.path).workingDiff('a.txt'),
-  ).single;
+  Future<FileDiff> workingDiff() async =>
+      parseUnifiedDiff(await GitReader(svc, repo.path).workingDiff('a.txt'))
+          .single;
 
   /// Index of the line whose text is [text] within the hunk.
   int lineOf(FileDiff diff, String text) =>

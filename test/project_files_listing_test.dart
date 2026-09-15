@@ -71,9 +71,8 @@ void main() {
 
   test('listing is capped and reports how many were dropped', () async {
     for (var i = 0; i < maxDirEntries + 25; i++) {
-      File(
-        '${repo.path}/f${i.toString().padLeft(5, '0')}.txt',
-      ).writeAsStringSync('x');
+      File('${repo.path}/f${i.toString().padLeft(5, '0')}.txt')
+          .writeAsStringSync('x');
     }
 
     final listing = await list('');

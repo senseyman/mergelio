@@ -36,9 +36,8 @@ void main() {
   setUp(() async {
     repo = await Directory.systemTemp.createTemp('mergelio_files');
     await Directory(p.join(repo.path, 'lib')).create();
-    await File(
-      p.join(repo.path, 'lib', 'main.dart'),
-    ).writeAsString('void main() {}\n');
+    await File(p.join(repo.path, 'lib', 'main.dart'))
+        .writeAsString('void main() {}\n');
     c = ProviderContainer(
       overrides: [gitServiceProvider.overrideWithValue(_FakeGit())],
     );
@@ -116,9 +115,8 @@ void main() {
         containsAll(['lib/extra.dart', 'lib/main.dart']),
       );
       final file = await c.read(
-        editableFileForPathProvider(
-          FileRef(repo.path, 'lib/extra.dart'),
-        ).future,
+        editableFileForPathProvider(FileRef(repo.path, 'lib/extra.dart'))
+            .future,
       );
       expect(file.canEdit, isTrue);
       expect(file.text, isEmpty);

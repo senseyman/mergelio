@@ -78,9 +78,8 @@ class CommitRow extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
-      label: AppLocalizations.of(
-        context,
-      ).a11yCommitRow(c.shortSha, c.author, firstLine),
+      label: AppLocalizations.of(context)
+          .a11yCommitRow(c.shortSha, c.author, firstLine),
       child: InkWell(
         onTap: onTap,
         hoverColor: t.hover,

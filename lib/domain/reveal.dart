@@ -20,8 +20,10 @@ import 'package:path/path.dart' as p;
 
 /// Spawns a process; injectable so callers can be tested without opening a
 /// window on the developer's machine.
-typedef ProcessRunner =
-    Future<ProcessResult> Function(String executable, List<String> args);
+typedef ProcessRunner = Future<ProcessResult> Function(
+  String executable,
+  List<String> args,
+);
 
 /// Opens [path] in the file manager. Throws [ProcessException] if the platform
 /// is unsupported or the file manager cannot be launched, so callers can report

@@ -9,8 +9,8 @@
 
 [![License: BSD-3-Clause](https://img.shields.io/badge/license-BSD--3--Clause-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey.svg)](#installation)
-[![Flutter](https://img.shields.io/badge/Flutter-3.44.6-02569B.svg?logo=flutter)](https://flutter.dev)
-[![Dart SDK](https://img.shields.io/badge/Dart%20SDK-3.12.x-0175C2.svg?logo=dart)](https://dart.dev)
+[![Flutter](https://img.shields.io/badge/Flutter-3.47.4-02569B.svg?logo=flutter)](https://flutter.dev)
+[![Dart SDK](https://img.shields.io/badge/Dart%20SDK-3.13.x-0175C2.svg?logo=dart)](https://dart.dev)
 [![Tests](https://img.shields.io/badge/tests-1229%20passing-brightgreen.svg)](#testing)
 
 <img src=".github/screenshots/mergelio-demo.gif" alt="Mergelio in action: browsing history, editing a file, reviewing the diff and committing" width="900" />
@@ -323,7 +323,7 @@ checksum file above is the verification.
 
 ### Prerequisites
 
-- **Flutter 3.44.6** on the `stable` channel (Dart SDK 3.12.2) — see
+- **Flutter 3.47.4** on the `stable` channel (Dart SDK 3.13.3) — see
   [Toolchain version](#toolchain-version) below; this one is pinned, not a floor
 - **Desktop toolchain** for your host: Xcode (macOS), Visual Studio with the
   *Desktop development with C++* workload (Windows), or
@@ -335,19 +335,21 @@ Check your setup with `make doctor`.
 ### Toolchain version
 
 The Flutter release is pinned in [`.fvmrc`](.fvmrc) and `pubspec.yaml` declares
-`sdk: '>=3.12.2 <3.13.0'`. Both bounds are intentional.
+`sdk: '>=3.13.3 <3.14.0'`. Both bounds are intentional.
 
-`pubspec.lock` holds `analyzer` 7.7.1, and `freezed` 2.x caps it there. That
-analyzer understands language version 3.9, so a Dart 3.13+ SDK hands it syntax
-it cannot serialise and code generation dies with an unhelpful stack trace:
+The codegen chain and the SDK move together: `analyzer` has to understand the
+language version the SDK emits. An `analyzer` older than the SDK is handed
+syntax it cannot serialise, and code generation dies with an unhelpful stack
+trace rather than a clear message:
 
 ```
 Exception: Missing implementation of visitDotShorthandPropertyAccess
 ```
 
-The SDK bound in `pubspec.yaml` turns that into a clear `pub get` error instead.
-Lifting it means migrating the codegen chain to `freezed` 3.x / `source_gen` 4.x
-first.
+The SDK bound in `pubspec.yaml` turns that into a `pub get` error instead. Raise
+it only together with `freezed`, `source_gen`, `json_serializable`, `drift_dev`
+and `build_runner` — each caps `analyzer` in its own way, and a set that does
+not agree resolves to the oldest common answer without complaining.
 
 With [fvm](https://fvm.app) the pin is picked up automatically:
 
@@ -360,7 +362,7 @@ fvm flutter --version
 Without fvm, match it by hand:
 
 ```bash
-flutter --version          # expect 3.44.6 / Dart 3.12.2
+flutter --version          # expect 3.47.4 / Dart 3.13.3
 ```
 
 The build scripts print a warning when the running Flutter differs from the pin.

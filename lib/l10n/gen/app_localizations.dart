@@ -2756,6 +2756,12 @@ abstract class AppLocalizations {
   /// **'Not a git repository'**
   String get welNotARepo;
 
+  /// No description provided for @welGitUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Git cannot run'**
+  String get welGitUnavailable;
+
   /// No description provided for @gvSearchCommits.
   ///
   /// In en, this message translates to:

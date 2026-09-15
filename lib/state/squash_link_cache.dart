@@ -1,8 +1,10 @@
 import '../domain/git/models.dart';
 
 /// Runs the squash-link inference for [branches], measured against [into].
-typedef SquashLinkCompute =
-    Future<List<SquashLink>> Function(List<Branch> branches, String into);
+typedef SquashLinkCompute = Future<List<SquashLink>> Function(
+  List<Branch> branches,
+  String into,
+);
 
 /// Keeps squash-merge inference proportional to what changed.
 ///

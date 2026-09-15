@@ -16,7 +16,7 @@ part 'update_manifest.g.dart';
 const int kSupportedManifestSchema = 1;
 
 @freezed
-class UpdateArtifact with _$UpdateArtifact {
+abstract class UpdateArtifact with _$UpdateArtifact {
   const factory UpdateArtifact({
     required String url,
     required String sha256,
@@ -28,7 +28,7 @@ class UpdateArtifact with _$UpdateArtifact {
 }
 
 @freezed
-class UpdateManifest with _$UpdateManifest {
+abstract class UpdateManifest with _$UpdateManifest {
   const UpdateManifest._();
 
   const factory UpdateManifest({

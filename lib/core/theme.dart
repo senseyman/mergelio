@@ -80,9 +80,8 @@ ThemeData buildTheme(
     scaffoldBackgroundColor: tokens.bgApp,
     canvasColor: tokens.bgApp,
     dividerColor: tokens.border,
-    textTheme: GoogleFonts.interTextTheme(
-      base.textTheme,
-    ).apply(bodyColor: tokens.textPrimary, displayColor: tokens.textPrimary),
+    textTheme: GoogleFonts.interTextTheme(base.textTheme)
+        .apply(bodyColor: tokens.textPrimary, displayColor: tokens.textPrimary),
     extensions: [tokens],
     splashFactory: NoSplash.splashFactory,
     filledButtonTheme: FilledButtonThemeData(

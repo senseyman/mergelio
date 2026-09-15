@@ -69,9 +69,9 @@ void main() {
 
   Future<void> open(WidgetTester tester) async {
     await tester.pumpWidget(harness());
-    ProviderScope.containerOf(
-      tester.element(find.byType(DiffSheet)),
-    ).read(diffTargetProvider.notifier).state = const DiffTarget(
+    ProviderScope.containerOf(tester.element(find.byType(DiffSheet)))
+        .read(diffTargetProvider.notifier)
+        .state = const DiffTarget(
       repoPath: '/r',
       path: 'a.txt',
     );
@@ -142,9 +142,9 @@ void main() {
         ),
       ),
     );
-    ProviderScope.containerOf(
-      tester.element(find.byType(DiffSheet)),
-    ).read(diffTargetProvider.notifier).state = const DiffTarget(
+    ProviderScope.containerOf(tester.element(find.byType(DiffSheet)))
+        .read(diffTargetProvider.notifier)
+        .state = const DiffTarget(
       repoPath: '/r',
       path: 'a.txt',
     );

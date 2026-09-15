@@ -25,17 +25,15 @@ void main() {
     await g(['config', 'user.email', 't@e.com']);
     await g(['config', 'user.name', 'T']);
     await g(['config', 'commit.gpgsign', 'false']);
-    await File(
-      '${repo.path}/moved.txt',
-    ).writeAsString('a\nb\nc\nd\ne\nf\ng\nh\n');
+    await File('${repo.path}/moved.txt')
+        .writeAsString('a\nb\nc\nd\ne\nf\ng\nh\n');
     await g(['add', '.']);
     await g(['commit', '-q', '-m', 'base']);
 
     await g(['checkout', '-q', '-b', 'feature']);
     await g(['mv', 'moved.txt', 'renamed.txt']);
-    await File(
-      '${repo.path}/renamed.txt',
-    ).writeAsString('a\nb\nc\nd\ne\nf\ng\nZ\n');
+    await File('${repo.path}/renamed.txt')
+        .writeAsString('a\nb\nc\nd\ne\nf\ng\nZ\n');
     await g(['commit', '-qam', 'rename and edit']);
   });
 

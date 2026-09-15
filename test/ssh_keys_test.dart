@@ -16,9 +16,8 @@ void main() {
 
   test('lists only .pub files, sorted', () async {
     File('${dir.path}/id_rsa.pub').writeAsStringSync('ssh-rsa AAAA me@host\n');
-    File(
-      '${dir.path}/id_ed25519.pub',
-    ).writeAsStringSync('ssh-ed25519 BBBB me@host\n');
+    File('${dir.path}/id_ed25519.pub')
+        .writeAsStringSync('ssh-ed25519 BBBB me@host\n');
     File('${dir.path}/id_rsa').writeAsStringSync('PRIVATE'); // must be ignored
     File('${dir.path}/known_hosts').writeAsStringSync('x');
 

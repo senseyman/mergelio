@@ -55,9 +55,9 @@ void main() {
       var count = before.commits.length;
       for (var i = 0; i < 80 && count < 2; i++) {
         await Future<void>.delayed(const Duration(milliseconds: 100));
-        count = (await c.read(
-          repoDataProvider(dir.path).future,
-        )).commits.length;
+        count = (await c.read(repoDataProvider(dir.path).future))
+            .commits
+            .length;
       }
       expect(
         count,

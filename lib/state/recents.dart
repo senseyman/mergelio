@@ -11,7 +11,7 @@ part 'recents.g.dart';
 
 /// A recently opened repository (pinnable, shown on the Welcome screen).
 @freezed
-class RecentRepo with _$RecentRepo {
+abstract class RecentRepo with _$RecentRepo {
   const factory RecentRepo({
     required String name,
     required String path,

@@ -1097,9 +1097,8 @@ class _SplitColumn extends StatelessWidget {
     // middle of the sheet would read as a divider between two documents.
     return isLeft
         ? ScrollConfiguration(
-            behavior: ScrollConfiguration.of(
-              context,
-            ).copyWith(scrollbars: false),
+            behavior: ScrollConfiguration.of(context)
+                .copyWith(scrollbars: false),
             child: list,
           )
         : list;

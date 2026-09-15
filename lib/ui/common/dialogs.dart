@@ -242,9 +242,8 @@ class _CommitMessageBodyState extends State<_CommitMessageBody> {
   void _submit() {
     final s = _summary.text.trim();
     if (s.isEmpty) return;
-    Navigator.of(
-      context,
-    ).pop((summary: s, description: _description.text.trim()));
+    Navigator.of(context)
+        .pop((summary: s, description: _description.text.trim()));
   }
 
   @override

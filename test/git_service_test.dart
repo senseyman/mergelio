@@ -6,24 +6,20 @@ import 'package:mergelio/domain/git/git_service.dart';
 
 void main() {
   group('SystemGitService', () {
-    test(
-      'kills the process and throws GitException on timeout',
-      () async {
-        // Use `sleep` as a stand-in long-running process.
-        const svc = SystemGitService(gitBinary: 'sleep');
-        await expectLater(
-          svc.run(['5'], timeout: const Duration(milliseconds: 150)),
-          throwsA(
-            isA<GitException>().having(
-              (e) => e.message,
-              'message',
-              contains('timed out'),
-            ),
+    test('kills the process and throws GitException on timeout', () async {
+      // Use `sleep` as a stand-in long-running process.
+      const svc = SystemGitService(gitBinary: 'sleep');
+      await expectLater(
+        svc.run(['5'], timeout: const Duration(milliseconds: 150)),
+        throwsA(
+          isA<GitException>().having(
+            (e) => e.message,
+            'message',
+            contains('timed out'),
           ),
-        );
-      },
-      skip: Platform.isWindows ? 'no `sleep` on Windows' : false,
-    );
+        ),
+      );
+    }, skip: Platform.isWindows ? 'no `sleep` on Windows' : false);
 
     test(
       'keeps malformed UTF-8 in command output instead of throwing',

@@ -104,9 +104,8 @@ void main() {
     // a tab wears the worktree glyph and claims a parent it does not have.
     final sub = await Directory.systemTemp.createTemp('mergelio_sub_');
     addTearDown(() => sub.delete(recursive: true));
-    await File(
-      '${sub.path}/.git',
-    ).writeAsString('gitdir: ${repo.path}/.git/modules/vendor\n');
+    await File('${sub.path}/.git')
+        .writeAsString('gitdir: ${repo.path}/.git/modules/vendor\n');
     expect(
       await container().read(isLinkedWorktreeProvider(sub.path).future),
       isFalse,

@@ -6,12 +6,11 @@ import 'package:http/testing.dart';
 import 'package:mergelio/data/update/appcast_client.dart';
 
 final _manifest = File('test/fixtures/update/appcast.json').readAsBytesSync();
-final _signature = File(
-  'test/fixtures/update/appcast.json.sig',
-).readAsStringSync();
-final _publicKey = File(
-  'test/fixtures/update/test_public_key.txt',
-).readAsStringSync().trim();
+final _signature = File('test/fixtures/update/appcast.json.sig')
+    .readAsStringSync();
+final _publicKey = File('test/fixtures/update/test_public_key.txt')
+    .readAsStringSync()
+    .trim();
 
 AppcastClient _client({
   List<int>? manifest,

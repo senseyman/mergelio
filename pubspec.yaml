@@ -4,7 +4,7 @@ publish_to: 'none'
 version: 1.5.4+21
 
 environment:
-  sdk: '>=3.12.2 <3.13.0'
+  sdk: '>=3.13.3 <3.14.0'
 
 dependencies:
   flutter:
@@ -17,8 +17,8 @@ dependencies:
   # State management
   flutter_riverpod: ^2.6.1
   # Immutable models / codegen
-  freezed_annotation: ^2.4.4
-  json_annotation: ^4.9.0
+  freezed_annotation: ^3.0.0
+  json_annotation: ^4.12.0
   # Local storage (SQLite via drift)
   drift: ^2.20.3
   sqlite3_flutter_libs: ^0.5.24
@@ -46,10 +46,10 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
-  build_runner: ^2.4.13
-  freezed: ^2.5.7
-  json_serializable: ^6.8.0
-  drift_dev: ^2.20.3
+  build_runner: ^2.16.0
+  freezed: ^4.0.0
+  json_serializable: ^6.14.0
+  drift_dev: ^2.35.0
   flutter_launcher_icons: ^0.14.1
 
 flutter:

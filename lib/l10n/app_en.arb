@@ -845,6 +845,7 @@
   "welPin": "Pin",
   "welRemoveRecent": "Remove from recents",
   "welNotARepo": "Not a git repository",
+  "welGitUnavailable": "Git cannot run",
   "gvSearchCommits": "Search commits…",
   "gvAuthorFilter": "Author…",
   "gvPrevMatch": "Previous (⇧N)",

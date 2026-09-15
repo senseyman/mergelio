@@ -85,11 +85,8 @@ class _FakeGit implements GitService {
     GitCancel? cancel,
   }) async {
     calls.add(args);
-    if (args case [
-      'worktree',
-      'remove',
-      ...final rest,
-    ] when !rest.contains('--force')) {
+    if (args case ['worktree', 'remove', ...final rest]
+        when !rest.contains('--force')) {
       return const GitResult(
         128,
         '',

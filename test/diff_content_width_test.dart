@@ -2,9 +2,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/domain/git/diff.dart';
 import 'package:mergelio/ui/diff/diff_metrics.dart';
 
-FileDiff _diff(String body) => parseUnifiedDiff(
-  'diff --git a/foo b/foo\n--- a/foo\n+++ b/foo\n$body',
-).single;
+FileDiff _diff(String body) =>
+    parseUnifiedDiff('diff --git a/foo b/foo\n--- a/foo\n+++ b/foo\n$body')
+        .single;
 
 void main() {
   group('longestLineChars', () {

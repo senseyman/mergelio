@@ -142,15 +142,13 @@ void main() {
 
     test('a stored sub-minimum interval is migrated up to the floor', () {
       expect(
-        migrateSettings(
-          const AppSettings(autoFetchIntervalSeconds: 5),
-        ).autoFetchIntervalSeconds,
+        migrateSettings(const AppSettings(autoFetchIntervalSeconds: 5))
+            .autoFetchIntervalSeconds,
         30,
       );
       expect(
-        migrateSettings(
-          const AppSettings(autoFetchIntervalSeconds: 600),
-        ).autoFetchIntervalSeconds,
+        migrateSettings(const AppSettings(autoFetchIntervalSeconds: 600))
+            .autoFetchIntervalSeconds,
         600,
       );
     });

@@ -190,9 +190,8 @@ class RepoBootstrap {
       }
       final files = <String>[];
       if (readme) {
-        await File(
-          p.join(target, 'README.md'),
-        ).writeAsString('# ${name.trim()}\n');
+        await File(p.join(target, 'README.md'))
+            .writeAsString('# ${name.trim()}\n');
         files.add('README.md');
       }
       if (gitignore) {

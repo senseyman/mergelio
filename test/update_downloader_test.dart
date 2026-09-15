@@ -58,9 +58,8 @@ void main() {
 
   test('leaves nothing behind when the hash does not match', () async {
     try {
-      await _downloader(
-        'something else entirely',
-      ).download(_artifact(), into: dir);
+      await _downloader('something else entirely')
+          .download(_artifact(), into: dir);
     } on UpdateChecksumError {
       // expected
     }

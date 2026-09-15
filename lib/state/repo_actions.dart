@@ -18,6 +18,7 @@ import 'feedback.dart';
 import 'merge_session.dart';
 import 'operation_journal.dart';
 import 'profiles.dart';
+import 'graph_selection.dart';
 import 'repo_data.dart';
 import 'undo_stack.dart';
 import 'workspace.dart';
@@ -280,15 +281,25 @@ class RepoActions {
     bool rebase = false,
     bool ffOnly = false,
     bool autostash = false,
-  }) => _network(
-    'Pull',
-    (cancel) => _writer.pull(
-      rebase: rebase,
-      ffOnly: ffOnly,
-      autostash: autostash,
-      cancel: cancel,
-    ),
-  );
+  }) async {
+    final ok = await _network(
+      'Pull',
+      (cancel) => _writer.pull(
+        rebase: rebase,
+        ffOnly: ffOnly,
+        autostash: autostash,
+        cancel: cancel,
+      ),
+    );
+    // A pull that did not land leaves the reader wherever they were; moving
+    // the cursor would lose their place for nothing.
+    if (!ok) return;
+    // `--quiet --verify` so an unborn branch answers with nothing instead of
+    // an error: there is no commit to put the cursor on yet.
+    final sha = await _out(['rev-parse', '--quiet', '--verify', 'HEAD']);
+    if (sha.isEmpty) return;
+    _ref.read(selectedCommitProvider.notifier).state = sha;
+  }
 
   Future<void> push({bool force = false, String? remote, bool tags = false}) =>
       _network(
@@ -1399,11 +1410,10 @@ class RepoActions {
   static bool _isSigned(String status) => status.isNotEmpty && status != 'N';
 
   /// Whether any commit in [base]..HEAD carries a signature.
-  Future<bool> _rangeIsSigned(String base) async => (await _out([
-    'log',
-    '--format=%G?',
-    '$base..HEAD',
-  ])).split('\n').any(_isSigned);
+  Future<bool> _rangeIsSigned(String base) async =>
+      (await _out(['log', '--format=%G?', '$base..HEAD']))
+          .split('\n')
+          .any(_isSigned);
 
   /// Whether this repository can produce a signature: an explicit key, or the
   /// blanket setting that has git pick one for every commit.

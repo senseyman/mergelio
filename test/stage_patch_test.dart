@@ -2,9 +2,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/domain/git/diff.dart';
 import 'package:mergelio/domain/git/stage_patch.dart';
 
-FileDiff _oneHunk(String body) => parseUnifiedDiff(
-  'diff --git a/foo b/foo\n--- a/foo\n+++ b/foo\n$body',
-).single;
+FileDiff _oneHunk(String body) =>
+    parseUnifiedDiff('diff --git a/foo b/foo\n--- a/foo\n+++ b/foo\n$body')
+        .single;
 
 void main() {
   group('buildStagePatch', () {

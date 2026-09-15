@@ -41,14 +41,10 @@ void main() {
       ProviderScope(
         overrides: [
           gitServiceProvider.overrideWithValue(_FakeGit()),
-          commitFilesProvider((
-            repo: '/r',
-            sha: c.sha,
-          )).overrideWith((ref) async => const <CommitFileChange>[]),
-          commitSignatureProvider((
-            repo: '/r',
-            sha: c.sha,
-          )).overrideWith((ref) async => status),
+          commitFilesProvider((repo: '/r', sha: c.sha))
+              .overrideWith((ref) async => const <CommitFileChange>[]),
+          commitSignatureProvider((repo: '/r', sha: c.sha))
+              .overrideWith((ref) async => status),
           settingsProvider.overrideWith(
             (ref) => SettingsController(
               InMemorySettingsRepository(),

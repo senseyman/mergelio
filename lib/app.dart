@@ -49,9 +49,8 @@ class MergelioApp extends ConsumerWidget {
       ),
       // Apply the UI-zoom setting by scaling text everywhere (100–200% NFR).
       builder: (context, child) => MediaQuery(
-        data: MediaQuery.of(
-          context,
-        ).copyWith(textScaler: TextScaler.linear(settings.uiScale)),
+        data: MediaQuery.of(context)
+            .copyWith(textScaler: TextScaler.linear(settings.uiScale)),
         child: child!,
       ),
       home: const AppShell(),
