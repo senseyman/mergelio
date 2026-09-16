@@ -133,17 +133,20 @@ class ForgeCredentials {
     return ForgeToken(password);
   }
 
-  /// Offers [token] to the helper so it survives the session. Returns false
-  /// only when [host], [username] or the token could not be sent at all; a
-  /// true result means the git command ran, not that the helper chose to
-  /// store anything — a helper that declines to store is still not an error.
+  /// Offers [token] to the helper so it survives the session. False means
+  /// nothing reached the helper at all — either [host], [username] or the
+  /// token was refused before git ever ran, or git itself could not be run.
+  /// True only says the command completed; it is not a promise the helper
+  /// chose to store anything, which is a decision this method has no way to
+  /// observe.
   Future<bool> approve(String host, String username, ForgeToken token) =>
       _write('approve', host, username, token);
 
   /// Asks the helper to forget its credential for [host], so a rejected token
-  /// is not handed back on the next attempt. Returns false only when [host]
-  /// or the token could not be sent at all; a true result means the git
-  /// command ran, not that the helper had anything to forget.
+  /// is not handed back on the next attempt. False means nothing reached the
+  /// helper at all — either [host] or the token was refused before git ever
+  /// ran, or git itself could not be run. True only says the command
+  /// completed; it is not a promise the helper had anything to forget.
   Future<bool> reject(String host, ForgeToken token) =>
       _write('reject', host, '', token);
 
@@ -170,10 +173,11 @@ class ForgeCredentials {
         environment: _noPromptEnv,
         timeout: _credentialTimeout,
       );
+      return true;
     } on GitException {
       // A helper that refuses to record a credential leaves the token usable
       // for this session, which is the fallback the caller already handles.
+      return false;
     }
-    return true;
   }
 }

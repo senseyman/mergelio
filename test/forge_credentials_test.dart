@@ -269,13 +269,26 @@ void main() {
     });
 
     test(
-      'approve does not propagate when git throws, but reports it ran',
+      'approve does not propagate when git throws, and reports false',
       () async {
         final git = _ThrowingGit();
         final sent = await ForgeCredentials(git)
             .approve('github.com', 'octocat', const ForgeToken('ghp_x'));
-        expect(sent, isTrue);
+        // git was called and failed, so nothing reached the helper — a
+        // caller must not be told this succeeded.
+        expect(sent, isFalse);
         expect(git.calls.single, const ['credential', 'approve']);
+      },
+    );
+
+    test(
+      'reject does not propagate when git throws, and reports false',
+      () async {
+        final git = _ThrowingGit();
+        final sent = await ForgeCredentials(git)
+            .reject('github.com', const ForgeToken('ghp_x'));
+        expect(sent, isFalse);
+        expect(git.calls.single, const ['credential', 'reject']);
       },
     );
   });
