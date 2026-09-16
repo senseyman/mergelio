@@ -58,14 +58,32 @@ void main() {
     expect(await forge.issues(), isEmpty);
   });
 
+  test(
+    'an error armed on pullRequestsForBranch does not break pullRequests',
+    () async {
+      final Forge forge = FakeForge(
+        host: host,
+        pullRequestsForBranchError: const ForgeUnauthenticated(),
+      );
+
+      await expectLater(
+        forge.pullRequestsForBranch('fix/thing'),
+        throwsA(isA<ForgeUnauthenticated>()),
+      );
+      expect(await forge.pullRequests(), isEmpty);
+    },
+  );
+
   test('every call is counted, per method', () async {
     final forge = FakeForge(host: host);
 
     await forge.pullRequests();
     await forge.pullRequests();
+    await forge.pullRequestsForBranch('fix/thing');
     await forge.issues();
 
     expect(forge.pullRequestsCalls, 2);
+    expect(forge.pullRequestsForBranchCalls, 1);
     expect(forge.issuesCalls, 1);
   });
 

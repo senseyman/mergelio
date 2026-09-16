@@ -17,6 +17,7 @@ class FakeForge implements Forge {
   final ChecksSummary checksResult;
 
   final ForgeError? pullRequestsError;
+  final ForgeError? pullRequestsForBranchError;
   final ForgeError? issuesError;
   final ForgeError? checksError;
 
@@ -34,6 +35,7 @@ class FakeForge implements Forge {
     List<Issue> issues = const [],
     ChecksSummary? checks,
     this.pullRequestsError,
+    this.pullRequestsForBranchError,
     this.issuesError,
     this.checksError,
   }) : pullRequestsResult = pullRequests,
@@ -52,7 +54,7 @@ class FakeForge implements Forge {
   @override
   Future<List<PullRequest>> pullRequestsForBranch(String branch) async {
     pullRequestsForBranchCalls++;
-    final error = pullRequestsError;
+    final error = pullRequestsForBranchError;
     if (error != null) throw error;
     return pullRequestsResult
         .where((p) => p.sourceBranch == branch)
