@@ -43,6 +43,7 @@ class _RecordingGit implements GitService {
     Duration? timeout,
     Map<String, String>? environment,
     GitCancel? cancel,
+    String? stdin,
   }) async {
     calls.add(_Call(args, timeout));
     return const GitResult(0, '', '');

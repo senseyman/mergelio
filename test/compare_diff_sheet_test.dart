@@ -23,6 +23,7 @@ class _FakeGit implements GitService {
     Duration? timeout,
     Map<String, String>? environment,
     GitCancel? cancel,
+    String? stdin,
   }) async => const GitResult(0, '''
 diff --git a/a.txt b/a.txt
 --- /dev/null

@@ -21,6 +21,7 @@ class _CountingGit implements GitService {
     Duration? timeout,
     Map<String, String>? environment,
     GitCancel? cancel,
+    String? stdin,
   }) {
     if (args.first == 'log' && args.contains('--all')) logWalks++;
     return _inner.run(

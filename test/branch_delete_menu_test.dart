@@ -28,6 +28,7 @@ class _FakeGit implements GitService {
     Duration? timeout,
     Map<String, String>? environment,
     GitCancel? cancel,
+    String? stdin,
   }) async {
     calls.add(args);
     // The two refs/heads reads differ by format: the tracking-aware one asks

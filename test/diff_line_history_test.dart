@@ -25,6 +25,7 @@ class _FakeGit implements GitService {
     Duration? timeout,
     Map<String, String>? environment,
     GitCancel? cancel,
+    String? stdin,
   }) async {
     final working = args.first == 'diff' && !args.contains('--cached');
     // `show` is the commit-diff path; the sheet reads it the same way.

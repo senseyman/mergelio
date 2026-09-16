@@ -76,5 +76,40 @@ void main() {
       const svc = SystemGitService();
       expect(await svc.isRepository('/no/such/path/mergelio-xyz'), isFalse);
     });
+
+    test('writes stdin to the child when given', () async {
+      const svc = SystemGitService(gitBinary: '/bin/cat');
+      final res = await svc.run(const [], stdin: 'hello\n');
+      expect(res.exitCode, 0);
+      expect(res.out, 'hello');
+    }, skip: Platform.isWindows ? 'no `/bin/cat` on Windows' : false);
+
+    test(
+      'still closes stdin when none is given, so a reader does not hang',
+      () async {
+        const svc = SystemGitService(gitBinary: '/bin/cat');
+        final res = await svc.run(
+          const [],
+          timeout: const Duration(seconds: 5),
+        );
+        expect(res.exitCode, 0);
+        expect(res.out, isEmpty);
+      },
+      skip: Platform.isWindows ? 'no `/bin/cat` on Windows' : false,
+    );
+
+    test('survives a child that exits before reading its stdin', () async {
+      // A broken pipe must not escape as an unhandled async error; the
+      // child's exit code is the real result.
+      const svc = SystemGitService(gitBinary: '/bin/sh');
+      final unhandled = <Object>[];
+      late GitResult res;
+      await runZonedGuarded(() async {
+        res = await svc.run(const ['-c', 'exit 3'], stdin: 'x' * 200000);
+      }, (error, _) => unhandled.add(error));
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+      expect(res.exitCode, 3);
+      expect(unhandled, isEmpty);
+    }, skip: Platform.isWindows ? 'no `/bin/sh` on Windows' : false);
   });
 }

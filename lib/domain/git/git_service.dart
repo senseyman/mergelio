@@ -140,13 +140,16 @@ abstract class GitService {
 
   /// Run an arbitrary git command in [repoPath] (or cwd if null). The process
   /// is killed and a [GitException] thrown if it exceeds [timeout]. Passing a
-  /// [cancel] handle lets the caller kill the child before that.
+  /// [cancel] handle lets the caller kill the child before that. [stdin], when
+  /// given, is written to the child and the pipe then closed; commands that
+  /// read a request from stdin need it, and everything else leaves it null.
   Future<GitResult> run(
     List<String> args, {
     String? repoPath,
     Duration? timeout,
     Map<String, String>? environment,
     GitCancel? cancel,
+    String? stdin,
   });
 
   /// True if [path] contains a git repository. Never throws: a missing or
@@ -207,12 +210,13 @@ class SystemGitService implements GitService {
     Duration? timeout,
     Map<String, String>? environment,
     GitCancel? cancel,
+    String? stdin,
   }) async {
     // The queue wait deliberately sits outside the timeout below: a command
     // held back by the gate has not started, so it must not be timed out for
     // the time it spent queued.
     return (gate ?? _sharedGitGate).run(
-      () => _spawn(args, repoPath, timeout, environment, cancel),
+      () => _spawn(args, repoPath, timeout, environment, cancel, stdin),
     );
   }
 
@@ -222,6 +226,7 @@ class SystemGitService implements GitService {
     Duration? timeout,
     Map<String, String>? environment,
     GitCancel? cancel,
+    String? stdin,
   ) async {
     final started = DateTime.now();
     // Counts this command too. Read next to the duration it tells you which
@@ -254,10 +259,26 @@ class SystemGitService implements GitService {
 
     cancel?._attach(proc);
 
-    // Nothing is ever written to a git child, so close the pipe immediately:
-    // it releases a descriptor early and stops a command that would read stdin
-    // from waiting for input that never comes.
-    unawaited(proc.stdin.close().catchError((_) {}));
+    // A git child is normally given nothing, so the pipe closes at once: it
+    // releases a descriptor early and stops a command that would read stdin
+    // from waiting for input that never comes. `git credential` is the
+    // exception — its request arrives there.
+    if (stdin == null) {
+      unawaited(proc.stdin.close().catchError((_) {}));
+    } else {
+      unawaited(() async {
+        try {
+          proc.stdin.write(stdin);
+          await proc.stdin.flush();
+        } on Object {
+          // A child that exited before reading breaks the pipe. Its exit code
+          // and stderr describe that failure better than this write does, so
+          // the write is abandoned rather than raised.
+        } finally {
+          await proc.stdin.close().catchError((_) {});
+        }
+      }());
+    }
 
     // Git emits UTF-8 regardless of platform; decode explicitly so output is
     // correct on Windows (systemEncoding would use the ANSI code page). Drain
