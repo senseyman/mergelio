@@ -19,6 +19,7 @@ import '../shell/remote_merge_confirm.dart';
 import 'add_submodule_dialog.dart';
 import 'branch_switch.dart';
 import 'branch_tree.dart';
+import 'reflog_section.dart';
 import 'remote_dialog.dart';
 import 'sidebar_section.dart';
 import 'worktrees_section.dart';
@@ -343,6 +344,7 @@ class _Sections extends ConsumerWidget {
           ],
         ),
         if (path != null) WorktreesSection(repoPath: path),
+        if (path != null) ReflogSection(repoPath: path),
       ],
     );
   }

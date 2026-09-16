@@ -8,7 +8,10 @@ class SidebarSection extends StatelessWidget {
   final String id;
   final IconData icon;
   final String label;
-  final int count;
+
+  /// Rows behind the header. Null hides the number entirely, for a section
+  /// that has not read its contents yet — a `0` there would claim emptiness.
+  final int? count;
   final bool open;
   final String emptyLabel;
   final VoidCallback onToggle;
@@ -60,11 +63,13 @@ class SidebarSection extends StatelessWidget {
                     letterSpacing: 0.5,
                   ),
                 ),
-                const SizedBox(width: 6),
-                Text(
-                  '$count',
-                  style: TextStyle(color: t.textFaint, fontSize: 11),
-                ),
+                if (count != null) ...[
+                  const SizedBox(width: 6),
+                  Text(
+                    '$count',
+                    style: TextStyle(color: t.textFaint, fontSize: 11),
+                  ),
+                ],
                 if (trailing != null) ...[const Spacer(), trailing!],
               ],
             ),

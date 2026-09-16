@@ -561,6 +561,41 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sbNoStashes => 'No stashes';
 
   @override
+  String get sbReflog => 'Reflog';
+
+  @override
+  String get sbNoReflog => 'No reflog entries';
+
+  @override
+  String get sbCopySha => 'Copy SHA';
+
+  @override
+  String get sbReflogFailed => 'Could not read the reflog';
+
+  @override
+  String sbReflogTruncated(int count) {
+    return 'Showing the first $count entries';
+  }
+
+  @override
+  String sbReflogDetachTitle(String sha) {
+    return 'Check out $sha?';
+  }
+
+  @override
+  String get sbReflogDetachBody =>
+      'Leaves HEAD detached at this commit. No branch moves, so you can return to the branch you were on at any time.';
+
+  @override
+  String get sbReflogDetach => 'Check out';
+
+  @override
+  String get sbReflogFilter => 'Filter entries';
+
+  @override
+  String get sbReflogNoMatches => 'No matching entries';
+
+  @override
   String get sbSubmodules => 'Submodules';
 
   @override

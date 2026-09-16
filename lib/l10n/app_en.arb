@@ -267,6 +267,26 @@
   "sbNoTags": "No tags",
   "sbStashes": "Stashes",
   "sbNoStashes": "No stashes",
+  "sbReflog": "Reflog",
+  "sbNoReflog": "No reflog entries",
+  "sbCopySha": "Copy SHA",
+  "sbReflogFailed": "Could not read the reflog",
+  "sbReflogTruncated": "Showing the first {count} entries",
+  "@sbReflogTruncated": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "sbReflogDetachTitle": "Check out {sha}?",
+  "@sbReflogDetachTitle": {
+    "placeholders": {
+      "sha": {"type": "String"}
+    }
+  },
+  "sbReflogDetachBody": "Leaves HEAD detached at this commit. No branch moves, so you can return to the branch you were on at any time.",
+  "sbReflogDetach": "Check out",
+  "sbReflogFilter": "Filter entries",
+  "sbReflogNoMatches": "No matching entries",
   "sbSubmodules": "Submodules",
   "sbNoSubmodules": "No submodules",
   "sbAddRemoteRow": "Add remote…",

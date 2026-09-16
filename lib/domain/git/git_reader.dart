@@ -4,6 +4,7 @@ import 'commit_fields.dart';
 import 'git_service.dart';
 import 'line_history.dart';
 import 'models.dart';
+import 'reflog.dart';
 import 'worktree.dart';
 
 /// Context-line count that makes git emit every unchanged line of a file, so
@@ -306,6 +307,35 @@ class GitReader {
       );
     }
     return out;
+  }
+
+  /// Where HEAD has pointed and what moved it there, newest entry first.
+  ///
+  /// Reads `git log -g` rather than `git reflog` for the pretty format: `%gd`
+  /// and `%gs` carry the selector and git's recorded message, which plain
+  /// `git reflog` will not hand over field-separated.
+  ///
+  /// A repository with no commits yet has an unborn HEAD and therefore no
+  /// reflog, which git reports as an error — the state of every freshly
+  /// initialised repo, so it returns an empty list instead of throwing.
+  Future<List<ReflogEntry>> reflog({int maxCount = 200}) async {
+    final r = await _run([
+      'log',
+      '-g',
+      '-z',
+      '--max-count=$maxCount',
+      '--pretty=$reflogPrettyFormat',
+    ]);
+    if (!r.ok) {
+      // The only failure a healthy repository produces. An empty, expired or
+      // entirely absent reflog all exit zero with no output, so nothing else
+      // needs excusing here.
+      if (r.err.contains('does not have any commits')) {
+        return const <ReflogEntry>[];
+      }
+      throw GitException('git log -g failed', r);
+    }
+    return parseReflog(r.stdout);
   }
 
   /// Submodules of this repo: their recorded commit + status from
