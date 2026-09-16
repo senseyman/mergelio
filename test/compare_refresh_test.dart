@@ -22,6 +22,7 @@ class _FakeGit implements GitService {
     Duration? timeout,
     Map<String, String>? environment,
     GitCancel? cancel,
+    String? stdin,
   }) async {
     if (args.contains('--name-status')) nameStatusCalls++;
     // A per-file comparison diff: `diff <from> <to> -- <path>`.

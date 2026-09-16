@@ -22,6 +22,7 @@ class _FakeGit implements GitService {
     Duration? timeout,
     Map<String, String>? environment,
     GitCancel? cancel,
+    String? stdin,
   }) async {
     if (args.first == 'diff' && !args.contains('--cached')) {
       return const GitResult(0, '''

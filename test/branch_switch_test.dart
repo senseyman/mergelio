@@ -25,6 +25,7 @@ class _FakeGit implements GitService {
     Duration? timeout,
     Map<String, String>? environment,
     GitCancel? cancel,
+    String? stdin,
   }) async {
     calls.add(args);
     // 'status --porcelain' looks clean so the switch path stays linear.

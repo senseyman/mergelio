@@ -29,6 +29,7 @@ class _CountingGit implements GitService {
     Duration? timeout,
     Map<String, String>? environment,
     GitCancel? cancel,
+    String? stdin,
   }) {
     if (args.length == 2 &&
         args.first == 'for-each-ref' &&

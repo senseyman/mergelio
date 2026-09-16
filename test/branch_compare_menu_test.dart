@@ -23,6 +23,7 @@ class _FakeGit implements GitService {
     Duration? timeout,
     Map<String, String>? environment,
     GitCancel? cancel,
+    String? stdin,
   }) async {
     final tracking = args.any((a) => a.contains('%(HEAD)'));
     final out = switch (args.first) {

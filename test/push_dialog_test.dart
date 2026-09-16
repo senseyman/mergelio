@@ -25,6 +25,7 @@ class _FakeGit implements GitService {
     Duration? timeout,
     Map<String, String>? environment,
     GitCancel? cancel,
+    String? stdin,
   }) async {
     calls.add(args);
     if (args.first == 'rev-parse' && args.last == 'HEAD') {

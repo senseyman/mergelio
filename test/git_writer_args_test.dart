@@ -17,6 +17,7 @@ class _CapturingGit implements GitService {
     Duration? timeout,
     Map<String, String>? environment,
     GitCancel? cancel,
+    String? stdin,
   }) async {
     calls.add(args);
     environments.add(environment);
