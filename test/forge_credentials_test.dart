@@ -7,6 +7,8 @@ class _RecordingGit implements GitService {
   final GitResult result;
   final List<List<String>> calls = [];
   final List<String?> stdins = [];
+  final List<Map<String, String>?> environments = [];
+  final List<Duration?> timeouts = [];
 
   _RecordingGit(this.result);
 
@@ -21,6 +23,8 @@ class _RecordingGit implements GitService {
   }) async {
     calls.add(args);
     stdins.add(stdin);
+    environments.add(environment);
+    timeouts.add(timeout);
     return result;
   }
 
@@ -126,6 +130,15 @@ void main() {
       expect(token?.value, 'ghp_x');
       expect(git.calls.single, const ['credential', 'fill']);
       expect(git.stdins.single, 'protocol=https\nhost=github.com\n\n');
+      // A helper with nothing for this host must fail silently, not prompt —
+      // the UI's Connect row is the prompt, and a terminal or askpass dialog
+      // here would be one the user never asked for.
+      expect(git.environments.single, const {
+        'GIT_TERMINAL_PROMPT': '0',
+        'GIT_ASKPASS': '',
+        'SSH_ASKPASS': '',
+      });
+      expect(git.timeouts.single, const Duration(seconds: 10));
     });
 
     test('fill returns null when the helper has nothing', () async {
@@ -163,6 +176,12 @@ void main() {
       // A token in argv is readable by any process listing; it must only ever
       // travel on stdin.
       expect(git.calls.single.join(' '), isNot(contains('ghp_x')));
+      expect(git.environments.single, const {
+        'GIT_TERMINAL_PROMPT': '0',
+        'GIT_ASKPASS': '',
+        'SSH_ASKPASS': '',
+      });
+      expect(git.timeouts.single, const Duration(seconds: 10));
     });
 
     test(
@@ -180,6 +199,12 @@ void main() {
           'protocol=https\nhost=github.com\npassword=ghp_x\n\n',
         );
         expect(git.stdins.single, isNot(contains('username=')));
+        expect(git.environments.single, const {
+          'GIT_TERMINAL_PROMPT': '0',
+          'GIT_ASKPASS': '',
+          'SSH_ASKPASS': '',
+        });
+        expect(git.timeouts.single, const Duration(seconds: 10));
       },
     );
 

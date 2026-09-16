@@ -52,8 +52,11 @@ const _hosts = <String, ForgeKind>{
   'www.gitlab.com': ForgeKind.gitlab,
 };
 
-/// `git@host:path`, the form ssh remotes are usually written in. The lookahead
-/// keeps it from swallowing a `scheme://` URL, whose colon is followed by `/`.
+/// `git@host:path`, the form ssh remotes are usually written in. A
+/// `scheme://` URL never reaches this regex at all — [resolveForgeHost]
+/// routes anything containing `://` through [Uri] first — so the lookahead
+/// only has to rule out a colon immediately followed by a slash in whatever
+/// scp-like string made it this far.
 final _scpLike = RegExp(r'^(?:[^@/\s]+@)?([^:/\s]+):(?!/)(\S+)$');
 
 /// Schemes a git remote can carry that still name a host.

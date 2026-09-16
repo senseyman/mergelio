@@ -31,6 +31,24 @@ bool _usableField(String value) {
   return !value.codeUnits.any((u) => u == 0 || u == 0x0a || u == 0x0d);
 }
 
+/// Environment for every `git credential` invocation in this file.
+///
+/// The UI's Connect row is the prompt: a helper that has nothing for a host
+/// must fail silently so the caller can fall through to it, not open a
+/// terminal prompt or an askpass dialog the user never asked for. Blanking
+/// GIT_ASKPASS and SSH_ASKPASS matters as much as disabling the terminal
+/// prompt — Dart's [Process.start] merges with the parent environment, so an
+/// inherited askpass helper would otherwise still be live.
+const _noPromptEnv = {
+  'GIT_TERMINAL_PROMPT': '0',
+  'GIT_ASKPASS': '',
+  'SSH_ASKPASS': '',
+};
+
+/// A credential helper unlocking a keychain may take a moment, but it must
+/// not be allowed anywhere near the default command timeout.
+const _credentialTimeout = Duration(seconds: 10);
+
 /// The body `git credential fill` reads for [host], or null when [host] cannot
 /// be expressed safely. Callers must treat null as "do not run git".
 String? credentialRequestFor(String host) {
@@ -86,6 +104,8 @@ class ForgeCredentials {
         const ['credential', 'fill'],
         repoPath: repoPath,
         stdin: request,
+        environment: _noPromptEnv,
+        timeout: _credentialTimeout,
       );
     } on GitException {
       return null;
@@ -126,6 +146,8 @@ class ForgeCredentials {
         ['credential', verb],
         repoPath: repoPath,
         stdin: buffer.toString(),
+        environment: _noPromptEnv,
+        timeout: _credentialTimeout,
       );
     } on GitException {
       // A helper that refuses to record a credential leaves the token usable
