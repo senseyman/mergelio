@@ -22,6 +22,15 @@ bool _usableHost(String host) {
   return !host.codeUnits.any((u) => u <= 0x20 || u == 0x7f);
 }
 
+/// Characters that cannot appear in any field written into a credential
+/// body — username or token alike. Unlike [_usableHost], a legitimate
+/// username or token may contain spaces or other printable characters; only
+/// the line-structural characters and NUL must be refused, since either one
+/// would let the value start a field of its own choosing on the next line.
+bool _usableField(String value) {
+  return !value.codeUnits.any((u) => u == 0 || u == 0x0a || u == 0x0d);
+}
+
 /// The body `git credential fill` reads for [host], or null when [host] cannot
 /// be expressed safely. Callers must treat null as "do not run git".
 String? credentialRequestFor(String host) {
@@ -63,6 +72,11 @@ class ForgeCredentials {
   /// The token the helper holds for [host], or null when it has none, git
   /// fails, or [host] is unusable. Never throws: a missing credential is an
   /// ordinary answer that the caller turns into a connect prompt.
+  ///
+  /// This also swallows [GitUnavailableException], which carries advice for
+  /// a missing or broken git install — that detail is lost here on purpose,
+  /// in exchange for every caller being able to treat "no token" as the only
+  /// failure mode instead of also handling a thrown exception.
   Future<ForgeToken?> fill(String host) async {
     final request = credentialRequestFor(host);
     if (request == null) return null;
@@ -98,7 +112,12 @@ class ForgeCredentials {
     String username,
     ForgeToken token,
   ) async {
+    // Every field lands in the same newline-delimited body, so every field
+    // is checked the same way — a username or token that skipped this would
+    // reopen the injection [_usableHost] exists to close for the host.
     if (!_usableHost(host)) return;
+    if (!_usableField(username)) return;
+    if (!_usableField(token.value)) return;
     final buffer = StringBuffer('protocol=https\nhost=$host\n');
     if (username.isNotEmpty) buffer.write('username=$username\n');
     buffer.write('password=${token.value}\n\n');

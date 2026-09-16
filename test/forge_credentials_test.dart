@@ -31,6 +31,30 @@ class _RecordingGit implements GitService {
   Future<String> version() async => 'git version 2.55.0';
 }
 
+/// Always throws, to exercise the catch paths a scripted result never hits.
+class _ThrowingGit implements GitService {
+  final List<List<String>> calls = [];
+
+  @override
+  Future<GitResult> run(
+    List<String> args, {
+    String? repoPath,
+    Duration? timeout,
+    Map<String, String>? environment,
+    GitCancel? cancel,
+    String? stdin,
+  }) async {
+    calls.add(args);
+    throw GitException('git is not available');
+  }
+
+  @override
+  Future<bool> isRepository(String path) async => true;
+
+  @override
+  Future<String> version() async => 'git version 2.55.0';
+}
+
 void main() {
   group('credentialRequestFor', () {
     test('builds a request ending in a blank line', () {
@@ -114,6 +138,12 @@ void main() {
       expect(await ForgeCredentials(git).fill('github.com'), isNull);
     });
 
+    test('fill returns null when git throws', () async {
+      final git = _ThrowingGit();
+      expect(await ForgeCredentials(git).fill('github.com'), isNull);
+      expect(git.calls.single, const ['credential', 'fill']);
+    });
+
     test('fill refuses an unusable host without running git', () async {
       final git = _RecordingGit(const GitResult(0, '', ''));
       expect(await ForgeCredentials(git).fill('bad\nhost'), isNull);
@@ -135,20 +165,63 @@ void main() {
       expect(git.calls.single.join(' '), isNot(contains('ghp_x')));
     });
 
-    test('reject asks the helper to forget the credential', () async {
-      final git = _RecordingGit(const GitResult(0, '', ''));
-      await ForgeCredentials(git)
-          .reject('github.com', const ForgeToken('ghp_x'));
+    test(
+      'reject asks the helper to forget the credential, with no username',
+      () async {
+        final git = _RecordingGit(const GitResult(0, '', ''));
+        await ForgeCredentials(git)
+            .reject('github.com', const ForgeToken('ghp_x'));
 
-      expect(git.calls.single, const ['credential', 'reject']);
-      expect(git.stdins.single, contains('password=ghp_x'));
-    });
+        expect(git.calls.single, const ['credential', 'reject']);
+        // reject has no username to offer; the body must not claim one, or the
+        // helper could forget the wrong credential.
+        expect(
+          git.stdins.single,
+          'protocol=https\nhost=github.com\npassword=ghp_x\n\n',
+        );
+        expect(git.stdins.single, isNot(contains('username=')));
+      },
+    );
 
     test('approve does nothing when the host is unusable', () async {
       final git = _RecordingGit(const GitResult(0, '', ''));
       await ForgeCredentials(git)
           .approve('bad\nhost', 'u', const ForgeToken('t'));
       expect(git.calls, isEmpty);
+    });
+
+    test('approve refuses a username that could inject extra fields', () async {
+      // A username is remote data in a later plan (it can come from a forge
+      // API response). A newline would let it add a url= field that
+      // redirects the whole credential — including the real token — to a
+      // host of the attacker's choosing.
+      final git = _RecordingGit(const GitResult(0, '', ''));
+      await ForgeCredentials(git).approve(
+        'github.com',
+        'octocat\nurl=https://evil.example',
+        const ForgeToken('ghp_x'),
+      );
+      expect(git.calls, isEmpty);
+    });
+
+    test(
+      'approve refuses a token value that could inject extra fields',
+      () async {
+        final git = _RecordingGit(const GitResult(0, '', ''));
+        await ForgeCredentials(git).approve(
+          'github.com',
+          'octocat',
+          const ForgeToken('ghp_x\nurl=https://evil.example'),
+        );
+        expect(git.calls, isEmpty);
+      },
+    );
+
+    test('approve does not propagate when git throws', () async {
+      final git = _ThrowingGit();
+      await ForgeCredentials(git)
+          .approve('github.com', 'octocat', const ForgeToken('ghp_x'));
+      expect(git.calls.single, const ['credential', 'approve']);
     });
   });
 }
