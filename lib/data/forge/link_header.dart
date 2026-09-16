@@ -5,8 +5,21 @@
 /// Section of a Link header: the bracketed URL, then its parameters.
 final _section = RegExp(r'<([^>]*)>\s*;\s*(.*)');
 
-/// `rel=next`, with or without quotes of either kind.
-final _relNext = RegExp('''rel\\s*=\\s*['"]?next['"]?''', caseSensitive: false);
+/// A `rel` parameter's value, quoted with either kind of quote or bare.
+final _rel = RegExp(
+  r'''rel\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s,;]+))''',
+  caseSensitive: false,
+);
+
+/// Whether the `rel` parameter in [params] is exactly `next`, not merely
+/// prefixed with it. A server should not be able to steer the pager by
+/// naming a rel like `nextish`.
+bool _isNextRel(String params) {
+  final match = _rel.firstMatch(params);
+  if (match == null) return false;
+  final value = match.group(1) ?? match.group(2) ?? match.group(3);
+  return value?.toLowerCase() == 'next';
+}
 
 /// The URL of the next page named by [linkHeader], or null when the header is
 /// absent, names no next page, or names one that cannot be used.
@@ -20,7 +33,7 @@ Uri? nextPageUrl(String? linkHeader) {
   for (final part in header.split(',')) {
     final match = _section.firstMatch(part.trim());
     if (match == null) continue;
-    if (!_relNext.hasMatch(match.group(2)!)) continue;
+    if (!_isNextRel(match.group(2)!)) continue;
     final url = Uri.tryParse(match.group(1)!.trim());
     // The server chooses this URL, so it gets the same transport rule every
     // other call gets: https or nothing.
