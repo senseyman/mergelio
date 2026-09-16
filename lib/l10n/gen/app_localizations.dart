@@ -1130,6 +1130,66 @@ abstract class AppLocalizations {
   /// **'No stashes'**
   String get sbNoStashes;
 
+  /// No description provided for @sbReflog.
+  ///
+  /// In en, this message translates to:
+  /// **'Reflog'**
+  String get sbReflog;
+
+  /// No description provided for @sbNoReflog.
+  ///
+  /// In en, this message translates to:
+  /// **'No reflog entries'**
+  String get sbNoReflog;
+
+  /// No description provided for @sbCopySha.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy SHA'**
+  String get sbCopySha;
+
+  /// No description provided for @sbReflogFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read the reflog'**
+  String get sbReflogFailed;
+
+  /// No description provided for @sbReflogTruncated.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing the first {count} entries'**
+  String sbReflogTruncated(int count);
+
+  /// No description provided for @sbReflogDetachTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Check out {sha}?'**
+  String sbReflogDetachTitle(String sha);
+
+  /// No description provided for @sbReflogDetachBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Leaves HEAD detached at this commit. No branch moves, so you can return to the branch you were on at any time.'**
+  String get sbReflogDetachBody;
+
+  /// No description provided for @sbReflogDetach.
+  ///
+  /// In en, this message translates to:
+  /// **'Check out'**
+  String get sbReflogDetach;
+
+  /// No description provided for @sbReflogFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter entries'**
+  String get sbReflogFilter;
+
+  /// No description provided for @sbReflogNoMatches.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching entries'**
+  String get sbReflogNoMatches;
+
   /// No description provided for @sbSubmodules.
   ///
   /// In en, this message translates to:

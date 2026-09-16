@@ -561,6 +561,41 @@ class AppLocalizationsUk extends AppLocalizations {
   String get sbNoStashes => 'Немає схованок';
 
   @override
+  String get sbReflog => 'Reflog';
+
+  @override
+  String get sbNoReflog => 'Немає записів reflog';
+
+  @override
+  String get sbCopySha => 'Копіювати SHA';
+
+  @override
+  String get sbReflogFailed => 'Не вдалося прочитати reflog';
+
+  @override
+  String sbReflogTruncated(int count) {
+    return 'Показано перші $count записів';
+  }
+
+  @override
+  String sbReflogDetachTitle(String sha) {
+    return 'Переключитися на $sha?';
+  }
+
+  @override
+  String get sbReflogDetachBody =>
+      'HEAD буде відокремлено на цьому коміті. Жодна гілка не переміщується, тож ви можете будь-коли повернутися до своєї гілки.';
+
+  @override
+  String get sbReflogDetach => 'Переключитися';
+
+  @override
+  String get sbReflogFilter => 'Фільтрувати записи';
+
+  @override
+  String get sbReflogNoMatches => 'Немає відповідних записів';
+
+  @override
   String get sbSubmodules => 'Підмодулі';
 
   @override
