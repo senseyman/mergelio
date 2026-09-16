@@ -59,8 +59,7 @@ void main() {
   });
 
   group('ForgeError', () {
-    test('every variant describes itself without leaking a token', () {
-      const token = 'ghp_secretvalue';
+    test('every variant produces a non-empty description', () {
       final errors = <ForgeError>[
         const ForgeUnauthenticated(),
         const ForgeRateLimited(null),
@@ -71,8 +70,17 @@ void main() {
       ];
       for (final e in errors) {
         expect(e.toString(), isNotEmpty);
-        expect(e.toString(), isNot(contains(token)));
       }
+    });
+
+    test('ForgeOffline and ForgeMalformed echo detail verbatim, so a caller '
+        'must never put a token into detail', () {
+      // detail is interpolated raw into toString(); this documents that
+      // hazard rather than pretending it away. Redaction is the caller's
+      // responsibility at the point detail is constructed, not here.
+      const token = 'ghp_secretvalue';
+      expect(const ForgeOffline(token).toString(), contains(token));
+      expect(const ForgeMalformed(token).toString(), contains(token));
     });
   });
 }

@@ -32,6 +32,9 @@ class ForgeNotVisible extends ForgeError {
 }
 
 /// The request never reached the forge.
+///
+/// [detail] is echoed verbatim by [toString], so whatever constructs this
+/// must never put a token or other secret into it.
 class ForgeOffline extends ForgeError {
   final String detail;
   const ForgeOffline(this.detail);
@@ -48,6 +51,9 @@ class ForgeServerFault extends ForgeError {
 }
 
 /// The forge answered with something this version cannot read.
+///
+/// [detail] is echoed verbatim by [toString], so whatever constructs this
+/// must never put a token or other secret into it.
 class ForgeMalformed extends ForgeError {
   final String detail;
   const ForgeMalformed(this.detail);
@@ -83,6 +89,10 @@ bool _limitExhausted(Map<String, String> headers) {
 /// Only call this for a status that is not a success: there is no variant for
 /// one, and inventing a failure for a 200 would hide real data.
 ForgeError forgeErrorForStatus(int status, Map<String, String> headers) {
+  assert(
+    status >= 300,
+    'forgeErrorForStatus expects a non-success status, got $status',
+  );
   if (status == 401) return const ForgeUnauthenticated();
   if (status == 429) return ForgeRateLimited(_resetAt(headers));
   if (status == 403) {
