@@ -139,13 +139,77 @@ void main() {
       expect(error.toString(), isNot(contains('ghp_secretvalue')));
     });
 
-    test('rejects a non-https URL as malformed', () async {
-      final forge = ForgeHttp(client: MockClient((_) async => _response('[]')));
+    test('rejects a non-https URL without ever calling the client', () async {
+      var calls = 0;
+      final forge = ForgeHttp(
+        client: MockClient((_) async {
+          calls++;
+          return _response('[]');
+        }),
+      );
 
       await expectLater(
         forge.get(Uri.parse('http://api.github.com/x')),
         throwsA(isA<ForgeMalformed>()),
       );
+      expect(calls, 0);
+    });
+
+    test('disables redirects on the outgoing request', () async {
+      late http.Request seen;
+      final forge = ForgeHttp(
+        client: MockClient((req) async {
+          seen = req;
+          return _response('[]');
+        }),
+      );
+
+      await forge.get(_url);
+
+      expect(seen.followRedirects, isFalse);
+    });
+
+    test('maps an unexpected redirect to ForgeMalformed', () async {
+      final forge = ForgeHttp(
+        client: MockClient(
+          (_) async =>
+              _response('', status: 302, headers: {'location': 'elsewhere'}),
+        ),
+      );
+
+      await expectLater(forge.get(_url), throwsA(isA<ForgeMalformed>()));
+    });
+
+    test('returns a 201 response rather than an error', () async {
+      final forge = ForgeHttp(
+        client: MockClient((_) async => _response('{}', status: 201)),
+      );
+
+      final res = await forge.get(_url);
+
+      expect(res.status, 201);
+    });
+
+    test('returns a 204 response rather than an error', () async {
+      final forge = ForgeHttp(
+        client: MockClient((_) async => _response('', status: 204)),
+      );
+
+      final res = await forge.get(_url);
+
+      expect(res.status, 204);
+    });
+
+    test('turns a timeout into ForgeOffline', () async {
+      final forge = ForgeHttp(
+        client: MockClient((_) async {
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+          return _response('[]');
+        }),
+        timeout: Duration.zero,
+      );
+
+      await expectLater(forge.get(_url), throwsA(isA<ForgeOffline>()));
     });
   });
 }

@@ -55,24 +55,33 @@ class ForgeHttp {
     }
 
     final token = _token;
+    // A client that follows redirects resends these headers, bearer token
+    // included, to wherever the redirect points — a host this call never
+    // chose to trust. Building the request by hand and disabling redirects
+    // keeps the token from ever going out over a hop this code did not
+    // approve; a 3xx response is handled explicitly below instead.
+    final request = http.Request('GET', url)
+      ..followRedirects = false
+      ..headers.addAll({
+        'Accept': 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        if (token != null) 'Authorization': 'Bearer ${token.value}',
+        'If-None-Match': ?ifNoneMatch,
+      });
+
     final http.Response response;
     try {
-      response = await _client
-          .get(
-            url,
-            headers: {
-              'Accept': 'application/vnd.github+json',
-              'X-GitHub-Api-Version': '2022-11-28',
-              if (token != null) 'Authorization': 'Bearer ${token.value}',
-              'If-None-Match': ?ifNoneMatch,
-            },
-          )
-          .timeout(_timeout);
+      final streamed = await _client.send(request).timeout(_timeout);
+      response = await http.Response.fromStream(streamed);
     } on TimeoutException {
       // The detail is fixed text: it is echoed verbatim by toString(), so
       // nothing derived from the request may appear in it.
       throw const ForgeOffline('timed out');
     } on Object {
+      // Deliberately broad: this is a GUI application, and narrowing to
+      // `on Exception` would let a stray `StateError` or similar escape a
+      // network call as an unhandled crash instead of surfacing as
+      // "offline", which is the honest answer either way.
       throw const ForgeOffline('could not reach forge');
     }
 
@@ -83,6 +92,13 @@ class ForgeHttp {
         body: response.body,
         headers: response.headers,
       );
+    }
+    if (status >= 300 && status < 400) {
+      // GitHub answers 301 when a repository has been renamed. Refusing to
+      // follow it means that case surfaces as an error here rather than
+      // silently sending the token onward — resolving the new location is
+      // a job for the layer that knows what a repository is, not this one.
+      throw const ForgeMalformed('unexpected redirect');
     }
     throw forgeErrorForStatus(status, response.headers);
   }
