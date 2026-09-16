@@ -52,12 +52,16 @@ class FakeForge implements Forge {
   }
 
   @override
-  Future<List<PullRequest>> pullRequestsForBranch(String branch) async {
+  Future<List<PullRequest>> pullRequestsForBranch(
+    String branch, {
+    int limit = 50,
+  }) async {
     pullRequestsForBranchCalls++;
     final error = pullRequestsForBranchError;
     if (error != null) throw error;
     return pullRequestsResult
         .where((p) => p.sourceBranch == branch)
+        .take(limit)
         .toList(growable: false);
   }
 

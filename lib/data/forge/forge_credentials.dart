@@ -18,7 +18,6 @@ class ForgeToken {
 /// one, so a host carrying a newline would add fields of its own choosing.
 bool _usableHost(String host) {
   if (host.trim().isEmpty) return false;
-  if (host != host.trim()) return false;
   return !host.codeUnits.any((u) => u <= 0x20 || u == 0x7f);
 }
 
@@ -45,12 +44,24 @@ const _noPromptEnv = {
   'SSH_ASKPASS': '',
 };
 
-/// A credential helper unlocking a keychain may take a moment, but it must
-/// not be allowed anywhere near the default command timeout.
-const _credentialTimeout = Duration(seconds: 10);
+/// [_noPromptEnv] already stops git from blocking on a terminal prompt — it
+/// fails immediately instead of waiting, so this is not a guard against
+/// that. What is left is a genuine operating-system keychain dialog, which
+/// `git-credential-osxkeychain` raises and which is deliberately not
+/// suppressed above; a user clicking through one can easily take longer than
+/// ten seconds, and killing the process mid-dialog would report "no token"
+/// for a credential the user actually has. Sixty seconds bounds a hung
+/// helper, not someone reading a dialog.
+const _credentialTimeout = Duration(seconds: 60);
 
 /// The body `git credential fill` reads for [host], or null when [host] cannot
 /// be expressed safely. Callers must treat null as "do not run git".
+///
+/// The protocol is always `https`, regardless of how [host]'s remote is
+/// transported (ssh, git://, ...): the forge's API is reached over https no
+/// matter how the repository itself is cloned, and the credential being
+/// looked up here is the API's, deliberately independent of the remote's
+/// transport.
 String? credentialRequestFor(String host) {
   if (!_usableHost(host)) return null;
   return 'protocol=https\nhost=$host\n\n';
@@ -113,20 +124,30 @@ class ForgeCredentials {
     if (!result.ok) return null;
     final password = parseCredentialReply(result.stdout)['password'];
     if (password == null || password.isEmpty) return null;
+    // Symmetric with the checks every value leaving this file goes through:
+    // a newline cannot survive parseCredentialReply's line splitting, but a
+    // bare CR from a malicious or broken helper can, and this token is
+    // headed for an HTTP Authorization header where that is header
+    // injection.
+    if (!_usableField(password)) return null;
     return ForgeToken(password);
   }
 
-  /// Offers [token] to the helper so it survives the session. A helper that
-  /// declines to store anything is not an error.
-  Future<void> approve(String host, String username, ForgeToken token) =>
+  /// Offers [token] to the helper so it survives the session. Returns false
+  /// only when [host], [username] or the token could not be sent at all; a
+  /// true result means the git command ran, not that the helper chose to
+  /// store anything — a helper that declines to store is still not an error.
+  Future<bool> approve(String host, String username, ForgeToken token) =>
       _write('approve', host, username, token);
 
   /// Asks the helper to forget its credential for [host], so a rejected token
-  /// is not handed back on the next attempt.
-  Future<void> reject(String host, ForgeToken token) =>
+  /// is not handed back on the next attempt. Returns false only when [host]
+  /// or the token could not be sent at all; a true result means the git
+  /// command ran, not that the helper had anything to forget.
+  Future<bool> reject(String host, ForgeToken token) =>
       _write('reject', host, '', token);
 
-  Future<void> _write(
+  Future<bool> _write(
     String verb,
     String host,
     String username,
@@ -135,9 +156,9 @@ class ForgeCredentials {
     // Every field lands in the same newline-delimited body, so every field
     // is checked the same way — a username or token that skipped this would
     // reopen the injection [_usableHost] exists to close for the host.
-    if (!_usableHost(host)) return;
-    if (!_usableField(username)) return;
-    if (!_usableField(token.value)) return;
+    if (!_usableHost(host)) return false;
+    if (!_usableField(username)) return false;
+    if (!_usableField(token.value)) return false;
     final buffer = StringBuffer('protocol=https\nhost=$host\n');
     if (username.isNotEmpty) buffer.write('username=$username\n');
     buffer.write('password=${token.value}\n\n');
@@ -153,5 +174,6 @@ class ForgeCredentials {
       // A helper that refuses to record a credential leaves the token usable
       // for this session, which is the fallback the caller already handles.
     }
+    return true;
   }
 }

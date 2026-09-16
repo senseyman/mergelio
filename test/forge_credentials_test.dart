@@ -138,7 +138,7 @@ void main() {
         'GIT_ASKPASS': '',
         'SSH_ASKPASS': '',
       });
-      expect(git.timeouts.single, const Duration(seconds: 10));
+      expect(git.timeouts.single, const Duration(seconds: 60));
     });
 
     test('fill returns null when the helper has nothing', () async {
@@ -163,11 +163,22 @@ void main() {
       expect(git.calls, isEmpty);
     });
 
+    test('fill returns null when the password contains a bare CR', () async {
+      // parseCredentialReply's line split handles a trailing CR, but a CR
+      // in the middle of the value survives — a malicious or broken helper
+      // could emit one, and this value is headed for an HTTP header later.
+      final git = _RecordingGit(
+        const GitResult(0, 'protocol=https\npassword=ghp_x\rmalicious\n', ''),
+      );
+      expect(await ForgeCredentials(git).fill('github.com'), isNull);
+    });
+
     test('approve hands the token to the helper on stdin, never as an argument', () async {
       final git = _RecordingGit(const GitResult(0, '', ''));
-      await ForgeCredentials(git)
+      final sent = await ForgeCredentials(git)
           .approve('github.com', 'octocat', const ForgeToken('ghp_x'));
 
+      expect(sent, isTrue);
       expect(git.calls.single, const ['credential', 'approve']);
       expect(
         git.stdins.single,
@@ -181,16 +192,17 @@ void main() {
         'GIT_ASKPASS': '',
         'SSH_ASKPASS': '',
       });
-      expect(git.timeouts.single, const Duration(seconds: 10));
+      expect(git.timeouts.single, const Duration(seconds: 60));
     });
 
     test(
       'reject asks the helper to forget the credential, with no username',
       () async {
         final git = _RecordingGit(const GitResult(0, '', ''));
-        await ForgeCredentials(git)
+        final sent = await ForgeCredentials(git)
             .reject('github.com', const ForgeToken('ghp_x'));
 
+        expect(sent, isTrue);
         expect(git.calls.single, const ['credential', 'reject']);
         // reject has no username to offer; the body must not claim one, or the
         // helper could forget the wrong credential.
@@ -204,49 +216,67 @@ void main() {
           'GIT_ASKPASS': '',
           'SSH_ASKPASS': '',
         });
-        expect(git.timeouts.single, const Duration(seconds: 10));
+        expect(git.timeouts.single, const Duration(seconds: 60));
       },
     );
 
-    test('approve does nothing when the host is unusable', () async {
-      final git = _RecordingGit(const GitResult(0, '', ''));
-      await ForgeCredentials(git)
-          .approve('bad\nhost', 'u', const ForgeToken('t'));
-      expect(git.calls, isEmpty);
-    });
+    test(
+      'approve does nothing and returns false when the host is unusable',
+      () async {
+        final git = _RecordingGit(const GitResult(0, '', ''));
+        final sent = await ForgeCredentials(git)
+            .approve('bad\nhost', 'u', const ForgeToken('t'));
+        expect(sent, isFalse);
+        expect(git.calls, isEmpty);
+      },
+    );
 
-    test('approve refuses a username that could inject extra fields', () async {
+    test(
+      'reject does nothing and returns false when the host is unusable',
+      () async {
+        final git = _RecordingGit(const GitResult(0, '', ''));
+        final sent = await ForgeCredentials(git)
+            .reject('bad\nhost', const ForgeToken('t'));
+        expect(sent, isFalse);
+        expect(git.calls, isEmpty);
+      },
+    );
+
+    test('approve refuses a username that could inject extra fields, returning false', () async {
       // A username is remote data in a later plan (it can come from a forge
       // API response). A newline would let it add a url= field that
       // redirects the whole credential — including the real token — to a
       // host of the attacker's choosing.
       final git = _RecordingGit(const GitResult(0, '', ''));
-      await ForgeCredentials(git).approve(
+      final sent = await ForgeCredentials(git).approve(
         'github.com',
         'octocat\nurl=https://evil.example',
         const ForgeToken('ghp_x'),
       );
+      expect(sent, isFalse);
+      expect(git.calls, isEmpty);
+    });
+
+    test('approve refuses a token value that could inject extra fields, returning false', () async {
+      final git = _RecordingGit(const GitResult(0, '', ''));
+      final sent = await ForgeCredentials(git).approve(
+        'github.com',
+        'octocat',
+        const ForgeToken('ghp_x\nurl=https://evil.example'),
+      );
+      expect(sent, isFalse);
       expect(git.calls, isEmpty);
     });
 
     test(
-      'approve refuses a token value that could inject extra fields',
+      'approve does not propagate when git throws, but reports it ran',
       () async {
-        final git = _RecordingGit(const GitResult(0, '', ''));
-        await ForgeCredentials(git).approve(
-          'github.com',
-          'octocat',
-          const ForgeToken('ghp_x\nurl=https://evil.example'),
-        );
-        expect(git.calls, isEmpty);
+        final git = _ThrowingGit();
+        final sent = await ForgeCredentials(git)
+            .approve('github.com', 'octocat', const ForgeToken('ghp_x'));
+        expect(sent, isTrue);
+        expect(git.calls.single, const ['credential', 'approve']);
       },
     );
-
-    test('approve does not propagate when git throws', () async {
-      final git = _ThrowingGit();
-      await ForgeCredentials(git)
-          .approve('github.com', 'octocat', const ForgeToken('ghp_x'));
-      expect(git.calls.single, const ['credential', 'approve']);
-    });
   });
 }

@@ -96,4 +96,33 @@ void main() {
     expect(forge.checkedRefs, ['abc123', 'def456']);
     expect(forge.checksCalls, 2);
   });
+
+  test(
+    'pullRequestsForBranch caps its results at limit, like its siblings',
+    () async {
+      const first = PullRequest(
+        number: 1,
+        title: 'First',
+        state: PullRequestState.open,
+        author: ForgeUser(login: 'octocat'),
+        sourceBranch: 'fix/thing',
+        targetBranch: 'main',
+        headSha: 'aaa',
+      );
+      const second = PullRequest(
+        number: 2,
+        title: 'Second',
+        state: PullRequestState.open,
+        author: ForgeUser(login: 'octocat'),
+        sourceBranch: 'fix/thing',
+        targetBranch: 'main',
+        headSha: 'bbb',
+      );
+
+      final Forge forge = FakeForge(host: host, pullRequests: [first, second]);
+
+      expect(await forge.pullRequestsForBranch('fix/thing'), [first, second]);
+      expect(await forge.pullRequestsForBranch('fix/thing', limit: 1), [first]);
+    },
+  );
 }

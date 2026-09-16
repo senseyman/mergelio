@@ -17,9 +17,13 @@ abstract class Forge {
   /// Open requests, most recently updated first, capped at [limit].
   Future<List<PullRequest>> pullRequests({int limit = 50});
 
-  /// Open requests whose source branch is [branch]. Usually zero or one, but
-  /// a branch can back more than one request across different targets.
-  Future<List<PullRequest>> pullRequestsForBranch(String branch);
+  /// Open requests whose source branch is [branch], capped at [limit].
+  /// Usually zero or one, but a branch can back more than one request across
+  /// different targets.
+  Future<List<PullRequest>> pullRequestsForBranch(
+    String branch, {
+    int limit = 50,
+  });
 
   /// CI status for [ref], which may be a sha or a branch name. A repository
   /// with no CI configured reports [ChecksOverall.none] rather than throwing.
