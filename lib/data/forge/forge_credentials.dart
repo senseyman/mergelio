@@ -18,6 +18,12 @@ class ForgeToken {
 /// one, so a host carrying a newline would add fields of its own choosing.
 bool _usableHost(String host) {
   if (host.trim().isEmpty) return false;
+  // Not redundant with the scan below: trim() also strips Unicode
+  // whitespace such as U+00A0 (non-breaking space), U+2028 and U+3000,
+  // none of which a code-unit scan for <= 0x20 can see. The credential
+  // protocol only splits on '\n', so this isn't an injection vector — a
+  // hostname just has no legitimate reason to carry exotic whitespace.
+  if (host != host.trim()) return false;
   return !host.codeUnits.any((u) => u <= 0x20 || u == 0x7f);
 }
 
@@ -134,19 +140,20 @@ class ForgeCredentials {
   }
 
   /// Offers [token] to the helper so it survives the session. False means
-  /// nothing reached the helper at all — either [host], [username] or the
-  /// token was refused before git ever ran, or git itself could not be run.
-  /// True only says the command completed; it is not a promise the helper
-  /// chose to store anything, which is a decision this method has no way to
-  /// observe.
+  /// nothing was stored — either this file refused [host] or [username] or
+  /// the token before git ever ran, git itself could not be run, or git ran
+  /// and exited with failure. True means git accepted the credential; that
+  /// still does not promise the helper chose to persist it, since a helper
+  /// that silently declines to store still exits zero.
   Future<bool> approve(String host, String username, ForgeToken token) =>
       _write('approve', host, username, token);
 
   /// Asks the helper to forget its credential for [host], so a rejected token
-  /// is not handed back on the next attempt. False means nothing reached the
-  /// helper at all — either [host] or the token was refused before git ever
-  /// ran, or git itself could not be run. True only says the command
-  /// completed; it is not a promise the helper had anything to forget.
+  /// is not handed back on the next attempt. False means nothing was
+  /// forgotten — either this file refused [host] or the token before git
+  /// ever ran, git itself could not be run, or git ran and exited with
+  /// failure. True means git accepted the request; it does not promise the
+  /// helper had anything to forget.
   Future<bool> reject(String host, ForgeToken token) =>
       _write('reject', host, '', token);
 
@@ -166,14 +173,14 @@ class ForgeCredentials {
     if (username.isNotEmpty) buffer.write('username=$username\n');
     buffer.write('password=${token.value}\n\n');
     try {
-      await git.run(
+      final result = await git.run(
         ['credential', verb],
         repoPath: repoPath,
         stdin: buffer.toString(),
         environment: _noPromptEnv,
         timeout: _credentialTimeout,
       );
-      return true;
+      return result.ok;
     } on GitException {
       // A helper that refuses to record a credential leaves the token usable
       // for this session, which is the fallback the caller already handles.

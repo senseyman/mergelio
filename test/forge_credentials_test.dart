@@ -83,6 +83,16 @@ void main() {
         expect(credentialRequestFor(host), isNull, reason: host);
       }
     });
+
+    test('refuses a host containing Unicode whitespace trim() would strip', () {
+      // Not an injection vector — the protocol only splits on '\n' — but a
+      // non-breaking space has no legitimate place in a hostname, and a
+      // bare code-unit scan for <= 0x20 would miss it.
+      expect(
+        credentialRequestFor('github.com${String.fromCharCode(0xa0)}'),
+        isNull,
+      );
+    });
   });
 
   group('parseCredentialReply', () {
@@ -285,6 +295,35 @@ void main() {
       'reject does not propagate when git throws, and reports false',
       () async {
         final git = _ThrowingGit();
+        final sent = await ForgeCredentials(git)
+            .reject('github.com', const ForgeToken('ghp_x'));
+        expect(sent, isFalse);
+        expect(git.calls.single, const ['credential', 'reject']);
+      },
+    );
+
+    test(
+      'approve reports false when git exits non-zero without throwing',
+      () async {
+        // git.run fails many commands by returning a non-zero GitResult, not
+        // by throwing — a helper that rejects a credential exits this way,
+        // and result.ok must be consulted or that failure is invisible.
+        final git = _RecordingGit(
+          const GitResult(1, '', 'credential rejected'),
+        );
+        final sent = await ForgeCredentials(git)
+            .approve('github.com', 'octocat', const ForgeToken('ghp_x'));
+        expect(sent, isFalse);
+        expect(git.calls.single, const ['credential', 'approve']);
+      },
+    );
+
+    test(
+      'reject reports false when git exits non-zero without throwing',
+      () async {
+        final git = _RecordingGit(
+          const GitResult(1, '', 'credential rejected'),
+        );
         final sent = await ForgeCredentials(git)
             .reject('github.com', const ForgeToken('ghp_x'));
         expect(sent, isFalse);
