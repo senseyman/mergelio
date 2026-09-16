@@ -46,7 +46,8 @@ void main() {
       for (final host in [
         'github.com\nusername=attacker',
         'github.com\r\nhost=evil.example',
-        'github.com\n',
+        'github.com${String.fromCharCode(0)}',
+        'github.com${String.fromCharCode(0x7f)}',
         'has space.com',
         '',
         '   ',
