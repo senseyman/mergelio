@@ -1652,6 +1652,87 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fiCouldNotBlame => 'Could not blame this file';
 
   @override
+  String get forgePullRequests => 'Pull requests';
+
+  @override
+  String get forgeNoPullRequests => 'No open pull requests';
+
+  @override
+  String get forgeRefresh => 'Refresh';
+
+  @override
+  String get forgeNotConnected => 'Not connected to GitHub';
+
+  @override
+  String get forgeConnectHint =>
+      'Add a token in Preferences → Credentials for higher limits';
+
+  @override
+  String get forgeErrUnauthenticated =>
+      'GitHub rejected the saved token. Reconnect in Preferences.';
+
+  @override
+  String forgeErrRateLimited(String time) {
+    return 'GitHub request limit reached. It resets at $time.';
+  }
+
+  @override
+  String get forgeErrRateLimitedSoon =>
+      'GitHub request limit reached. Try again shortly.';
+
+  @override
+  String get forgeErrNotVisible =>
+      'This repository is not visible to the current token.';
+
+  @override
+  String get forgeErrOffline => 'Could not reach GitHub.';
+
+  @override
+  String forgeErrServer(int status) {
+    return 'GitHub answered with an error ($status).';
+  }
+
+  @override
+  String get forgeErrMalformed =>
+      'GitHub sent a response this version could not read.';
+
+  @override
+  String get forgeAccountTitle => 'GitHub account';
+
+  @override
+  String get forgeAccountConnected => 'Connected';
+
+  @override
+  String get forgeAccountNotConnected => 'Not connected';
+
+  @override
+  String get forgeTokenLabel => 'Personal access token';
+
+  @override
+  String get forgeConnect => 'Connect';
+
+  @override
+  String get forgeDisconnect => 'Disconnect';
+
+  @override
+  String get forgeTokenRejected => 'GitHub rejected that token.';
+
+  @override
+  String get forgeTokenSaved => 'Token saved to the system keychain.';
+
+  @override
+  String get forgeTokenForgotten => 'Token removed.';
+
+  @override
+  String get forgeRateBenefit =>
+      'Without a token GitHub allows 60 requests an hour; with one, 5,000. Opening a repository costs about one request plus one per pull request shown.';
+
+  @override
+  String forgeRateRemaining(int remaining, int limit) {
+    return '$remaining of $limit requests left this hour.';
+  }
+
+  @override
   String lhTitleLine(String path, String line) {
     return '$path · line $line';
   }

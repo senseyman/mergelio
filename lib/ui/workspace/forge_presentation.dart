@@ -1,0 +1,45 @@
+import '../../domain/forge/forge_error.dart';
+import '../../domain/forge/models.dart';
+import '../../l10n/gen/app_localizations.dart';
+
+/// What a row draws for its CI state.
+///
+/// This is deliberately not the same enum as [ChecksOverall]: the summary
+/// distinguishes outcomes the badge draws identically, and keeping them apart
+/// means a new forge outcome cannot silently acquire a colour.
+enum CheckBadge { none, running, success, failure, mixed }
+
+/// The badge for [summary], or [CheckBadge.none] when a pull request has no CI
+/// at all. Anything other than an all-green summary is never [CheckBadge.success].
+CheckBadge checkBadgeFor(ChecksSummary? summary) {
+  if (summary == null) return CheckBadge.none;
+  return switch (summary.overall) {
+    ChecksOverall.none => CheckBadge.none,
+    ChecksOverall.running => CheckBadge.running,
+    ChecksOverall.success => CheckBadge.success,
+    ChecksOverall.failure => CheckBadge.failure,
+    ChecksOverall.mixed => CheckBadge.mixed,
+  };
+}
+
+/// What to show a person when a forge read failed.
+///
+/// Every branch returns this file's own words. The detail carried by
+/// [ForgeOffline] and [ForgeMalformed] is deliberately dropped: it is written
+/// for a log, and echoing it into the interface is how a secret eventually
+/// reaches a screenshot.
+String forgePanelMessage(Object error, AppLocalizations l) {
+  if (error is ForgeUnauthenticated) return l.forgeErrUnauthenticated;
+  if (error is ForgeRateLimited) {
+    final at = error.resetAt;
+    if (at == null) return l.forgeErrRateLimitedSoon;
+    final local = at.toLocal();
+    final hh = local.hour.toString().padLeft(2, '0');
+    final mm = local.minute.toString().padLeft(2, '0');
+    return l.forgeErrRateLimited('$hh:$mm');
+  }
+  if (error is ForgeNotVisible) return l.forgeErrNotVisible;
+  if (error is ForgeOffline) return l.forgeErrOffline;
+  if (error is ForgeServerFault) return l.forgeErrServer(error.status);
+  return l.forgeErrMalformed;
+}

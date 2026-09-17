@@ -1661,6 +1661,87 @@ class AppLocalizationsUk extends AppLocalizations {
   String get fiCouldNotBlame => 'Не вдалося визначити авторство цього файлу';
 
   @override
+  String get forgePullRequests => 'Пулреквести';
+
+  @override
+  String get forgeNoPullRequests => 'Немає відкритих пулреквестів';
+
+  @override
+  String get forgeRefresh => 'Оновити';
+
+  @override
+  String get forgeNotConnected => 'Немає підключення до GitHub';
+
+  @override
+  String get forgeConnectHint =>
+      'Додайте токен у Налаштування → Облікові дані для вищих лімітів';
+
+  @override
+  String get forgeErrUnauthenticated =>
+      'GitHub відхилив збережений токен. Підключіться знову в Налаштуваннях.';
+
+  @override
+  String forgeErrRateLimited(String time) {
+    return 'Ліміт запитів GitHub вичерпано. Він оновиться о $time.';
+  }
+
+  @override
+  String get forgeErrRateLimitedSoon =>
+      'Ліміт запитів GitHub вичерпано. Спробуйте трохи пізніше.';
+
+  @override
+  String get forgeErrNotVisible =>
+      'Цей репозиторій недоступний для поточного токена.';
+
+  @override
+  String get forgeErrOffline => 'Не вдалося зʼєднатися з GitHub.';
+
+  @override
+  String forgeErrServer(int status) {
+    return 'GitHub відповів помилкою ($status).';
+  }
+
+  @override
+  String get forgeErrMalformed =>
+      'GitHub надіслав відповідь, яку ця версія не змогла прочитати.';
+
+  @override
+  String get forgeAccountTitle => 'Обліковий запис GitHub';
+
+  @override
+  String get forgeAccountConnected => 'Підключено';
+
+  @override
+  String get forgeAccountNotConnected => 'Не підключено';
+
+  @override
+  String get forgeTokenLabel => 'Персональний токен доступу';
+
+  @override
+  String get forgeConnect => 'Підключити';
+
+  @override
+  String get forgeDisconnect => 'Відключити';
+
+  @override
+  String get forgeTokenRejected => 'GitHub відхилив цей токен.';
+
+  @override
+  String get forgeTokenSaved => 'Токен збережено у системному сховищі ключів.';
+
+  @override
+  String get forgeTokenForgotten => 'Токен видалено.';
+
+  @override
+  String get forgeRateBenefit =>
+      'Без токена GitHub дозволяє 60 запитів на годину; з токеном — 5000. Відкриття репозиторію коштує приблизно один запит плюс один на кожен показаний пулреквест.';
+
+  @override
+  String forgeRateRemaining(int remaining, int limit) {
+    return 'Залишилось $remaining з $limit запитів цієї години.';
+  }
+
+  @override
   String lhTitleLine(String path, String line) {
     return '$path · рядок $line';
   }
