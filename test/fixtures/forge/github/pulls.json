@@ -1,0 +1,47 @@
+[
+  {
+    "number": 7,
+    "title": "Fix the thing",
+    "state": "open",
+    "draft": false,
+    "merged_at": null,
+    "updated_at": "2026-09-14T10:11:12Z",
+    "user": {"login": "octocat", "avatar_url": "https://example.test/a.png"},
+    "head": {"ref": "fix/thing", "sha": "abc123"},
+    "base": {"ref": "main"},
+    "_ignored": "a real response carries many more fields than this"
+  },
+  {
+    "number": 8,
+    "title": "Draft work",
+    "state": "open",
+    "draft": true,
+    "merged_at": null,
+    "updated_at": "2026-09-13T10:11:12Z",
+    "user": {"login": "hubber"},
+    "head": {"ref": "wip/draft", "sha": "def456"},
+    "base": {"ref": "main"}
+  },
+  {
+    "number": 9,
+    "title": "Already landed",
+    "state": "closed",
+    "draft": false,
+    "merged_at": "2026-09-12T09:00:00Z",
+    "updated_at": "2026-09-12T09:00:00Z",
+    "user": {"login": "octocat"},
+    "head": {"ref": "done/thing", "sha": "aaa111"},
+    "base": {"ref": "main"}
+  },
+  {
+    "number": 10,
+    "title": "Closed unmerged",
+    "state": "closed",
+    "draft": false,
+    "merged_at": null,
+    "updated_at": "2026-09-11T09:00:00Z",
+    "user": null,
+    "head": {"ref": "abandoned", "sha": "bbb222"},
+    "base": {"ref": "main"}
+  }
+]
