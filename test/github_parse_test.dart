@@ -266,4 +266,151 @@ void main() {
       expect(pr.author.avatarUrl, isEmpty);
     });
   });
+
+  group('parseChecks', () {
+    test('merges both APIs into one run list', () {
+      final summary = parseChecks(
+        combinedStatus: fixture('status_combined.json'),
+        checkRuns: fixture('check_runs.json'),
+      );
+      expect(summary.runs, hasLength(7));
+      // Order is pinned, not merely membership: the list is shown to a person
+      // in the order it arrives, and legacy statuses leading is the arbitrary
+      // choice this code made. Changing it should be a decision, not a drift.
+      expect(summary.runs.map((r) => r.name).toList(), [
+        'ci/legacy-build',
+        'ci/legacy-lint',
+        'build',
+        'test',
+        'lint',
+        'flaky',
+        'future',
+      ]);
+    });
+
+    test('an unrecognised run status becomes unknown, never success', () {
+      // The conclusion is only consulted once a run reports completed, so a
+      // status this version has never seen must stop at the first switch. A
+      // forge adding one must not be able to paint a job green by doing so.
+      final summary = parseChecks(
+        checkRuns: {
+          'check_runs': [
+            {'name': 'martian', 'status': 'martian', 'conclusion': null},
+          ],
+        },
+      );
+      expect(summary.runs.single.state, CheckState.unknown);
+      expect(summary.overall, isNot(ChecksOverall.success));
+    });
+
+    test('a failure in either API fails the summary', () {
+      final summary = parseChecks(
+        combinedStatus: fixture('status_combined.json'),
+        checkRuns: fixture('check_runs.json'),
+      );
+      expect(summary.overall, ChecksOverall.failure);
+    });
+
+    test('maps check-run status and conclusion onto states', () {
+      final summary = parseChecks(checkRuns: fixture('check_runs.json'));
+      CheckState stateOf(String name) =>
+          summary.runs.firstWhere((r) => r.name == name).state;
+      expect(stateOf('build'), CheckState.success);
+      expect(stateOf('test'), CheckState.running);
+      expect(stateOf('lint'), CheckState.queued);
+      expect(stateOf('flaky'), CheckState.cancelled);
+    });
+
+    test('an unrecognised conclusion becomes unknown, never success', () {
+      // A forge adding a conclusion must never be reported green.
+      final summary = parseChecks(checkRuns: fixture('check_runs.json'));
+      final future = summary.runs.firstWhere((r) => r.name == 'future');
+      expect(future.state, CheckState.unknown);
+      expect(summary.overall, isNot(ChecksOverall.success));
+    });
+
+    test('a completed run with no conclusion is unknown, not success', () {
+      // GitHub has been seen to report completed before the conclusion is
+      // written. Reading the missing field as success would show green CI for
+      // a job whose outcome nobody knows yet.
+      final summary = parseChecks(
+        checkRuns: {
+          'check_runs': [
+            {'name': 'racy', 'status': 'completed', 'conclusion': null},
+          ],
+        },
+      );
+      expect(summary.runs.single.state, CheckState.unknown);
+      expect(summary.overall, isNot(ChecksOverall.success));
+    });
+
+    test('maps legacy commit-status states', () {
+      final summary = parseChecks(
+        combinedStatus: {
+          'statuses': [
+            {'context': 'a', 'state': 'success'},
+            {'context': 'b', 'state': 'pending'},
+            {'context': 'c', 'state': 'error'},
+            {'context': 'd', 'state': 'failure'},
+            {'context': 'e', 'state': 'martian'},
+          ],
+        },
+      );
+      CheckState stateOf(String name) =>
+          summary.runs.firstWhere((r) => r.name == name).state;
+      expect(stateOf('a'), CheckState.success);
+      expect(stateOf('b'), CheckState.running);
+      expect(stateOf('c'), CheckState.failure);
+      expect(stateOf('d'), CheckState.failure);
+      expect(stateOf('e'), CheckState.unknown);
+    });
+
+    test('carries whatever short explanation the API offered', () {
+      final summary = parseChecks(checkRuns: fixture('check_runs.json'));
+      final build = summary.runs.firstWhere((r) => r.name == 'build');
+      expect(build.detailsHint, 'Built in 42s');
+    });
+
+    test('a repository with no CI at all reads as none', () {
+      expect(parseChecks().overall, ChecksOverall.none);
+      expect(parseChecks().runs, isEmpty);
+    });
+
+    test('a malformed payload reads as no CI rather than throwing', () {
+      expect(
+        parseChecks(combinedStatus: 'nonsense').overall,
+        ChecksOverall.none,
+      );
+      expect(parseChecks(checkRuns: [1, 2, 3]).overall, ChecksOverall.none);
+      expect(
+        parseChecks(combinedStatus: 'nonsense', checkRuns: [1, 2, 3]).overall,
+        ChecksOverall.none,
+      );
+    });
+
+    test('skips an entry carrying no name to show', () {
+      final summary = parseChecks(
+        combinedStatus: {
+          'statuses': [
+            {'state': 'success'},
+            {'context': 'named', 'state': 'success'},
+          ],
+        },
+        checkRuns: {
+          'check_runs': [
+            {'status': 'completed', 'conclusion': 'success'},
+          ],
+        },
+      );
+      expect(summary.runs.map((r) => r.name), ['named']);
+    });
+
+    test('the returned run list cannot be edited by its caller', () {
+      final summary = parseChecks(checkRuns: fixture('check_runs.json'));
+      expect(
+        () => summary.runs.add(summary.runs.first),
+        throwsUnsupportedError,
+      );
+    });
+  });
 }

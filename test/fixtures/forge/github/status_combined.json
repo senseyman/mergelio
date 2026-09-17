@@ -1,0 +1,8 @@
+{
+  "state": "failure",
+  "total_count": 2,
+  "statuses": [
+    {"context": "ci/legacy-build", "state": "success", "description": "ok"},
+    {"context": "ci/legacy-lint", "state": "failure", "description": "2 errors"}
+  ]
+}

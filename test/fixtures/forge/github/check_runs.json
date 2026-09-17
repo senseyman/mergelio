@@ -1,0 +1,11 @@
+{
+  "total_count": 5,
+  "check_runs": [
+    {"name": "build", "status": "completed", "conclusion": "success",
+     "output": {"title": "Built in 42s"}},
+    {"name": "test", "status": "in_progress", "conclusion": null},
+    {"name": "lint", "status": "queued", "conclusion": null},
+    {"name": "flaky", "status": "completed", "conclusion": "cancelled"},
+    {"name": "future", "status": "completed", "conclusion": "brand_new_thing"}
+  ]
+}

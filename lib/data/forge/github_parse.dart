@@ -83,3 +83,98 @@ List<PullRequest> parsePullRequests(Object? json) {
   }
   return List.unmodifiable(out);
 }
+
+/// A check run's state, which two fields carry between them.
+///
+/// While a run has not finished there is no conclusion yet and status decides;
+/// once it completes, the conclusion does. An unrecognised value on either
+/// lands on [CheckState.unknown], which the summary treats as not-green.
+CheckState _checkRunState(Map<String, Object?> json) {
+  switch (_str(json['status'])) {
+    case 'queued':
+    case 'waiting':
+    case 'pending':
+      return CheckState.queued;
+    case 'in_progress':
+      return CheckState.running;
+    case 'completed':
+      break;
+    default:
+      return CheckState.unknown;
+  }
+  switch (_str(json['conclusion'])) {
+    case 'success':
+      return CheckState.success;
+    case 'failure':
+    case 'timed_out':
+    case 'action_required':
+      return CheckState.failure;
+    case 'cancelled':
+      return CheckState.cancelled;
+    case 'skipped':
+    case 'neutral':
+    case 'stale':
+      return CheckState.skipped;
+    default:
+      return CheckState.unknown;
+  }
+}
+
+/// A legacy commit status's state.
+CheckState _commitStatusState(Object? value) {
+  switch (_str(value)) {
+    case 'success':
+      return CheckState.success;
+    case 'pending':
+      return CheckState.running;
+    case 'failure':
+    case 'error':
+      return CheckState.failure;
+    default:
+      return CheckState.unknown;
+  }
+}
+
+/// The CI for one commit, from both APIs that carry it.
+///
+/// Older integrations post commit statuses; Actions and modern apps post check
+/// runs. A repository may use either, both or neither, so both payloads are
+/// optional and the two run lists are simply concatenated — the summary's own
+/// precedence rules decide what they add up to.
+ChecksSummary parseChecks({Object? combinedStatus, Object? checkRuns}) {
+  final runs = <CheckRun>[];
+
+  final statuses = _obj(combinedStatus)?['statuses'];
+  if (statuses is List) {
+    for (final entry in statuses) {
+      final item = _obj(entry);
+      final name = _str(item?['context']);
+      if (item == null || name == null) continue;
+      runs.add(
+        CheckRun(
+          name: name,
+          state: _commitStatusState(item['state']),
+          detailsHint: _str(item['description']) ?? '',
+        ),
+      );
+    }
+  }
+
+  final checks = _obj(checkRuns)?['check_runs'];
+  if (checks is List) {
+    for (final entry in checks) {
+      final item = _obj(entry);
+      final name = _str(item?['name']);
+      if (item == null || name == null) continue;
+      runs.add(
+        CheckRun(
+          name: name,
+          state: _checkRunState(item),
+          detailsHint: _str(_obj(item['output'])?['title']) ?? '',
+        ),
+      );
+    }
+  }
+
+  return ChecksSummary.from(List.unmodifiable(runs));
+}
