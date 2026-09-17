@@ -96,6 +96,53 @@ void main() {
     expect(summary.overall, ChecksOverall.failure);
   });
 
+  test('checksForRef refuses a ref that would walk out of the repo', () async {
+    // The ref lands in the URL path, and Uri resolves `..` away, so an
+    // unchecked ref addresses a different repository under the same token.
+    // Git forbids `..` in a ref, so refusing loses nothing real.
+    var called = false;
+    final forge = forgeWith(
+      MockClient((_) async {
+        called = true;
+        return http.Response('{}', 200);
+      }),
+    );
+
+    for (final ref in [
+      '../../other/repo/commits/x',
+      '..',
+      'a/../../b',
+      '',
+      'has space',
+      'a?b',
+      'a#b',
+    ]) {
+      await expectLater(
+        forge.checksForRef(ref),
+        throwsA(isA<ForgeMalformed>()),
+        reason: 'ref "$ref" must not reach the network',
+      );
+    }
+    expect(called, isFalse, reason: 'nothing may be requested for a bad ref');
+  });
+
+  test('checksForRef keeps a branch name that contains slashes', () async {
+    // A branch ref legitimately contains `/`, and GitHub wants those slashes
+    // literal in the path. Percent-encoding them would 404 every nested
+    // branch, so the guard must reject traversal without escaping slashes.
+    final paths = <String>[];
+    final forge = forgeWith(
+      MockClient((req) async {
+        paths.add(req.url.path);
+        return http.Response('{}', 200);
+      }),
+    );
+
+    await forge.checksForRef('feature/nested/thing');
+
+    expect(paths, contains('/repos/o/r/commits/feature/nested/thing/status'));
+  });
+
   test('checksForRef reports none when neither endpoint is visible', () async {
     // A repository with no CI, or a token that cannot see it, is not an error
     // — the badge simply has nothing to show.

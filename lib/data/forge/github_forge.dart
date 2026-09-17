@@ -42,6 +42,31 @@ class GitHubForge implements Forge {
         ...query,
       });
 
+  /// Characters git forbids in a ref, plus the few that would change the shape
+  /// of the URL a ref is spliced into.
+  static final _unusableInRef = RegExp(r'''[\x00-\x20\x7f~^:?*%#\[\]\\"<>|]''');
+
+  /// Refuses a ref that cannot safely become part of a URL path.
+  ///
+  /// This rejects rather than rewrites, and returns nothing, so no caller can
+  /// mistake it for a sanitiser and use a "cleaned" value that never existed.
+  ///
+  /// A branch name legitimately contains `/`, and GitHub wants those slashes
+  /// literal, so they are kept. A `.` or `..` segment is a different matter:
+  /// Uri resolves it away, so an unchecked ref addresses a different
+  /// repository under this caller's token. Git forbids both in a real ref, so
+  /// refusing them costs nothing that was ever going to work.
+  void _rejectUnusableRef(String ref) {
+    final segments = ref.split('/');
+    if (ref.isEmpty ||
+        _unusableInRef.hasMatch(ref) ||
+        segments.any((s) => s.isEmpty || s == '.' || s == '..')) {
+      // The detail is fixed text: it is echoed verbatim by toString(), so the
+      // ref itself must not appear in it.
+      throw const ForgeMalformed('refusing an unusable ref');
+    }
+  }
+
   /// Decodes one response body, or reports it as unreadable.
   Object? _decode(String body) {
     try {
@@ -116,6 +141,7 @@ class GitHubForge implements Forge {
     // Either endpoint may be absent for a repository, or invisible to this
     // token. Neither case is a failure of the other, and a repository with no
     // CI at all simply has nothing to report.
+    _rejectUnusableRef(ref);
     final combined = await _optionalObject(_repoUrl('/commits/$ref/status'));
     final checkRuns = await _optionalObject(
       _repoUrl('/commits/$ref/check-runs'),
