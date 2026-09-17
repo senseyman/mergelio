@@ -82,7 +82,10 @@ void main() {
     );
     await t.pumpAndSettle();
 
-    expect(find.text('Pull requests'), findsNothing);
+    // SidebarSection renders its label upper-cased, so this is the string a
+    // rendered header would actually produce. Asserting the mixed-case form
+    // would pass no matter what the widget did.
+    expect(find.text('PULL REQUESTS'), findsNothing);
     expect(find.byType(SidebarSection), findsNothing);
   });
 

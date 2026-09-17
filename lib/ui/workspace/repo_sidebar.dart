@@ -19,6 +19,7 @@ import '../shell/remote_merge_confirm.dart';
 import 'add_submodule_dialog.dart';
 import 'branch_switch.dart';
 import 'branch_tree.dart';
+import 'forge_section.dart';
 import 'reflog_section.dart';
 import 'remote_dialog.dart';
 import 'sidebar_section.dart';
@@ -238,6 +239,7 @@ class _Sections extends ConsumerWidget {
               ),
           ],
         ),
+        if (path != null) ForgePullRequestSection(repoPath: path),
         SidebarSection(
           id: 'tags',
           icon: Icons.sell_outlined,
