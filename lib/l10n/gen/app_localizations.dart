@@ -3086,6 +3086,12 @@ abstract class AppLocalizations {
   /// **'Token removed.'**
   String get forgeTokenForgotten;
 
+  /// No description provided for @forgeTokenNotForgotten.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not remove the token. It may still be stored by git\'s credential helper.'**
+  String get forgeTokenNotForgotten;
+
   /// No description provided for @forgeRateBenefit.
   ///
   /// In en, this message translates to:

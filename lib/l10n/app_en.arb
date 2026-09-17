@@ -937,6 +937,7 @@
   "forgeTokenRejected": "GitHub rejected that token.",
   "forgeTokenSaved": "Token saved to the system keychain.",
   "forgeTokenForgotten": "Token removed.",
+  "forgeTokenNotForgotten": "Could not remove the token. It may still be stored by git's credential helper.",
   "forgeRateBenefit": "Without a token GitHub allows 60 requests an hour; with one, 5,000. Opening a repository costs about one request plus one per pull request shown.",
   "forgeRateRemaining": "{remaining} of {limit} requests left this hour.",
   "@forgeRateRemaining": { "placeholders": { "remaining": { "type": "int" }, "limit": { "type": "int" } } },

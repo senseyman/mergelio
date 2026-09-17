@@ -1724,6 +1724,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get forgeTokenForgotten => 'Token removed.';
 
   @override
+  String get forgeTokenNotForgotten =>
+      'Could not remove the token. It may still be stored by git\'s credential helper.';
+
+  @override
   String get forgeRateBenefit =>
       'Without a token GitHub allows 60 requests an hour; with one, 5,000. Opening a repository costs about one request plus one per pull request shown.';
 

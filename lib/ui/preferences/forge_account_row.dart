@@ -55,6 +55,11 @@ class _ForgeAccountRowState extends ConsumerState<ForgeAccountRow> {
       ForgeCredentials(ref.read(gitServiceProvider));
 
   Future<void> _connect() async {
+    // setState only takes effect on the next frame, and build() is the only
+    // place _busy is otherwise consulted, so a second tap landing before
+    // that frame would see the same not-yet-disabled button. Checking the
+    // field itself, here, does not wait on a rebuild.
+    if (_busy) return;
     final l = AppLocalizations.of(context);
     final raw = _field.text.trim();
     if (raw.isEmpty) return;
@@ -87,6 +92,9 @@ class _ForgeAccountRowState extends ConsumerState<ForgeAccountRow> {
   }
 
   Future<void> _disconnect() async {
+    // See _connect's guard: build() is the only other place _busy is read,
+    // so a second tap ahead of the next frame must be caught here instead.
+    if (_busy) return;
     final l = AppLocalizations.of(context);
     setState(() => _busy = true);
     // An empty password field is an ordinary, well-formed credential body —
@@ -94,13 +102,27 @@ class _ForgeAccountRowState extends ConsumerState<ForgeAccountRow> {
     // app targets (osxkeychain, credential-store) key erase on host and
     // username, not on the password offered, so there is no stored token to
     // look up first.
-    await _credentials.reject(_githubHost, const ForgeToken(''));
+    final forgotten = await _credentials.reject(
+      _githubHost,
+      const ForgeToken(''),
+    );
     ref.read(etagCacheProvider).clear();
     if (!mounted) return;
     setState(() => _busy = false);
-    ref
-        .read(toastProvider.notifier)
-        .show(l.forgeTokenForgotten, kind: ToastKind.success);
+    // reject's true only means git accepted the request, not that the
+    // helper had a credential to forget — but false means the request never
+    // reached the helper at all (an unusable host, a failed git process, or
+    // a non-zero exit), so the token is still on disk and saying otherwise
+    // would be the silent-failure shape this guards against.
+    if (forgotten) {
+      ref
+          .read(toastProvider.notifier)
+          .show(l.forgeTokenForgotten, kind: ToastKind.success);
+    } else {
+      ref
+          .read(toastProvider.notifier)
+          .show(l.forgeTokenNotForgotten, kind: ToastKind.error);
+    }
   }
 
   @override

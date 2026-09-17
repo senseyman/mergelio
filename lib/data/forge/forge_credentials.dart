@@ -171,7 +171,15 @@ class ForgeCredentials {
     if (!_usableField(token.value)) return false;
     final buffer = StringBuffer('protocol=https\nhost=$host\n');
     if (username.isNotEmpty) buffer.write('username=$username\n');
-    buffer.write('password=${token.value}\n\n');
+    // git-credential-store (and osxkeychain) match an erase request on
+    // whichever fields are present in the body; a password= field that is
+    // present but empty still counts as a field to match, so it erases
+    // nothing rather than the credential actually on disk. Omitting the
+    // line entirely — not writing it empty — leaves host and username as
+    // the only match criteria, which is what an erase-by-token-value-less
+    // caller like reject means to ask for.
+    if (token.value.isNotEmpty) buffer.write('password=${token.value}\n');
+    buffer.write('\n');
     try {
       final result = await git.run(
         ['credential', verb],

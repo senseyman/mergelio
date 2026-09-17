@@ -231,6 +231,25 @@ void main() {
     );
 
     test(
+      'reject omits the password field entirely when the token is empty, so '
+      'the helper matches the erase request on host and username alone',
+      () async {
+        // git-credential-store (and osxkeychain) treat a present password=
+        // field, even an empty one, as part of what an erase must match —
+        // an empty stdin token would erase nothing rather than the intended
+        // credential, silently leaving it on disk.
+        final git = _RecordingGit(const GitResult(0, '', ''));
+        final sent = await ForgeCredentials(git)
+            .reject('github.com', const ForgeToken(''));
+
+        expect(sent, isTrue);
+        expect(git.calls.single, const ['credential', 'reject']);
+        expect(git.stdins.single, 'protocol=https\nhost=github.com\n\n');
+        expect(git.stdins.single, isNot(contains('password=')));
+      },
+    );
+
+    test(
       'approve does nothing and returns false when the host is unusable',
       () async {
         final git = _RecordingGit(const GitResult(0, '', ''));

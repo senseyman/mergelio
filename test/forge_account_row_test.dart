@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -39,6 +41,61 @@ class _RecordingGit implements GitService {
   }) async {
     calls.add(args);
     stdins.add(stdin);
+    return const GitResult(0, '', '');
+  }
+}
+
+/// A [GitService] whose `git credential` calls always exit non-zero, so the
+/// helper never actually stores or forgets anything.
+class _FailingGit implements GitService {
+  final calls = <List<String>>[];
+
+  @override
+  Future<String> version() async => 'git version 0.0.0';
+
+  @override
+  Future<bool> isRepository(String path) async => true;
+
+  @override
+  Future<GitResult> run(
+    List<String> args, {
+    String? repoPath,
+    Duration? timeout,
+    Map<String, String>? environment,
+    GitCancel? cancel,
+    String? stdin,
+  }) async {
+    calls.add(args);
+    return const GitResult(1, '', 'credential helper unavailable');
+  }
+}
+
+/// A [GitService] whose `git credential` calls record themselves and then
+/// hang until [gate] completes, so a test can prove a second call did or did
+/// not happen while the first was still in flight.
+class _GatedGit implements GitService {
+  final Completer<void> gate;
+  final calls = <List<String>>[];
+
+  _GatedGit(this.gate);
+
+  @override
+  Future<String> version() async => 'git version 0.0.0';
+
+  @override
+  Future<bool> isRepository(String path) async => true;
+
+  @override
+  Future<GitResult> run(
+    List<String> args, {
+    String? repoPath,
+    Duration? timeout,
+    Map<String, String>? environment,
+    GitCancel? cancel,
+    String? stdin,
+  }) async {
+    calls.add(args);
+    await gate.future;
     return const GitResult(0, '', '');
   }
 }
@@ -223,6 +280,117 @@ void main() {
         );
         expect(cache.length, 0);
         expect(container.read(toastProvider).last.title, 'Token removed.');
+        await tester.pump(const Duration(seconds: 4));
+      },
+    );
+
+    testWidgets(
+      'disconnecting reports failure rather than a false success when the '
+      'helper refuses the erase request',
+      (tester) async {
+        final git = _FailingGit();
+        final container = await _pump(
+          tester,
+          overrides: [gitServiceProvider.overrideWithValue(git)],
+        );
+
+        await tester.tap(find.text('Disconnect'));
+        await tester.pump();
+        await tester.pump();
+
+        expect(
+          git.calls.any(
+            (c) => c.length >= 2 && c[0] == 'credential' && c[1] == 'reject',
+          ),
+          isTrue,
+        );
+        // A false from reject must not be reported as the token being gone —
+        // that is the silent-failure shape this row must not repeat.
+        expect(
+          container.read(toastProvider).last.title,
+          isNot('Token removed.'),
+        );
+        // The wording matters: a failed erase must say the token may still be
+        // stored, not merely that something went wrong.
+        expect(
+          container.read(toastProvider).last.title,
+          "Could not remove the token. It may still be stored by git's "
+          'credential helper.',
+        );
+        expect(container.read(toastProvider).last.kind, ToastKind.error);
+        await tester.pump(const Duration(seconds: 4));
+      },
+    );
+
+    testWidgets(
+      'tapping Connect twice before a frame renders validates only once',
+      (tester) async {
+        final git = _RecordingGit();
+        var requests = 0;
+        // Held open until after both taps land, so the first request is
+        // provably still in flight when the second tap's handler runs —
+        // not just "usually still in flight", which a timing-dependent test
+        // could pass or fail on depending on how many microtask turns
+        // MockClient happens to take.
+        final gate = Completer<void>();
+        final container = await _pump(
+          tester,
+          overrides: [
+            gitServiceProvider.overrideWithValue(git),
+            forgeHttpClientProvider.overrideWithValue(
+              MockClient((_) async {
+                requests++;
+                await gate.future;
+                return http.Response('{"login":"me"}', 200);
+              }),
+            ),
+          ],
+        );
+
+        await tester.enterText(find.byType(TextField), 'ghp_new');
+        // Two taps, no pump in between: setState from the first tap has not
+        // yet produced a rebuild, so a button-enabled check alone would not
+        // catch this — the guard must be in the handler itself.
+        await tester.tap(find.text('Connect'));
+        await tester.tap(find.text('Connect'));
+        gate.complete();
+        await tester.pump();
+        await tester.pump();
+
+        expect(requests, 1);
+        expect(container.read(toastProvider).isNotEmpty, isTrue);
+        await tester.pump(const Duration(seconds: 4));
+      },
+    );
+
+    testWidgets(
+      'tapping Disconnect twice before a frame renders erases only once',
+      (tester) async {
+        // Held open the same way as the Connect gate above, so the first
+        // reject call is provably still in flight for the second tap.
+        final gate = Completer<void>();
+        final git = _GatedGit(gate);
+        final container = await _pump(
+          tester,
+          overrides: [gitServiceProvider.overrideWithValue(git)],
+        );
+
+        await tester.tap(find.text('Disconnect'));
+        await tester.tap(find.text('Disconnect'));
+        gate.complete();
+        await tester.pump();
+        await tester.pump();
+
+        expect(
+          git.calls
+              .where(
+                (c) =>
+                    c.length >= 2 && c[0] == 'credential' && c[1] == 'reject',
+              )
+              .length,
+          1,
+        );
+        expect(container.read(toastProvider).isNotEmpty, isTrue);
         await tester.pump(const Duration(seconds: 4));
       },
     );

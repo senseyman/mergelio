@@ -1733,6 +1733,10 @@ class AppLocalizationsUk extends AppLocalizations {
   String get forgeTokenForgotten => 'Токен видалено.';
 
   @override
+  String get forgeTokenNotForgotten =>
+      'Не вдалося видалити токен. Він може залишатися у сховищі облікових даних git.';
+
+  @override
   String get forgeRateBenefit =>
       'Без токена GitHub дозволяє 60 запитів на годину; з токеном — 5000. Відкриття репозиторію коштує приблизно один запит плюс один на кожен показаний пулреквест.';
 
