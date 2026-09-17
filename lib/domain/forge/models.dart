@@ -84,6 +84,16 @@ abstract class CheckRun with _$CheckRun {
   }) = _CheckRun;
 }
 
+/// What is left of the forge's hourly budget.
+@freezed
+abstract class ForgeRateLimit with _$ForgeRateLimit {
+  const factory ForgeRateLimit({
+    required int remaining,
+    required int limit,
+    DateTime? resetAt,
+  }) = _ForgeRateLimit;
+}
+
 /// Every CI job for one commit, plus what they add up to.
 @freezed
 abstract class ChecksSummary with _$ChecksSummary {
