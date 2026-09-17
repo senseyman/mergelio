@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/core/tokens.dart';
+import 'package:mergelio/data/forge/forge_credentials.dart';
 import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/domain/forge/forge_error.dart';
 import 'package:mergelio/domain/forge/forge_host.dart';
@@ -149,6 +150,28 @@ void main() {
     );
   });
 
+  testWidgets('hides the connect hint once a token is present', (t) async {
+    await _pump(
+      t,
+      overrides: [
+        forgeHostProvider.overrideWith((ref, path) async => _host),
+        forgeTokenProvider.overrideWith(
+          (ref, path) async => const ForgeToken('ghp_x'),
+        ),
+        pullRequestPanelProvider.overrideWith(
+          (ref, path) async => ForgePanel(pullRequests: [_pr(1)]),
+        ),
+      ],
+    );
+    await t.pumpAndSettle();
+
+    expect(
+      find.textContaining('Preferences'),
+      findsNothing,
+      reason: 'a connected session has no reason to be told to connect',
+    );
+  });
+
   testWidgets('shows a failure in the words the panel owns', (t) async {
     await _pump(
       t,
@@ -198,6 +221,11 @@ void main() {
     // Nothing has resolved yet: no digit anywhere claims a count, in
     // particular not a false "0" while the fetch is still in flight.
     expect(find.text('0'), findsNothing);
+
+    // The spinner renders while the fetch is in flight, not the
+    // empty-state message that would falsely claim there is nothing open.
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.text('No open pull requests'), findsNothing);
 
     completer.complete(const ForgePanel());
     await t.pumpAndSettle();
