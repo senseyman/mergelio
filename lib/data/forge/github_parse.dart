@@ -178,3 +178,47 @@ ChecksSummary parseChecks({Object? combinedStatus, Object? checkRuns}) {
 
   return ChecksSummary.from(List.unmodifiable(runs));
 }
+
+/// Label names from an issue's `labels` array, skipping anything that is not
+/// a named object.
+List<String> _labels(Object? value) {
+  if (value is! List) return const [];
+  final names = <String>[];
+  for (final entry in value) {
+    final name = _str(_obj(entry)?['name']);
+    if (name != null) names.add(name);
+  }
+  return List.unmodifiable(names);
+}
+
+/// Issues from an `/issues` response.
+///
+/// Pull requests are filtered out. GitHub models every pull request as an
+/// issue too, and returns them from this endpoint carrying an extra
+/// `pull_request` key; left in, they would repeat the pull request list in
+/// full inside the issue list.
+List<Issue> parseIssues(Object? json) {
+  if (json is! List) return const [];
+  final out = <Issue>[];
+  for (final entry in json) {
+    final item = _obj(entry);
+    if (item == null) continue;
+    if (item.containsKey('pull_request')) continue;
+    final number = _int(item['number']);
+    final title = _str(item['title']);
+    if (number == null || title == null) continue;
+    out.add(
+      Issue(
+        number: number,
+        title: title,
+        state: _str(item['state']) == 'closed'
+            ? IssueState.closed
+            : IssueState.open,
+        author: _user(item['user']),
+        labels: _labels(item['labels']),
+        updatedAt: _time(item['updated_at']),
+      ),
+    );
+  }
+  return List.unmodifiable(out);
+}

@@ -413,4 +413,113 @@ void main() {
       );
     });
   });
+
+  group('parseIssues', () {
+    test('omits pull requests, which this endpoint also returns', () {
+      // Every PR is an issue in GitHub's model and arrives carrying a
+      // pull_request key. Without this filter the issue list repeats the PR
+      // list in full.
+      final issues = parseIssues(fixture('issues.json'));
+      expect(issues.map((i) => i.number), [12, 3]);
+    });
+
+    test('omits a pull request even when the key carries nothing', () {
+      // The key's presence is what marks a pull request, not its contents.
+      // Reading the value instead would let an empty one through and put the
+      // request in both lists.
+      final entries = [
+        {'number': 1, 'title': 'pr', 'state': 'open', 'pull_request': null},
+        {
+          'number': 2,
+          'title': 'pr too',
+          'state': 'open',
+          'pull_request': <String, Object?>{},
+        },
+        {'number': 3, 'title': 'a real issue', 'state': 'open'},
+      ];
+      expect(parseIssues(entries).map((i) => i.number), [3]);
+    });
+
+    test('reads the fields the UI needs', () {
+      final issue = parseIssues(fixture('issues.json')).first;
+      expect(issue.number, 12);
+      expect(issue.title, 'Crash on open');
+      expect(issue.state, IssueState.open);
+      expect(issue.author.login, 'reporter');
+      expect(issue.labels, ['bug', 'needs triage']);
+      expect(issue.updatedAt, DateTime.utc(2026, 9, 14, 8));
+    });
+
+    test('reads a closed issue as closed', () {
+      expect(parseIssues(fixture('issues.json'))[1].state, IssueState.closed);
+    });
+
+    test('an unrecognised state reads as open, not closed', () {
+      // Guessing closed would hide the issue from the list people actually
+      // work from, so an unknown state stays visible.
+      final odd = [
+        {'number': 9, 'title': 'odd', 'state': 'martian'},
+      ];
+      expect(parseIssues(odd).single.state, IssueState.open);
+    });
+
+    test('keeps the usable labels and drops a malformed one', () {
+      expect(parseIssues(fixture('issues.json'))[1].labels, ['wontfix']);
+    });
+
+    test('drops a label with no name to show', () {
+      // A nameless label would render as a blank chip next to the real ones,
+      // which reads as a rendering fault rather than as data.
+      final unnamed = [
+        {
+          'number': 4,
+          'title': 'unnamed label',
+          'state': 'open',
+          'labels': [
+            {'name': ''},
+            {'name': 'real'},
+          ],
+        },
+      ];
+      expect(parseIssues(unnamed).single.labels, ['real']);
+    });
+
+    test('returns empty rather than throwing when the shape is wrong', () {
+      expect(parseIssues(null), isEmpty);
+      expect(parseIssues(const {'unexpected': 'object'}), isEmpty);
+      expect(parseIssues(const ['not an object']), isEmpty);
+      expect(parseIssues(const [null]), isEmpty);
+    });
+
+    test('skips an entry with no number or title', () {
+      final partial = [
+        {'title': 'no number'},
+        {'number': 5},
+        {'number': 6, 'title': 'fine', 'state': 'open'},
+      ];
+      expect(parseIssues(partial).map((i) => i.number), [6]);
+    });
+
+    test('treats an empty title as absent', () {
+      final blank = [
+        {'number': 8, 'title': '', 'state': 'open'},
+      ];
+      expect(parseIssues(blank), isEmpty);
+    });
+
+    test('defaults absent optional fields', () {
+      final sparse = [
+        {'number': 6, 'title': 'fine', 'state': 'open'},
+      ];
+      final issue = parseIssues(sparse).single;
+      expect(issue.labels, isEmpty);
+      expect(issue.updatedAt, isNull);
+      expect(issue.author.login, isNotEmpty);
+    });
+
+    test('the returned list cannot be edited by its caller', () {
+      final issues = parseIssues(fixture('issues.json'));
+      expect(() => issues.add(issues.first), throwsUnsupportedError);
+    });
+  });
 }
