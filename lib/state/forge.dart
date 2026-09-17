@@ -7,6 +7,7 @@ import '../data/forge/forge_credentials.dart';
 import '../data/forge/forge_http.dart';
 import '../data/forge/github_forge.dart';
 import '../domain/forge/forge.dart';
+import '../domain/forge/forge_error.dart';
 import '../domain/forge/forge_host.dart';
 import '../domain/forge/models.dart';
 import '../domain/git/git_providers.dart';
@@ -99,4 +100,79 @@ final githubForgeProvider = FutureProvider.family<Forge?, String>((
     http: ForgeHttp(token: token, client: ref.watch(forgeHttpClientProvider)),
     cache: ref.watch(etagCacheProvider),
   );
+});
+
+/// How many pull requests one repository contributes to the section.
+///
+/// Each one costs a further request for its CI, so opening a repository
+/// spends roughly this many plus one. Ten keeps an unauthenticated session
+/// usable across several repositories an hour; twenty does not.
+const kPullRequestLimit = 10;
+
+/// How many CI reads may be in flight at once.
+const kChecksConcurrency = 4;
+
+/// Runs [fetch] for every key, never more than [limit] at a time, and keeps
+/// whichever results come back non-null.
+///
+/// The cap exists because a repository's pull requests can outnumber what
+/// the hourly budget can afford to check all at once; a fixed number of
+/// workers pulls from a shared queue instead of firing every request at
+/// once.
+Future<Map<K, V>> fetchWithLimit<K, V>(
+  Iterable<K> keys,
+  int limit,
+  Future<V?> Function(K) fetch,
+) async {
+  final pending = keys.toList(growable: false);
+  final out = <K, V>{};
+  var next = 0;
+
+  Future<void> worker() async {
+    while (true) {
+      final index = next++;
+      if (index >= pending.length) return;
+      final key = pending[index];
+      final value = await fetch(key);
+      if (value != null) out[key] = value;
+    }
+  }
+
+  final workers = <Future<void>>[
+    for (var i = 0; i < limit && i < pending.length; i++) worker(),
+  ];
+  await Future.wait(workers);
+  return out;
+}
+
+/// Everything the pull request section shows for the repository at [path].
+///
+/// Deliberately not autoDispose: invalidating an autoDispose family provider
+/// re-runs it even when nobody is listening, which against an hourly budget
+/// turns a refresh into a fetch storm. Refresh by invalidating from the
+/// widget that reads it.
+final pullRequestPanelProvider = FutureProvider.family<ForgePanel, String>((
+  ref,
+  path,
+) async {
+  final forge = await ref.watch(githubForgeProvider(path).future);
+  if (forge == null) return const ForgePanel();
+
+  final prs = await forge.pullRequests(limit: kPullRequestLimit);
+
+  final checks = await fetchWithLimit<String, ChecksSummary>(
+    prs.map((p) => p.headSha),
+    kChecksConcurrency,
+    (sha) async {
+      try {
+        return await forge.checksForRef(sha);
+      } on ForgeError {
+        // CI that cannot be read costs the row its badge, not its place in
+        // the list. The request itself was read successfully.
+        return null;
+      }
+    },
+  );
+
+  return ForgePanel(pullRequests: prs, checksBySha: checks);
 });
