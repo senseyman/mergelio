@@ -84,6 +84,27 @@ List<PullRequest> parsePullRequests(Object? json) {
   return List.unmodifiable(out);
 }
 
+/// What is left of the hourly budget, from a `/rate_limit` response.
+///
+/// Null when the shape cannot be read. A missing budget is shown as nothing
+/// at all rather than as a guess, because a wrong number here would be read
+/// as fact.
+ForgeRateLimit? parseRateLimit(Object? json) {
+  final core = _obj(_obj(_obj(json)?['resources'])?['core']);
+  if (core == null) return null;
+  final limit = _int(core['limit']);
+  final remaining = _int(core['remaining']);
+  if (limit == null || remaining == null) return null;
+  final reset = _int(core['reset']);
+  return ForgeRateLimit(
+    remaining: remaining,
+    limit: limit,
+    resetAt: reset == null
+        ? null
+        : DateTime.fromMillisecondsSinceEpoch(reset * 1000, isUtc: true),
+  );
+}
+
 /// A check run's state, which two fields carry between them.
 ///
 /// While a run has not finished there is no conclusion yet and status decides;

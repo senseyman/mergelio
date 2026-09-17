@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:http/http.dart' as http;
@@ -6,6 +8,7 @@ import '../data/forge/etag_cache.dart';
 import '../data/forge/forge_credentials.dart';
 import '../data/forge/forge_http.dart';
 import '../data/forge/github_forge.dart';
+import '../data/forge/github_parse.dart';
 import '../domain/forge/forge.dart';
 import '../domain/forge/forge_error.dart';
 import '../domain/forge/forge_host.dart';
@@ -175,4 +178,31 @@ final pullRequestPanelProvider = FutureProvider.family<ForgePanel, String>((
   );
 
   return ForgePanel(pullRequests: prs, checksBySha: checks);
+});
+
+/// What is left of the forge's hourly budget, or null when it cannot be
+/// read.
+///
+/// Read from the forge's own budget endpoint rather than from response
+/// headers, so the transport keeps returning models and nothing else. The
+/// http client is the same overridable seam [githubForgeProvider] uses, so
+/// a test can answer this call without reaching the network.
+final forgeRateLimitProvider = FutureProvider.family<ForgeRateLimit?, String>((
+  ref,
+  path,
+) async {
+  final host = await ref.watch(forgeHostProvider(path).future);
+  if (host == null) return null;
+  final token = await ref.watch(forgeTokenProvider(path).future);
+  try {
+    final response = await ForgeHttp(
+      token: token,
+      client: ref.watch(forgeHttpClientProvider),
+    ).get(Uri.https('api.github.com', '/rate_limit'));
+    return parseRateLimit(jsonDecode(response.body));
+  } on Object {
+    // The budget is a courtesy. Failing to read it must never fail the
+    // panel.
+    return null;
+  }
 });

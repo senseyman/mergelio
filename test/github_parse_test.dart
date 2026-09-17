@@ -522,4 +522,48 @@ void main() {
       expect(() => issues.add(issues.first), throwsUnsupportedError);
     });
   });
+
+  group('parseRateLimit', () {
+    test('reads the core resource', () {
+      final limit = parseRateLimit({
+        'resources': {
+          'core': {'limit': 60, 'remaining': 57, 'reset': 1789000000},
+        },
+      });
+      expect(limit, isNotNull);
+      expect(limit!.limit, 60);
+      expect(limit.remaining, 57);
+      expect(
+        limit.resetAt,
+        DateTime.fromMillisecondsSinceEpoch(1789000000 * 1000, isUtc: true),
+      );
+    });
+
+    test('a reset the forge did not send is simply absent', () {
+      final limit = parseRateLimit({
+        'resources': {
+          'core': {'limit': 60, 'remaining': 57},
+        },
+      });
+      expect(limit!.resetAt, isNull);
+    });
+
+    test('returns null rather than throwing on a shape it cannot read', () {
+      expect(parseRateLimit(null), isNull);
+      expect(parseRateLimit('nonsense'), isNull);
+      expect(parseRateLimit(const {'resources': 'nope'}), isNull);
+      expect(
+        parseRateLimit(const {
+          'resources': {'core': 'nope'},
+        }),
+        isNull,
+      );
+      expect(
+        parseRateLimit(const {
+          'resources': {'core': {}},
+        }),
+        isNull,
+      );
+    });
+  });
 }

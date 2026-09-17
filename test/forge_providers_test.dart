@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -225,5 +227,59 @@ void main() {
 
       expect(sentAuth, isNull);
     });
+  });
+
+  group('forgeRateLimitProvider', () {
+    test('reads the budget from a well-formed response', () async {
+      final c = ProviderContainer(
+        overrides: [
+          originRemoteUrlProvider.overrideWith(
+            (ref, path) async => 'https://github.com/o/r.git',
+          ),
+          forgeTokenProvider.overrideWith((ref, path) async => null),
+          forgeHttpClientProvider.overrideWithValue(
+            MockClient(
+              (req) async => http.Response(
+                jsonEncode({
+                  'resources': {
+                    'core': {'limit': 60, 'remaining': 42},
+                  },
+                }),
+                200,
+              ),
+            ),
+          ),
+        ],
+      );
+      addTearDown(c.dispose);
+
+      final limit = await c.read(forgeRateLimitProvider('/repo').future);
+
+      expect(limit, isNotNull);
+      expect(limit!.limit, 60);
+      expect(limit.remaining, 42);
+    });
+
+    test(
+      'a response that cannot be read yields null, not a thrown error',
+      () async {
+        // A failing budget read is a courtesy going unmet, not an error the
+        // rest of the panel should ever see.
+        final c = ProviderContainer(
+          overrides: [
+            originRemoteUrlProvider.overrideWith(
+              (ref, path) async => 'https://github.com/o/r.git',
+            ),
+            forgeTokenProvider.overrideWith((ref, path) async => null),
+            forgeHttpClientProvider.overrideWithValue(
+              MockClient((req) async => http.Response('not json', 500)),
+            ),
+          ],
+        );
+        addTearDown(c.dispose);
+
+        expect(await c.read(forgeRateLimitProvider('/repo').future), isNull);
+      },
+    );
   });
 }
