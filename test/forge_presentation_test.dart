@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/domain/forge/forge_error.dart';
+import 'package:mergelio/domain/forge/forge_host.dart';
 import 'package:mergelio/domain/forge/models.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/ui/workspace/forge_presentation.dart';
@@ -85,6 +86,40 @@ void main() {
     test('an unexpected error still produces something showable', () {
       expect(forgePanelMessage(StateError('boom'), l), isNotEmpty);
       expect(forgePanelMessage(StateError('boom'), l), isNot(contains('boom')));
+    });
+  });
+
+  group('pullRequestWebUrl', () {
+    const host = ForgeHost(
+      kind: ForgeKind.github,
+      host: 'github.com',
+      owner: 'senseyman',
+      repo: 'mergelio',
+    );
+
+    test('addresses the request on the web UI', () {
+      expect(
+        pullRequestWebUrl(host, 42).toString(),
+        'https://github.com/senseyman/mergelio/pull/42',
+      );
+    });
+
+    test('is always https, whatever the remote used', () {
+      expect(pullRequestWebUrl(host, 1).scheme, 'https');
+    });
+
+    test('is built from coordinates, never forge-supplied text', () {
+      // Owner and repo come from the remote, which a person controls, and the
+      // number is an int. Nothing the API returns can steer the browser.
+      const odd = ForgeHost(
+        kind: ForgeKind.github,
+        host: 'github.com',
+        owner: 'a b',
+        repo: 'c/d',
+      );
+      final url = pullRequestWebUrl(odd, 7);
+      expect(url.host, 'github.com');
+      expect(url.toString(), startsWith('https://github.com/'));
     });
   });
 }

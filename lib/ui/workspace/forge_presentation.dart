@@ -1,4 +1,5 @@
 import '../../domain/forge/forge_error.dart';
+import '../../domain/forge/forge_host.dart';
 import '../../domain/forge/models.dart';
 import '../../l10n/gen/app_localizations.dart';
 
@@ -43,3 +44,10 @@ String forgePanelMessage(Object error, AppLocalizations l) {
   if (error is ForgeServerFault) return l.forgeErrServer(error.status);
   return l.forgeErrMalformed;
 }
+
+/// Where a person goes to read pull request [number] on the web.
+///
+/// Built from the repository's own coordinates and an integer, never from a
+/// URL the forge sent back, so no response can decide where the browser opens.
+Uri pullRequestWebUrl(ForgeHost host, int number) =>
+    Uri.https(host.host, '/${host.owner}/${host.repo}/pull/$number');

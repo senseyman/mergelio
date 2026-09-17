@@ -41,6 +41,8 @@ dependencies:
   google_fonts: ^6.2.1
   flutter_pty: ^0.4.2
   xterm: ^4.0.0
+  # Open a pull request in the system browser
+  url_launcher: ^6.3.1
 
 dev_dependencies:
   flutter_test:
