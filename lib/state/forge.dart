@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:http/http.dart' as http;
 
 import '../data/forge/etag_cache.dart';
 import '../data/forge/forge_credentials.dart';
@@ -77,6 +78,14 @@ final forgeTokenProvider = FutureProvider.family<ForgeToken?, String>((
 /// must never be served under another.
 final etagCacheProvider = Provider<EtagCache>((ref) => EtagCache());
 
+/// The http client forge calls go through. Null means the real one.
+///
+/// Exists so a test can watch what actually goes out on the wire — the
+/// token is deliberately unreadable once it is inside the transport, so
+/// the only honest way to prove it was passed is to observe the request
+/// it produces.
+final forgeHttpClientProvider = Provider<http.Client?>((ref) => null);
+
 /// A forge for the repository at [path], or null when it is not on one.
 final githubForgeProvider = FutureProvider.family<Forge?, String>((
   ref,
@@ -87,7 +96,7 @@ final githubForgeProvider = FutureProvider.family<Forge?, String>((
   final token = await ref.watch(forgeTokenProvider(path).future);
   return GitHubForge(
     host: host,
-    http: ForgeHttp(token: token),
+    http: ForgeHttp(token: token, client: ref.watch(forgeHttpClientProvider)),
     cache: ref.watch(etagCacheProvider),
   );
 });
