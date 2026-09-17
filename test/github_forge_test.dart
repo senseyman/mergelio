@@ -38,7 +38,14 @@ void main() {
 
     expect(called.host, 'api.github.com');
     expect(called.path, '/repos/o/r/pulls');
-    expect(called.queryParameters['state'], 'open');
+    // The whole query is asserted, not just one key: a dropped sort or
+    // direction still returns rows, so nothing else would notice.
+    expect(called.queryParameters, {
+      'per_page': '100',
+      'state': 'open',
+      'sort': 'updated',
+      'direction': 'desc',
+    });
     expect(prs, hasLength(4));
   });
 
@@ -72,6 +79,9 @@ void main() {
     // The head filter is owner-qualified; without the owner prefix GitHub
     // ignores it and returns every open request.
     expect(called.queryParameters['head'], 'o:fix/thing');
+    // Losing state=open here would quietly start returning merged and closed
+    // requests for the branch as well.
+    expect(called.queryParameters['state'], 'open');
   });
 
   test('checksForRef merges both CI endpoints', () async {
@@ -175,6 +185,12 @@ void main() {
     final issues = await forge.issues();
 
     expect(called.path, '/repos/o/r/issues');
+    expect(called.queryParameters, {
+      'per_page': '100',
+      'state': 'open',
+      'sort': 'updated',
+      'direction': 'desc',
+    });
     expect(issues.map((i) => i.number), [12, 3]);
   });
 
