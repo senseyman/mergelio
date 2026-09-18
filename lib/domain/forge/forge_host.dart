@@ -102,12 +102,21 @@ ForgeHost? resolveForgeHost(String remoteUrl) {
   }
   if (repo.isEmpty) return null;
 
+  final owner = segments.sublist(0, segments.length - 1);
+  // owner and repo are spliced straight into an API path, and Uri resolves a
+  // `.` or `..` segment away rather than sending it — so a remote carrying
+  // one addresses a different project under this user's token. Stripping
+  // `.git` can produce one that was not there a moment ago (`...git` leaves
+  // `..`), which is why repo is checked after that and not before. No remote
+  // a forge would accept contains either, so refusing costs nothing real.
+  if ([...owner, repo].any((s) => s == '.' || s == '..')) return null;
+
   return ForgeHost(
     kind: kind,
     host: host.toLowerCase().startsWith('www.')
         ? host.toLowerCase().substring(4)
         : host.toLowerCase(),
-    owner: segments.sublist(0, segments.length - 1).join('/'),
+    owner: owner.join('/'),
     repo: repo,
   );
 }

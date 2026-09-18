@@ -33,6 +33,18 @@ Future<bool> validateForgeToken(
   }
 }
 
+/// A text field controller that keeps its value out of diagnostics.
+///
+/// [TextEditingController.toString] prints the value in full, and the
+/// controller is dumped as a property of both TextField and EditableText —
+/// so the plain one puts a typed token in the widget inspector and in every
+/// tree dump an unrelated error produces. The value is still readable through
+/// [text]; only the description changes.
+class _RedactedTextEditingController extends TextEditingController {
+  @override
+  String toString() => '${describeIdentity(this)}(hidden)';
+}
+
 /// Connect, inspect or disconnect the token used for github.com.
 class ForgeAccountRow extends ConsumerStatefulWidget {
   const ForgeAccountRow({super.key});
@@ -42,7 +54,7 @@ class ForgeAccountRow extends ConsumerStatefulWidget {
 }
 
 class _ForgeAccountRowState extends ConsumerState<ForgeAccountRow> {
-  final _field = TextEditingController();
+  final _field = _RedactedTextEditingController();
   bool _busy = false;
 
   @override
@@ -53,6 +65,20 @@ class _ForgeAccountRowState extends ConsumerState<ForgeAccountRow> {
 
   ForgeCredentials get _credentials =>
       ForgeCredentials(ref.read(gitServiceProvider));
+
+  /// Drops everything that was derived from the token that has just changed.
+  ///
+  /// The stored token is read through a provider that caches for the life of
+  /// the container, so without this a session that connects goes on sending
+  /// the answer it got before — which is to say no token at all — until the
+  /// app is restarted. The cached bodies go with it: a body fetched without a
+  /// token must not be served as though it were fetched with one, and one
+  /// fetched under a token that just changed must not be served under its
+  /// replacement.
+  void _forgetDerivedState() {
+    ref.read(etagCacheProvider).clear();
+    ref.invalidate(forgeTokenProvider);
+  }
 
   Future<void> _connect() async {
     // setState only takes effect on the next frame, and build() is the only
@@ -78,11 +104,8 @@ class _ForgeAccountRowState extends ConsumerState<ForgeAccountRow> {
           .show(l.forgeTokenRejected, kind: ToastKind.error);
       return;
     }
-    await _credentials.approve(_githubHost, 'x-access-token', token);
-    // A body fetched without a token must not be served as though it were
-    // fetched with one, and one fetched under a token that just changed must
-    // not be served under the one that replaced it.
-    ref.read(etagCacheProvider).clear();
+    await _credentials.approve(_githubHost, forgeTokenUsername, token);
+    _forgetDerivedState();
     if (!mounted) return;
     _field.clear();
     setState(() => _busy = false);
@@ -97,16 +120,17 @@ class _ForgeAccountRowState extends ConsumerState<ForgeAccountRow> {
     if (_busy) return;
     final l = AppLocalizations.of(context);
     setState(() => _busy = true);
-    // An empty password field is an ordinary, well-formed credential body —
-    // nothing in the write path treats it specially — and the helpers this
-    // app targets (osxkeychain, credential-store) key erase on host and
-    // username, not on the password offered, so there is no stored token to
-    // look up first.
+    // The helpers this app targets (osxkeychain, credential-store) key an
+    // erase on host and username rather than on the password offered, so the
+    // stored token does not have to be read back first. The username is not
+    // optional in that arrangement: it is the whole of what distinguishes
+    // this app's entry from the one the user pushes with.
     final forgotten = await _credentials.reject(
       _githubHost,
+      forgeTokenUsername,
       const ForgeToken(''),
     );
-    ref.read(etagCacheProvider).clear();
+    _forgetDerivedState();
     if (!mounted) return;
     setState(() => _busy = false);
     // reject's true only means git accepted the request, not that the

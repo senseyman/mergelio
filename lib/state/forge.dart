@@ -107,10 +107,19 @@ final githubForgeProvider = FutureProvider.family<Forge?, String>((
 
 /// How many pull requests one repository contributes to the section.
 ///
-/// Each one costs a further request for its CI, so opening a repository
-/// spends roughly this many plus one. Ten keeps an unauthenticated session
-/// usable across several repositories an hour; twenty does not.
+/// Ten keeps an unauthenticated session usable across a couple of
+/// repositories an hour; twenty does not. See [kForgeRequestsPerOpen] for
+/// what each row costs.
 const kPullRequestLimit = 10;
+
+/// What opening one repository's section spends against the hourly budget:
+/// a single request for the list, then two for every row — CI status lives
+/// behind two endpoints, combined status and check runs, and a row's badge
+/// needs both.
+///
+/// This is the number the preferences copy quotes, so it is defined here
+/// next to the limit it depends on rather than written out in prose twice.
+const kForgeRequestsPerOpen = 1 + 2 * kPullRequestLimit;
 
 /// How many CI reads may be in flight at once.
 const kChecksConcurrency = 4;

@@ -206,21 +206,22 @@ void main() {
     });
 
     test(
-      'reject asks the helper to forget the credential, with no username',
+      'reject names the account whose credential is to be forgotten',
       () async {
+        // A body with no username matches any account on the host, so an
+        // erase sent that way takes the user's own push credential with it.
         final git = _RecordingGit(const GitResult(0, '', ''));
-        final sent = await ForgeCredentials(git)
-            .reject('github.com', const ForgeToken('ghp_x'));
+        final sent = await ForgeCredentials(
+          git,
+        ).reject('github.com', forgeTokenUsername, const ForgeToken('ghp_x'));
 
         expect(sent, isTrue);
         expect(git.calls.single, const ['credential', 'reject']);
-        // reject has no username to offer; the body must not claim one, or the
-        // helper could forget the wrong credential.
         expect(
           git.stdins.single,
-          'protocol=https\nhost=github.com\npassword=ghp_x\n\n',
+          'protocol=https\nhost=github.com\nusername=x-access-token\n'
+          'password=ghp_x\n\n',
         );
-        expect(git.stdins.single, isNot(contains('username=')));
         expect(git.environments.single, const {
           'GIT_TERMINAL_PROMPT': '0',
           'GIT_ASKPASS': '',
@@ -240,14 +241,28 @@ void main() {
         // credential, silently leaving it on disk.
         final git = _RecordingGit(const GitResult(0, '', ''));
         final sent = await ForgeCredentials(git)
-            .reject('github.com', const ForgeToken(''));
+            .reject('github.com', forgeTokenUsername, const ForgeToken(''));
 
         expect(sent, isTrue);
         expect(git.calls.single, const ['credential', 'reject']);
-        expect(git.stdins.single, 'protocol=https\nhost=github.com\n\n');
+        expect(
+          git.stdins.single,
+          'protocol=https\nhost=github.com\nusername=x-access-token\n\n',
+        );
         expect(git.stdins.single, isNot(contains('password=')));
       },
     );
+
+    test('reject refuses a username that could inject extra fields', () async {
+      final git = _RecordingGit(const GitResult(0, '', ''));
+      final sent = await ForgeCredentials(git).reject(
+        'github.com',
+        'octocat\nurl=https://evil.example',
+        const ForgeToken(''),
+      );
+      expect(sent, isFalse);
+      expect(git.calls, isEmpty);
+    });
 
     test(
       'approve does nothing and returns false when the host is unusable',
@@ -265,7 +280,7 @@ void main() {
       () async {
         final git = _RecordingGit(const GitResult(0, '', ''));
         final sent = await ForgeCredentials(git)
-            .reject('bad\nhost', const ForgeToken('t'));
+            .reject('bad\nhost', forgeTokenUsername, const ForgeToken('t'));
         expect(sent, isFalse);
         expect(git.calls, isEmpty);
       },
@@ -314,8 +329,9 @@ void main() {
       'reject does not propagate when git throws, and reports false',
       () async {
         final git = _ThrowingGit();
-        final sent = await ForgeCredentials(git)
-            .reject('github.com', const ForgeToken('ghp_x'));
+        final sent = await ForgeCredentials(
+          git,
+        ).reject('github.com', forgeTokenUsername, const ForgeToken('ghp_x'));
         expect(sent, isFalse);
         expect(git.calls.single, const ['credential', 'reject']);
       },
@@ -343,8 +359,9 @@ void main() {
         final git = _RecordingGit(
           const GitResult(1, '', 'credential rejected'),
         );
-        final sent = await ForgeCredentials(git)
-            .reject('github.com', const ForgeToken('ghp_x'));
+        final sent = await ForgeCredentials(
+          git,
+        ).reject('github.com', forgeTokenUsername, const ForgeToken('ghp_x'));
         expect(sent, isFalse);
         expect(git.calls.single, const ['credential', 'reject']);
       },

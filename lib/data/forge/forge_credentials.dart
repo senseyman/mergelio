@@ -13,6 +13,15 @@ class ForgeToken {
   String toString() => 'ForgeToken(hidden)';
 }
 
+/// The account name Mergelio stores its forge token under.
+///
+/// A host can hold several credentials, and the user very likely already has
+/// one of their own for pushing. Writing and erasing under a name of our own
+/// keeps the two apart: without it an erase matches every account on the host
+/// and takes the user's push credential with it. GitHub accepts any username
+/// alongside a token, and this is the name its own documentation uses.
+const forgeTokenUsername = 'x-access-token';
+
 /// Characters that cannot appear in a host name given to `git credential`.
 /// The protocol is newline-delimited key=value lines terminated by a blank
 /// one, so a host carrying a newline would add fields of its own choosing.
@@ -148,14 +157,22 @@ class ForgeCredentials {
   Future<bool> approve(String host, String username, ForgeToken token) =>
       _write('approve', host, username, token);
 
-  /// Asks the helper to forget its credential for [host], so a rejected token
-  /// is not handed back on the next attempt. False means nothing was
-  /// forgotten — either this file refused [host] or the token before git
-  /// ever ran, git itself could not be run, or git ran and exited with
-  /// failure. True means git accepted the request; it does not promise the
-  /// helper had anything to forget.
-  Future<bool> reject(String host, ForgeToken token) =>
-      _write('reject', host, '', token);
+  /// Asks the helper to forget the credential it holds for [username] on
+  /// [host], so a rejected token is not handed back on the next attempt.
+  ///
+  /// [username] is not optional, and must not be empty: a credential helper
+  /// matches an erase request on whatever fields the body carries, so a body
+  /// with no username means "any account on this host" and erases the user's
+  /// own push credential alongside this app's.
+  ///
+  /// False means nothing was forgotten — either this file refused [host],
+  /// [username] or the token before git ever ran, git itself could not be
+  /// run, or git ran and exited with failure. True means git accepted the
+  /// request; it does not promise the helper had anything to forget.
+  Future<bool> reject(String host, String username, ForgeToken token) {
+    if (username.isEmpty) return Future.value(false);
+    return _write('reject', host, username, token);
+  }
 
   Future<bool> _write(
     String verb,

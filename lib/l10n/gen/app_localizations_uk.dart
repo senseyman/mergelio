@@ -1738,7 +1738,7 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get forgeRateBenefit =>
-      'Без токена GitHub дозволяє 60 запитів на годину; з токеном — 5000. Відкриття репозиторію коштує приблизно один запит плюс один на кожен показаний пулреквест.';
+      'Без токена GitHub дозволяє 60 запитів на годину; з токеном — 5000. Відкриття репозиторію коштує один запит на список плюс два на перевірки кожного пулреквеста — близько 21 для десяти показаних.';
 
   @override
   String forgeRateRemaining(int remaining, int limit) {

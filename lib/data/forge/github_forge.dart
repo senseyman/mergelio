@@ -17,9 +17,11 @@ class GitHubForge implements Forge {
   final ForgeHttp _http;
   final EtagCache _cache;
 
-  /// Upper bound on pages followed for one list. A repository with thousands
-  /// of open items would otherwise spend a whole rate limit filling a single
-  /// sidebar section.
+  /// Upper bound on pages followed for one list, and a backstop rather than
+  /// the usual reason paging ends: a list normally stops as soon as it holds
+  /// the rows it was asked for. This bounds the case where it never does —
+  /// a repository whose pages are mostly entries this caller discards would
+  /// otherwise spend a whole rate limit filling one sidebar section.
   final int maxPages;
 
   GitHubForge({
@@ -34,13 +36,20 @@ class GitHubForge implements Forge {
        _cache = cache ?? EtagCache();
 
   static const _apiHost = 'api.github.com';
-  static const _perPage = 100;
 
-  Uri _repoUrl(String path, [Map<String, String> query = const {}]) =>
-      Uri.https(_apiHost, '/repos/${host.owner}/${host.repo}$path', {
-        'per_page': '$_perPage',
-        ...query,
-      });
+  /// The largest page GitHub will serve. Asking for more is not an error; it
+  /// is silently clamped, which would leave the request describing a page it
+  /// never gets.
+  static const _maxPerPage = 100;
+
+  Uri _repoUrl(
+    String path, [
+    Map<String, String> query = const {},
+    int perPage = _maxPerPage,
+  ]) => Uri.https(_apiHost, '/repos/${host.owner}/${host.repo}$path', {
+    'per_page': '${perPage.clamp(1, _maxPerPage)}',
+    ...query,
+  });
 
   /// Characters git forbids in a ref, plus the few that would change the shape
   /// of the URL a ref is spliced into.
@@ -78,14 +87,24 @@ class GitHubForge implements Forge {
     }
   }
 
-  /// Reads [url] and every page it links onward to, up to [maxPages],
+  /// Reads [url], and the pages it links onward to while it still needs them,
   /// concatenating the decoded lists.
+  ///
+  /// Paging stops as soon as [usableCount] reports [limit] rows in hand, or
+  /// at [maxPages], whichever comes first. The count is of rows a caller can
+  /// actually use rather than of raw entries, because an endpoint can answer
+  /// with entries that are dropped on the way out — the issues endpoint
+  /// includes pull requests — and counting those would end the list short.
   ///
   /// This repeats fetchWithCache rather than calling it because paging needs
   /// the response headers to find the next link, and fetchWithCache returns
   /// only a body. Collapsing the two would mean leaking headers out of it for
   /// one caller.
-  Future<List<Object?>> _readList(Uri url) async {
+  Future<List<Object?>> _readList(
+    Uri url, {
+    required int limit,
+    required int Function(List<Object?>) usableCount,
+  }) async {
     final items = <Object?>[];
     Uri? next = url;
     for (var page = 0; page < maxPages && next != null; page++) {
@@ -103,6 +122,7 @@ class GitHubForge implements Forge {
       }
       final decoded = _decode(body);
       if (decoded is List) items.addAll(decoded);
+      if (usableCount(items) >= limit) break;
       next = nextPageUrl(response.headers['link']);
     }
     return items;
@@ -115,7 +135,9 @@ class GitHubForge implements Forge {
         'state': 'open',
         'sort': 'updated',
         'direction': 'desc',
-      }),
+      }, limit),
+      limit: limit,
+      usableCount: (items) => parsePullRequests(items).length,
     );
     return parsePullRequests(items).take(limit).toList(growable: false);
   }
@@ -131,7 +153,9 @@ class GitHubForge implements Forge {
         // The head filter is owner-qualified. Without the owner prefix GitHub
         // ignores it and answers with every open request in the repository.
         'head': '${host.owner}:$branch',
-      }),
+      }, limit),
+      limit: limit,
+      usableCount: (items) => parsePullRequests(items).length,
     );
     return parsePullRequests(items).take(limit).toList(growable: false);
   }
@@ -166,7 +190,9 @@ class GitHubForge implements Forge {
         'state': 'open',
         'sort': 'updated',
         'direction': 'desc',
-      }),
+      }, limit),
+      limit: limit,
+      usableCount: (items) => parseIssues(items).length,
     );
     return parseIssues(items).take(limit).toList(growable: false);
   }

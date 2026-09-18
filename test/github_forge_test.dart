@@ -41,7 +41,7 @@ void main() {
     // The whole query is asserted, not just one key: a dropped sort or
     // direction still returns rows, so nothing else would notice.
     expect(called.queryParameters, {
-      'per_page': '100',
+      'per_page': '50',
       'state': 'open',
       'sort': 'updated',
       'direction': 'desc',
@@ -49,9 +49,9 @@ void main() {
     expect(prs, hasLength(4));
   });
 
-  test('asks for a full page, so the page cap is worth something', () async {
-    // The cap on pages only bounds the work if each page is large. Dropping
-    // per_page would silently turn 5 pages of 100 into 5 pages of 30.
+  test('asks for exactly as many rows as it will keep', () async {
+    // The default page size used to be 100 no matter what the caller asked
+    // for, so a ten-row sidebar section downloaded ten times what it showed.
     late Uri called;
     final forge = forgeWith(
       MockClient((req) async {
@@ -60,9 +60,124 @@ void main() {
       }),
     );
 
-    await forge.pullRequests();
+    await forge.pullRequests(limit: 10);
+
+    expect(called.queryParameters['per_page'], '10');
+  });
+
+  test('never asks for a page larger than the API will serve', () async {
+    // GitHub caps per_page at 100 and silently clamps anything higher; asking
+    // for more would make the request describe a page it never gets.
+    late Uri called;
+    final forge = forgeWith(
+      MockClient((req) async {
+        called = req.url;
+        return http.Response('[]', 200);
+      }),
+    );
+
+    await forge.pullRequests(limit: 500);
 
     expect(called.queryParameters['per_page'], '100');
+  });
+
+  test('stops paging once it holds the rows it was asked for', () async {
+    // The first page already answers the question. Following the next link
+    // anyway spends a request per page on rows that are thrown away.
+    var calls = 0;
+    final forge = forgeWith(
+      MockClient((req) async {
+        calls++;
+        return http.Response(
+          fixture('pulls.json'),
+          200,
+          headers: const {
+            'link':
+                '<https://api.github.com/repos/o/r/pulls?page=2>; rel="next"',
+          },
+        );
+      }),
+    );
+
+    final prs = await forge.pullRequests(limit: 4);
+
+    expect(calls, 1);
+    expect(prs, hasLength(4));
+  });
+
+  test('keeps paging while a page is short of the rows asked for', () async {
+    // The early exit must count rows, not pages: a page that came back half
+    // empty has not answered the question yet.
+    var calls = 0;
+    final forge = forgeWith(
+      MockClient((req) async {
+        calls++;
+        final first = req.url.queryParameters['page'] == null;
+        return http.Response(
+          first
+              ? fixture('pulls.json')
+              : '[{"number": 99, "title": "page two", "state": "open", '
+                    '"head": {"ref": "b", "sha": "s"}, "base": {"ref": "main"}}]',
+          200,
+          headers: first
+              ? const {
+                  'link': '<https://api.github.com/repos/o/r/pulls?page=2>; rel="next"',
+                }
+              : const {},
+        );
+      }),
+    );
+
+    final prs = await forge.pullRequests(limit: 5);
+
+    expect(calls, 2);
+    expect(prs, hasLength(5));
+  });
+
+  test('counts only rows it can use when deciding it has enough', () async {
+    // The issues endpoint answers with pull requests mixed in, and those are
+    // dropped. Exiting on the raw count would hand back a short list.
+    var calls = 0;
+    final forge = forgeWith(
+      MockClient((req) async {
+        calls++;
+        final first = req.url.queryParameters['page'] == null;
+        return http.Response(
+          first
+              ? '[{"number": 1, "title": "a pull request", "state": "open", '
+                    '"pull_request": {"url": "x"}}, '
+                    '{"number": 2, "title": "a real issue", "state": "open"}]'
+              : '[{"number": 3, "title": "another issue", "state": "open"}]',
+          200,
+          headers: first
+              ? const {
+                  'link': '<https://api.github.com/repos/o/r/issues?page=2>; rel="next"',
+                }
+              : const {},
+        );
+      }),
+    );
+
+    final issues = await forge.issues(limit: 2);
+
+    expect(calls, 2);
+    expect(issues.map((i) => i.number), [2, 3]);
+  });
+
+  test('checksForRef costs two requests per ref', () async {
+    // The sidebar's budget arithmetic is written in the preferences copy, and
+    // it is only honest while a CI read is exactly these two calls.
+    var calls = 0;
+    final forge = forgeWith(
+      MockClient((_) async {
+        calls++;
+        return http.Response('{}', 200);
+      }),
+    );
+
+    await forge.checksForRef('abc123');
+
+    expect(calls, 2);
   });
 
   test('pullRequestsForBranch asks the API to filter by head', () async {
@@ -186,7 +301,7 @@ void main() {
 
     expect(called.path, '/repos/o/r/issues');
     expect(called.queryParameters, {
-      'per_page': '100',
+      'per_page': '50',
       'state': 'open',
       'sort': 'updated',
       'direction': 'desc',

@@ -1729,7 +1729,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get forgeRateBenefit =>
-      'Without a token GitHub allows 60 requests an hour; with one, 5,000. Opening a repository costs about one request plus one per pull request shown.';
+      'Without a token GitHub allows 60 requests an hour; with one, 5,000. Opening a repository costs one request for the list plus two for each pull request\'s checks — about 21 for the ten shown.';
 
   @override
   String forgeRateRemaining(int remaining, int limit) {

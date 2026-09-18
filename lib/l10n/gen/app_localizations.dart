@@ -3095,7 +3095,7 @@ abstract class AppLocalizations {
   /// No description provided for @forgeRateBenefit.
   ///
   /// In en, this message translates to:
-  /// **'Without a token GitHub allows 60 requests an hour; with one, 5,000. Opening a repository costs about one request plus one per pull request shown.'**
+  /// **'Without a token GitHub allows 60 requests an hour; with one, 5,000. Opening a repository costs one request for the list plus two for each pull request\'s checks — about 21 for the ten shown.'**
   String get forgeRateBenefit;
 
   /// No description provided for @forgeRateRemaining.

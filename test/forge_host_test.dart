@@ -75,6 +75,40 @@ void main() {
       expect(resolveForgeHost('https://github.com/owner'), isNull);
     });
 
+    test('refuses a remote whose path walks up out of the project', () {
+      // owner and repo are spliced straight into an API path, and Uri
+      // resolves a `.` or `..` segment away rather than sending it, so a
+      // remote carrying one addresses a different project under this user's
+      // token. No real remote carries one.
+      //
+      // A scheme URL is normalised by Uri before it is ever split, which
+      // disposes of the obvious spellings on its own. The two that survive
+      // are an scp-style remote, which never goes through Uri at all, and a
+      // repository named so that stripping `.git` leaves `..` behind.
+      for (final url in [
+        'https://github.com/owner/...git',
+        'git@github.com:../evil.git',
+        'git@github.com:./evil.git',
+        'git@gitlab.com:group/../evil/repo.git',
+        'git@gitlab.com:group/./repo.git',
+        'git@gitlab.com:group/...git',
+      ]) {
+        expect(resolveForgeHost(url), isNull, reason: url);
+      }
+    });
+
+    test('a scheme URL with dot segments never reaches the splitter', () {
+      // Uri normalises these away, which is why the list above does not
+      // repeat them. Pinned so a later move off Uri cannot quietly reopen the
+      // hole.
+      expect(resolveForgeHost('https://github.com/../evil.git'), isNull);
+      expect(resolveForgeHost('ssh://git@github.com/../evil.git'), isNull);
+      expect(
+        resolveForgeHost('https://gitlab.com/group/../evil/repo.git')?.owner,
+        'evil',
+      );
+    });
+
     test('returns null for hosts that are not a supported forge', () {
       expect(resolveForgeHost('https://bitbucket.org/owner/repo.git'), isNull);
       expect(resolveForgeHost('git@git.example.com:owner/repo.git'), isNull);
