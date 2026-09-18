@@ -11,6 +11,7 @@ import '../../state/feedback.dart';
 import '../../state/settings_controller.dart';
 import '../common/dialogs.dart';
 import '../graph/commit_columns.dart';
+import 'forge_account_row.dart';
 import 'logs_row.dart';
 import 'prefs_rows.dart';
 import 'updates_tab.dart';
@@ -336,7 +337,11 @@ class _CredentialsTabState extends ConsumerState<_CredentialsTab> {
           l.pfAuthBody,
           style: TextStyle(color: t.textMuted, fontSize: 13, height: 1.5),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 20),
+        const ForgeAccountRow(),
+        const SizedBox(height: 20),
+        const Divider(height: 1),
+        const SizedBox(height: 20),
         Row(
           children: [
             Text(
