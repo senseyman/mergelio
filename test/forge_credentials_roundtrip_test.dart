@@ -83,11 +83,64 @@ void main() {
     expect(await process.exitCode, 0, reason: 'git credential $verb failed');
   }
 
+  /// Runs `git credential fill` with [body] and returns what git answered,
+  /// so a test can assert on the credential that comes back rather than only
+  /// on the store file.
+  Future<String> fill(String body) async {
+    final process = await Process.start(
+      'git',
+      [
+        '-c',
+        'credential.helper=',
+        '-c',
+        'credential.helper=store --file=${store.path}',
+        'credential',
+        'fill',
+      ],
+      workingDirectory: scratch.path,
+      environment: {
+        'GIT_CONFIG_GLOBAL': '/dev/null',
+        'GIT_CONFIG_SYSTEM': '/dev/null',
+        'GIT_TERMINAL_PROMPT': '0',
+        'GIT_ASKPASS': '',
+        'SSH_ASKPASS': '',
+        'HOME': scratch.path,
+      },
+    );
+    process.stdin.write(body);
+    await process.stdin.close();
+    final out = await process.stdout
+        .transform(const SystemEncoding().decoder)
+        .join();
+    await process.stderr.drain<void>();
+    return out;
+  }
+
   Future<void> seed(String username, String password) => credential(
     'approve',
     'protocol=https\nhost=github.com\nusername=$username\n'
         'password=$password\n\n',
   );
+
+  test('reading back finds the account this app wrote, not whichever one '
+      'the host already had', () async {
+    // The user's own push credential is stored first, so it is the one a
+    // lookup that does not name an account will find. Writing under a
+    // specific username and then reading without naming it means reading
+    // somebody else's credential and sending it to the API as though it
+    // were ours.
+    await seed('someone', 'the-users-own-push-token');
+    await seed(forgeTokenUsername, 'the-token-mergelio-stored');
+
+    final reply = await fill(
+      credentialRequestFor('github.com', forgeTokenUsername)!,
+    );
+
+    expect(
+      parseCredentialReply(reply)['password'],
+      'the-token-mergelio-stored',
+    );
+  });
 
   test('disconnecting erases only the entry this app stored, leaving the '
       "user's own github.com credential alone", () async {

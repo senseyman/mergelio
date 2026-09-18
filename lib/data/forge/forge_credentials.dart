@@ -77,9 +77,15 @@ const _credentialTimeout = Duration(seconds: 60);
 /// matter how the repository itself is cloned, and the credential being
 /// looked up here is the API's, deliberately independent of the remote's
 /// transport.
-String? credentialRequestFor(String host) {
+String? credentialRequestFor(String host, String username) {
   if (!_usableHost(host)) return null;
-  return 'protocol=https\nhost=$host\n\n';
+  if (!_usableField(username)) return null;
+  // The account has to be named. A host usually carries more than one — the
+  // one this app stores for API reads, and whatever the person already had
+  // for pushing — and a lookup that names none gets whichever the helper
+  // happens to hold first. That is how a credential written under one
+  // account gets read back as another.
+  return 'protocol=https\nhost=$host\nusername=$username\n\n';
 }
 
 /// The key=value fields a `git credential` command wrote.
@@ -121,8 +127,8 @@ class ForgeCredentials {
   /// a missing or broken git install — that detail is lost here on purpose,
   /// in exchange for every caller being able to treat "no token" as the only
   /// failure mode instead of also handling a thrown exception.
-  Future<ForgeToken?> fill(String host) async {
-    final request = credentialRequestFor(host);
+  Future<ForgeToken?> fill(String host, String username) async {
+    final request = credentialRequestFor(host, username);
     if (request == null) return null;
     final GitResult result;
     try {

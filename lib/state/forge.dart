@@ -72,7 +72,12 @@ final forgeTokenProvider = FutureProvider.family<ForgeToken?, String>((
   final host = await ref.watch(forgeHostProvider(path).future);
   if (host == null) return null;
   final git = ref.watch(gitServiceProvider);
-  return ForgeCredentials(git, repoPath: path).fill(host.host);
+  // Named, because the host very likely holds the user's own push credential
+  // too, and an unnamed lookup returns whichever the helper reaches first.
+  return ForgeCredentials(
+    git,
+    repoPath: path,
+  ).fill(host.host, forgeTokenUsername);
 });
 
 /// One cache for the application session.
