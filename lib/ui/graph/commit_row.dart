@@ -139,7 +139,10 @@ class CommitRow extends StatelessWidget {
     children: [
       Flexible(child: _titleLine(t, c)),
       const SizedBox(width: 10),
-      _metaLine(t, c),
+      // Both halves must be able to give way. A meta line that cannot shrink
+      // takes its width first, which squeezes the message to nothing and then
+      // overflows the row anyway once there is nothing left to take.
+      Flexible(child: _metaLine(t, c)),
     ],
   );
 
@@ -287,16 +290,39 @@ class CommitRow extends StatelessWidget {
   Widget _metaLine(AppTokens t, Commit c) {
     final style = TextStyle(color: t.textFaint, fontSize: 11);
     final items = <Widget>[
-      if (_on('author')) Text(c.author, style: style),
+      // Every part of this line has to be able to give way. Whatever width the
+      // row hands this line, it has to fit inside it: a part that cannot
+      // shrink makes the whole row overflow, which costs the commit message
+      // its space first and then spills past the panel edge anyway.
+      if (_on('author'))
+        Flexible(
+          child: Text(
+            c.author,
+            style: style,
+            softWrap: false,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
       if (_on('date'))
-        Text(formatCommitDate(c.date, format: dateFormat), style: style),
+        Flexible(
+          child: Text(
+            formatCommitDate(c.date, format: dateFormat),
+            style: style,
+            softWrap: false,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
       if (_on('sha'))
-        Text(
-          c.shortSha,
-          style: style.copyWith(
-            fontFamily: AppFonts.mono,
-            fontFamilyFallback: AppFonts.monoFallback,
-            letterSpacing: 0.3,
+        Flexible(
+          child: Text(
+            c.shortSha,
+            style: style.copyWith(
+              fontFamily: AppFonts.mono,
+              fontFamilyFallback: AppFonts.monoFallback,
+              letterSpacing: 0.3,
+            ),
+            softWrap: false,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
     ];
