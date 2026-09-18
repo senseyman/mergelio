@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../state/auto_fetch.dart';
 import '../../state/feedback.dart';
+import '../../state/forge_refresh.dart';
 import '../../state/open_files_sync.dart';
 import '../../state/operation_journal.dart';
 import '../../state/profile_theme_sync.dart';
@@ -38,6 +39,7 @@ class AppShell extends ConsumerWidget {
     // Keep the auto-fetch scheduler, per-profile theme + workspace sync and the
     // disk watcher alive for the app's lifetime.
     ref.watch(autoFetchProvider);
+    ref.watch(forgeRefreshProvider);
     ref.watch(windowFocusSyncProvider);
     ref.watch(profileThemeSyncProvider);
     ref.watch(profileWorkspaceSyncProvider);

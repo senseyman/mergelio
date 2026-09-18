@@ -1665,7 +1665,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get forgeConnectHint =>
-      'Add a token in Preferences → Credentials for higher limits';
+      'Without a token: no auto-refresh, 60 requests an hour. Connect in Preferences → Credentials.';
 
   @override
   String get forgeErrUnauthenticated =>
@@ -1735,6 +1735,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String forgeRateRemaining(int remaining, int limit) {
     return '$remaining of $limit requests left this hour.';
   }
+
+  @override
+  String get forgeRefreshInterval => 'Pull request refresh interval';
 
   @override
   String lhTitleLine(String path, String line) {

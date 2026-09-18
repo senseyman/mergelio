@@ -11,6 +11,7 @@ import 'package:mergelio/domain/forge/forge_host.dart';
 import 'package:mergelio/domain/forge/models.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/state/forge.dart';
+import 'package:mergelio/state/forge_refresh.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
 import 'package:mergelio/ui/workspace/forge_section.dart';
@@ -146,8 +147,14 @@ void main() {
     );
     await t.pumpAndSettle();
 
+    // Pinned to the exact localized hint, not a loose substring: any text
+    // containing "Preferences" would satisfy the old assertion even if the
+    // hint's own wording changed or dropped out of the tree entirely.
+    final l = AppLocalizations.of(
+      t.element(find.byType(ForgePullRequestSection)),
+    );
     expect(
-      find.textContaining('Preferences'),
+      find.text(l.forgeConnectHint),
       findsOneWidget,
       reason: 'an unauthenticated session must be told why it is limited',
     );
@@ -168,8 +175,11 @@ void main() {
     );
     await t.pumpAndSettle();
 
+    final l = AppLocalizations.of(
+      t.element(find.byType(ForgePullRequestSection)),
+    );
     expect(
-      find.textContaining('Preferences'),
+      find.text(l.forgeConnectHint),
       findsNothing,
       reason: 'a connected session has no reason to be told to connect',
     );
@@ -255,4 +265,56 @@ void main() {
 
     expect(calls, 2);
   });
+
+  testWidgets('a refresh goes through the scheduler, not a bare invalidate', (
+    t,
+  ) async {
+    // A bare `ref.invalidate(pullRequestPanelProvider(...))` would also
+    // refetch the panel, so that alone cannot tell the two apart (see the
+    // test above). Routing through the scheduler matters because refreshNow
+    // also resets its backoff and re-arms its timer — this spy stands in for
+    // the real controller and records only that the button reached it, with
+    // the repository path the button owns.
+    _SpyForgeRefreshController? spy;
+    await _pump(
+      t,
+      overrides: [
+        forgeHostProvider.overrideWith((ref, path) async => _host),
+        forgeTokenProvider.overrideWith((ref, path) async => null),
+        pullRequestPanelProvider.overrideWith(
+          (ref, path) async => const ForgePanel(),
+        ),
+        forgeRefreshProvider.overrideWith((ref) {
+          final c = _SpyForgeRefreshController(ref);
+          spy = c;
+          return c;
+        }),
+      ],
+    );
+    await t.pumpAndSettle();
+
+    await t.tap(find.byTooltip('Refresh'));
+    await t.pumpAndSettle();
+
+    expect(
+      spy?.refreshNowCalls,
+      ['/repo'],
+      reason:
+          'the refresh button must call refreshNow on the scheduler for '
+          "the section's own repository path, not invalidate the panel "
+          'directly',
+    );
+  });
+}
+
+/// Records calls instead of performing them, so a test can tell the refresh
+/// button actually reached the scheduler rather than something that merely
+/// has the same visible effect (refetching the panel).
+class _SpyForgeRefreshController extends ForgeRefreshController {
+  final refreshNowCalls = <String>[];
+
+  _SpyForgeRefreshController(super.ref);
+
+  @override
+  void refreshNow(String path) => refreshNowCalls.add(path);
 }

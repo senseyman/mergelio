@@ -1,0 +1,367 @@
+// The pull-request panel's automatic refresh: gated on a token, the window
+// having focus and an active repository at once, backed off on failure the
+// same way auto-fetch is, and reset by anything else that already refreshed.
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mergelio/data/forge/forge_credentials.dart';
+import 'package:mergelio/data/settings_repository.dart';
+import 'package:mergelio/domain/forge/forge_host.dart';
+import 'package:mergelio/state/forge.dart';
+import 'package:mergelio/state/forge_refresh.dart';
+import 'package:mergelio/state/settings.dart';
+import 'package:mergelio/state/settings_controller.dart';
+import 'package:mergelio/state/window_focus.dart';
+import 'package:mergelio/state/workspace.dart';
+
+const _host = ForgeHost(
+  kind: ForgeKind.github,
+  host: 'github.com',
+  owner: 'o',
+  repo: 'r',
+);
+const _path = '/repo';
+
+/// The overrides a settled container needs, split out from [_container] so a
+/// test can hand the identical list back to [ProviderContainer.updateOverrides]
+/// with just one entry changed — Riverpod only updates existing overrides in
+/// place, it cannot add or remove any, so the list length and order must
+/// match what the container was built with.
+List<Override> _overrides({
+  AppSettings settings = const AppSettings(),
+  ForgeHost? host = _host,
+  ForgeToken? token = const ForgeToken('ghp_x'),
+  bool focused = true,
+  bool openRepo = true,
+  ForgePanel Function(String path)? panel,
+}) {
+  final workspace = WorkspaceController();
+  if (openRepo) workspace.openRepo(_path);
+  return [
+    settingsProvider.overrideWith(
+      (ref) => SettingsController(InMemorySettingsRepository(), settings),
+    ),
+    workspaceProvider.overrideWith((ref) => workspace),
+    windowFocusedProvider.overrideWith((ref) => focused),
+    forgeHostProvider.overrideWith((ref, path) async => host),
+    forgeTokenProvider.overrideWith((ref, path) async => token),
+    pullRequestPanelProvider.overrideWith(
+      (ref, path) async => panel?.call(path) ?? const ForgePanel(),
+    ),
+  ];
+}
+
+/// A settled container with a repo open at [_path], ready to be nudged into
+/// whichever host/token combination a test needs.
+ProviderContainer _container({
+  AppSettings settings = const AppSettings(),
+  ForgeHost? host = _host,
+  ForgeToken? token = const ForgeToken('ghp_x'),
+  bool focused = true,
+  bool openRepo = true,
+  ForgePanel Function(String path)? panel,
+}) => ProviderContainer(
+  overrides: _overrides(
+    settings: settings,
+    host: host,
+    token: token,
+    focused: focused,
+    openRepo: openRepo,
+    panel: panel,
+  ),
+);
+
+/// Flushes the microtasks a family FutureProvider chain needs to settle
+/// after a container is built or an override changes.
+Future<void> _settle() async {
+  await Future<void>.delayed(Duration.zero);
+  await Future<void>.delayed(Duration.zero);
+}
+
+void main() {
+  group('eligibility gates the timer', () {
+    test('no timer without a token', () async {
+      final c = _container(token: null);
+      addTearDown(c.dispose);
+      final ctl = c.read(forgeRefreshProvider);
+      await _settle();
+
+      expect(ctl.scheduledInterval, isNull);
+    });
+
+    test('no timer without a forge host', () async {
+      final c = _container(host: null, token: null);
+      addTearDown(c.dispose);
+      final ctl = c.read(forgeRefreshProvider);
+      await _settle();
+
+      expect(ctl.scheduledInterval, isNull);
+    });
+
+    test('no timer with no repository open', () async {
+      final c = _container(openRepo: false);
+      addTearDown(c.dispose);
+      final ctl = c.read(forgeRefreshProvider);
+      await _settle();
+
+      expect(ctl.scheduledInterval, isNull);
+    });
+
+    test('a timer starts once a token and host both resolve', () async {
+      final c = _container(
+        settings: const AppSettings(forgeRefreshIntervalSeconds: 300),
+      );
+      addTearDown(c.dispose);
+      final ctl = c.read(forgeRefreshProvider);
+      await _settle();
+
+      expect(ctl.scheduledInterval, const Duration(seconds: 300));
+    });
+
+    test('losing the token cancels the timer', () async {
+      // updateOverrides cannot change what an already-created family member
+      // resolves to — a family override it is handed only ever applies to
+      // members mounted after the swap, and forgeTokenProvider(_path) is
+      // mounted the moment the controller settles below. So the override
+      // closure captures a mutable cell instead: invalidating the provider
+      // re-runs the very same closure, which by then reads the token as
+      // gone.
+      final workspace = WorkspaceController()..openRepo(_path);
+      ForgeToken? token = const ForgeToken('ghp_x');
+      final c = ProviderContainer(
+        overrides: [
+          settingsProvider.overrideWith(
+            (ref) => SettingsController(
+              InMemorySettingsRepository(),
+              const AppSettings(),
+            ),
+          ),
+          workspaceProvider.overrideWith((ref) => workspace),
+          windowFocusedProvider.overrideWith((ref) => true),
+          forgeHostProvider.overrideWith((ref, path) async => _host),
+          forgeTokenProvider.overrideWith((ref, path) async => token),
+          pullRequestPanelProvider.overrideWith(
+            (ref, path) async => const ForgePanel(),
+          ),
+        ],
+      );
+      addTearDown(c.dispose);
+      final ctl = c.read(forgeRefreshProvider);
+      await _settle();
+      expect(ctl.scheduledInterval, isNotNull);
+
+      token = null;
+      c.invalidate(forgeTokenProvider(_path));
+      await _settle();
+
+      expect(ctl.scheduledInterval, isNull);
+    });
+  });
+
+  group('interval from settings', () {
+    test('default forge-refresh interval is 10 minutes', () {
+      expect(const AppSettings().forgeRefreshIntervalSeconds, 600);
+    });
+
+    test('setForgeRefreshInterval clamps to a 120s floor', () {
+      final c = ProviderContainer(
+        overrides: [
+          settingsProvider.overrideWith(
+            (ref) => SettingsController(
+              InMemorySettingsRepository(),
+              const AppSettings(),
+            ),
+          ),
+        ],
+      );
+      addTearDown(c.dispose);
+      final s = c.read(settingsProvider.notifier);
+      s.setForgeRefreshInterval(5);
+      expect(c.read(settingsProvider).forgeRefreshIntervalSeconds, 120);
+      s.setForgeRefreshInterval(900);
+      expect(c.read(settingsProvider).forgeRefreshIntervalSeconds, 900);
+    });
+
+    test('a stored sub-minimum interval is migrated up to the floor', () {
+      expect(
+        migrateSettings(const AppSettings(forgeRefreshIntervalSeconds: 5))
+            .forgeRefreshIntervalSeconds,
+        120,
+      );
+      expect(
+        migrateSettings(const AppSettings(forgeRefreshIntervalSeconds: 900))
+            .forgeRefreshIntervalSeconds,
+        900,
+      );
+    });
+
+    test('changing the interval setting reschedules a running timer', () async {
+      final c = _container(
+        settings: const AppSettings(forgeRefreshIntervalSeconds: 300),
+      );
+      addTearDown(c.dispose);
+      final ctl = c.read(forgeRefreshProvider);
+      await _settle();
+      expect(ctl.scheduledInterval, const Duration(seconds: 300));
+
+      c.read(settingsProvider.notifier).setForgeRefreshInterval(150);
+      expect(ctl.scheduledInterval, const Duration(seconds: 150));
+    });
+  });
+
+  group('window focus', () {
+    test('tick skips the refresh while the window is unfocused', () async {
+      var calls = 0;
+      final c = _container(
+        focused: false,
+        panel: (path) {
+          calls++;
+          return const ForgePanel();
+        },
+      );
+      addTearDown(c.dispose);
+      final ctl = c.read(forgeRefreshProvider);
+      await _settle();
+      final interval = ctl.scheduledInterval;
+
+      await ctl.tick();
+
+      expect(calls, 0);
+      // A skip is not a failure: the timer stays on the same interval.
+      expect(ctl.scheduledInterval, interval);
+    });
+
+    test('regaining focus after a skipped tick refreshes at once', () async {
+      var calls = 0;
+      final c = _container(
+        focused: false,
+        panel: (path) {
+          calls++;
+          return const ForgePanel();
+        },
+      );
+      addTearDown(c.dispose);
+      // Building the panel provider once up front, same as the invalidation
+      // test below, so the tick's own invalidate does not also cover the
+      // provider's very first (debug-only double) build.
+      final sub = c.listen(pullRequestPanelProvider(_path), (_, _) {});
+      addTearDown(sub.close);
+      await c.read(pullRequestPanelProvider(_path).future);
+      calls = 0;
+
+      final ctl = c.read(forgeRefreshProvider);
+      await _settle();
+
+      await ctl.tick();
+      expect(calls, 0);
+
+      c.read(windowFocusedProvider.notifier).state = true;
+      await ctl.inFlightTick;
+
+      expect(calls, 1);
+    });
+  });
+
+  group('failure backoff', () {
+    test(
+      'a failing tick backs the interval off; a success resets it',
+      () async {
+        var fail = true;
+        final c = _container(
+          settings: const AppSettings(forgeRefreshIntervalSeconds: 120),
+          panel: (path) {
+            if (fail) throw Exception('rate limited');
+            return const ForgePanel();
+          },
+        );
+        addTearDown(c.dispose);
+        final ctl = c.read(forgeRefreshProvider);
+        await _settle();
+        expect(ctl.scheduledInterval, const Duration(seconds: 120));
+
+        await ctl.tick();
+        expect(ctl.scheduledInterval, const Duration(seconds: 240));
+        await ctl.tick();
+        expect(ctl.scheduledInterval, const Duration(seconds: 480));
+
+        fail = false;
+        await ctl.tick();
+        expect(ctl.scheduledInterval, const Duration(seconds: 120));
+      },
+    );
+  });
+
+  group('any refresh resets the timer', () {
+    test(
+      'refreshNow re-arms the tracked repository at the base interval',
+      () async {
+        var fail = true;
+        final c = _container(
+          settings: const AppSettings(forgeRefreshIntervalSeconds: 120),
+          panel: (path) {
+            if (fail) throw Exception('offline');
+            return const ForgePanel();
+          },
+        );
+        addTearDown(c.dispose);
+        final ctl = c.read(forgeRefreshProvider);
+        await _settle();
+
+        await ctl.tick();
+        expect(ctl.scheduledInterval, const Duration(seconds: 240));
+
+        fail = false;
+        ctl.refreshNow(_path);
+
+        expect(ctl.scheduledInterval, const Duration(seconds: 120));
+      },
+    );
+
+    test('refreshNow invalidates the panel it is given', () async {
+      var calls = 0;
+      final c = _container(
+        panel: (path) {
+          calls++;
+          return const ForgePanel();
+        },
+      );
+      addTearDown(c.dispose);
+      c.read(forgeRefreshProvider);
+      await _settle();
+      // Establish a listener so the invalidation is observable synchronously.
+      final sub = c.listen(pullRequestPanelProvider(_path), (_, _) {});
+      addTearDown(sub.close);
+      await c.read(pullRequestPanelProvider(_path).future);
+      final before = calls;
+
+      c.read(forgeRefreshProvider).refreshNow(_path);
+      await c.read(pullRequestPanelProvider(_path).future);
+
+      expect(calls, greaterThan(before));
+    });
+
+    test('refreshNow for a repository the scheduler is not tracking leaves '
+        'the tracked timer untouched', () async {
+      final c = _container(
+        settings: const AppSettings(forgeRefreshIntervalSeconds: 120),
+      );
+      addTearDown(c.dispose);
+      final ctl = c.read(forgeRefreshProvider);
+      await _settle();
+      final before = ctl.scheduledInterval;
+
+      ctl.refreshNow('/some/other/repo');
+
+      expect(ctl.scheduledInterval, before);
+    });
+  });
+
+  test('a tick that lands after disposal is inert', () async {
+    final c = _container();
+    final ctl = c.read(forgeRefreshProvider);
+    await _settle();
+    c.dispose();
+
+    await ctl.tick();
+    expect(ctl.scheduledInterval, isNull);
+  });
+}

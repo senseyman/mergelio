@@ -1674,7 +1674,7 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get forgeConnectHint =>
-      'Додайте токен у Налаштування → Облікові дані для вищих лімітів';
+      'Без токена: без автооновлення, 60 запитів на годину. Підключіть у Налаштуваннях → Облікові дані.';
 
   @override
   String get forgeErrUnauthenticated =>
@@ -1744,6 +1744,9 @@ class AppLocalizationsUk extends AppLocalizations {
   String forgeRateRemaining(int remaining, int limit) {
     return 'Залишилось $remaining з $limit запитів цієї години.';
   }
+
+  @override
+  String get forgeRefreshInterval => 'Інтервал оновлення пулреквестів';
 
   @override
   String lhTitleLine(String path, String line) {

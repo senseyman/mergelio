@@ -8,6 +8,7 @@ import '../../domain/git/git_providers.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/feedback.dart';
 import '../../state/forge.dart';
+import '../../state/settings_controller.dart';
 import '../../state/workspace.dart';
 
 const _githubHost = 'github.com';
@@ -157,6 +158,11 @@ class _ForgeAccountRowState extends ConsumerState<ForgeAccountRow> {
     final rateLimit = activePath == null
         ? null
         : ref.watch(forgeRateLimitProvider(activePath)).valueOrNull;
+    // The refresh-interval control only makes sense once a token is on file
+    // to spend: with none, nothing on a timer is ever eligible to tick.
+    final connected =
+        activePath != null &&
+        ref.watch(forgeTokenProvider(activePath)).valueOrNull != null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -203,6 +209,62 @@ class _ForgeAccountRowState extends ConsumerState<ForgeAccountRow> {
             ),
           ],
         ),
+        // Belongs here, not on the General tab: unlike auto-fetch (which
+        // works with no token at all) this timer is inert without one, so
+        // it is only ever meaningful right beside the token that gates it.
+        if (connected) ...[
+          const SizedBox(height: 12),
+          _RefreshIntervalRow(
+            seconds: ref.watch(
+              settingsProvider.select((s) => s.forgeRefreshIntervalSeconds),
+            ),
+            onChanged: ref
+                .read(settingsProvider.notifier)
+                .setForgeRefreshInterval,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// How often the pull-request panel refreshes on its own, offered only once
+/// a token makes the timer eligible to run at all.
+class _RefreshIntervalRow extends StatelessWidget {
+  static const _options = [120, 300, 600, 1800];
+
+  final int seconds;
+  final ValueChanged<int> onChanged;
+  const _RefreshIntervalRow({required this.seconds, required this.onChanged});
+
+  static String _label(int s) => switch (s) {
+    120 => '2m',
+    300 => '5m',
+    1800 => '30m',
+    _ => '10m',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final t = context.tokens;
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            l.forgeRefreshInterval,
+            style: TextStyle(color: t.textPrimary, fontSize: 13),
+          ),
+        ),
+        for (final o in _options)
+          Padding(
+            padding: const EdgeInsets.only(left: 6),
+            child: ChoiceChip(
+              label: Text(_label(o), style: const TextStyle(fontSize: 12)),
+              selected: seconds == o,
+              onSelected: (_) => onChanged(o),
+            ),
+          ),
       ],
     );
   }

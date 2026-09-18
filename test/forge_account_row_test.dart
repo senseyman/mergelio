@@ -10,12 +10,15 @@ import 'package:mergelio/core/tokens.dart';
 import 'package:mergelio/data/forge/etag_cache.dart';
 import 'package:mergelio/data/forge/forge_credentials.dart';
 import 'package:mergelio/data/forge/forge_http.dart';
+import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/domain/forge/models.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/state/feedback.dart';
 import 'package:mergelio/state/forge.dart';
+import 'package:mergelio/state/settings.dart';
+import 'package:mergelio/state/settings_controller.dart';
 import 'package:mergelio/state/workspace.dart';
 import 'package:mergelio/ui/preferences/forge_account_row.dart';
 
@@ -633,6 +636,73 @@ void main() {
         expect(find.textContaining('requests left this hour'), findsNothing);
       },
     );
+  });
+
+  group('refresh interval', () {
+    List<Override> connectedOverrides(SettingsController Function(Ref) make) =>
+        [
+          gitServiceProvider.overrideWithValue(_RecordingGit()),
+          workspaceProvider.overrideWith((ref) {
+            final c = WorkspaceController();
+            c.openRepo('/repo');
+            return c;
+          }),
+          forgeTokenProvider.overrideWith(
+            (ref, path) async => const ForgeToken('ghp_x'),
+          ),
+          settingsProvider.overrideWith(make),
+        ];
+
+    testWidgets('is hidden without an active repository', (tester) async {
+      await _pump(
+        tester,
+        overrides: [gitServiceProvider.overrideWithValue(_RecordingGit())],
+      );
+      await tester.pump();
+
+      expect(find.text('10m'), findsNothing);
+    });
+
+    testWidgets('is hidden until a token is connected', (tester) async {
+      await _pump(
+        tester,
+        overrides: [
+          gitServiceProvider.overrideWithValue(_RecordingGit()),
+          workspaceProvider.overrideWith((ref) {
+            final c = WorkspaceController();
+            c.openRepo('/repo');
+            return c;
+          }),
+          forgeTokenProvider.overrideWith((ref, path) async => null),
+        ],
+      );
+      await tester.pump();
+
+      expect(find.text('10m'), findsNothing);
+    });
+
+    testWidgets('offers a choice once a token is connected', (tester) async {
+      late SettingsController ctl;
+      await _pump(
+        tester,
+        overrides: connectedOverrides(
+          (ref) => ctl = SettingsController(
+            InMemorySettingsRepository(),
+            const AppSettings(),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      // Default interval (600s) selected.
+      expect(find.text('10m'), findsOneWidget);
+
+      await tester.tap(find.text('5m'));
+      await tester.pump();
+
+      expect(ctl.state.forgeRefreshIntervalSeconds, 300);
+    });
   });
 }
 

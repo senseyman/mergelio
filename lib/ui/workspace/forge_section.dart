@@ -6,6 +6,7 @@ import '../../core/tokens.dart';
 import '../../domain/forge/models.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/forge.dart';
+import '../../state/forge_refresh.dart';
 import '../../state/settings_controller.dart';
 import 'forge_presentation.dart';
 import 'sidebar_section.dart';
@@ -49,7 +50,11 @@ class ForgePullRequestSection extends ConsumerWidget {
         padding: EdgeInsets.zero,
         constraints: const BoxConstraints(),
         visualDensity: VisualDensity.compact,
-        onPressed: () => ref.invalidate(pullRequestPanelProvider(repoPath)),
+        // Goes through the scheduler rather than a bare invalidate, so a
+        // manual refresh also pushes the next scheduled tick out a full
+        // interval — otherwise a background tick could land moments later
+        // and spend the same rate-limit budget again for nothing.
+        onPressed: () => ref.read(forgeRefreshProvider).refreshNow(repoPath),
       ),
       children: [
         if (!connected) _HintRow(text: l.forgeConnectHint),

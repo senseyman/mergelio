@@ -2987,7 +2987,7 @@ abstract class AppLocalizations {
   /// No description provided for @forgeConnectHint.
   ///
   /// In en, this message translates to:
-  /// **'Add a token in Preferences → Credentials for higher limits'**
+  /// **'Without a token: no auto-refresh, 60 requests an hour. Connect in Preferences → Credentials.'**
   String get forgeConnectHint;
 
   /// No description provided for @forgeErrUnauthenticated.
@@ -3103,6 +3103,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{remaining} of {limit} requests left this hour.'**
   String forgeRateRemaining(int remaining, int limit);
+
+  /// No description provided for @forgeRefreshInterval.
+  ///
+  /// In en, this message translates to:
+  /// **'Pull request refresh interval'**
+  String get forgeRefreshInterval;
 
   /// No description provided for @lhTitleLine.
   ///

@@ -32,6 +32,18 @@ class SettingsController extends StateNotifier<AppSettings> {
       ),
     ),
   );
+
+  /// Pull-request panel refresh interval, floored at
+  /// [kMinForgeRefreshIntervalSeconds] so a tick never costs more than the
+  /// budget it is spending against can spare.
+  void setForgeRefreshInterval(int seconds) => _update(
+    state.copyWith(
+      forgeRefreshIntervalSeconds: seconds.clamp(
+        kMinForgeRefreshIntervalSeconds,
+        3600,
+      ),
+    ),
+  );
   void setConfirmDestructive(bool v) =>
       _update(state.copyWith(confirmDestructive: v));
   void setRestoreTabs(bool v) => _update(state.copyWith(restoreTabs: v));
