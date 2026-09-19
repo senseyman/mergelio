@@ -38,6 +38,18 @@ void main() {
       expect(forgeErrorForStatus(403, const {}), isA<ForgeNotVisible>());
     });
 
+    test('a scope-limited 403 is a visibility failure even though GitHub still '
+        'sends rate-limit headers on it', () {
+      // GitHub attaches x-ratelimit-reset (and remaining) to every REST
+      // response, success or not, so their mere presence must not be read
+      // as "you are rate limited" — only exhaustion is.
+      final e = forgeErrorForStatus(403, const {
+        'x-ratelimit-remaining': '4321',
+        'x-ratelimit-reset': '1789000000',
+      });
+      expect(e, isA<ForgeNotVisible>());
+    });
+
     test('404 is a visibility failure', () {
       expect(forgeErrorForStatus(404, const {}), isA<ForgeNotVisible>());
     });

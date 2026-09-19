@@ -30,7 +30,13 @@ class ForgePullRequestSection extends ConsumerWidget {
       settingsProvider.select((s) => s.collapsedSections),
     );
     final ctl = ref.read(settingsProvider.notifier);
-    final panel = ref.watch(pullRequestPanelProvider(repoPath));
+    final open = !(collapsed['pull-requests'] ?? false);
+    // A collapsed section shows nothing, so watching the panel while
+    // collapsed would spend a forge fetch on rows nobody can see. The watch
+    // only starts once the section is actually open, and stops (Riverpod
+    // disposes the family member once nothing watches it) the moment it is
+    // collapsed again.
+    final panel = open ? ref.watch(pullRequestPanelProvider(repoPath)) : null;
     final connected =
         ref.watch(forgeTokenProvider(repoPath)).valueOrNull != null;
 
@@ -40,9 +46,9 @@ class ForgePullRequestSection extends ConsumerWidget {
       label: l.forgePullRequests,
       // Null, not 0, until the fetch resolves — a 0 here would claim the
       // repository has none before it is actually known.
-      count: panel.valueOrNull?.pullRequests.length,
+      count: panel?.valueOrNull?.pullRequests.length,
       emptyLabel: l.forgeNoPullRequests,
-      open: !(collapsed['pull-requests'] ?? false),
+      open: open,
       onToggle: () => ctl.toggleSection('pull-requests'),
       trailing: IconButton(
         icon: Icon(Icons.refresh, size: 14, color: context.tokens.textFaint),
@@ -58,7 +64,7 @@ class ForgePullRequestSection extends ConsumerWidget {
       ),
       children: [
         if (!connected) _HintRow(text: l.forgeConnectHint),
-        ...panel.when(
+        ...?panel?.when(
           loading: () => const [_LoadingRow()],
           error: (e, _) => [_MessageRow(text: forgePanelMessage(e, l))],
           data: (p) => p.pullRequests.isEmpty

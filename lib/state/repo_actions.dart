@@ -195,7 +195,7 @@ class RepoActions {
     // the same rate-limit budget again each time it runs.
     onSuccess: silent
         ? null
-        : () => _ref.read(forgeRefreshProvider).refreshNow(path),
+        : () => _ref.read(forgeRefreshProvider).refreshAfterGitOp(path),
   );
 
   /// Shares the fetch lane: pruning rewrites the same remote-tracking refs a
@@ -302,7 +302,7 @@ class RepoActions {
         autostash: autostash,
         cancel: cancel,
       ),
-      onSuccess: () => _ref.read(forgeRefreshProvider).refreshNow(path),
+      onSuccess: () => _ref.read(forgeRefreshProvider).refreshAfterGitOp(path),
     );
     // A pull that did not land leaves the reader wherever they were; moving
     // the cursor would lose their place for nothing.
@@ -324,7 +324,8 @@ class RepoActions {
           cancel: cancel,
         ),
         writesWorkingTree: false,
-        onSuccess: () => _ref.read(forgeRefreshProvider).refreshNow(path),
+        onSuccess: () =>
+            _ref.read(forgeRefreshProvider).refreshAfterGitOp(path),
       );
 
   /// True (and toasts) when something already holds the repository lane, so an

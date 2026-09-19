@@ -333,7 +333,7 @@ void main() {
       await c.read(pullRequestPanelProvider(_path).future);
       final before = calls;
 
-      c.read(forgeRefreshProvider).refreshNow(_path);
+      c.read(forgeRefreshProvider).refreshAfterGitOp(_path);
       await c.read(pullRequestPanelProvider(_path).future);
 
       expect(calls, greaterThan(before));
@@ -352,6 +352,86 @@ void main() {
       ctl.refreshNow('/some/other/repo');
 
       expect(ctl.scheduledInterval, before);
+    });
+  });
+
+  test('refreshNow spends a refresh even with no token on file', () async {
+    // The token gate belongs on paths that spend without being asked. A
+    // person pressing refresh has asked, and a control that quietly does
+    // nothing is worse than one that spends a request.
+    var calls = 0;
+    final c = _container(
+      token: null,
+      panel: (path) {
+        calls++;
+        return const ForgePanel();
+      },
+    );
+    addTearDown(c.dispose);
+    c.read(forgeRefreshProvider);
+    await _settle();
+    final sub = c.listen(pullRequestPanelProvider(_path), (_, _) {});
+    addTearDown(sub.close);
+    await c.read(pullRequestPanelProvider(_path).future);
+    calls = 0;
+
+    c.read(forgeRefreshProvider).refreshNow(_path);
+    await _settle();
+
+    expect(calls, 1);
+  });
+
+  group('refreshAfterGitOp requires a token', () {
+    test('does nothing without a token on file', () async {
+      var calls = 0;
+      final c = _container(
+        token: null,
+        panel: (path) {
+          calls++;
+          return const ForgePanel();
+        },
+      );
+      addTearDown(c.dispose);
+      c.read(forgeRefreshProvider);
+      await _settle();
+      final sub = c.listen(pullRequestPanelProvider(_path), (_, _) {});
+      addTearDown(sub.close);
+      await c.read(pullRequestPanelProvider(_path).future);
+      calls = 0;
+
+      c.read(forgeRefreshProvider).refreshAfterGitOp(_path);
+      await _settle();
+
+      expect(
+        calls,
+        0,
+        reason:
+            'a fetch/pull/push run without a token must not spend the '
+            'unauthenticated hourly budget on a panel refresh nobody asked '
+            'for',
+      );
+    });
+
+    test('still refreshes the panel once a token is on file', () async {
+      var calls = 0;
+      final c = _container(
+        panel: (path) {
+          calls++;
+          return const ForgePanel();
+        },
+      );
+      addTearDown(c.dispose);
+      c.read(forgeRefreshProvider);
+      await _settle();
+      final sub = c.listen(pullRequestPanelProvider(_path), (_, _) {});
+      addTearDown(sub.close);
+      await c.read(pullRequestPanelProvider(_path).future);
+      final before = calls;
+
+      c.read(forgeRefreshProvider).refreshAfterGitOp(_path);
+      await c.read(pullRequestPanelProvider(_path).future);
+
+      expect(calls, greaterThan(before));
     });
   });
 

@@ -3077,8 +3077,14 @@ abstract class AppLocalizations {
   /// No description provided for @forgeTokenSaved.
   ///
   /// In en, this message translates to:
-  /// **'Token saved to the system keychain.'**
+  /// **'Connected to GitHub.'**
   String get forgeTokenSaved;
+
+  /// No description provided for @forgeTokenNotKept.
+  ///
+  /// In en, this message translates to:
+  /// **'GitHub accepted the token, but nothing on this system kept it. Set up a git credential helper and try again.'**
+  String get forgeTokenNotKept;
 
   /// No description provided for @forgeTokenForgotten.
   ///

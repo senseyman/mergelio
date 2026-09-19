@@ -98,8 +98,11 @@ ForgeError forgeErrorForStatus(int status, Map<String, String> headers) {
   if (status == 403) {
     // A 403 means either "you have spent your quota" or "your token is not
     // allowed here". Only the headers tell them apart, and sending someone to
-    // wait out a limit they have not hit wastes their time.
-    if (_limitExhausted(headers) || _resetAt(headers) != null) {
+    // wait out a limit they have not hit wastes their time. GitHub sends
+    // x-ratelimit-reset on every REST response, including a scope or SSO
+    // 403, so that header's mere presence cannot be the signal — only
+    // exhaustion, or a host that names a wait explicitly via Retry-After, is.
+    if (_limitExhausted(headers) || headers.containsKey('retry-after')) {
       return ForgeRateLimited(_resetAt(headers));
     }
     return const ForgeNotVisible();

@@ -206,12 +206,34 @@ class ForgeRefreshController {
   /// out. A manual refresh, or one earned by a fetch/pull/push the user
   /// asked for, must not be followed seconds later by a scheduled tick that
   /// spends the same budget again for nothing.
+  ///
+  /// Does nothing without a token on file for [path]: an anonymous fetch,
+  /// pull or push earns this call just as a token-backed one does, but
+  /// spending it would burn a third of the 60-request unauthenticated hourly
+  /// budget on a panel the caller never asked to see.
+  /// Refreshes because a person asked for these rows.
+  ///
+  /// Deliberately ungated: pressing refresh IS the request, and refusing it
+  /// for want of a token would leave a control that silently does nothing.
+  /// The budget is guarded where spending is incidental instead — the timer,
+  /// and the git operations that refresh as a side effect.
   void refreshNow(String path) {
     _ref.invalidate(pullRequestPanelProvider(path));
     if (path != _path) return;
     _failures = 0;
     _missedTick = false;
     _armTimer();
+  }
+
+  /// Refreshes because a git operation happened to touch the remote.
+  ///
+  /// The person asked to fetch, pull or push — not to spend a further
+  /// twenty-one requests on pull request data. Without a token that is a
+  /// third of the hour's budget per git operation, so this path stays shut
+  /// until one is connected.
+  void refreshAfterGitOp(String path) {
+    if (_ref.read(forgeTokenProvider(path)).valueOrNull == null) return;
+    refreshNow(path);
   }
 }
 

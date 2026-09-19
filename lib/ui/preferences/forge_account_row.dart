@@ -105,14 +105,33 @@ class _ForgeAccountRowState extends ConsumerState<ForgeAccountRow> {
           .show(l.forgeTokenRejected, kind: ToastKind.error);
       return;
     }
-    await _credentials.approve(_githubHost, forgeTokenUsername, token);
+    final approved = await _credentials.approve(
+      _githubHost,
+      forgeTokenUsername,
+      token,
+    );
     _forgetDerivedState();
     if (!mounted) return;
+    // approve's own contract warns it cannot promise this: a helper that
+    // silently declines to store still exits zero, so the only honest proof
+    // the token survived is reading it back through the same helper rather
+    // than trusting the exit code that just asked it to keep one.
+    var kept = false;
+    if (approved) {
+      kept = await _credentials.fill(_githubHost, forgeTokenUsername) != null;
+      if (!mounted) return;
+    }
     _field.clear();
     setState(() => _busy = false);
-    ref
-        .read(toastProvider.notifier)
-        .show(l.forgeTokenSaved, kind: ToastKind.success);
+    if (kept) {
+      ref
+          .read(toastProvider.notifier)
+          .show(l.forgeTokenSaved, kind: ToastKind.success);
+    } else {
+      ref
+          .read(toastProvider.notifier)
+          .show(l.forgeTokenNotKept, kind: ToastKind.error);
+    }
   }
 
   Future<void> _disconnect() async {

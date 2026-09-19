@@ -250,7 +250,12 @@ void main() {
       t,
       overrides: [
         forgeHostProvider.overrideWith((ref, path) async => _host),
-        forgeTokenProvider.overrideWith((ref, path) async => null),
+        // A token on file, not null: refreshNow (which the button goes
+        // through) declines to spend a fetch on an anonymous session, so an
+        // unauthenticated repeat of this test would see the tap do nothing.
+        forgeTokenProvider.overrideWith(
+          (ref, path) async => const ForgeToken('ghp_x'),
+        ),
         pullRequestPanelProvider.overrideWith((ref, path) async {
           calls++;
           return const ForgePanel();
@@ -264,6 +269,82 @@ void main() {
     await t.pumpAndSettle();
 
     expect(calls, 2);
+  });
+
+  testWidgets('the refresh control works without a token, because a press '
+      'is the request', (t) async {
+    var calls = 0;
+    await _pump(
+      t,
+      overrides: [
+        forgeHostProvider.overrideWith((ref, path) async => _host),
+        forgeTokenProvider.overrideWith((ref, path) async => null),
+        pullRequestPanelProvider.overrideWith((ref, path) async {
+          calls++;
+          return const ForgePanel();
+        }),
+      ],
+    );
+    await t.pumpAndSettle();
+    expect(calls, 1);
+
+    await t.tap(find.byTooltip('Refresh'));
+    await t.pumpAndSettle();
+
+    expect(
+      calls,
+      2,
+      reason:
+          'pressing refresh IS the request for these rows; refusing it for '
+          'want of a token would leave a control that silently does nothing',
+    );
+  });
+
+  testWidgets('does not fetch the panel while the section is collapsed', (
+    t,
+  ) async {
+    var calls = 0;
+    late SettingsController ctl;
+    await t.pumpWidget(
+      ProviderScope(
+        overrides: [
+          settingsProvider.overrideWith(
+            (_) => ctl = SettingsController(
+              InMemorySettingsRepository(),
+              const AppSettings(collapsedSections: {'pull-requests': true}),
+            ),
+          ),
+          forgeHostProvider.overrideWith((ref, path) async => _host),
+          forgeTokenProvider.overrideWith((ref, path) async => null),
+          pullRequestPanelProvider.overrideWith((ref, path) async {
+            calls++;
+            return const ForgePanel();
+          }),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          theme: ThemeData(extensions: [AppTokens.dark()]),
+          home: const Scaffold(
+            body: ForgePullRequestSection(repoPath: '/repo'),
+          ),
+        ),
+      ),
+    );
+    await t.pumpAndSettle();
+
+    expect(
+      calls,
+      0,
+      reason:
+          'a collapsed section is not visible, so it must not spend a '
+          'forge request fetching rows nobody can see',
+    );
+
+    ctl.toggleSection('pull-requests');
+    await t.pumpAndSettle();
+
+    expect(calls, 1);
   });
 
   testWidgets('a refresh goes through the scheduler, not a bare invalidate', (

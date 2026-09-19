@@ -47,6 +47,9 @@ class _FakeForgeRefresh implements ForgeRefreshController {
   void refreshNow(String path) => refreshedPaths.add(path);
 
   @override
+  void refreshAfterGitOp(String path) => refreshedPaths.add(path);
+
+  @override
   Duration? get scheduledInterval => null;
 
   @override

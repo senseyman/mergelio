@@ -150,6 +150,44 @@ class _StoringCredentialGit implements GitService {
   }
 }
 
+/// A [GitService] that models a credential helper which is not actually
+/// configured: `credential approve` still exits zero (git accepted the
+/// request and handed it to *some* helper) but every `credential fill`
+/// comes back with nothing stored, the way `git-credential-store` behaves
+/// with no `credential.helper` set up at all.
+class _SilentlyDecliningGit implements GitService {
+  int approveCalls = 0;
+  int fillCalls = 0;
+
+  @override
+  Future<String> version() async => 'git version 0.0.0';
+
+  @override
+  Future<bool> isRepository(String path) async => true;
+
+  @override
+  Future<GitResult> run(
+    List<String> args, {
+    String? repoPath,
+    Duration? timeout,
+    Map<String, String>? environment,
+    GitCancel? cancel,
+    String? stdin,
+  }) async {
+    if (args.length >= 2 && args[0] == 'credential') {
+      switch (args[1]) {
+        case 'approve':
+          approveCalls++;
+          return const GitResult(0, '', '');
+        case 'fill':
+          fillCalls++;
+          return const GitResult(0, 'protocol=https\nhost=github.com\n', '');
+      }
+    }
+    return const GitResult(1, '', 'unsupported in this stub');
+  }
+}
+
 /// Pumps [ForgeAccountRow] under an explicit container, so a test can both
 /// drive the widget and read provider state (toasts included) afterwards.
 Future<ProviderContainer> _pump(
@@ -234,10 +272,14 @@ void main() {
     });
 
     testWidgets(
-      'connecting with a token GitHub accepts stores it and clears the '
-      'etag cache',
+      'connecting with a token GitHub accepts, and the helper actually '
+      'keeps it, stores it and clears the etag cache',
       (tester) async {
-        final git = _RecordingGit();
+        // A helper with a memory, not _RecordingGit: this row must now read
+        // the token back after approving it, and a stub that answers every
+        // call with a blank success would make that read-back always see
+        // nothing, so the success path could never be exercised.
+        final git = _StoringCredentialGit();
         final cache = EtagCache()
           ..store(Uri.https('api.github.com', '/x'), 'etag-1', '{}');
         final container = await _pump(
@@ -257,20 +299,86 @@ void main() {
         await tester.pump();
 
         expect(
-          git.calls.any(
-            (c) => c.length >= 2 && c[0] == 'credential' && c[1] == 'approve',
-          ),
-          isTrue,
+          git.stored,
+          'ghp_new',
           reason: 'a validated token must be handed to the credential helper',
         );
-        expect(git.stdins.last, contains('password=ghp_new'));
         expect(cache.length, 0);
         expect(
           container.read(toastProvider).last.title,
-          'Token saved to the system keychain.',
+          'Connected to GitHub.',
         );
+        expect(container.read(toastProvider).last.kind, ToastKind.success);
         // Flushes the toast's own dismissal timer so it does not outlive the
         // widget tree the test tears down.
+        await tester.pump(const Duration(seconds: 4));
+      },
+    );
+
+    testWidgets(
+      'connecting reports a saved token only after approve reports success',
+      (tester) async {
+        // The helper refuses to run credential approve at all (a non-zero
+        // exit), so approve's own return value must be what stops the
+        // success toast — a row that ignored it would say "Connected" here
+        // just as before.
+        final git = _FailingGit();
+        final container = await _pump(
+          tester,
+          overrides: [
+            gitServiceProvider.overrideWithValue(git),
+            forgeHttpClientProvider.overrideWithValue(
+              MockClient((_) async => http.Response('{"login":"me"}', 200)),
+            ),
+          ],
+        );
+
+        await tester.enterText(find.byType(TextField), 'ghp_new');
+        await tester.tap(find.text('Connect'));
+        await tester.pump();
+        await tester.pump();
+
+        expect(
+          container.read(toastProvider).last.title,
+          isNot('Connected to GitHub.'),
+        );
+        expect(container.read(toastProvider).last.kind, ToastKind.error);
+        await tester.pump(const Duration(seconds: 4));
+      },
+    );
+
+    testWidgets(
+      'connecting reports the token was not kept when approve succeeds but '
+      'the helper does not actually store it',
+      (tester) async {
+        // approve exits zero (git accepted the request) but a following
+        // fill finds nothing — exactly the silent-decline shape approve's
+        // own docstring warns about, and the one a bare exit-code check
+        // cannot detect.
+        final git = _SilentlyDecliningGit();
+        final container = await _pump(
+          tester,
+          overrides: [
+            gitServiceProvider.overrideWithValue(git),
+            forgeHttpClientProvider.overrideWithValue(
+              MockClient((_) async => http.Response('{"login":"me"}', 200)),
+            ),
+          ],
+        );
+
+        await tester.enterText(find.byType(TextField), 'ghp_new');
+        await tester.tap(find.text('Connect'));
+        await tester.pump();
+        await tester.pump();
+
+        expect(git.approveCalls, 1);
+        expect(git.fillCalls, greaterThanOrEqualTo(1));
+        expect(
+          container.read(toastProvider).last.title,
+          'GitHub accepted the token, but nothing on this system kept it. '
+          'Set up a git credential helper and try again.',
+        );
+        expect(container.read(toastProvider).last.kind, ToastKind.error);
         await tester.pump(const Duration(seconds: 4));
       },
     );

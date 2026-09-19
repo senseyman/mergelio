@@ -1718,7 +1718,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get forgeTokenRejected => 'GitHub rejected that token.';
 
   @override
-  String get forgeTokenSaved => 'Token saved to the system keychain.';
+  String get forgeTokenSaved => 'Connected to GitHub.';
+
+  @override
+  String get forgeTokenNotKept =>
+      'GitHub accepted the token, but nothing on this system kept it. Set up a git credential helper and try again.';
 
   @override
   String get forgeTokenForgotten => 'Token removed.';

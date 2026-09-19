@@ -1727,7 +1727,11 @@ class AppLocalizationsUk extends AppLocalizations {
   String get forgeTokenRejected => 'GitHub відхилив цей токен.';
 
   @override
-  String get forgeTokenSaved => 'Токен збережено у системному сховищі ключів.';
+  String get forgeTokenSaved => 'Підключено до GitHub.';
+
+  @override
+  String get forgeTokenNotKept =>
+      'GitHub прийняв токен, але жодне сховище в цій системі його не зберегло. Налаштуйте credential helper для git і спробуйте ще раз.';
 
   @override
   String get forgeTokenForgotten => 'Токен видалено.';
