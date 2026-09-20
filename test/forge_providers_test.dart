@@ -281,5 +281,80 @@ void main() {
         expect(await c.read(forgeRateLimitProvider('/repo').future), isNull);
       },
     );
+
+    test('closes its http client once the single call is done', () async {
+      final client = _TrackingClient(
+        MockClient((req) async => http.Response('not json', 500)),
+      );
+      final c = ProviderContainer(
+        overrides: [
+          originRemoteUrlProvider.overrideWith(
+            (ref, path) async => 'https://github.com/o/r.git',
+          ),
+          forgeTokenProvider.overrideWith((ref, path) async => null),
+          forgeHttpClientProvider.overrideWithValue(client),
+        ],
+      );
+      addTearDown(c.dispose);
+
+      // Deliberately not awaiting container disposal here: unlike
+      // [githubForgeProvider], nothing keeps this client alive between
+      // requests, so it must already be closed once the one call this
+      // provider ever makes has returned — even though the response itself
+      // could not be read as a rate limit.
+      await c.read(forgeRateLimitProvider('/repo').future);
+
+      expect(client.closed, isTrue);
+    });
   });
+
+  group('client lifetime', () {
+    test('githubForgeProvider closes its http client once nothing watches it '
+        'any more', () async {
+      final client = _TrackingClient(
+        MockClient((req) async => http.Response('[]', 200)),
+      );
+      final c = ProviderContainer(
+        overrides: [
+          originRemoteUrlProvider.overrideWith(
+            (ref, path) async => 'https://github.com/o/r.git',
+          ),
+          forgeTokenProvider.overrideWith((ref, path) async => null),
+          forgeHttpClientProvider.overrideWithValue(client),
+        ],
+      );
+      addTearDown(c.dispose);
+
+      final forge = await c.read(githubForgeProvider('/repo').future);
+      await forge!.pullRequests();
+      expect(
+        client.closed,
+        isFalse,
+        reason: 'still in use — closing here would break the next call',
+      );
+
+      c.dispose();
+
+      expect(client.closed, isTrue);
+    });
+  });
+}
+
+/// Wraps [_inner] to record whether [close] was called, since neither
+/// [http.Client] nor [MockClient] exposes that on its own.
+class _TrackingClient extends http.BaseClient {
+  final http.Client _inner;
+  bool closed = false;
+
+  _TrackingClient(this._inner);
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) =>
+      _inner.send(request);
+
+  @override
+  void close() {
+    closed = true;
+    _inner.close();
+  }
 }

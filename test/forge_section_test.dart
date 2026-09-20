@@ -10,6 +10,7 @@ import 'package:mergelio/domain/forge/forge_error.dart';
 import 'package:mergelio/domain/forge/forge_host.dart';
 import 'package:mergelio/domain/forge/models.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
+import 'package:mergelio/state/feedback.dart';
 import 'package:mergelio/state/forge.dart';
 import 'package:mergelio/state/forge_refresh.dart';
 import 'package:mergelio/state/settings.dart';
@@ -123,7 +124,12 @@ void main() {
       t,
       overrides: [
         forgeHostProvider.overrideWith((ref, path) async => _host),
-        forgeTokenProvider.overrideWith((ref, path) async => null),
+        // Connected, so the row list is genuinely empty rather than holding
+        // the connect hint — this is [SidebarSection]'s own empty-state
+        // text firing, not a second copy of the message rendered here.
+        forgeTokenProvider.overrideWith(
+          (ref, path) async => const ForgeToken('ghp_x'),
+        ),
         pullRequestPanelProvider.overrideWith(
           (ref, path) async => const ForgePanel(),
         ),
@@ -133,6 +139,38 @@ void main() {
 
     expect(find.text('No open pull requests'), findsOneWidget);
   });
+
+  testWidgets(
+    'renders the empty-state text exactly once, not once from the section '
+    'and once from SidebarSection',
+    (t) async {
+      await _pump(
+        t,
+        overrides: [
+          forgeHostProvider.overrideWith((ref, path) async => _host),
+          forgeTokenProvider.overrideWith(
+            (ref, path) async => const ForgeToken('ghp_x'),
+          ),
+          pullRequestPanelProvider.overrideWith(
+            (ref, path) async => const ForgePanel(),
+          ),
+        ],
+      );
+      await t.pumpAndSettle();
+
+      // A regression guard for a duplicate rendering of the same string:
+      // the row list itself must come back empty so SidebarSection is the
+      // only thing that ever draws this text.
+      expect(find.text('No open pull requests'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(SidebarSection),
+          matching: find.text('No open pull requests'),
+        ),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets('offers a hint when no token is connected', (t) async {
     await _pump(
@@ -446,6 +484,60 @@ void main() {
           "the section's own repository path, not invalidate the panel "
           'directly',
     );
+  });
+
+  testWidgets('opening a pull request goes through the launch seam', (t) async {
+    final opened = <Uri>[];
+    await _pump(
+      t,
+      overrides: [
+        forgeHostProvider.overrideWith((ref, path) async => _host),
+        forgeTokenProvider.overrideWith((ref, path) async => null),
+        pullRequestPanelProvider.overrideWith(
+          (ref, path) async => ForgePanel(pullRequests: [_pr(7)]),
+        ),
+        forgeLaunchUrlProvider.overrideWithValue((url) async {
+          opened.add(url);
+          return true;
+        }),
+      ],
+    );
+    await t.pumpAndSettle();
+
+    await t.tap(find.text('request 7'));
+    await t.pump();
+
+    expect(opened, hasLength(1));
+    expect(opened.single.toString(), contains('/pull/7'));
+  });
+
+  testWidgets('a launch that could not be handled is reported, not silent', (
+    t,
+  ) async {
+    await _pump(
+      t,
+      overrides: [
+        forgeHostProvider.overrideWith((ref, path) async => _host),
+        forgeTokenProvider.overrideWith((ref, path) async => null),
+        pullRequestPanelProvider.overrideWith(
+          (ref, path) async => ForgePanel(pullRequests: [_pr(7)]),
+        ),
+        // Exactly what happens on a machine with no browser handler
+        // registered: nothing throws, the future just resolves false.
+        forgeLaunchUrlProvider.overrideWithValue((url) async => false),
+      ],
+    );
+    await t.pumpAndSettle();
+
+    final container = ProviderScope.containerOf(
+      t.element(find.byType(ForgePullRequestSection)),
+    );
+
+    await t.tap(find.text('request 7'));
+    await t.pump();
+
+    expect(container.read(toastProvider), hasLength(1));
+    expect(container.read(toastProvider).single.kind, ToastKind.error);
   });
 }
 

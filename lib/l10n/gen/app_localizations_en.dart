@@ -1661,7 +1661,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get forgeRefresh => 'Refresh';
 
   @override
-  String get forgeNotConnected => 'Not connected to GitHub';
+  String get forgeCouldNotOpenPr =>
+      'Could not open the pull request in your browser';
 
   @override
   String get forgeConnectHint =>

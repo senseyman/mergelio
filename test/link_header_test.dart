@@ -67,5 +67,43 @@ void main() {
       const header = '<https://api.github.com/x?page=2>; REL="NEXT"';
       expect(nextPageUrl(header), Uri.parse('https://api.github.com/x?page=2'));
     });
+
+    test('a stray angle bracket does not glue the sections together', () {
+      // The scanner only counts '>' while it is inside a section. If it
+      // counted one at depth zero the depth would go negative, no later
+      // comma would split anything, and the whole header would collapse
+      // into a single section whose first URL wins — here the prev link.
+      const header =
+          '> stray, '
+          '<https://api.github.com/x?page=1>; rel="prev", '
+          '<https://api.github.com/x?page=2>; rel="next"';
+      expect(nextPageUrl(header), Uri.parse('https://api.github.com/x?page=2'));
+    });
+
+    test('a url containing a comma does not truncate its section', () {
+      // Splitting the whole header on ',' before looking for '<...>'
+      // sections cuts a URL like this one in half, at the comma inside its
+      // own query string, before the URL is ever parsed.
+      const header =
+          '<https://api.github.com/repos/o/r/issues?cursor=a,b>; rel="next", '
+          '<https://api.github.com/repos/o/r/issues?page=1>; rel="prev"';
+      expect(
+        nextPageUrl(header),
+        Uri.parse('https://api.github.com/repos/o/r/issues?cursor=a,b'),
+      );
+    });
+
+    test(
+      'a comma inside one url does not stop the next section being found',
+      () {
+        const header =
+            '<https://api.github.com/x?a=1,2>; rel="prev", '
+            '<https://api.github.com/x?page=3>; rel="next"';
+        expect(
+          nextPageUrl(header),
+          Uri.parse('https://api.github.com/x?page=3'),
+        );
+      },
+    );
   });
 }

@@ -540,7 +540,7 @@
   "forgePullRequests": "Пулреквести",
   "forgeNoPullRequests": "Немає відкритих пулреквестів",
   "forgeRefresh": "Оновити",
-  "forgeNotConnected": "Немає підключення до GitHub",
+  "forgeCouldNotOpenPr": "Не вдалося відкрити пулреквест у браузері",
   "forgeConnectHint": "Без токена: без автооновлення, 60 запитів на годину. Підключіть у Налаштуваннях → Облікові дані.",
   "forgeErrUnauthenticated": "GitHub відхилив збережений токен. Підключіться знову в Налаштуваннях.",
   "forgeErrRateLimited": "Ліміт запитів GitHub вичерпано. Він оновиться о {time}.",

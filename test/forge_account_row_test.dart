@@ -27,6 +27,7 @@ import 'package:mergelio/ui/preferences/forge_account_row.dart';
 class _RecordingGit implements GitService {
   final calls = <List<String>>[];
   final stdins = <String?>[];
+  final repoPaths = <String?>[];
 
   @override
   Future<String> version() async => 'git version 0.0.0';
@@ -45,6 +46,7 @@ class _RecordingGit implements GitService {
   }) async {
     calls.add(args);
     stdins.add(stdin);
+    repoPaths.add(repoPath);
     return const GitResult(0, '', '');
   }
 }
@@ -259,6 +261,40 @@ void main() {
       );
       expect(ok, isFalse);
     });
+
+    test(
+      'closes its http client whether the token is accepted or not',
+      () async {
+        final accepted = _TrackingClient(
+          MockClient((_) async => http.Response('{"login":"me"}', 200)),
+        );
+        await validateForgeToken(
+          const ForgeToken('t'),
+          httpFor: (token) => ForgeHttp(token: token, client: accepted),
+        );
+        expect(accepted.closed, isTrue);
+
+        final rejected = _TrackingClient(
+          MockClient((_) async => http.Response('', 401)),
+        );
+        await validateForgeToken(
+          const ForgeToken('t'),
+          httpFor: (token) => ForgeHttp(token: token, client: rejected),
+        );
+        expect(rejected.closed, isTrue);
+      },
+    );
+
+    test('closes its http client even when the request throws', () async {
+      final thrown = _TrackingClient(
+        MockClient((_) async => throw const SocketExceptionStub()),
+      );
+      await validateForgeToken(
+        const ForgeToken('t'),
+        httpFor: (token) => ForgeHttp(token: token, client: thrown),
+      );
+      expect(thrown.closed, isTrue);
+    });
   });
 
   group('ForgeAccountRow', () {
@@ -289,6 +325,15 @@ void main() {
             etagCacheProvider.overrideWithValue(cache),
             forgeHttpClientProvider.overrideWithValue(
               MockClient((_) async => http.Response('{"login":"me"}', 200)),
+            ),
+            // Connecting here succeeds and the helper reads the token back,
+            // so the row renders as connected and reaches the
+            // refresh-interval control, which needs this.
+            settingsProvider.overrideWith(
+              (ref) => SettingsController(
+                InMemorySettingsRepository(),
+                const AppSettings(),
+              ),
             ),
           ],
         );
@@ -403,7 +448,17 @@ void main() {
         await tester.pump();
         await tester.pump();
 
-        expect(git.calls, isEmpty);
+        // The status line's own read of the account (a plain `credential
+        // fill`, to say whether one is already connected) happens on every
+        // build regardless of this attempt, but a rejected token must never
+        // reach approve or reject.
+        expect(
+          git.calls,
+          everyElement(equals(['credential', 'fill'])),
+          reason:
+              'a rejected token must never reach the credential helper '
+              'to store it',
+        );
         expect(
           container.read(toastProvider).last.title,
           'GitHub rejected that token.',
@@ -507,6 +562,14 @@ void main() {
                 return http.Response('{"login":"me"}', 200);
               }),
             ),
+            // Connecting below leaves the helper holding a token, so the row
+            // renders as connected and reaches the refresh-interval control.
+            settingsProvider.overrideWith(
+              (ref) => SettingsController(
+                InMemorySettingsRepository(),
+                const AppSettings(),
+              ),
+            ),
           ],
         );
 
@@ -553,6 +616,14 @@ void main() {
                 }
                 return http.Response('{"login":"me"}', 200);
               }),
+            ),
+            // A token is already on file, so the row starts out connected
+            // and reaches the refresh-interval control.
+            settingsProvider.overrideWith(
+              (ref) => SettingsController(
+                InMemorySettingsRepository(),
+                const AppSettings(),
+              ),
             ),
           ],
         );
@@ -744,6 +815,158 @@ void main() {
         expect(find.textContaining('requests left this hour'), findsNothing);
       },
     );
+
+    testWidgets(
+      'writing a credential lands in the same repository scope the read '
+      'side looks in',
+      (tester) async {
+        // forgeTokenProvider — the read side every other forge feature goes
+        // through — scopes its git-credential calls to the active
+        // repository. A write landing in a different scope (e.g. the
+        // process's own working directory, unscoped) stores a token this
+        // app can never read back through the same repository.
+        final git = _RecordingGit();
+        await _pump(
+          tester,
+          overrides: [
+            gitServiceProvider.overrideWithValue(git),
+            workspaceProvider.overrideWith((ref) {
+              final c = WorkspaceController();
+              c.openRepo('/repo');
+              return c;
+            }),
+            forgeHttpClientProvider.overrideWithValue(
+              MockClient((_) async => http.Response('{"login":"me"}', 200)),
+            ),
+          ],
+        );
+
+        await tester.enterText(find.byType(TextField), 'ghp_new');
+        await tester.tap(find.text('Connect'));
+        await tester.pump();
+        await tester.pump();
+
+        final credentialCallIndexes = [
+          for (var i = 0; i < git.calls.length; i++)
+            if (git.calls[i].isNotEmpty && git.calls[i].first == 'credential')
+              i,
+        ];
+        expect(
+          credentialCallIndexes,
+          isNotEmpty,
+          reason: 'connecting must actually invoke git credential',
+        );
+        for (final i in credentialCallIndexes) {
+          expect(git.repoPaths[i], '/repo');
+        }
+        // Flushes the toast's own dismissal timer so it does not outlive the
+        // widget tree this test tears down.
+        await tester.pump(const Duration(seconds: 4));
+      },
+    );
+
+    testWidgets(
+      'writing a credential with no repository open falls back to the '
+      'global configuration, not the process working directory',
+      (tester) async {
+        final git = _RecordingGit();
+        await _pump(
+          tester,
+          overrides: [
+            gitServiceProvider.overrideWithValue(git),
+            forgeHttpClientProvider.overrideWithValue(
+              MockClient((_) async => http.Response('{"login":"me"}', 200)),
+            ),
+          ],
+        );
+
+        await tester.enterText(find.byType(TextField), 'ghp_new');
+        await tester.tap(find.text('Connect'));
+        await tester.pump();
+        await tester.pump();
+
+        final credentialCallIndexes = [
+          for (var i = 0; i < git.calls.length; i++)
+            if (git.calls[i].isNotEmpty && git.calls[i].first == 'credential')
+              i,
+        ];
+        expect(credentialCallIndexes, isNotEmpty);
+        for (final i in credentialCallIndexes) {
+          expect(git.repoPaths[i], isNull);
+        }
+        // Flushes the toast's own dismissal timer so it does not outlive the
+        // widget tree this test tears down.
+        await tester.pump(const Duration(seconds: 4));
+      },
+    );
+
+    testWidgets('says when the account is connected', (tester) async {
+      await _pump(
+        tester,
+        overrides: [
+          gitServiceProvider.overrideWithValue(_RecordingGit()),
+          forgeAccountTokenProvider.overrideWith(
+            (ref, path) async => const ForgeToken('ghp_x'),
+          ),
+          settingsProvider.overrideWith(
+            (ref) => SettingsController(
+              InMemorySettingsRepository(),
+              const AppSettings(),
+            ),
+          ),
+        ],
+      );
+      await tester.pump();
+
+      expect(find.text('Connected'), findsOneWidget);
+      expect(find.text('Not connected'), findsNothing);
+    });
+
+    testWidgets('says when the account is not connected', (tester) async {
+      await _pump(
+        tester,
+        overrides: [gitServiceProvider.overrideWithValue(_RecordingGit())],
+      );
+      await tester.pump();
+
+      expect(find.text('Not connected'), findsOneWidget);
+    });
+
+    testWidgets(
+      'stays connected for a repository whose own remote is not on GitHub',
+      (tester) async {
+        // A GitLab (or local, or remote-less) repository being active must
+        // not hide a github.com token that is actually on file: this row is
+        // about the account, not about whichever repository happens to be
+        // open.
+        await _pump(
+          tester,
+          overrides: [
+            gitServiceProvider.overrideWithValue(_RecordingGit()),
+            workspaceProvider.overrideWith((ref) {
+              final c = WorkspaceController();
+              c.openRepo('/repo');
+              return c;
+            }),
+            forgeHostProvider.overrideWith((ref, path) async => null),
+            forgeAccountTokenProvider.overrideWith(
+              (ref, path) async => const ForgeToken('ghp_x'),
+            ),
+            settingsProvider.overrideWith(
+              (ref) => SettingsController(
+                InMemorySettingsRepository(),
+                const AppSettings(),
+              ),
+            ),
+          ],
+        );
+        await tester.pump();
+        await tester.pump();
+
+        expect(find.text('Connected'), findsOneWidget);
+        expect(find.text('10m'), findsOneWidget);
+      },
+    );
   });
 
   group('refresh interval', () {
@@ -756,6 +979,11 @@ void main() {
             return c;
           }),
           forgeTokenProvider.overrideWith(
+            (ref, path) async => const ForgeToken('ghp_x'),
+          ),
+          // The refresh-interval control is gated on the account-wide
+          // connected state, not on this specific repository's forge token.
+          forgeAccountTokenProvider.overrideWith(
             (ref, path) async => const ForgeToken('ghp_x'),
           ),
           settingsProvider.overrideWith(make),
@@ -781,7 +1009,7 @@ void main() {
             c.openRepo('/repo');
             return c;
           }),
-          forgeTokenProvider.overrideWith((ref, path) async => null),
+          forgeAccountTokenProvider.overrideWith((ref, path) async => null),
         ],
       );
       await tester.pump();
@@ -816,4 +1044,23 @@ void main() {
 
 class SocketExceptionStub implements Exception {
   const SocketExceptionStub();
+}
+
+/// Wraps [_inner] to record whether [close] was called, since neither
+/// [http.Client] nor [MockClient] exposes that on its own.
+class _TrackingClient extends http.BaseClient {
+  final http.Client _inner;
+  bool closed = false;
+
+  _TrackingClient(this._inner);
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) =>
+      _inner.send(request);
+
+  @override
+  void close() {
+    closed = true;
+    _inner.close();
+  }
 }

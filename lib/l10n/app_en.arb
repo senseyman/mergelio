@@ -917,7 +917,7 @@
   "forgePullRequests": "Pull requests",
   "forgeNoPullRequests": "No open pull requests",
   "forgeRefresh": "Refresh",
-  "forgeNotConnected": "Not connected to GitHub",
+  "forgeCouldNotOpenPr": "Could not open the pull request in your browser",
   "forgeConnectHint": "Without a token: no auto-refresh, 60 requests an hour. Connect in Preferences → Credentials.",
   "forgeErrUnauthenticated": "GitHub rejected the saved token. Reconnect in Preferences.",
   "forgeErrRateLimited": "GitHub request limit reached. It resets at {time}.",

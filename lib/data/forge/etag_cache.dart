@@ -14,18 +14,50 @@ class _Entry {
 /// Deliberately in-memory and per-session. Forge data going stale across a
 /// restart is correct: it was fetched under a token that may since have been
 /// revoked, and persisting it would outlive the permission that produced it.
+///
+/// Bounded, not merely per-session: a head sha changes on every push, so a
+/// long-running session that keeps opening and pushing to repositories would
+/// otherwise grow this without limit. [maxEntries] caps it, evicting the
+/// least recently touched entry — read or write — once a store would put it
+/// over the limit.
 class EtagCache {
+  /// A `LinkedHashMap` (the default for a `Map` literal) iterates in
+  /// insertion order and re-inserting an existing key moves it to the end
+  /// without changing that key's identity elsewhere — exactly what an LRU
+  /// order needs: touching an entry only has to remove and re-add it to
+  /// become the most recently used.
   final _entries = <Uri, _Entry>{};
 
-  String? etagFor(Uri url) => _entries[url]?.etag;
+  final int maxEntries;
 
-  String? bodyFor(Uri url) => _entries[url]?.body;
+  EtagCache({this.maxEntries = 300}) : assert(maxEntries > 0);
+
+  String? etagFor(Uri url) => _touch(url)?.etag;
+
+  String? bodyFor(Uri url) => _touch(url)?.body;
+
+  /// Reads [url]'s entry, if any, moving it to the most-recently-used end so
+  /// a read counts as use exactly like a write does.
+  _Entry? _touch(Uri url) {
+    final entry = _entries.remove(url);
+    if (entry == null) return null;
+    _entries[url] = entry;
+    return entry;
+  }
 
   /// Records [body] against [etag]. A response with no validator is dropped:
   /// there would be no way to revalidate it, so it could only be served stale.
   void store(Uri url, String? etag, String body) {
     if (etag == null || etag.isEmpty) return;
+    // Removing before inserting means a store of a key already present moves
+    // it to the most-recently-used end rather than keeping its old position
+    // — an overwrite is a use too, and must not make its own key look like
+    // the next thing due for eviction.
+    _entries.remove(url);
     _entries[url] = _Entry(etag, body);
+    if (_entries.length > maxEntries) {
+      _entries.remove(_entries.keys.first);
+    }
   }
 
   void clear() => _entries.clear();

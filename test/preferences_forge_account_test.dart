@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/core/tokens.dart';
 import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
+import 'package:mergelio/state/forge.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
 import 'package:mergelio/ui/preferences/forge_account_row.dart';
@@ -26,6 +27,12 @@ void main() {
               const AppSettings(),
             ),
           ),
+          // ForgeAccountRow now watches forgeAccountTokenProvider
+          // unconditionally (it no longer depends on a repository being
+          // open), and that provider shells out to the real git credential
+          // helper unless overridden — exactly the file I/O widget tests
+          // cannot do, and on some machines a real osxkeychain prompt.
+          forgeAccountTokenProvider.overrideWith((ref, path) async => null),
         ],
         child: MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,

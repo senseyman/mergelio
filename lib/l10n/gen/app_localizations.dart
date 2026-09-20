@@ -2978,11 +2978,11 @@ abstract class AppLocalizations {
   /// **'Refresh'**
   String get forgeRefresh;
 
-  /// No description provided for @forgeNotConnected.
+  /// No description provided for @forgeCouldNotOpenPr.
   ///
   /// In en, this message translates to:
-  /// **'Not connected to GitHub'**
-  String get forgeNotConnected;
+  /// **'Could not open the pull request in your browser'**
+  String get forgeCouldNotOpenPr;
 
   /// No description provided for @forgeConnectHint.
   ///

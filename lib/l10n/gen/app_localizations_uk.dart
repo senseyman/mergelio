@@ -1670,7 +1670,7 @@ class AppLocalizationsUk extends AppLocalizations {
   String get forgeRefresh => 'Оновити';
 
   @override
-  String get forgeNotConnected => 'Немає підключення до GitHub';
+  String get forgeCouldNotOpenPr => 'Не вдалося відкрити пулреквест у браузері';
 
   @override
   String get forgeConnectHint =>

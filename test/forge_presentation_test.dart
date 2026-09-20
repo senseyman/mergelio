@@ -108,6 +108,23 @@ void main() {
       expect(pullRequestWebUrl(host, 1).scheme, 'https');
     });
 
+    test('honours the host it was given, rather than assuming github.com', () {
+      // Replacing host.host with a literal passes every other test here,
+      // because they all use github.com. ForgeHost already models other
+      // hosts, so a hardcoded one would only surface against the first
+      // enterprise or self-hosted remote anyone tried.
+      const enterprise = ForgeHost(
+        kind: ForgeKind.github,
+        host: 'github.example.test',
+        owner: 'o',
+        repo: 'r',
+      );
+      expect(
+        pullRequestWebUrl(enterprise, 7).toString(),
+        'https://github.example.test/o/r/pull/7',
+      );
+    });
+
     test('is built from coordinates, never forge-supplied text', () {
       // Owner and repo come from the remote, which a person controls, and the
       // number is an int. Nothing the API returns can steer the browser.

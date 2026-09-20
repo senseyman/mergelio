@@ -61,6 +61,62 @@ void main() {
       expect(cache.length, 1);
     });
 
+    test('evicts the least recently touched entry once the cap is reached', () {
+      // A head sha changes on every push, so an untouched cache grows for as
+      // long as the session runs. A small cap here stands in for the real
+      // one so the test does not have to insert hundreds of entries to prove
+      // the bound holds.
+      final cache = EtagCache(maxEntries: 2);
+      final a = Uri.parse('$_url/a');
+      final b = Uri.parse('$_url/b');
+      final c = Uri.parse('$_url/c');
+
+      cache.store(a, 'W/"a"', '[a]');
+      cache.store(b, 'W/"b"', '[b]');
+      cache.store(c, 'W/"c"', '[c]');
+
+      expect(cache.length, 2);
+      expect(cache.bodyFor(a), isNull, reason: 'oldest entry must be gone');
+      expect(cache.bodyFor(b), '[b]');
+      expect(cache.bodyFor(c), '[c]');
+    });
+
+    test('reading an entry counts as use, so it is not the next eviction', () {
+      final cache = EtagCache(maxEntries: 2);
+      final a = Uri.parse('$_url/a');
+      final b = Uri.parse('$_url/b');
+      final c = Uri.parse('$_url/c');
+
+      cache.store(a, 'W/"a"', '[a]');
+      cache.store(b, 'W/"b"', '[b]');
+      // Touching a moves it to the front of the recency order, ahead of b —
+      // without this, a plain insertion-order cap would evict a here too.
+      cache.bodyFor(a);
+      cache.store(c, 'W/"c"', '[c]');
+
+      expect(cache.length, 2);
+      expect(cache.bodyFor(a), '[a]', reason: 'freshly read, must survive');
+      expect(cache.bodyFor(b), isNull, reason: 'least recently used, evicted');
+      expect(cache.bodyFor(c), '[c]');
+    });
+
+    test(
+      'overwriting an existing entry does not shrink the cache below cap',
+      () {
+        final cache = EtagCache(maxEntries: 2);
+        final a = Uri.parse('$_url/a');
+        final b = Uri.parse('$_url/b');
+
+        cache.store(a, 'W/"a"', '[a]');
+        cache.store(b, 'W/"b"', '[b]');
+        cache.store(a, 'W/"a2"', '[a2]');
+
+        expect(cache.length, 2);
+        expect(cache.bodyFor(a), '[a2]');
+        expect(cache.bodyFor(b), '[b]');
+      },
+    );
+
     test('clearing drops every entry', () {
       // Signing out must not leave bodies fetched under the old token where a
       // later read can still serve them.

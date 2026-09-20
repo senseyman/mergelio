@@ -5,11 +5,21 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/tokens.dart';
 import '../../domain/forge/models.dart';
 import '../../l10n/gen/app_localizations.dart';
+import '../../state/feedback.dart';
 import '../../state/forge.dart';
 import '../../state/forge_refresh.dart';
 import '../../state/settings_controller.dart';
 import 'forge_presentation.dart';
 import 'sidebar_section.dart';
+
+/// How a pull request row opens its web page.
+///
+/// Overridable so a test can watch what would have been opened, or force a
+/// failure, without a real browser launch reaching a platform channel that a
+/// widget test cannot answer.
+final forgeLaunchUrlProvider = Provider<Future<bool> Function(Uri)>(
+  (ref) => launchUrl,
+);
 
 /// The repository's open pull requests, with what CI made of each one.
 ///
@@ -44,6 +54,7 @@ class ForgePullRequestSection extends ConsumerWidget {
     // nothing. Disabling the control is also what tells the person the
     // press landed on a refresh already under way, not that it did nothing.
     final refreshing = panel?.isLoading ?? false;
+    final launch = ref.watch(forgeLaunchUrlProvider);
 
     return SidebarSection(
       id: 'pull-requests',
@@ -75,7 +86,11 @@ class ForgePullRequestSection extends ConsumerWidget {
           loading: () => const [_LoadingRow()],
           error: (e, _) => [_MessageRow(text: forgePanelMessage(e, l))],
           data: (p) => p.pullRequests.isEmpty
-              ? [_MessageRow(text: l.forgeNoPullRequests)]
+              // Nothing to say here: an empty list with the section open and
+              // connected is exactly the case [SidebarSection] itself already
+              // renders via [emptyLabel] below. Saying it twice risked the
+              // two copies drifting apart; only one needs to exist.
+              ? const []
               : [
                   for (final pr in p.pullRequests)
                     _PullRequestRow(
@@ -85,8 +100,23 @@ class ForgePullRequestSection extends ConsumerWidget {
                       // and a plain int, never from a string the forge sent
                       // back — nothing here can redirect this tap anywhere
                       // the local git remote did not already point.
-                      onOpen: () =>
-                          launchUrl(pullRequestWebUrl(host, pr.number)),
+                      onOpen: () async {
+                        final opened = await launch(
+                          pullRequestWebUrl(host, pr.number),
+                        );
+                        // launchUrl returning false means nothing handled
+                        // the request — no browser configured, for
+                        // instance — and the tap would otherwise look like
+                        // it did nothing at all.
+                        if (!opened) {
+                          ref
+                              .read(toastProvider.notifier)
+                              .show(
+                                l.forgeCouldNotOpenPr,
+                                kind: ToastKind.error,
+                              );
+                        }
+                      },
                     ),
                 ],
         ),

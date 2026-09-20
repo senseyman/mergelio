@@ -11,8 +11,6 @@ import '../../state/forge.dart';
 import '../../state/settings_controller.dart';
 import '../../state/workspace.dart';
 
-const _githubHost = 'github.com';
-
 /// Whether the forge accepts [token].
 ///
 /// One request, made before anything is written to the keychain, so a
@@ -31,6 +29,8 @@ Future<bool> validateForgeToken(
     return response.status >= 200 && response.status < 300;
   } on Object {
     return false;
+  } finally {
+    http.close();
   }
 }
 
@@ -64,12 +64,17 @@ class _ForgeAccountRowState extends ConsumerState<ForgeAccountRow> {
     super.dispose();
   }
 
-  ForgeCredentials get _credentials =>
-      ForgeCredentials(ref.read(gitServiceProvider));
+  /// Scoped to [path]'s own git config, exactly as [forgeTokenProvider] and
+  /// [forgeAccountTokenProvider] read it — a write must land where the read
+  /// looks, or a repository whose local config overrides `credential.helper`
+  /// stores a token under one helper and reads it back through another. Null
+  /// falls back to the global configuration, for when no repository is open.
+  ForgeCredentials _credentialsFor(String? path) =>
+      ForgeCredentials(ref.read(gitServiceProvider), repoPath: path);
 
   /// Drops everything that was derived from the token that has just changed.
   ///
-  /// The stored token is read through a provider that caches for the life of
+  /// The stored token is read through providers that cache for the life of
   /// the container, so without this a session that connects goes on sending
   /// the answer it got before — which is to say no token at all — until the
   /// app is restarted. The cached bodies go with it: a body fetched without a
@@ -79,6 +84,7 @@ class _ForgeAccountRowState extends ConsumerState<ForgeAccountRow> {
   void _forgetDerivedState() {
     ref.read(etagCacheProvider).clear();
     ref.invalidate(forgeTokenProvider);
+    ref.invalidate(forgeAccountTokenProvider);
   }
 
   Future<void> _connect() async {
@@ -105,8 +111,10 @@ class _ForgeAccountRowState extends ConsumerState<ForgeAccountRow> {
           .show(l.forgeTokenRejected, kind: ToastKind.error);
       return;
     }
-    final approved = await _credentials.approve(
-      _githubHost,
+    final path = ref.read(workspaceProvider).activeTab?.path;
+    final credentials = _credentialsFor(path);
+    final approved = await credentials.approve(
+      kGithubHost,
       forgeTokenUsername,
       token,
     );
@@ -118,7 +126,7 @@ class _ForgeAccountRowState extends ConsumerState<ForgeAccountRow> {
     // than trusting the exit code that just asked it to keep one.
     var kept = false;
     if (approved) {
-      kept = await _credentials.fill(_githubHost, forgeTokenUsername) != null;
+      kept = await credentials.fill(kGithubHost, forgeTokenUsername) != null;
       if (!mounted) return;
     }
     _field.clear();
@@ -145,11 +153,9 @@ class _ForgeAccountRowState extends ConsumerState<ForgeAccountRow> {
     // stored token does not have to be read back first. The username is not
     // optional in that arrangement: it is the whole of what distinguishes
     // this app's entry from the one the user pushes with.
-    final forgotten = await _credentials.reject(
-      _githubHost,
-      forgeTokenUsername,
-      const ForgeToken(''),
-    );
+    final path = ref.read(workspaceProvider).activeTab?.path;
+    final forgotten = await _credentialsFor(path)
+        .reject(kGithubHost, forgeTokenUsername, const ForgeToken(''));
     _forgetDerivedState();
     if (!mounted) return;
     setState(() => _busy = false);
@@ -177,11 +183,14 @@ class _ForgeAccountRowState extends ConsumerState<ForgeAccountRow> {
     final rateLimit = activePath == null
         ? null
         : ref.watch(forgeRateLimitProvider(activePath)).valueOrNull;
-    // The refresh-interval control only makes sense once a token is on file
-    // to spend: with none, nothing on a timer is ever eligible to tick.
+    // Independent of whatever repository is active — or whether one is open
+    // at all: this row is about the github.com account, and a repository on
+    // GitLab, on no forge, or with no remote must not make an on-file token
+    // disappear from view. The refresh-interval control only makes sense
+    // once a token is on file to spend: with none, nothing on a timer is
+    // ever eligible to tick.
     final connected =
-        activePath != null &&
-        ref.watch(forgeTokenProvider(activePath)).valueOrNull != null;
+        ref.watch(forgeAccountTokenProvider(activePath)).valueOrNull != null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -191,6 +200,14 @@ class _ForgeAccountRowState extends ConsumerState<ForgeAccountRow> {
             color: t.textPrimary,
             fontSize: 14,
             fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          connected ? l.forgeAccountConnected : l.forgeAccountNotConnected,
+          style: TextStyle(
+            color: connected ? t.success : t.textMuted,
+            fontSize: 12,
           ),
         ),
         const SizedBox(height: 8),

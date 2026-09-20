@@ -28,7 +28,6 @@ abstract class ForgePanel with _$ForgePanel {
   const factory ForgePanel({
     @Default(<PullRequest>[]) List<PullRequest> pullRequests,
     @Default(<String, ChecksSummary>{}) Map<String, ChecksSummary> checksBySha,
-    ForgeRateLimit? rateLimit,
   }) = _ForgePanel;
 }
 
@@ -80,6 +79,28 @@ final forgeTokenProvider = FutureProvider.family<ForgeToken?, String>((
   ).fill(host.host, forgeTokenUsername);
 });
 
+/// Whether a `github.com` token is on file, independent of any repository.
+///
+/// [forgeTokenProvider] answers for a specific repository's own resolved
+/// remote, so a repository on GitLab, on no forge at all, or with no origin
+/// configured resolves to null even when a `github.com` token is sitting in
+/// the same credential helper. The account row is about the account, not
+/// about whichever repository happens to be open, so it reads this instead.
+///
+/// [path] scopes the git config consulted exactly as [forgeTokenProvider]
+/// does; null falls back to the global configuration, for when no
+/// repository is open at all.
+final forgeAccountTokenProvider = FutureProvider.family<ForgeToken?, String?>((
+  ref,
+  path,
+) async {
+  final git = ref.watch(gitServiceProvider);
+  return ForgeCredentials(
+    git,
+    repoPath: path,
+  ).fill(kGithubHost, forgeTokenUsername);
+});
+
 /// One cache for the application session.
 ///
 /// Bodies are held against the validator that proves them current, so this
@@ -103,9 +124,18 @@ final githubForgeProvider = FutureProvider.family<Forge?, String>((
   final host = await ref.watch(forgeHostProvider(path).future);
   if (host == null) return null;
   final token = await ref.watch(forgeTokenProvider(path).future);
+  final http = ForgeHttp(
+    token: token,
+    client: ref.watch(forgeHttpClientProvider),
+  );
+  // This forge keeps using [http] for as long as anything watches this
+  // provider, so it cannot be closed right after the call that built it —
+  // only once nothing needs it any more, which is exactly what disposal
+  // means here.
+  ref.onDispose(http.close);
   return GitHubForge(
     host: host,
-    http: ForgeHttp(token: token, client: ref.watch(forgeHttpClientProvider)),
+    http: http,
     cache: ref.watch(etagCacheProvider),
   );
 });
@@ -211,15 +241,21 @@ final forgeRateLimitProvider = FutureProvider.family<ForgeRateLimit?, String>((
   final host = await ref.watch(forgeHostProvider(path).future);
   if (host == null) return null;
   final token = await ref.watch(forgeTokenProvider(path).future);
+  final http = ForgeHttp(
+    token: token,
+    client: ref.watch(forgeHttpClientProvider),
+  );
   try {
-    final response = await ForgeHttp(
-      token: token,
-      client: ref.watch(forgeHttpClientProvider),
-    ).get(Uri.https('api.github.com', '/rate_limit'));
+    final response = await http.get(Uri.https('api.github.com', '/rate_limit'));
     return parseRateLimit(jsonDecode(response.body));
   } on Object {
     // The budget is a courtesy. Failing to read it must never fail the
     // panel.
     return null;
+  } finally {
+    // One call and done: unlike [githubForgeProvider], nothing keeps this
+    // client around for a second request, so it is closed the moment this
+    // one is finished with it rather than waiting on disposal.
+    http.close();
   }
 });
