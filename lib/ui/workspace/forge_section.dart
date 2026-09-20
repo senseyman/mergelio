@@ -39,6 +39,11 @@ class ForgePullRequestSection extends ConsumerWidget {
     final panel = open ? ref.watch(pullRequestPanelProvider(repoPath)) : null;
     final connected =
         ref.watch(forgeTokenProvider(repoPath)).valueOrNull != null;
+    // A press while one is already running would invalidate the panel a
+    // second time mid-flight, spending another ~21-request budget for
+    // nothing. Disabling the control is also what tells the person the
+    // press landed on a refresh already under way, not that it did nothing.
+    final refreshing = panel?.isLoading ?? false;
 
     return SidebarSection(
       id: 'pull-requests',
@@ -60,7 +65,9 @@ class ForgePullRequestSection extends ConsumerWidget {
         // manual refresh also pushes the next scheduled tick out a full
         // interval — otherwise a background tick could land moments later
         // and spend the same rate-limit budget again for nothing.
-        onPressed: () => ref.read(forgeRefreshProvider).refreshNow(repoPath),
+        onPressed: refreshing
+            ? null
+            : () => ref.read(forgeRefreshProvider).refreshNow(repoPath),
       ),
       children: [
         if (!connected) _HintRow(text: l.forgeConnectHint),

@@ -177,8 +177,11 @@ final pullRequestPanelProvider = FutureProvider.family<ForgePanel, String>((
 
   final prs = await forge.pullRequests(limit: kPullRequestLimit);
 
+  // A branch can back more than one request (see [Forge.pullRequestsForBranch]),
+  // so two requests can share a head sha. Deduping keeps that shared commit's
+  // CI to one concurrent read instead of two competing for the same slot.
   final checks = await fetchWithLimit<String, ChecksSummary>(
-    prs.map((p) => p.headSha),
+    prs.map((p) => p.headSha).toSet(),
     kChecksConcurrency,
     (sha) async {
       try {

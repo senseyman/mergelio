@@ -1,13 +1,12 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'auto_fetch.dart' show autoFetchDelay;
 import 'forge.dart';
+import 'polling_scheduler.dart';
 import 'settings.dart';
 import 'settings_controller.dart';
-import 'window_focus.dart';
 import 'workspace.dart';
 
 /// Shortest gap the scheduler will ever use, mirroring the settings floor.
@@ -44,67 +43,53 @@ final forgeRefreshEligibleProvider = FutureProvider.family<bool, String>((
 /// focus is caught up when the window comes back, and a failing tick backs
 /// the interval off via the same [autoFetchDelay] curve auto-fetch uses, so a
 /// rate-limited or unreachable host is not retried at full rate.
-class ForgeRefreshController {
-  final Ref _ref;
-
-  /// A fixed interval for tests; when null the interval is read live from
-  /// settings so changing the preference reschedules the running timer.
-  final Duration? _override;
-
-  Timer? _timer;
-  Duration? _interval;
-  Duration? _base;
-  int _failures = 0;
-  bool _disposed = false;
-  // Set when a tick is dropped for want of focus, so the window coming back
-  // is known to have missed something.
-  bool _missedTick = false;
-  Future<void>? _inFlight;
-
+class ForgeRefreshController extends PollingScheduler {
   // The repository the scheduler is currently ticking for, and whether it is
   // currently allowed to. Both null/false while nothing is open or eligible.
   String? _path;
   bool _eligible = false;
   ProviderSubscription<AsyncValue<bool>>? _eligibilitySub;
 
-  ForgeRefreshController(this._ref, {Duration? interval})
-    : _override = interval {
+  ForgeRefreshController(super.ref, {super.interval}) {
     // A tab switch or a repo closing changes which repository (if any) the
     // scheduler tracks, and re-points the eligibility watch at it.
-    _ref.listen<String?>(
+    ref.listen<String?>(
       workspaceProvider.select((w) => w.activeTab?.path),
       (_, path) => _onPathChanged(path),
       fireImmediately: true,
     );
     // Reschedule whenever the interval changes.
-    _ref.listen(
+    ref.listen(
       settingsProvider.select((s) => s.forgeRefreshIntervalSeconds),
       (_, seconds) => _rescheduleInterval(seconds),
       fireImmediately: true,
     );
-    // Coming back to a window that slept through a tick catches it up now
-    // rather than leaving a stale panel until the next one falls due.
-    _ref.listen<bool>(windowFocusedProvider, (previous, next) {
-      if (next && previous == false) _onRegainedFocus();
-    });
-    _ref.onDispose(() {
-      _disposed = true;
-      _timer?.cancel();
-      _timer = null;
-      _eligibilitySub?.close();
-      _eligibilitySub = null;
-    });
   }
 
-  /// The gap before the next tick, or null while nothing is eligible to be
-  /// ticked. Grows while ticks keep failing.
-  @visibleForTesting
-  Duration? get scheduledInterval => _timer == null ? null : _interval;
+  @override
+  void disposeExtra() {
+    _eligibilitySub?.close();
+    _eligibilitySub = null;
+  }
 
-  /// The tick currently running, if any, so a test can await one that
-  /// nothing else holds a handle to. Null before the first tick.
-  @visibleForTesting
-  Future<void>? get inFlightTick => _inFlight;
+  @override
+  bool get isActive => _eligible;
+
+  @override
+  bool get canArm => _eligible && _path != null;
+
+  @override
+  String get logLabel => 'forge-refresh';
+
+  @override
+  Duration backoffFor(Duration base, int failures) =>
+      autoFetchDelay(base, failures);
+
+  @override
+  bool readyForTick() => _path != null && _eligible;
+
+  @override
+  Future<bool> runTick() => _refreshAndReport(_path!);
 
   void _onPathChanged(String? path) {
     if (path == _path) return;
@@ -113,7 +98,7 @@ class ForgeRefreshController {
     _eligibilitySub = null;
     _setEligible(false);
     if (path == null) return;
-    _eligibilitySub = _ref.listen<AsyncValue<bool>>(
+    _eligibilitySub = ref.listen<AsyncValue<bool>>(
       forgeRefreshEligibleProvider(path),
       (_, next) => _setEligible(next.valueOrNull ?? false),
       fireImmediately: true,
@@ -126,79 +111,29 @@ class ForgeRefreshController {
     // Becoming eligible (or losing it) is a fresh start, same as auto-fetch
     // treats a settings change: no backoff carried over, nothing owed from
     // before.
-    _failures = 0;
-    _missedTick = false;
-    _armTimer();
+    resetBackoff();
+    armTimer();
   }
 
   void _rescheduleInterval(int seconds) {
-    _failures = 0;
-    _missedTick = false;
+    resetBackoff();
     // Floor a value stored by an older build, or one typed below the limit.
     final wanted = Duration(seconds: seconds);
-    _base =
-        _override ??
+    base =
+        overrideInterval ??
         (wanted < kMinForgeRefreshDelay ? kMinForgeRefreshDelay : wanted);
-    if (_eligible) _armTimer();
-  }
-
-  void _armTimer() {
-    _timer?.cancel();
-    final base = _base;
-    if (!_eligible || base == null || _disposed || _path == null) {
-      _timer = null;
-      _interval = null;
-      return;
-    }
-    _interval = autoFetchDelay(base, _failures);
-    _timer = Timer(_interval!, () => _inFlight = tick());
-  }
-
-  void _onRegainedFocus() {
-    if (_disposed || !_eligible || !_missedTick) return;
-    _inFlight = tick();
-  }
-
-  /// One poll cycle: refresh unless the window is in the background, then
-  /// arm the next timer with the delay that outcome earns. A backgrounded
-  /// window leaves the tick owed, and regaining focus pays it.
-  @visibleForTesting
-  Future<void> tick() async {
-    if (_disposed) return;
-    final path = _path;
-    try {
-      if (path == null || !_eligible) {
-        // A stray timer firing in the instant between eligibility going
-        // false and the timer being cancelled. Nothing to do.
-        return;
-      }
-      if (!_ref.read(windowFocusedProvider)) {
-        // A skip is not a failure, so it neither grows nor resets the
-        // backoff — it only earns a catch-up tick once the window returns.
-        _missedTick = true;
-      } else {
-        _missedTick = false;
-        _failures = await _refreshAndReport(path) ? 0 : _failures + 1;
-      }
-    } finally {
-      // No-op once disposed, so a late tick cannot leave a live timer
-      // behind.
-      _armTimer();
-    }
+    if (_eligible) armTimer();
   }
 
   /// Invalidates the panel and waits for the reload it triggers, so the
   /// caller learns whether this tick actually landed. A skipped tick
   /// (nothing eligible, or the panel provider already mid-refresh) never
-  /// reaches here.
+  /// reaches here. Anything either step throws propagates to [tick], which
+  /// counts it as a failure rather than letting it escape unhandled.
   Future<bool> _refreshAndReport(String path) async {
-    _ref.invalidate(pullRequestPanelProvider(path));
-    try {
-      await _ref.read(pullRequestPanelProvider(path).future);
-      return true;
-    } on Object {
-      return false;
-    }
+    ref.invalidate(pullRequestPanelProvider(path));
+    await ref.read(pullRequestPanelProvider(path).future);
+    return true;
   }
 
   /// Refreshes [path]'s panel right now, and — when it is the repository the
@@ -218,11 +153,10 @@ class ForgeRefreshController {
   /// The budget is guarded where spending is incidental instead — the timer,
   /// and the git operations that refresh as a side effect.
   void refreshNow(String path) {
-    _ref.invalidate(pullRequestPanelProvider(path));
+    ref.invalidate(pullRequestPanelProvider(path));
     if (path != _path) return;
-    _failures = 0;
-    _missedTick = false;
-    _armTimer();
+    resetBackoff();
+    armTimer();
   }
 
   /// Refreshes because a git operation happened to touch the remote.
@@ -232,7 +166,7 @@ class ForgeRefreshController {
   /// third of the hour's budget per git operation, so this path stays shut
   /// until one is connected.
   void refreshAfterGitOp(String path) {
-    if (_ref.read(forgeTokenProvider(path)).valueOrNull == null) return;
+    if (ref.read(forgeTokenProvider(path)).valueOrNull == null) return;
     refreshNow(path);
   }
 }

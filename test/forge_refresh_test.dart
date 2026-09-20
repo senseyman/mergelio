@@ -290,6 +290,30 @@ void main() {
     );
   });
 
+  group('a tick error does not escape', () {
+    test('an exception refreshing the panel counts as a failure, not an '
+        'unhandled error', () async {
+      // tick() runs unawaited from a Timer callback in production; an
+      // exception this raw would surface as an unhandled async error
+      // instead of the ordinary backoff a failed refresh earns.
+      final c = _container(
+        settings: const AppSettings(forgeRefreshIntervalSeconds: 120),
+        panel: (path) => throw StateError('boom'),
+      );
+      addTearDown(c.dispose);
+      final ctl = c.read(forgeRefreshProvider);
+      await _settle();
+      expect(ctl.scheduledInterval, const Duration(seconds: 120));
+
+      // Must complete normally: a tick that let this escape would take
+      // the scheduler down with it and end forge-refresh for the rest of
+      // the session.
+      await ctl.tick();
+
+      expect(ctl.scheduledInterval, const Duration(seconds: 240));
+    });
+  });
+
   group('any refresh resets the timer', () {
     test(
       'refreshNow re-arms the tracked repository at the base interval',

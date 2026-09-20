@@ -271,6 +271,67 @@ void main() {
     expect(calls, 2);
   });
 
+  testWidgets(
+    'a press while a refresh is already in flight is absorbed by it',
+    (t) async {
+      // Each refresh here is a completer the test controls, so one can be
+      // left running while a second press lands on top of it.
+      final completers = <Completer<ForgePanel>>[];
+      await _pump(
+        t,
+        overrides: [
+          forgeHostProvider.overrideWith((ref, path) async => _host),
+          forgeTokenProvider.overrideWith(
+            (ref, path) async => const ForgeToken('ghp_x'),
+          ),
+          pullRequestPanelProvider.overrideWith((ref, path) {
+            final c = Completer<ForgePanel>();
+            completers.add(c);
+            return c.future;
+          }),
+        ],
+      );
+      await t.pump();
+      expect(completers, hasLength(1));
+      completers.single.complete(const ForgePanel());
+      await t.pumpAndSettle();
+
+      // This press starts a refresh that is left running.
+      await t.tap(find.byTooltip('Refresh'));
+      await t.pump();
+      expect(completers, hasLength(2));
+
+      // The control must show that a refresh is already under way, not sit
+      // there looking identical to the idle state.
+      final button = t.widget<IconButton>(
+        find.widgetWithIcon(IconButton, Icons.refresh),
+      );
+      expect(
+        button.onPressed,
+        isNull,
+        reason:
+            'a refresh already in flight must be visible on the control, '
+            'not just silently absorbed',
+      );
+
+      // A second press while that refresh is still running must not spend
+      // another one — the panel provider would otherwise be re-invalidated
+      // mid-flight and burn a second ~21-request budget for nothing.
+      await t.tap(find.byTooltip('Refresh'));
+      await t.pump();
+      expect(
+        completers,
+        hasLength(2),
+        reason:
+            'a press while a refresh is already running must be absorbed '
+            'by it, not spend a second one',
+      );
+
+      completers.last.complete(const ForgePanel());
+      await t.pumpAndSettle();
+    },
+  );
+
   testWidgets('the refresh control works without a token, because a press '
       'is the request', (t) async {
     var calls = 0;

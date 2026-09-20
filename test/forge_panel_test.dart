@@ -13,14 +13,16 @@ const _host = ForgeHost(
   repo: 'r',
 );
 
-PullRequest _pr(int n) => PullRequest(
+PullRequest _pr(int n) => _prWithSha(n, 'sha$n');
+
+PullRequest _prWithSha(int n, String sha) => PullRequest(
   number: n,
   title: 'pr $n',
   state: PullRequestState.open,
   author: const ForgeUser(login: 'me'),
   sourceBranch: 'b$n',
   targetBranch: 'main',
-  headSha: 'sha$n',
+  headSha: sha,
 );
 
 class _FakeForge implements Forge {
@@ -71,6 +73,19 @@ class _CiFailingForge extends _FakeForge {
   @override
   Future<ChecksSummary> checksForRef(String ref) async =>
       throw const ForgeServerFault(500);
+}
+
+/// Returns a fixed list of requests instead of generating one from
+/// [prCount], so a test can put more than one on the same head sha.
+class _FixedForge extends _FakeForge {
+  final List<PullRequest> _prs;
+  _FixedForge(this._prs);
+
+  @override
+  Future<List<PullRequest>> pullRequests({int limit = 50}) async {
+    sawLimit = limit;
+    return _prs;
+  }
 }
 
 ProviderContainer _containerFor(Forge? forge) {
@@ -165,6 +180,25 @@ void main() {
           .read(pullRequestPanelProvider('/repo').future);
       expect(panel.pullRequests, hasLength(2));
       expect(panel.checksBySha, isEmpty);
+    });
+
+    test('two requests sharing a head sha cost one check, not two', () async {
+      // The Forge contract allows one branch to back more than one
+      // request; asking twice for the same sha's CI wastes a concurrent
+      // slot the etag cache cannot absorb, since both requests land at
+      // once.
+      final forge = _FixedForge([
+        _prWithSha(1, 'shared'),
+        _prWithSha(2, 'shared'),
+      ]);
+      final panel = await _containerFor(forge)
+          .read(pullRequestPanelProvider('/repo').future);
+
+      expect(forge.checkCalls, 1);
+      expect(panel.pullRequests, hasLength(2));
+      // Both rows key their badge off the same sha, so one entry serves
+      // both.
+      expect(panel.checksBySha['shared']?.overall, ChecksOverall.success);
     });
   });
 }

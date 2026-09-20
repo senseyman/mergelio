@@ -57,6 +57,45 @@ class _FakeForgeRefresh implements ForgeRefreshController {
 
   @override
   Future<void> tick() async {}
+
+  @override
+  Ref get ref => throw UnimplementedError();
+
+  @override
+  Duration? get overrideInterval => null;
+
+  @override
+  bool get isActive => false;
+
+  @override
+  bool get canArm => false;
+
+  @override
+  String get logLabel => 'fake-forge-refresh';
+
+  @override
+  Duration backoffFor(Duration base, int failures) => base;
+
+  @override
+  bool readyForTick() => true;
+
+  @override
+  Future<bool> runTick() async => true;
+
+  @override
+  void disposeExtra() {}
+
+  @override
+  Duration? get base => null;
+
+  @override
+  set base(Duration? value) {}
+
+  @override
+  void resetBackoff() {}
+
+  @override
+  void armTimer() {}
 }
 
 void main() {
