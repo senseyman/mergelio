@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/data/forge/forge_credentials.dart';
 import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/domain/forge/forge_host.dart';
+import 'package:mergelio/domain/forge/forge_error.dart';
 import 'package:mergelio/state/forge.dart';
 import 'package:mergelio/state/forge_refresh.dart';
 import 'package:mergelio/state/settings.dart';
@@ -78,6 +79,29 @@ Future<void> _settle() async {
 }
 
 void main() {
+  test('a panel that settles on an error backs the next tick off', () async {
+    // The scheduler learns a tick failed by the reload throwing, not by a
+    // false return. A rate-limited forge must not be retried at full rate
+    // every interval, so this pins the path a reviewer suspected was silent.
+    final c = _container(panel: (path) => throw const ForgeRateLimited(null));
+    addTearDown(c.dispose);
+    final ctl = c.read(forgeRefreshProvider);
+    await _settle();
+    final before = ctl.scheduledInterval;
+
+    await ctl.tick();
+    await _settle();
+
+    expect(
+      ctl.scheduledInterval,
+      isNot(before),
+      reason:
+          'a failed refresh left the interval where it was, so a '
+          'rate-limited forge would be hit again at full rate',
+    );
+    expect(ctl.scheduledInterval!, greaterThan(before!));
+  });
+
   group('eligibility gates the timer', () {
     test('no timer without a token', () async {
       final c = _container(token: null);

@@ -166,6 +166,9 @@ const kChecksConcurrency = 4;
 /// the hourly budget can afford to check all at once; a fixed number of
 /// workers pulls from a shared queue instead of firing every request at
 /// once.
+/// The workers share [out] without a lock because Dart gives them no way to
+/// interleave mid-write: an isolate runs one at a time and only yields at an
+/// `await`, so each map write completes before any other worker resumes.
 Future<Map<K, V>> fetchWithLimit<K, V>(
   Iterable<K> keys,
   int limit,
