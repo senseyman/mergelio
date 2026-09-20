@@ -9,6 +9,18 @@ import 'graph_rail.dart';
 import 'rail_metrics.dart';
 import 'ref_pill.dart';
 
+/// Single-line natural width a string would take in [style], used only to
+/// weight how much a meta field shrinks relative to its siblings — not to
+/// actually size or place it.
+double _naturalTextWidth(String text, TextStyle style) {
+  final painter = TextPainter(
+    text: TextSpan(text: text, style: style),
+    textDirection: TextDirection.ltr,
+    maxLines: 1,
+  )..layout();
+  return painter.width;
+}
+
 /// One graph row: an optional branch-name gutter, the painted rail cell, then
 /// avatar · message · signed badge · tag pills, with a meta line
 /// (author/date/sha, each toggleable) in the two-line layout. Compact mode
@@ -135,15 +147,29 @@ class CommitRow extends StatelessWidget {
     children: [_titleLine(t, c), const SizedBox(height: 3), _metaLine(t, c)],
   );
 
-  Widget _singleLine(AppTokens t, Commit c) => Row(
-    children: [
-      Flexible(child: _titleLine(t, c)),
-      const SizedBox(width: 10),
-      // Both halves must be able to give way. A meta line that cannot shrink
-      // takes its width first, which squeezes the message to nothing and then
-      // overflows the row anyway once there is nothing left to take.
-      Flexible(child: _metaLine(t, c)),
-    ],
+  Widget _singleLine(AppTokens t, Commit c) => LayoutBuilder(
+    builder: (context, constraints) {
+      // An even flex split caps the meta line at half the row no matter what
+      // it actually needs, so the message ellipsizes early on a wide row
+      // while empty space sits beside it. Letting the meta line size itself
+      // and only capping it (rather than granting it a fixed share) gives the
+      // message everything the meta line does not need, while still bounding
+      // the meta line so a long author or date cannot push the message to
+      // nothing on a narrow row.
+      final metaCap = constraints.hasBoundedWidth
+          ? constraints.maxWidth * 0.5
+          : double.infinity;
+      return Row(
+        children: [
+          Expanded(child: _titleLine(t, c)),
+          const SizedBox(width: 10),
+          ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: metaCap),
+            child: _metaLine(t, c),
+          ),
+        ],
+      );
+    },
   );
 
   /// Left gutter that names each branch once, at the top of its segment. Right-
@@ -289,40 +315,36 @@ class CommitRow extends StatelessWidget {
 
   Widget _metaLine(AppTokens t, Commit c) {
     final style = TextStyle(color: t.textFaint, fontSize: 11);
+
+    // An even three-way flex split caps every field at the same share
+    // regardless of what it needs: a long author ellipsizes even when the
+    // date and sha aren't using their own share. Weighting each field's flex
+    // by its own natural width shrinks every field by the same proportion of
+    // its need instead of by the same number of pixels, so a field that
+    // needs little keeps what it needs and doesn't take room from one that
+    // needs more — while every field stays Flexible, so none of this can
+    // ever push the row into an overflow.
+    Widget field(String text, TextStyle s) => Flexible(
+      flex: _naturalTextWidth(text, s).round().clamp(1, 1 << 20),
+      child: Text(
+        text,
+        style: s,
+        softWrap: false,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+
     final items = <Widget>[
-      // Every part of this line has to be able to give way. Whatever width the
-      // row hands this line, it has to fit inside it: a part that cannot
-      // shrink makes the whole row overflow, which costs the commit message
-      // its space first and then spills past the panel edge anyway.
-      if (_on('author'))
-        Flexible(
-          child: Text(
-            c.author,
-            style: style,
-            softWrap: false,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
+      if (_on('author')) field(c.author, style),
       if (_on('date'))
-        Flexible(
-          child: Text(
-            formatCommitDate(c.date, format: dateFormat),
-            style: style,
-            softWrap: false,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
+        field(formatCommitDate(c.date, format: dateFormat), style),
       if (_on('sha'))
-        Flexible(
-          child: Text(
-            c.shortSha,
-            style: style.copyWith(
-              fontFamily: AppFonts.mono,
-              fontFamilyFallback: AppFonts.monoFallback,
-              letterSpacing: 0.3,
-            ),
-            softWrap: false,
-            overflow: TextOverflow.ellipsis,
+        field(
+          c.shortSha,
+          style.copyWith(
+            fontFamily: AppFonts.mono,
+            fontFamilyFallback: AppFonts.monoFallback,
+            letterSpacing: 0.3,
           ),
         ),
     ];
