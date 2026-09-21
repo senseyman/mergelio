@@ -25,12 +25,18 @@ const _host = ForgeHost(
   repo: 'r',
 );
 
-Issue _issue(int n, {List<String> labels = const []}) => Issue(
+Issue _issue(
+  int n, {
+  List<String> labels = const [],
+  String author = 'me',
+  DateTime? updatedAt,
+}) => Issue(
   number: n,
   title: 'issue $n',
   state: IssueState.open,
-  author: const ForgeUser(login: 'me'),
+  author: ForgeUser(login: author),
   labels: labels,
+  updatedAt: updatedAt,
 );
 
 Future<void> _pump(
@@ -111,6 +117,46 @@ void main() {
     // Naming issues, not pull requests: this section began as a copy of
     // that one, and the borrowed string would still read plausibly here.
     expect(container.read(toastProvider).single.title, contains('issue'));
+  });
+
+  testWidgets('a row says who filed it and how long ago', (t) async {
+    await _pump(
+      t,
+      overrides: [
+        forgeHostProvider.overrideWith((ref, path) async => _host),
+        issuePanelProvider.overrideWith(
+          (ref, path) async => [
+            _issue(
+              12,
+              author: 'reporter',
+              updatedAt: DateTime.now().subtract(const Duration(hours: 3)),
+              labels: ['bug'],
+            ),
+          ],
+        ),
+      ],
+    );
+    await t.pumpAndSettle();
+
+    // One line, not three: the sidebar starts at 264px and every row here
+    // competes with the pull requests above it for height.
+    expect(find.text('reporter · 3h · bug'), findsOneWidget);
+  });
+
+  testWidgets('a row the forge dated loosely still reads cleanly', (t) async {
+    await _pump(
+      t,
+      overrides: [
+        forgeHostProvider.overrideWith((ref, path) async => _host),
+        issuePanelProvider.overrideWith(
+          (ref, path) async => [_issue(12, author: 'reporter')],
+        ),
+      ],
+    );
+    await t.pumpAndSettle();
+
+    // No timestamp and no labels: no stray separators either.
+    expect(find.text('reporter'), findsOneWidget);
   });
 
   testWidgets('renders nothing for a repository not on a forge', (t) async {

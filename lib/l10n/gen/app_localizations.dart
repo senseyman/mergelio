@@ -3119,7 +3119,7 @@ abstract class AppLocalizations {
   /// No description provided for @forgeRateBenefit.
   ///
   /// In en, this message translates to:
-  /// **'Without a token GitHub allows 60 requests an hour; with one, 5,000. Opening a repository costs about 22: one request for each list, plus two for every pull request\'s checks.'**
+  /// **'Without a token GitHub allows 60 requests an hour; with one, 5,000. Opening a repository costs about 23: one request for each list, two for every pull request\'s checks, and one for the repository itself.'**
   String get forgeRateBenefit;
 
   /// No description provided for @forgeRateRemaining.
@@ -4237,6 +4237,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No'**
   String get askpassNo;
+
+  /// No description provided for @forgeAgoNow.
+  ///
+  /// In en, this message translates to:
+  /// **'now'**
+  String get forgeAgoNow;
+
+  /// No description provided for @forgeAgoMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{n}m'**
+  String forgeAgoMinutes(int n);
+
+  /// No description provided for @forgeAgoHours.
+  ///
+  /// In en, this message translates to:
+  /// **'{n}h'**
+  String forgeAgoHours(int n);
+
+  /// No description provided for @forgeAgoDays.
+  ///
+  /// In en, this message translates to:
+  /// **'{n}d'**
+  String forgeAgoDays(int n);
 }
 
 class _AppLocalizationsDelegate

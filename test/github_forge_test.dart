@@ -46,6 +46,37 @@ void main() {
     await expectLater(forge.issues(), throwsA(isA<ForgeServerFault>()));
   });
 
+  test('reads the repository default branch', () async {
+    late Uri called;
+    final forge = forgeWith(
+      MockClient((req) async {
+        called = req.url;
+        return http.Response('{"default_branch": "trunk"}', 200);
+      }),
+    );
+
+    expect(await forge.defaultBranch(), 'trunk');
+    expect(called.path, '/repos/o/r');
+  });
+
+  test('a repository that names no default branch reads as null', () async {
+    // Nothing here should guess "main": a row uses this only to decide
+    // whether naming a target branch tells the reader anything, and
+    // guessing wrong hides the one case worth showing.
+    final forge = forgeWith(MockClient((_) async => http.Response('{}', 200)));
+
+    expect(await forge.defaultBranch(), isNull);
+  });
+
+  test(
+    'a repository nobody can see has no default branch, not a throw',
+    () async {
+      final forge = forgeWith(MockClient((_) async => http.Response('', 404)));
+
+      expect(await forge.defaultBranch(), isNull);
+    },
+  );
+
   test('pullRequests calls the repository pulls endpoint', () async {
     late Uri called;
     final forge = forgeWith(

@@ -31,4 +31,13 @@ abstract class Forge {
 
   /// Open issues, most recently updated first, capped at [limit].
   Future<List<Issue>> issues({int limit = 50});
+
+  /// The branch this repository treats as its trunk, or null when the forge
+  /// did not say — because the repository is not visible, or answered
+  /// without naming one.
+  ///
+  /// Callers use it to decide whether naming a branch tells a reader
+  /// anything. Never substitute a guess: assuming "main" hides exactly the
+  /// pull requests whose target is worth pointing out.
+  Future<String?> defaultBranch();
 }

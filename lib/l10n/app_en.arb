@@ -1132,7 +1132,7 @@
   "forgeTokenNotKept": "GitHub accepted the token, but nothing on this system kept it. Set up a git credential helper and try again.",
   "forgeTokenForgotten": "Token removed.",
   "forgeTokenNotForgotten": "Could not remove the token. It may still be stored by git's credential helper.",
-  "forgeRateBenefit": "Without a token GitHub allows 60 requests an hour; with one, 5,000. Opening a repository costs about 22: one request for each list, plus two for every pull request's checks.",
+  "forgeRateBenefit": "Without a token GitHub allows 60 requests an hour; with one, 5,000. Opening a repository costs about 23: one request for each list, two for every pull request's checks, and one for the repository itself.",
   "forgeRateRemaining": "{remaining} of {limit} requests left this hour.",
   "@forgeRateRemaining": {
     "placeholders": {
@@ -1484,5 +1484,30 @@
   "askpassFallback": "Enter your credentials",
   "askpassSubmit": "OK",
   "askpassYes": "Yes",
-  "askpassNo": "No"
+  "askpassNo": "No",
+  "forgeAgoNow": "now",
+  "forgeAgoMinutes": "{n}m",
+  "@forgeAgoMinutes": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "forgeAgoHours": "{n}h",
+  "@forgeAgoHours": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "forgeAgoDays": "{n}d",
+  "@forgeAgoDays": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  }
 }

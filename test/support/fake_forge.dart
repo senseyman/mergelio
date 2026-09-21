@@ -9,6 +9,8 @@ import 'package:mergelio/domain/forge/models.dart';
 /// exercised without failing the rest, and each call is counted so refresh
 /// and caching behaviour can be asserted.
 class FakeForge implements Forge {
+  String? trunk;
+
   @override
   final ForgeHost host;
 
@@ -81,4 +83,7 @@ class FakeForge implements Forge {
     if (error != null) throw error;
     return issuesResult.take(limit).toList(growable: false);
   }
+
+  @override
+  Future<String?> defaultBranch() async => trunk;
 }

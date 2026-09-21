@@ -110,3 +110,57 @@ class ForgeLoadingRow extends StatelessWidget {
     ),
   );
 }
+
+/// How long ago [at] was, in the shortest form that still says something.
+///
+/// Deliberately terser than the prose the fetch prompt uses: this sits in a
+/// sidebar row beside an author and, on a pull request, two branch names,
+/// and the sidebar starts at 264 logical pixels. The largest whole unit
+/// wins, so ninety minutes reads as an hour.
+///
+/// A timestamp ahead of this machine's clock reads as [forgeAgoNow] rather
+/// than a negative age — forge and client clocks disagree routinely, and a
+/// row claiming "-3h" would be worse than one admitting nothing. That falls
+/// out of the first test rather than needing its own: a negative duration
+/// has negative minutes, which is under one.
+String? forgeAgo(AppLocalizations l, DateTime? at) {
+  if (at == null) return null;
+  final d = DateTime.now().difference(at);
+  if (d.inMinutes < 1) return l.forgeAgoNow;
+  if (d.inHours < 1) return l.forgeAgoMinutes(d.inMinutes);
+  if (d.inDays < 1) return l.forgeAgoHours(d.inHours);
+  return l.forgeAgoDays(d.inDays);
+}
+
+/// How a pull request's branches read on one line.
+///
+/// Names the target only when it is not the repository's trunk. Nearly every
+/// request targets the trunk, so spelling it out on every row spends the
+/// widest field in the line saying nothing — while the request that targets
+/// a release branch is exactly the one worth noticing.
+///
+/// With [defaultBranch] unknown both are named: a redundant arrow costs a
+/// little width, and guessing costs the reader the case that mattered.
+String forgeBranchLabel(PullRequest pr, String? defaultBranch) =>
+    pr.targetBranch == defaultBranch
+    ? pr.sourceBranch
+    : '${pr.sourceBranch} → ${pr.targetBranch}';
+
+/// Joins a row's secondary facts, skipping whatever the forge left out.
+///
+/// One string rather than a row of widgets, so a long branch name ellipsises
+/// instead of overflowing — the failure this sidebar has produced before.
+/// Callers order the parts shortest-first for that reason: what runs off the
+/// end is the tail.
+String forgeMetaLine(List<String?> parts) =>
+    parts.whereType<String>().where((p) => p.isNotEmpty).join(' · ');
+
+/// The checks that failed on a ref, which are the only ones worth a row's
+/// height. A reader looking at a red badge wants the name to open, not the
+/// eleven jobs that passed.
+///
+/// Already in memory: the panel fetches full summaries to decide the badge,
+/// so showing these costs no further requests.
+List<CheckRun> forgeFailedRuns(ChecksSummary? summary) =>
+    summary?.runs.where((r) => r.state == CheckState.failure).toList() ??
+    const [];

@@ -174,6 +174,14 @@ class GitHubForge implements Forge {
   }
 
   /// Reads one object, treating "not visible" as "not configured".
+  @override
+  Future<String?> defaultBranch() async {
+    final json = await _optionalObject(_repoUrl(''));
+    if (json is! Map) return null;
+    final branch = json['default_branch'];
+    return branch is String && branch.isNotEmpty ? branch : null;
+  }
+
   Future<Object?> _optionalObject(Uri url) async {
     try {
       final body = await fetchWithCache(_http, _cache, url);

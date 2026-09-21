@@ -26,16 +26,22 @@ const _host = ForgeHost(
   repo: 'r',
 );
 
-PullRequest _pr(int n, {PullRequestState state = PullRequestState.open}) =>
-    PullRequest(
-      number: n,
-      title: 'request $n',
-      state: state,
-      author: const ForgeUser(login: 'me'),
-      sourceBranch: 'feature/$n',
-      targetBranch: 'main',
-      headSha: 'sha$n',
-    );
+PullRequest _pr(
+  int n, {
+  PullRequestState state = PullRequestState.open,
+  String author = 'me',
+  String target = 'main',
+  DateTime? updatedAt,
+}) => PullRequest(
+  number: n,
+  title: 'request $n',
+  state: state,
+  author: ForgeUser(login: author),
+  sourceBranch: 'feature/$n',
+  targetBranch: target,
+  headSha: 'sha$n',
+  updatedAt: updatedAt,
+);
 
 Future<void> _pump(
   WidgetTester tester, {
@@ -510,6 +516,140 @@ void main() {
 
     expect(opened, hasLength(1));
     expect(opened.single.toString(), contains('/pull/7'));
+  });
+
+  testWidgets('a row says who opened it, when, and from where', (t) async {
+    await _pump(
+      t,
+      overrides: [
+        forgeHostProvider.overrideWith((ref, path) async => _host),
+        forgeTokenProvider.overrideWith((ref, path) async => null),
+        pullRequestPanelProvider.overrideWith(
+          (ref, path) async => ForgePanel(
+            pullRequests: [
+              _pr(
+                7,
+                author: 'octocat',
+                updatedAt: DateTime.now().subtract(const Duration(hours: 2)),
+              ),
+            ],
+            defaultBranch: 'main',
+          ),
+        ),
+      ],
+    );
+    await t.pumpAndSettle();
+
+    // The target is the trunk, so naming it would spend the widest field in
+    // the line on something true of nearly every row.
+    expect(find.text('octocat · 2h · feature/7'), findsOneWidget);
+  });
+
+  testWidgets('a row targeting something other than the trunk says so', (
+    t,
+  ) async {
+    await _pump(
+      t,
+      overrides: [
+        forgeHostProvider.overrideWith((ref, path) async => _host),
+        forgeTokenProvider.overrideWith((ref, path) async => null),
+        pullRequestPanelProvider.overrideWith(
+          (ref, path) async => ForgePanel(
+            pullRequests: [_pr(7, author: 'octocat', target: 'release/2')],
+            defaultBranch: 'main',
+          ),
+        ),
+      ],
+    );
+    await t.pumpAndSettle();
+
+    expect(find.text('octocat · feature/7 → release/2'), findsOneWidget);
+  });
+
+  ForgePanel panelWithFailures() => ForgePanel(
+    pullRequests: [_pr(7, author: 'octocat')],
+    checksBySha: const {
+      'sha7': ChecksSummary(
+        overall: ChecksOverall.failure,
+        runs: [
+          CheckRun(name: 'build', state: CheckState.success),
+          CheckRun(name: 'unit tests', state: CheckState.failure),
+        ],
+      ),
+    },
+    defaultBranch: 'main',
+  );
+
+  testWidgets('the badge opens the names of the checks that failed', (t) async {
+    await _pump(
+      t,
+      overrides: [
+        forgeHostProvider.overrideWith((ref, path) async => _host),
+        forgeTokenProvider.overrideWith((ref, path) async => null),
+        pullRequestPanelProvider.overrideWith(
+          (ref, path) async => panelWithFailures(),
+        ),
+      ],
+    );
+    await t.pumpAndSettle();
+
+    expect(find.text('unit tests'), findsNothing);
+
+    await t.tap(find.byKey(const ValueKey('pr-checks-7')));
+    await t.pumpAndSettle();
+
+    // The failure, and only the failure: a reader staring at a red badge
+    // wants the name to open, not the jobs that passed.
+    expect(find.text('unit tests'), findsOneWidget);
+    expect(find.text('build'), findsNothing);
+  });
+
+  testWidgets('opening the checks does not also open the browser', (t) async {
+    final opened = <Uri>[];
+    await _pump(
+      t,
+      overrides: [
+        forgeHostProvider.overrideWith((ref, path) async => _host),
+        forgeTokenProvider.overrideWith((ref, path) async => null),
+        pullRequestPanelProvider.overrideWith(
+          (ref, path) async => panelWithFailures(),
+        ),
+        forgeLaunchUrlProvider.overrideWithValue((url) async {
+          opened.add(url);
+          return true;
+        }),
+      ],
+    );
+    await t.pumpAndSettle();
+
+    await t.tap(find.byKey(const ValueKey('pr-checks-7')));
+    await t.pumpAndSettle();
+
+    // The badge sits inside the row's tap target, so without its own
+    // handler swallowing the press this would navigate away instead.
+    expect(opened, isEmpty);
+    expect(find.text('unit tests'), findsOneWidget);
+  });
+
+  testWidgets('a second press puts the checks away again', (t) async {
+    await _pump(
+      t,
+      overrides: [
+        forgeHostProvider.overrideWith((ref, path) async => _host),
+        forgeTokenProvider.overrideWith((ref, path) async => null),
+        pullRequestPanelProvider.overrideWith(
+          (ref, path) async => panelWithFailures(),
+        ),
+      ],
+    );
+    await t.pumpAndSettle();
+
+    await t.tap(find.byKey(const ValueKey('pr-checks-7')));
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(const ValueKey('pr-checks-7')));
+    await t.pumpAndSettle();
+
+    expect(find.text('unit tests'), findsNothing);
   });
 
   testWidgets('a launch that could not be handled is reported, not silent', (

@@ -28,6 +28,10 @@ abstract class ForgePanel with _$ForgePanel {
   const factory ForgePanel({
     @Default(<PullRequest>[]) List<PullRequest> pullRequests,
     @Default(<String, ChecksSummary>{}) Map<String, ChecksSummary> checksBySha,
+
+    /// The repository's trunk, when the forge named it. Rows use it to leave
+    /// out a target branch that would tell the reader nothing.
+    String? defaultBranch,
   }) = _ForgePanel;
 }
 
@@ -158,6 +162,9 @@ const kIssueLimit = 10;
 /// status lives behind two endpoints, combined status and check runs, and a
 /// row's badge needs both.
 ///
+/// The last is the repository read that names the trunk, so a row can leave
+/// out a target branch that says nothing.
+///
 /// The issue list is counted as one request, which is the common case rather
 /// than a guarantee: `/issues` returns pull requests too and they are
 /// filtered out, so a repository with many open ones may need a second page
@@ -165,7 +172,7 @@ const kIssueLimit = 10;
 ///
 /// This is the number the preferences copy quotes, so it is defined here
 /// next to the limits it depends on rather than written out in prose twice.
-const kForgeRequestsPerOpen = 1 + 2 * kPullRequestLimit + 1;
+const kForgeRequestsPerOpen = 1 + 2 * kPullRequestLimit + 1 + 1;
 
 /// How many CI reads may be in flight at once.
 const kChecksConcurrency = 4;
@@ -221,6 +228,16 @@ final pullRequestPanelProvider = FutureProvider.family<ForgePanel, String>((
 
   final prs = await forge.pullRequests(limit: kPullRequestLimit);
 
+  // Read in sequence rather than alongside the list: awaiting both together
+  // wraps whatever either throws in a ParallelWaitError, and the panel's
+  // errors are read by name — an expired token has to stay recognisable as
+  // one. One more round trip against the twenty-odd already made is noise.
+  //
+  // The trunk is a cosmetic hint, so a failure costs rows their branch
+  // context rather than their place in the list, the same bargain CI makes
+  // below.
+  final trunk = await forge.defaultBranch().onError<ForgeError>((_, _) => null);
+
   // A branch can back more than one request (see [Forge.pullRequestsForBranch]),
   // so two requests can share a head sha. Deduping keeps that shared commit's
   // CI to one concurrent read instead of two competing for the same slot.
@@ -238,7 +255,11 @@ final pullRequestPanelProvider = FutureProvider.family<ForgePanel, String>((
     },
   );
 
-  return ForgePanel(pullRequests: prs, checksBySha: checks);
+  return ForgePanel(
+    pullRequests: prs,
+    checksBySha: checks,
+    defaultBranch: trunk,
+  );
 });
 
 /// Everything the issues section shows for the repository at [path].

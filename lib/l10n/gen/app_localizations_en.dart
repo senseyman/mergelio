@@ -1743,7 +1743,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get forgeRateBenefit =>
-      'Without a token GitHub allows 60 requests an hour; with one, 5,000. Opening a repository costs about 22: one request for each list, plus two for every pull request\'s checks.';
+      'Without a token GitHub allows 60 requests an hour; with one, 5,000. Opening a repository costs about 23: one request for each list, two for every pull request\'s checks, and one for the repository itself.';
 
   @override
   String forgeRateRemaining(int remaining, int limit) {
@@ -2372,4 +2372,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get askpassNo => 'No';
+
+  @override
+  String get forgeAgoNow => 'now';
+
+  @override
+  String forgeAgoMinutes(int n) {
+    return '${n}m';
+  }
+
+  @override
+  String forgeAgoHours(int n) {
+    return '${n}h';
+  }
+
+  @override
+  String forgeAgoDays(int n) {
+    return '${n}d';
+  }
 }
