@@ -147,14 +147,25 @@ final githubForgeProvider = FutureProvider.family<Forge?, String>((
 /// what each row costs.
 const kPullRequestLimit = 10;
 
-/// What opening one repository's section spends against the hourly budget:
-/// a single request for the list, then two for every row — CI status lives
-/// behind two endpoints, combined status and check runs, and a row's badge
-/// needs both.
+/// How many issues one repository contributes to the section.
+///
+/// Separate from [kPullRequestLimit] because the two cost differently: an
+/// issue row carries no CI, so a whole section of them is one request.
+const kIssueLimit = 10;
+
+/// What opening one repository's forge sections spends against the hourly
+/// budget: a request for each list, plus two for every pull request row — CI
+/// status lives behind two endpoints, combined status and check runs, and a
+/// row's badge needs both.
+///
+/// The issue list is counted as one request, which is the common case rather
+/// than a guarantee: `/issues` returns pull requests too and they are
+/// filtered out, so a repository with many open ones may need a second page
+/// to fill the section.
 ///
 /// This is the number the preferences copy quotes, so it is defined here
-/// next to the limit it depends on rather than written out in prose twice.
-const kForgeRequestsPerOpen = 1 + 2 * kPullRequestLimit;
+/// next to the limits it depends on rather than written out in prose twice.
+const kForgeRequestsPerOpen = 1 + 2 * kPullRequestLimit + 1;
 
 /// How many CI reads may be in flight at once.
 const kChecksConcurrency = 4;
@@ -228,6 +239,24 @@ final pullRequestPanelProvider = FutureProvider.family<ForgePanel, String>((
   );
 
   return ForgePanel(pullRequests: prs, checksBySha: checks);
+});
+
+/// Everything the issues section shows for the repository at [path].
+///
+/// Mirrors [pullRequestPanelProvider]: not autoDispose for the same reason,
+/// and refreshed the same way. Unlike a pull request row, an issue row
+/// carries no CI badge, so this needs no per-row second request. Usually one
+/// page fills it, but the issues endpoint answers with pull requests mixed
+/// in — [Forge.issues] filters those out — so a repository with many open
+/// pull requests can still cost a second or third page to fill ten rows,
+/// on top of the pull request panel's own ~21.
+final issuePanelProvider = FutureProvider.family<List<Issue>, String>((
+  ref,
+  path,
+) async {
+  final forge = await ref.watch(githubForgeProvider(path).future);
+  if (forge == null) return const [];
+  return forge.issues(limit: kIssueLimit);
 });
 
 /// What is left of the forge's hourly budget, or null when it cannot be

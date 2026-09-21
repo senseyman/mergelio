@@ -96,11 +96,13 @@ void main() {
         pullRequestPanelProvider.overrideWith(
           (ref, path) async => const ForgePanel(),
         ),
+        issuePanelProvider.overrideWith((ref, path) async => const []),
       ],
     );
 
     // SidebarSection headers render their label uppercased.
     expect(find.text('PULL REQUESTS'), findsOneWidget);
+    expect(find.text('ISSUES'), findsOneWidget);
   });
 
   testWidgets('hides the pull request section for a repository off any forge', (
@@ -114,9 +116,11 @@ void main() {
         pullRequestPanelProvider.overrideWith(
           (ref, path) async => const ForgePanel(),
         ),
+        issuePanelProvider.overrideWith((ref, path) async => const []),
       ],
     );
 
     expect(find.text('PULL REQUESTS'), findsNothing);
+    expect(find.text('ISSUES'), findsNothing);
   });
 }

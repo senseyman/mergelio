@@ -2972,6 +2972,18 @@ abstract class AppLocalizations {
   /// **'No open pull requests'**
   String get forgeNoPullRequests;
 
+  /// No description provided for @forgeIssues.
+  ///
+  /// In en, this message translates to:
+  /// **'Issues'**
+  String get forgeIssues;
+
+  /// No description provided for @forgeNoIssues.
+  ///
+  /// In en, this message translates to:
+  /// **'No open issues'**
+  String get forgeNoIssues;
+
   /// No description provided for @forgeRefresh.
   ///
   /// In en, this message translates to:
@@ -2983,6 +2995,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not open the pull request in your browser'**
   String get forgeCouldNotOpenPr;
+
+  /// No description provided for @forgeCouldNotOpenIssue.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open issue in browser'**
+  String get forgeCouldNotOpenIssue;
 
   /// No description provided for @forgeConnectHint.
   ///
@@ -3101,7 +3119,7 @@ abstract class AppLocalizations {
   /// No description provided for @forgeRateBenefit.
   ///
   /// In en, this message translates to:
-  /// **'Without a token GitHub allows 60 requests an hour; with one, 5,000. Opening a repository costs one request for the list plus two for each pull request\'s checks — about 21 for the ten shown.'**
+  /// **'Without a token GitHub allows 60 requests an hour; with one, 5,000. Opening a repository costs about 22: one request for each list, plus two for every pull request\'s checks.'**
   String get forgeRateBenefit;
 
   /// No description provided for @forgeRateRemaining.

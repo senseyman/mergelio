@@ -7,6 +7,7 @@ import 'package:mergelio/data/forge/forge_credentials.dart';
 import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/domain/forge/forge_host.dart';
 import 'package:mergelio/domain/forge/forge_error.dart';
+import 'package:mergelio/domain/forge/models.dart' show Issue;
 import 'package:mergelio/state/forge.dart';
 import 'package:mergelio/state/forge_refresh.dart';
 import 'package:mergelio/state/settings.dart';
@@ -34,6 +35,7 @@ List<Override> _overrides({
   bool focused = true,
   bool openRepo = true,
   ForgePanel Function(String path)? panel,
+  List<Issue> Function(String path)? issues,
 }) {
   final workspace = WorkspaceController();
   if (openRepo) workspace.openRepo(_path);
@@ -48,6 +50,9 @@ List<Override> _overrides({
     pullRequestPanelProvider.overrideWith(
       (ref, path) async => panel?.call(path) ?? const ForgePanel(),
     ),
+    issuePanelProvider.overrideWith(
+      (ref, path) async => issues?.call(path) ?? const [],
+    ),
   ];
 }
 
@@ -60,6 +65,7 @@ ProviderContainer _container({
   bool focused = true,
   bool openRepo = true,
   ForgePanel Function(String path)? panel,
+  List<Issue> Function(String path)? issues,
 }) => ProviderContainer(
   overrides: _overrides(
     settings: settings,
@@ -68,6 +74,7 @@ ProviderContainer _container({
     focused: focused,
     openRepo: openRepo,
     panel: panel,
+    issues: issues,
   ),
 );
 
@@ -166,6 +173,7 @@ void main() {
           pullRequestPanelProvider.overrideWith(
             (ref, path) async => const ForgePanel(),
           ),
+          issuePanelProvider.overrideWith((ref, path) async => const []),
         ],
       );
       addTearDown(c.dispose);
@@ -429,8 +437,8 @@ void main() {
     expect(calls, 1);
   });
 
-  group('refreshAfterGitOp requires a token', () {
-    test('does nothing without a token on file', () async {
+  group('refreshAfterGitOp spends only what a token affords', () {
+    test('leaves pull requests alone without a token on file', () async {
       var calls = 0;
       final c = _container(
         token: null,
@@ -457,6 +465,36 @@ void main() {
             'a fetch/pull/push run without a token must not spend the '
             'unauthenticated hourly budget on a panel refresh nobody asked '
             'for',
+      );
+    });
+
+    test('still refreshes issues without a token on file', () async {
+      var calls = 0;
+      final c = _container(
+        token: null,
+        issues: (path) {
+          calls++;
+          return const <Issue>[];
+        },
+      );
+      addTearDown(c.dispose);
+      c.read(forgeRefreshProvider);
+      await _settle();
+      final sub = c.listen(issuePanelProvider(_path), (_, _) {});
+      addTearDown(sub.close);
+      await c.read(issuePanelProvider(_path).future);
+      final before = calls;
+
+      c.read(forgeRefreshProvider).refreshAfterGitOp(_path);
+      await c.read(issuePanelProvider(_path).future);
+
+      expect(
+        calls,
+        greaterThan(before),
+        reason:
+            'one issue request is noise beside the unauthenticated hourly '
+            'budget, so a fetch, pull or push refreshes issues whether or '
+            'not a token is connected',
       );
     });
 

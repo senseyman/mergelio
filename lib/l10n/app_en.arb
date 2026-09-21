@@ -8,7 +8,6 @@
   "apply": "Apply",
   "import": "Import",
   "export": "Export",
-
   "tooltipTerminal": "Terminal (⌘`)",
   "tooltipSearch": "Search (⌘F)",
   "tooltipPalette": "Command palette (⌘K)",
@@ -16,7 +15,6 @@
   "tooltipProfiles": "Profiles",
   "tooltipProjectFiles": "Project files",
   "tooltipHistory": "History",
-
   "opFetch": "Fetch",
   "opPull": "Pull",
   "opPullRebase": "Pull (rebase)",
@@ -24,11 +22,9 @@
   "opPushOrigin": "Push origin",
   "opForcePush": "Force-push (with lease)",
   "opPushOptions": "Push…",
-
   "welcomeOpen": "Open",
   "welcomeRecents": "Recent repositories",
   "welcomeNoRecents": "No recent repositories yet",
-
   "prefsTitle": "Preferences",
   "prefsTabGeneral": "General",
   "prefsTabAppearance": "Appearance",
@@ -53,7 +49,6 @@
   "prefsResetColours": "Reset colours",
   "prefsSavedThemes": "Saved themes",
   "prefsSaveCurrent": "Save current…",
-
   "strategyMerge": "merge",
   "strategyRebase": "rebase",
   "dateMedium": "medium",
@@ -62,15 +57,12 @@
   "prefsClockFormat": "Clock",
   "clock24": "24-hour",
   "clock12": "12-hour",
-
   "themeDark": "dark",
   "themeLight": "light",
   "themeSystem": "system",
-
   "languageSystem": "System",
   "languageEnglish": "English",
   "languageUkrainian": "Українська",
-
   "graphHistory": "HISTORY",
   "graphLoadingOlder": "Loading older commits…",
   "graphCompact": "Compact",
@@ -100,7 +92,9 @@
   "menuCompareWith": "Compare with {ref}",
   "@menuCompareWith": {
     "placeholders": {
-      "ref": {"type": "String"}
+      "ref": {
+        "type": "String"
+      }
     }
   },
   "rewordTitle": "Edit commit message",
@@ -108,7 +102,9 @@
   "rewordPushedBody": "This commit is already on {branches}. Changing its message rewrites history, so the branch will need a force push and anyone who pulled it will have to reset.",
   "@rewordPushedBody": {
     "placeholders": {
-      "branches": {"type": "String"}
+      "branches": {
+        "type": "String"
+      }
     }
   },
   "rewordPushedConfirm": "Rewrite anyway",
@@ -117,33 +113,47 @@
   "mergeCherryPick": "Cherry-pick {sha}",
   "@mergeCherryPick": {
     "placeholders": {
-      "sha": {"type": "String"}
+      "sha": {
+        "type": "String"
+      }
     }
   },
   "mergeRevert": "Revert {sha}",
   "@mergeRevert": {
     "placeholders": {
-      "sha": {"type": "String"}
+      "sha": {
+        "type": "String"
+      }
     }
   },
   "mergeInto": "Merge {branch} → {into}",
   "@mergeInto": {
     "placeholders": {
-      "branch": {"type": "String"},
-      "into": {"type": "String"}
+      "branch": {
+        "type": "String"
+      },
+      "into": {
+        "type": "String"
+      }
     }
   },
   "mergeBranch": "Merge {branch}",
   "@mergeBranch": {
     "placeholders": {
-      "branch": {"type": "String"}
+      "branch": {
+        "type": "String"
+      }
     }
   },
   "mergeResolvedCount": "{resolved} / {total} resolved",
   "@mergeResolvedCount": {
     "placeholders": {
-      "resolved": {"type": "int"},
-      "total": {"type": "int"}
+      "resolved": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
     }
   },
   "mergeNextUnresolved": "Next unresolved",
@@ -152,14 +162,19 @@
   "a11yCommitRow": "Commit {sha} by {author}: {message}",
   "@a11yCommitRow": {
     "placeholders": {
-      "sha": {"type": "String"},
-      "author": {"type": "String"},
-      "message": {"type": "String"}
+      "sha": {
+        "type": "String"
+      },
+      "author": {
+        "type": "String"
+      },
+      "message": {
+        "type": "String"
+      }
     }
   },
   "a11yWorkingChanges": "Working tree changes",
   "a11yCommitGraph": "Commit history graph",
-
   "shellAddRepository": "Add repository",
   "shellOpenRepoMenu": "Open…",
   "shellCloneRepoMenu": "Clone…",
@@ -177,7 +192,9 @@
   "shellDeleteGroupBody": "\"{name}\" is removed from the switcher. Repositories in it stay open, without a group.",
   "@shellDeleteGroupBody": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "shellCloseTab": "Close tab",
@@ -185,23 +202,28 @@
   "shellRemoveFromGroup": "Remove from {name}",
   "@shellRemoveFromGroup": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "shellMoveToGroup": "Move to {name}",
   "@shellMoveToGroup": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "tabWorktree": "Worktree",
   "tabWorktreeOf": "Worktree of {parent}",
   "@tabWorktreeOf": {
     "placeholders": {
-      "parent": {"type": "String"}
+      "parent": {
+        "type": "String"
+      }
     }
   },
-
   "wtAdd": "Add worktree",
   "wtLocation": "Location",
   "wtBrowse": "Browse…",
@@ -212,7 +234,9 @@
   "wtHeldBy": "— in {name}",
   "@wtHeldBy": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "wtBranchExists": "That branch already exists",
@@ -223,7 +247,9 @@
   "wtCheckedOutBranch": "Checked out: {branch}",
   "@wtCheckedOutBranch": {
     "placeholders": {
-      "branch": {"type": "String"}
+      "branch": {
+        "type": "String"
+      }
     }
   },
   "wtDirDeleted": "The directory will be deleted.",
@@ -236,7 +262,9 @@
   "wtNewLocationFor": "New location for {name}",
   "@wtNewLocationFor": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "wtMove": "Move",
@@ -244,7 +272,9 @@
   "wtCheckedOutInWorktreeAt": "{branch} is checked out in the worktree at",
   "@wtCheckedOutInWorktreeAt": {
     "placeholders": {
-      "branch": {"type": "String"}
+      "branch": {
+        "type": "String"
+      }
     }
   },
   "wtTwoPlacesWarning": "Checking out anyway puts the branch in two places at once; commits made in one leave the other behind.",
@@ -254,7 +284,6 @@
   "wtNothingToPrune": "Nothing to prune.",
   "wtEntriesWillBeRemoved": "These entries will be removed:",
   "wtPrune": "Prune",
-
   "sbRepository": "Repository",
   "sbCollapse": "Collapse",
   "sbCouldNotRead": "Could not read repository",
@@ -274,13 +303,17 @@
   "sbReflogTruncated": "Showing the first {count} entries",
   "@sbReflogTruncated": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "sbReflogDetachTitle": "Check out {sha}?",
   "@sbReflogDetachTitle": {
     "placeholders": {
-      "sha": {"type": "String"}
+      "sha": {
+        "type": "String"
+      }
     }
   },
   "sbReflogDetachBody": "Leaves HEAD detached at this commit. No branch moves, so you can return to the branch you were on at any time.",
@@ -303,22 +336,34 @@
   "sbResetToUpstreamTitle": "Reset {branch} to {upstream}?",
   "@sbResetToUpstreamTitle": {
     "placeholders": {
-      "branch": {"type": "String"},
-      "upstream": {"type": "String"}
+      "branch": {
+        "type": "String"
+      },
+      "upstream": {
+        "type": "String"
+      }
     }
   },
   "sbResetUnpushedBody": "{count, plural, one{{count} unpushed commit on {branch} will be removed. This can be undone.} other{{count} unpushed commits on {branch} will be removed. This can be undone.}}",
   "@sbResetUnpushedBody": {
     "placeholders": {
-      "count": {"type": "int"},
-      "branch": {"type": "String"}
+      "count": {
+        "type": "int"
+      },
+      "branch": {
+        "type": "String"
+      }
     }
   },
   "sbResetMovedBody": "{branch} will be moved to {upstream}. This can be undone.",
   "@sbResetMovedBody": {
     "placeholders": {
-      "branch": {"type": "String"},
-      "upstream": {"type": "String"}
+      "branch": {
+        "type": "String"
+      },
+      "upstream": {
+        "type": "String"
+      }
     }
   },
   "sbCheckout": "Checkout",
@@ -329,13 +374,17 @@
   "sbSetUpstreamTitle": "Set upstream for {branch}",
   "@sbSetUpstreamTitle": {
     "placeholders": {
-      "branch": {"type": "String"}
+      "branch": {
+        "type": "String"
+      }
     }
   },
   "sbSetUpstreamHint": "e.g. origin/{branch}",
   "@sbSetUpstreamHint": {
     "placeholders": {
-      "branch": {"type": "String"}
+      "branch": {
+        "type": "String"
+      }
     }
   },
   "sbResetToRemote": "Reset to remote…",
@@ -345,7 +394,9 @@
   "sbDeleteBranchTitle": "Delete {branch}?",
   "@sbDeleteBranchTitle": {
     "placeholders": {
-      "branch": {"type": "String"}
+      "branch": {
+        "type": "String"
+      }
     }
   },
   "sbDeleteBranchBody": "The branch ref will be removed. This can be undone.",
@@ -353,8 +404,12 @@
   "sbDeleteBothTitle": "Delete {branch} and {upstream}?",
   "@sbDeleteBothTitle": {
     "placeholders": {
-      "branch": {"type": "String"},
-      "upstream": {"type": "String"}
+      "branch": {
+        "type": "String"
+      },
+      "upstream": {
+        "type": "String"
+      }
     }
   },
   "sbDeleteBothBody": "The branch will be removed here and on the remote. Only the local half can be undone.",
@@ -362,82 +417,112 @@
   "sbCheckedOutIn": "Checked out in {name}",
   "@sbCheckedOutIn": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "sbMergeSourceInto": "Merge «{source}» into «{target}»",
   "@sbMergeSourceInto": {
     "placeholders": {
-      "source": {"type": "String"},
-      "target": {"type": "String"}
+      "source": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
     }
   },
   "sbRebaseSourceOnto": "Rebase «{source}» onto «{target}»",
   "@sbRebaseSourceOnto": {
     "placeholders": {
-      "source": {"type": "String"},
-      "target": {"type": "String"}
+      "source": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
     }
   },
   "sbTipSwitchHint": "Click to show its tip · double-click to switch to {branch}",
   "@sbTipSwitchHint": {
     "placeholders": {
-      "branch": {"type": "String"}
+      "branch": {
+        "type": "String"
+      }
     }
   },
   "sbTipCheckoutHint": "Click to show its tip · double-click to check out {name}",
   "@sbTipCheckoutHint": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "sbHasLocalBranch": "Has a local branch",
   "sbSwitchTo": "Switch to {branch}",
   "@sbSwitchTo": {
     "placeholders": {
-      "branch": {"type": "String"}
+      "branch": {
+        "type": "String"
+      }
     }
   },
   "sbCheckOutNamed": "Check out {name}",
   "@sbCheckOutNamed": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "sbMergeNamedIntoCurrent": "Merge {name} into current",
   "@sbMergeNamedIntoCurrent": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "sbResetToThis": "Reset {branch} to this",
   "@sbResetToThis": {
     "placeholders": {
-      "branch": {"type": "String"}
+      "branch": {
+        "type": "String"
+      }
     }
   },
   "sbDeleteRemoteBranchTitle": "Delete {name}?",
   "@sbDeleteRemoteBranchTitle": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "sbDeleteRemoteBranchBody": "The branch will be deleted on {remote}. Any local branch of the same name stays. This cannot be undone.",
   "@sbDeleteRemoteBranchBody": {
     "placeholders": {
-      "remote": {"type": "String"}
+      "remote": {
+        "type": "String"
+      }
     }
   },
   "sbDeleteNamedItem": "Delete {name}…",
   "@sbDeleteNamedItem": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "sbFetchRemote": "Fetch {remote}",
   "@sbFetchRemote": {
     "placeholders": {
-      "remote": {"type": "String"}
+      "remote": {
+        "type": "String"
+      }
     }
   },
   "sbPrune": "Prune",
@@ -447,7 +532,9 @@
   "sbRemoveRemoteTitle": "Remove remote {remote}?",
   "@sbRemoveRemoteTitle": {
     "placeholders": {
-      "remote": {"type": "String"}
+      "remote": {
+        "type": "String"
+      }
     }
   },
   "sbRemoveRemoteBody": "Its remote-tracking branches go with it. Undo restores the remote; fetch to bring the branches back.",
@@ -458,8 +545,12 @@
   "sbDeleteRemoteTagTitle": "Delete tag {tag} on {remote}?",
   "@sbDeleteRemoteTagTitle": {
     "placeholders": {
-      "tag": {"type": "String"},
-      "remote": {"type": "String"}
+      "tag": {
+        "type": "String"
+      },
+      "remote": {
+        "type": "String"
+      }
     }
   },
   "sbDeleteRemoteTagBody": "The tag is removed from the remote. The local tag is kept, and this cannot be undone.",
@@ -467,13 +558,17 @@
   "sbCopyNamed": "Copy «{name}»",
   "@sbCopyNamed": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "sbDeleteTagTitle": "Delete tag {tag}?",
   "@sbDeleteTagTitle": {
     "placeholders": {
-      "tag": {"type": "String"}
+      "tag": {
+        "type": "String"
+      }
     }
   },
   "sbDeleteTagBody": "The tag will be removed locally. This can be undone.",
@@ -481,7 +576,9 @@
   "sbDropStashTitle": "Drop {ref}?",
   "@sbDropStashTitle": {
     "placeholders": {
-      "ref": {"type": "String"}
+      "ref": {
+        "type": "String"
+      }
     }
   },
   "sbDropStashBody": "The stash will be deleted. An Undo toast lets you restore it.",
@@ -489,16 +586,19 @@
   "sbRemoveSubmoduleTitle": "Remove {name}?",
   "@sbRemoveSubmoduleTitle": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "sbRemoveSubmoduleBody": "The submodule at {path} will be deinitialized and removed from .gitmodules. This cannot be undone.",
   "@sbRemoveSubmoduleBody": {
     "placeholders": {
-      "path": {"type": "String"}
+      "path": {
+        "type": "String"
+      }
     }
   },
-
   "discard": "Discard",
   "create": "Create",
   "edit": "Edit",
@@ -510,14 +610,18 @@
   "diffDiscardEditsBody": "What you typed here has not been written to {path}.",
   "@diffDiscardEditsBody": {
     "placeholders": {
-      "path": {"type": "String"}
+      "path": {
+        "type": "String"
+      }
     }
   },
   "diffSelectAll": "Select all",
   "diffDiscardFileTitle": "Discard {path}?",
   "@diffDiscardFileTitle": {
     "placeholders": {
-      "path": {"type": "String"}
+      "path": {
+        "type": "String"
+      }
     }
   },
   "diffDiscardFileBody": "This deletes the untracked file. You can undo it.",
@@ -525,7 +629,9 @@
   "filesClosePath": "Close {path}",
   "@filesClosePath": {
     "placeholders": {
-      "path": {"type": "String"}
+      "path": {
+        "type": "String"
+      }
     }
   },
   "filesName": "Name",
@@ -534,47 +640,57 @@
   "filesDeleteTitle": "Delete {name}?",
   "@filesDeleteTitle": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "filesDiscardChangesTitle": "Discard changes to {name}?",
   "@filesDiscardChangesTitle": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "filesRefresh": "Refresh",
   "filesCollapse": "Collapse",
-
   "wtpAlsoDeleteUntracked": "{count, plural, one{Also delete {count} untracked file} other{Also delete {count} untracked files}}",
   "@wtpAlsoDeleteUntracked": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "diffDiscardHunkTitle": "Discard hunk?",
   "diffDiscardLinesTitle": "{count, plural, one{Discard {count} line?} other{Discard {count} lines?}}",
   "@diffDiscardLinesTitle": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "diffDiscardLinesBody": "This removes the selected changes from the working tree. You can undo it.",
-
   "bbOpenRepoFirst": "Open a repository first",
   "bbOperationRunning": "An operation is already running",
   "bbNoRemote": "No remote configured",
   "bbUndoLabelled": "Undo {label} (⌘Z)",
   "@bbUndoLabelled": {
     "placeholders": {
-      "label": {"type": "String"}
+      "label": {
+        "type": "String"
+      }
     }
   },
   "bbUndo": "Undo (⌘Z)",
   "bbRedoLabelled": "Redo {label} (⌘⇧Z)",
   "@bbRedoLabelled": {
     "placeholders": {
-      "label": {"type": "String"}
+      "label": {
+        "type": "String"
+      }
     }
   },
   "bbRedo": "Redo (⌘⇧Z)",
@@ -596,7 +712,9 @@
   "sbarCancelBusy": "Cancel {label}",
   "@sbarCancelBusy": {
     "placeholders": {
-      "label": {"type": "String"}
+      "label": {
+        "type": "String"
+      }
     }
   },
   "tbComingLater": "Coming in a later stage",
@@ -607,53 +725,73 @@
   "gaCheckoutBranch": "Checkout: {name}",
   "@gaCheckoutBranch": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "gaFlyToCommit": "Fly to: {sha}  {message}",
   "@gaFlyToCommit": {
     "placeholders": {
-      "sha": {"type": "String"},
-      "message": {"type": "String"}
+      "sha": {
+        "type": "String"
+      },
+      "message": {
+        "type": "String"
+      }
     }
   },
   "rmcMomentsAgo": "moments ago",
   "rmcMinutesAgo": "{minutes}m ago",
   "@rmcMinutesAgo": {
     "placeholders": {
-      "minutes": {"type": "int"}
+      "minutes": {
+        "type": "int"
+      }
     }
   },
   "rmcHoursAgo": "{hours}h ago",
   "@rmcHoursAgo": {
     "placeholders": {
-      "hours": {"type": "int"}
+      "hours": {
+        "type": "int"
+      }
     }
   },
   "rmcDaysAgo": "{days}d ago",
   "@rmcDaysAgo": {
     "placeholders": {
-      "days": {"type": "int"}
+      "days": {
+        "type": "int"
+      }
     }
   },
   "rmcNotFetched": "This repository has not fetched yet.",
   "rmcLastFetched": "Last fetched {age}.",
   "@rmcLastFetched": {
     "placeholders": {
-      "age": {"type": "String"}
+      "age": {
+        "type": "String"
+      }
     }
   },
   "rmcMergeFrom": "Merge from {remote}?",
   "@rmcMergeFrom": {
     "placeholders": {
-      "remote": {"type": "String"}
+      "remote": {
+        "type": "String"
+      }
     }
   },
   "rmcStaleWarning": "{source} is a remote-tracking branch. It is only as current as the last fetch from {remote}.",
   "@rmcStaleWarning": {
     "placeholders": {
-      "source": {"type": "String"},
-      "remote": {"type": "String"}
+      "source": {
+        "type": "String"
+      },
+      "remote": {
+        "type": "String"
+      }
     }
   },
   "rmcMergeAsIs": "Merge as-is",
@@ -663,7 +801,9 @@
   "ropMergeIntoTitle": "Merge into {branch}",
   "@ropMergeIntoTitle": {
     "placeholders": {
-      "branch": {"type": "String"}
+      "branch": {
+        "type": "String"
+      }
     }
   },
   "ropCreateTagTitle": "Create tag",
@@ -694,13 +834,17 @@
   "ropMainlineRevertTitle": "Revert merge {sha}",
   "@ropMainlineRevertTitle": {
     "placeholders": {
-      "sha": {"type": "String"}
+      "sha": {
+        "type": "String"
+      }
     }
   },
   "ropMainlineCherryPickTitle": "Cherry-pick merge {sha}",
   "@ropMainlineCherryPickTitle": {
     "placeholders": {
-      "sha": {"type": "String"}
+      "sha": {
+        "type": "String"
+      }
     }
   },
   "ropMainlineRevertBody": "A merge joined two lines of history, so git needs to know which one to keep. The changes that came in from the other parent are undone.",
@@ -708,13 +852,14 @@
   "ropMainlineParent": "Parent {n}",
   "@ropMainlineParent": {
     "placeholders": {
-      "n": {"type": "int"}
+      "n": {
+        "type": "int"
+      }
     }
   },
   "ropMainlineParentFirst": "the branch merged into",
   "ropMainlineParentOther": "the merged branch",
   "shellPrevOpUnfinished": "A previous operation may not have finished",
-
   "wtpChanges": "CHANGES",
   "wtpDiscardAll": "Discard all changes",
   "wtpUnstaged": "UNSTAGED",
@@ -724,27 +869,35 @@
   "wtpAbortTitle": "Abort {name}?",
   "@wtpAbortTitle": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "wtpAbortBody": "The staged resolution is discarded and the repository goes back to where the {name} started.",
   "@wtpAbortBody": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "wtpAbort": "Abort",
   "wtpOpPausedBody": "A {name} is paused. Review the staged files, then continue it.",
   "@wtpOpPausedBody": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "wtpMergeOpenBody": "A merge is open. Review the staged files, then commit it.",
   "wtpContinueOp": "Continue {name}",
   "@wtpContinueOp": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "wtpTreeClean": "Working tree clean",
@@ -752,8 +905,12 @@
   "wtpSectionCount": "{label} ({count})",
   "@wtpSectionCount": {
     "placeholders": {
-      "label": {"type": "String"},
-      "count": {"type": "int"}
+      "label": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
     }
   },
   "wtpFileHistory": "File history",
@@ -777,7 +934,9 @@
   "wtpDiscardFileTitle": "Discard changes to {path}?",
   "@wtpDiscardFileTitle": {
     "placeholders": {
-      "path": {"type": "String"}
+      "path": {
+        "type": "String"
+      }
     }
   },
   "wtpDiscardFileBody": "This reverts the file to its committed state, dropping staged and unstaged changes. You can undo it.",
@@ -787,7 +946,9 @@
   "wtsLockTitle": "Lock {name}",
   "@wtsLockTitle": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "wtsReasonOptional": "Reason (optional)",
@@ -825,21 +986,28 @@
   "bsResetTitle": "Reset {branch} to {target}?",
   "@bsResetTitle": {
     "placeholders": {
-      "branch": {"type": "String"},
-      "target": {"type": "String"}
+      "branch": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
     }
   },
   "bsResetBody": "This moves local {branch} to {target}, discarding any commits not on the remote. Uncommitted changes are stashed (undoable).",
   "@bsResetBody": {
     "placeholders": {
-      "branch": {"type": "String"},
-      "target": {"type": "String"}
+      "branch": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
     }
   },
   "bsResetAndSwitch": "Reset & switch",
   "wvChanges": "Changes",
   "wvChangesSub": "Working tree · staging · commit",
-
   "rdlgCloneTitle": "Clone repository",
   "rdlgCreateTitle": "Create repository",
   "rdlgFolderName": "Folder name",
@@ -875,27 +1043,35 @@
   "gvUncommittedFiles": "{count, plural, one{Uncommitted changes · {count} file} other{Uncommitted changes · {count} files}}",
   "@gvUncommittedFiles": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "gvCannotRebaseTitle": "Cannot rebase onto this commit",
   "gvCannotRebaseBody": "The commits above {sha} include a merge, which a rebase would flatten.",
   "@gvCannotRebaseBody": {
     "placeholders": {
-      "sha": {"type": "String"}
+      "sha": {
+        "type": "String"
+      }
     }
   },
   "gvNothingToRebaseTitle": "Nothing to rebase",
   "gvNothingToRebaseBody": "{sha} is already part of this branch and the plan changes nothing.",
   "@gvNothingToRebaseBody": {
     "placeholders": {
-      "sha": {"type": "String"}
+      "sha": {
+        "type": "String"
+      }
     }
   },
   "gvResetTitle": "Reset to {sha}?",
   "@gvResetTitle": {
     "placeholders": {
-      "sha": {"type": "String"}
+      "sha": {
+        "type": "String"
+      }
     }
   },
   "gvResetBody": "Moves the current branch to this commit and discards all uncommitted changes. This cannot be undone from disk.",
@@ -903,7 +1079,9 @@
   "gvResetMixedTitle": "Reset to {sha}?",
   "@gvResetMixedTitle": {
     "placeholders": {
-      "sha": {"type": "String"}
+      "sha": {
+        "type": "String"
+      }
     }
   },
   "gvResetMixedBody": "Moves the current branch to this commit and keeps the changes as unstaged edits in the working tree. This can be undone.",
@@ -916,17 +1094,32 @@
   "fiCouldNotBlame": "Could not blame this file",
   "forgePullRequests": "Pull requests",
   "forgeNoPullRequests": "No open pull requests",
+  "forgeIssues": "Issues",
+  "forgeNoIssues": "No open issues",
   "forgeRefresh": "Refresh",
   "forgeCouldNotOpenPr": "Could not open the pull request in your browser",
+  "forgeCouldNotOpenIssue": "Could not open issue in browser",
   "forgeConnectHint": "Without a token: no auto-refresh, 60 requests an hour. Connect in Preferences → Credentials.",
   "forgeErrUnauthenticated": "GitHub rejected the saved token. Reconnect in Preferences.",
   "forgeErrRateLimited": "GitHub request limit reached. It resets at {time}.",
-  "@forgeErrRateLimited": { "placeholders": { "time": { "type": "String" } } },
+  "@forgeErrRateLimited": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
   "forgeErrRateLimitedSoon": "GitHub request limit reached. Try again shortly.",
   "forgeErrNotVisible": "This repository is not visible to the current token.",
   "forgeErrOffline": "Could not reach GitHub.",
   "forgeErrServer": "GitHub answered with an error ({status}).",
-  "@forgeErrServer": { "placeholders": { "status": { "type": "int" } } },
+  "@forgeErrServer": {
+    "placeholders": {
+      "status": {
+        "type": "int"
+      }
+    }
+  },
   "forgeErrMalformed": "GitHub sent a response this version could not read.",
   "forgeAccountTitle": "GitHub account",
   "forgeAccountConnected": "Connected",
@@ -939,22 +1132,39 @@
   "forgeTokenNotKept": "GitHub accepted the token, but nothing on this system kept it. Set up a git credential helper and try again.",
   "forgeTokenForgotten": "Token removed.",
   "forgeTokenNotForgotten": "Could not remove the token. It may still be stored by git's credential helper.",
-  "forgeRateBenefit": "Without a token GitHub allows 60 requests an hour; with one, 5,000. Opening a repository costs one request for the list plus two for each pull request's checks — about 21 for the ten shown.",
+  "forgeRateBenefit": "Without a token GitHub allows 60 requests an hour; with one, 5,000. Opening a repository costs about 22: one request for each list, plus two for every pull request's checks.",
   "forgeRateRemaining": "{remaining} of {limit} requests left this hour.",
-  "@forgeRateRemaining": { "placeholders": { "remaining": { "type": "int" }, "limit": { "type": "int" } } },
+  "@forgeRateRemaining": {
+    "placeholders": {
+      "remaining": {
+        "type": "int"
+      },
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
   "forgeRefreshInterval": "Pull request refresh interval",
   "lhTitleLine": "{path} · line {line}",
   "@lhTitleLine": {
     "placeholders": {
-      "path": {"type": "String"},
-      "line": {"type": "String"}
+      "path": {
+        "type": "String"
+      },
+      "line": {
+        "type": "String"
+      }
     }
   },
   "lhTitleRange": "{path} · lines {range}",
   "@lhTitleRange": {
     "placeholders": {
-      "path": {"type": "String"},
-      "range": {"type": "String"}
+      "path": {
+        "type": "String"
+      },
+      "range": {
+        "type": "String"
+      }
     }
   },
   "lhLineHistory": "Line history",
@@ -963,7 +1173,6 @@
   "ftvFlatList": "Show as flat list",
   "ftvGroupByFolder": "Group by folder",
   "confirmAction": "Confirm",
-
   "pfScCommandPalette": "Command palette",
   "pfScSearchCommits": "Search commits",
   "pfScNextPrevMatch": "Next / previous search match",
@@ -981,7 +1190,9 @@
   "pfAddPassphraseHint": "Run ssh-keygen -p -f ~/.ssh/{name} to add one.",
   "@pfAddPassphraseHint": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "pfGenerateFailed": "Generate failed",
@@ -999,7 +1210,9 @@
   "pfThemeApplied": "Applied \"{name}\"",
   "@pfThemeApplied": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "pfSaveTheme": "Save theme",
@@ -1007,7 +1220,9 @@
   "pfThemeSaved": "Saved \"{name}\"",
   "@pfThemeSaved": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "pfCustomColour": "Custom colour",
@@ -1015,7 +1230,9 @@
   "lgCouldNotOpen": "Could not open the log folder: {error}",
   "@lgCouldNotOpen": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "lgDiagnosticLogs": "Diagnostic logs",
@@ -1026,7 +1243,9 @@
   "pdDeleteTitle": "Delete profile {label}?",
   "@pdDeleteTitle": {
     "placeholders": {
-      "label": {"type": "String"}
+      "label": {
+        "type": "String"
+      }
     }
   },
   "pdDeleteBody": "The profile is removed. Any keys it references in the keychain are left untouched.",
@@ -1045,14 +1264,18 @@
   "mtCurrentNamed": "Current — {into}",
   "@mtCurrentNamed": {
     "placeholders": {
-      "into": {"type": "String"}
+      "into": {
+        "type": "String"
+      }
     }
   },
   "mtIncoming": "Incoming",
   "mtIncomingNamed": "Incoming — {branch}",
   "@mtIncomingNamed": {
     "placeholders": {
-      "branch": {"type": "String"}
+      "branch": {
+        "type": "String"
+      }
     }
   },
   "mtNeedsReview": "⚠ needs review",
@@ -1083,52 +1306,67 @@
   "rbSummaryAsIs": "Replay all {count} commits on the new base. History keeps its shape.",
   "@rbSummaryAsIs": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "rbSummarySquashAll": "Combine all {count} into one commit; all messages are kept, one after another.",
   "@rbSummarySquashAll": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "rbSummarySquashKeepFirst": "Combine all {count} into one commit; only the first message is kept.",
   "@rbSummarySquashKeepFirst": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "rbTitle": "Interactive rebase",
   "rbCommitCount": "{count, plural, one{{count} commit} other{{count} commits}}",
   "@rbCommitCount": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "rbCommitCountOnto": "{count, plural, one{{count} commit onto {onto}} other{{count} commits onto {onto}}}",
   "@rbCommitCountOnto": {
     "placeholders": {
-      "count": {"type": "int"},
-      "onto": {"type": "String"}
+      "count": {
+        "type": "int"
+      },
+      "onto": {
+        "type": "String"
+      }
     }
   },
   "rbStart": "Start rebase",
   "rbNeedsTwo": "Needs at least 2 commits.",
   "rbCustomize": "Customize per commit",
   "rbCustomizeHint": "Pick an action for each commit, or drag to reorder them.",
-
   "dlgEditCommitMessage": "Edit commit message",
   "dlgUnsavedOne": "{path} has changes that are not on disk.",
   "@dlgUnsavedOne": {
     "placeholders": {
-      "path": {"type": "String"}
+      "path": {
+        "type": "String"
+      }
     }
   },
   "dlgUnsavedMany": "These files have changes that are not on disk:",
   "fteConflictBody": "Something else wrote {name} while it was open here. Saving replaces those changes with this text.",
   "@fteConflictBody": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "fteCouldNotOpen": "Could not open this file",
@@ -1147,7 +1385,9 @@
   "diffUnsavedBody": "What you typed in {path} has not been written to the working tree.",
   "@diffUnsavedBody": {
     "placeholders": {
-      "path": {"type": "String"}
+      "path": {
+        "type": "String"
+      }
     }
   },
   "diffUncommittedWorkingTree": "Uncommitted changes · working tree",
@@ -1189,7 +1429,9 @@
   "pnpMore": "…{count} more",
   "@pnpMore": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "pnpProject": "Project",
@@ -1199,7 +1441,9 @@
   "updateBannerAvailable": "Mergelio {version} is available",
   "@updateBannerAvailable": {
     "placeholders": {
-      "version": {"type": "String"}
+      "version": {
+        "type": "String"
+      }
     }
   },
   "updateBannerDownloading": "Downloading update…",
@@ -1220,7 +1464,9 @@
   "updatePrefsCurrent": "Current version: {version}",
   "@updatePrefsCurrent": {
     "placeholders": {
-      "version": {"type": "String"}
+      "version": {
+        "type": "String"
+      }
     }
   },
   "updatePrefsAuto": "Check for updates automatically",
@@ -1228,11 +1474,12 @@
   "updatePrefsLastCheck": "Last checked: {when}",
   "@updatePrefsLastCheck": {
     "placeholders": {
-      "when": {"type": "String"}
+      "when": {
+        "type": "String"
+      }
     }
   },
   "updatePrefsNever": "never",
-
   "askpassTitle": "Authentication required",
   "askpassFallback": "Enter your credentials",
   "askpassSubmit": "OK",

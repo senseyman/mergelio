@@ -1667,10 +1667,19 @@ class AppLocalizationsUk extends AppLocalizations {
   String get forgeNoPullRequests => 'Немає відкритих пулреквестів';
 
   @override
+  String get forgeIssues => 'Тікети';
+
+  @override
+  String get forgeNoIssues => 'Немає відкритих тікетів';
+
+  @override
   String get forgeRefresh => 'Оновити';
 
   @override
   String get forgeCouldNotOpenPr => 'Не вдалося відкрити пулреквест у браузері';
+
+  @override
+  String get forgeCouldNotOpenIssue => 'Не вдалося відкрити тікет у браузері';
 
   @override
   String get forgeConnectHint =>
@@ -1742,7 +1751,7 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get forgeRateBenefit =>
-      'Без токена GitHub дозволяє 60 запитів на годину; з токеном — 5000. Відкриття репозиторію коштує один запит на список плюс два на перевірки кожного пулреквеста — близько 21 для десяти показаних.';
+      'Без токена GitHub дозволяє 60 запитів на годину; з токеном — 5000. Відкриття репозиторію коштує близько 22: по одному запиту на кожен список і ще два на перевірки кожного пулреквеста.';
 
   @override
   String forgeRateRemaining(int remaining, int limit) {

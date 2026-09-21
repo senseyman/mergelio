@@ -1,3 +1,6 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 import '../../domain/forge/forge_error.dart';
 import '../../domain/forge/forge_host.dart';
 import '../../domain/forge/models.dart';
@@ -51,3 +54,22 @@ String forgePanelMessage(Object error, AppLocalizations l) {
 /// URL the forge sent back, so no response can decide where the browser opens.
 Uri pullRequestWebUrl(ForgeHost host, int number) =>
     Uri.https(host.host, '/${host.owner}/${host.repo}/pull/$number');
+
+/// Where a person goes to read issue [number] on the web.
+///
+/// Built the same way, and from the same local coordinates, as
+/// [pullRequestWebUrl] — but never down the same path: a forge numbers
+/// issues and pull requests in one sequence yet serves them from separate
+/// URLs, so an issue sent to the pull path opens a different page.
+Uri issueWebUrl(ForgeHost host, int number) =>
+    Uri.https(host.host, '/${host.owner}/${host.repo}/issues/$number');
+
+/// How a forge row opens its web page.
+///
+/// Overridable so a test can watch what would have been opened, or force a
+/// failure, without a real browser launch reaching a platform channel that a
+/// widget test cannot answer. Shared by every forge section, so a row's tap
+/// behaves the same wherever it lives.
+final forgeLaunchUrlProvider = Provider<Future<bool> Function(Uri)>(
+  (ref) => launchUrl,
+);

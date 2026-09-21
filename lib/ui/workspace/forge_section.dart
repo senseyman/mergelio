@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/tokens.dart';
 import '../../domain/forge/models.dart';
@@ -11,15 +10,6 @@ import '../../state/forge_refresh.dart';
 import '../../state/settings_controller.dart';
 import 'forge_presentation.dart';
 import 'sidebar_section.dart';
-
-/// How a pull request row opens its web page.
-///
-/// Overridable so a test can watch what would have been opened, or force a
-/// failure, without a real browser launch reaching a platform channel that a
-/// widget test cannot answer.
-final forgeLaunchUrlProvider = Provider<Future<bool> Function(Uri)>(
-  (ref) => launchUrl,
-);
 
 /// The repository's open pull requests, with what CI made of each one.
 ///

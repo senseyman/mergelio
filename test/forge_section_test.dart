@@ -16,6 +16,7 @@ import 'package:mergelio/state/forge_refresh.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
 import 'package:mergelio/ui/workspace/forge_section.dart';
+import 'package:mergelio/ui/workspace/forge_presentation.dart';
 import 'package:mergelio/ui/workspace/sidebar_section.dart';
 
 const _host = ForgeHost(

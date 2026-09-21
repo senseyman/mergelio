@@ -125,27 +125,25 @@ class ForgeRefreshController extends PollingScheduler {
     if (_eligible) armTimer();
   }
 
-  /// Invalidates the panel and waits for the reload it triggers, so the
+  /// Invalidates both panels and waits for the reload each triggers, so the
   /// caller learns whether this tick actually landed. A skipped tick
-  /// (nothing eligible, or the panel provider already mid-refresh) never
+  /// (nothing eligible, or a panel provider already mid-refresh) never
   /// reaches here. Anything either step throws propagates to [tick], which
   /// counts it as a failure rather than letting it escape unhandled.
   Future<bool> _refreshAndReport(String path) async {
     ref.invalidate(pullRequestPanelProvider(path));
+    ref.invalidate(issuePanelProvider(path));
     await ref.read(pullRequestPanelProvider(path).future);
+    await ref.read(issuePanelProvider(path).future);
     return true;
   }
 
-  /// Refreshes [path]'s panel right now, and — when it is the repository the
-  /// scheduler is tracking — pushes the next scheduled tick a full interval
-  /// out. A manual refresh, or one earned by a fetch/pull/push the user
-  /// asked for, must not be followed seconds later by a scheduled tick that
-  /// spends the same budget again for nothing.
+  /// Refreshes [path]'s panels right now, and — when it is the repository
+  /// the scheduler is tracking — pushes the next scheduled tick a full
+  /// interval out. A manual refresh, or one earned by a fetch/pull/push the
+  /// user asked for, must not be followed seconds later by a scheduled tick
+  /// that spends the same budget again for nothing.
   ///
-  /// Does nothing without a token on file for [path]: an anonymous fetch,
-  /// pull or push earns this call just as a token-backed one does, but
-  /// spending it would burn a third of the 60-request unauthenticated hourly
-  /// budget on a panel the caller never asked to see.
   /// Refreshes because a person asked for these rows.
   ///
   /// Deliberately ungated: pressing refresh IS the request, and refusing it
@@ -154,20 +152,34 @@ class ForgeRefreshController extends PollingScheduler {
   /// and the git operations that refresh as a side effect.
   void refreshNow(String path) {
     ref.invalidate(pullRequestPanelProvider(path));
-    if (path != _path) return;
-    resetBackoff();
-    armTimer();
+    ref.invalidate(issuePanelProvider(path));
+    _bumpSchedule(path);
   }
 
   /// Refreshes because a git operation happened to touch the remote.
   ///
   /// The person asked to fetch, pull or push — not to spend a further
-  /// twenty-one requests on pull request data. Without a token that is a
-  /// third of the hour's budget per git operation, so this path stays shut
-  /// until one is connected.
+  /// budget's worth of requests on forge data. The two halves cost too
+  /// differently to gate alike: issues are a single request, noise beside
+  /// even the 60 an hour an anonymous caller gets, so they always refresh.
+  /// Pull requests carry two check lookups per row, and spending a third of
+  /// that hourly budget on every fetch would be the kind of background cost
+  /// nobody agreed to — so that half waits for a token.
   void refreshAfterGitOp(String path) {
-    if (ref.read(forgeTokenProvider(path)).valueOrNull == null) return;
-    refreshNow(path);
+    ref.invalidate(issuePanelProvider(path));
+    if (ref.read(forgeTokenProvider(path)).valueOrNull != null) {
+      ref.invalidate(pullRequestPanelProvider(path));
+    }
+    _bumpSchedule(path);
+  }
+
+  /// Pushes the next scheduled tick a full interval out, so a refresh that
+  /// just happened is not repeated seconds later by the timer. Only the
+  /// tracked repository has a timer to push.
+  void _bumpSchedule(String path) {
+    if (path != _path) return;
+    resetBackoff();
+    armTimer();
   }
 }
 

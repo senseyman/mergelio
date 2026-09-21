@@ -1658,11 +1658,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get forgeNoPullRequests => 'No open pull requests';
 
   @override
+  String get forgeIssues => 'Issues';
+
+  @override
+  String get forgeNoIssues => 'No open issues';
+
+  @override
   String get forgeRefresh => 'Refresh';
 
   @override
   String get forgeCouldNotOpenPr =>
       'Could not open the pull request in your browser';
+
+  @override
+  String get forgeCouldNotOpenIssue => 'Could not open issue in browser';
 
   @override
   String get forgeConnectHint =>
@@ -1734,7 +1743,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get forgeRateBenefit =>
-      'Without a token GitHub allows 60 requests an hour; with one, 5,000. Opening a repository costs one request for the list plus two for each pull request\'s checks — about 21 for the ten shown.';
+      'Without a token GitHub allows 60 requests an hour; with one, 5,000. Opening a repository costs about 22: one request for each list, plus two for every pull request\'s checks.';
 
   @override
   String forgeRateRemaining(int remaining, int limit) {
