@@ -84,6 +84,11 @@ class ForgePullRequestSection extends ConsumerWidget {
               : [
                   for (final pr in p.pullRequests)
                     _PullRequestRow(
+                      // Identity, not position. The forge sorts by last
+                      // update, so a comment on any request reshuffles this
+                      // list — and an opened row whose state belongs to a
+                      // slot would hand itself to whoever slid into it.
+                      key: ValueKey(pr.number),
                       pr: pr,
                       badge: checkBadgeFor(p.checksBySha[pr.headSha]),
                       defaultBranch: p.defaultBranch,
@@ -125,6 +130,7 @@ class _PullRequestRow extends StatefulWidget {
   final VoidCallback onOpen;
 
   const _PullRequestRow({
+    super.key,
     required this.pr,
     required this.badge,
     required this.defaultBranch,

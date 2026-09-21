@@ -580,6 +580,55 @@ void main() {
     defaultBranch: 'main',
   );
 
+  testWidgets('an opened row stays with its pull request when the list '
+      'reorders', (t) async {
+    ForgePanel panelFor(List<int> order) => ForgePanel(
+      pullRequests: [for (final n in order) _pr(n)],
+      checksBySha: {
+        for (final n in order)
+          'sha$n': ChecksSummary(
+            overall: ChecksOverall.failure,
+            runs: [CheckRun(name: 'failed-$n', state: CheckState.failure)],
+          ),
+      },
+      defaultBranch: 'main',
+    );
+
+    var order = [7, 12];
+    await _pump(
+      t,
+      overrides: [
+        forgeHostProvider.overrideWith((ref, path) async => _host),
+        forgeTokenProvider.overrideWith((ref, path) async => null),
+        pullRequestPanelProvider.overrideWith(
+          (ref, path) async => panelFor(order),
+        ),
+      ],
+    );
+    await t.pumpAndSettle();
+
+    await t.tap(find.byKey(const ValueKey('pr-checks-7')));
+    await t.pumpAndSettle();
+    expect(find.text('failed-7'), findsOneWidget);
+
+    // GitHub sorts by last update, so any comment on another request
+    // reshuffles this list on the next read.
+    order = [12, 7];
+    ProviderScope.containerOf(t.element(find.byType(ForgePullRequestSection)))
+        .invalidate(pullRequestPanelProvider('/repo'));
+    await t.pumpAndSettle();
+
+    expect(
+      find.text('failed-7'),
+      findsOneWidget,
+      reason:
+          'the row that was opened is the one that must stay open; without '
+          'an identity of its own the state belongs to the position, and a '
+          'reorder hands it to whichever request slid into that slot',
+    );
+    expect(find.text('failed-12'), findsNothing);
+  });
+
   testWidgets('the badge opens the names of the checks that failed', (t) async {
     await _pump(
       t,

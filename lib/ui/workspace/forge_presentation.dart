@@ -123,9 +123,12 @@ class ForgeLoadingRow extends StatelessWidget {
 /// row claiming "-3h" would be worse than one admitting nothing. That falls
 /// out of the first test rather than needing its own: a negative duration
 /// has negative minutes, which is under one.
-String? forgeAgo(AppLocalizations l, DateTime? at) {
+/// [now] exists so the boundaries are testable to the second. Reading the
+/// clock inside made the unit changeovers reachable only by a test that
+/// waited for them.
+String? forgeAgo(AppLocalizations l, DateTime? at, {DateTime? now}) {
   if (at == null) return null;
-  final d = DateTime.now().difference(at);
+  final d = (now ?? DateTime.now()).difference(at);
   if (d.inMinutes < 1) return l.forgeAgoNow;
   if (d.inHours < 1) return l.forgeAgoMinutes(d.inMinutes);
   if (d.inDays < 1) return l.forgeAgoHours(d.inHours);

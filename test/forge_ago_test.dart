@@ -12,6 +12,27 @@ void main() {
 
   String? ago(Duration d) => forgeAgo(l, DateTime.now().subtract(d));
 
+  group('the boundary between units', () {
+    // Pinned to the second, which the clock-reading version could not be.
+    final at = DateTime(2026, 1, 1, 12);
+    String? at2(Duration d) => forgeAgo(l, at, now: at.add(d));
+
+    test('a minute begins at sixty seconds, not before', () {
+      expect(at2(const Duration(seconds: 59)), 'now');
+      expect(at2(const Duration(seconds: 60)), '1m');
+    });
+
+    test('an hour begins at sixty minutes', () {
+      expect(at2(const Duration(minutes: 59)), '59m');
+      expect(at2(const Duration(minutes: 60)), '1h');
+    });
+
+    test('a day begins at twenty-four hours', () {
+      expect(at2(const Duration(hours: 23)), '23h');
+      expect(at2(const Duration(hours: 24)), '1d');
+    });
+  });
+
   test('anything under a minute reads as just now', () {
     expect(ago(const Duration(seconds: 42)), 'now');
   });
