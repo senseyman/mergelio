@@ -13,13 +13,32 @@ const kMinAutoFetchIntervalSeconds = 30;
 /// Default auto-fetch poll interval, in seconds (5 minutes).
 const kDefaultAutoFetchIntervalSeconds = 300;
 
+/// Pull-request panel refresh floor, in seconds. A tick costs about 21
+/// GitHub requests (see `kForgeRequestsPerOpen`), so a shorter period spends
+/// a token's 5,000-an-hour budget for no benefit: CI rarely finishes and a
+/// review rarely lands inside two minutes of the last tick.
+const kMinForgeRefreshIntervalSeconds = 120;
+
+/// Default pull-request panel refresh interval, in seconds (ten minutes).
+const kDefaultForgeRefreshIntervalSeconds = 600;
+
 /// Brings a stored settings blob forward to the current rules. Earlier builds
 /// offered 5s and 15s poll intervals; those values are raised to the floor
 /// rather than left to poll at a rate the app no longer allows.
-AppSettings migrateSettings(AppSettings s) =>
-    s.autoFetchIntervalSeconds < kMinAutoFetchIntervalSeconds
-    ? s.copyWith(autoFetchIntervalSeconds: kMinAutoFetchIntervalSeconds)
-    : s;
+AppSettings migrateSettings(AppSettings s) {
+  var next = s;
+  if (next.autoFetchIntervalSeconds < kMinAutoFetchIntervalSeconds) {
+    next = next.copyWith(
+      autoFetchIntervalSeconds: kMinAutoFetchIntervalSeconds,
+    );
+  }
+  if (next.forgeRefreshIntervalSeconds < kMinForgeRefreshIntervalSeconds) {
+    next = next.copyWith(
+      forgeRefreshIntervalSeconds: kMinForgeRefreshIntervalSeconds,
+    );
+  }
+  return next;
+}
 
 /// The flags a pull carries when the user asked for a pull and nothing more:
 /// the strategy preference decides rebase vs merge, and autostash decides
@@ -53,6 +72,11 @@ abstract class AppSettings with _$AppSettings {
     @Default(false) bool autoFetch,
     // Auto-fetch poll interval in seconds (only used while autoFetch is on).
     @Default(kDefaultAutoFetchIntervalSeconds) int autoFetchIntervalSeconds,
+    // Pull-request panel refresh interval in seconds. Only ever consulted
+    // while a token is connected — see kMinForgeRefreshIntervalSeconds for
+    // why the floor sits above auto-fetch's.
+    @Default(kDefaultForgeRefreshIntervalSeconds)
+    int forgeRefreshIntervalSeconds,
     @Default(true) bool confirmDestructive,
     @Default(true) bool restoreTabs,
     // 'merge' | 'rebase' — default strategy for Pull.

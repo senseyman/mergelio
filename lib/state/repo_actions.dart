@@ -15,6 +15,7 @@ import '../domain/git/git_writer.dart';
 import '../domain/git/models.dart';
 import '../domain/git/rebase_plan.dart';
 import 'feedback.dart';
+import 'forge_refresh.dart';
 import 'merge_session.dart';
 import 'operation_journal.dart';
 import 'profiles.dart';
@@ -117,6 +118,10 @@ class RepoActions {
     // Replaces the default '<label> failed' toast title, for an op whose
     // failure leaves the repo in a state the label alone does not describe.
     String? failureTitle,
+    // Runs only when [op] actually completed — never on a busy-lane skip or
+    // a cancellation, both of which return true above without anything
+    // having happened.
+    void Function()? onSuccess,
   }) async {
     final toasts = _ref.read(toastProvider.notifier);
     final slot = lane == _Lane.fetch ? fetchBusyProvider : busyProvider;
@@ -139,6 +144,7 @@ class RepoActions {
     try {
       await _timed(label, () => op(cancel));
       await _journalDone(opId);
+      onSuccess?.call();
       if (!silent) toasts.show('$label complete', kind: ToastKind.success);
       return true;
     } on GitCancelledException {
@@ -184,6 +190,12 @@ class RepoActions {
     silent: silent,
     writesWorkingTree: false,
     lane: _Lane.fetch,
+    // Only a fetch the user asked for earns a forge refresh. Auto-fetch's
+    // silent background polling ticks every few minutes and must not spend
+    // the same rate-limit budget again each time it runs.
+    onSuccess: silent
+        ? null
+        : () => _ref.read(forgeRefreshProvider).refreshAfterGitOp(path),
   );
 
   /// Shares the fetch lane: pruning rewrites the same remote-tracking refs a
@@ -290,6 +302,7 @@ class RepoActions {
         autostash: autostash,
         cancel: cancel,
       ),
+      onSuccess: () => _ref.read(forgeRefreshProvider).refreshAfterGitOp(path),
     );
     // A pull that did not land leaves the reader wherever they were; moving
     // the cursor would lose their place for nothing.
@@ -311,6 +324,8 @@ class RepoActions {
           cancel: cancel,
         ),
         writesWorkingTree: false,
+        onSuccess: () =>
+            _ref.read(forgeRefreshProvider).refreshAfterGitOp(path),
       );
 
   /// True (and toasts) when something already holds the repository lane, so an

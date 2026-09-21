@@ -1,0 +1,14 @@
+# Tests tagged `live` talk to a real forge API over the network.
+#
+# They are skipped by default, including in CI, because they need network
+# access, spend a shared API rate limit, and can fail for reasons that have
+# nothing to do with the code in this repository. Everything they cover is
+# also covered by mocked tests; what they add is proof that the mocks still
+# resemble what the forge actually sends.
+#
+# Run them deliberately, before a release or after touching a parser:
+#
+#   flutter test --run-skipped --tags live
+tags:
+  live:
+    skip: "live API test: run with `flutter test --run-skipped --tags live`"

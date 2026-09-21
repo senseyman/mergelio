@@ -3,10 +3,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/state/feedback.dart';
+import 'package:mergelio/state/forge_refresh.dart';
 import 'package:mergelio/state/repo_actions.dart';
 
 class _FakeGit implements GitService {
   final List<List<String>> calls = [];
+  // Exit code the first 'fetch'/'pull'/'push' call answers with; anything
+  // non-zero stands in for a remote that refused the operation.
+  final int netExitCode;
+  _FakeGit({this.netExitCode = 0});
+
   @override
   Future<GitResult> run(
     List<String> args, {
@@ -17,6 +23,10 @@ class _FakeGit implements GitService {
     String? stdin,
   }) async {
     calls.add(args);
+    const netCommands = {'fetch', 'pull', 'push'};
+    if (netExitCode != 0 && netCommands.contains(args.first)) {
+      return GitResult(netExitCode, '', 'rejected');
+    }
     return const GitResult(0, '', '');
   }
 
@@ -24,6 +34,68 @@ class _FakeGit implements GitService {
   Future<String> version() async => 'git version 2';
   @override
   Future<bool> isRepository(String path) async => true;
+}
+
+/// Records every [refreshNow] call instead of running the real scheduler,
+/// so a test can prove exactly when a mutation earns a forge refresh without
+/// standing up settings, workspace and focus state the controller normally
+/// depends on.
+class _FakeForgeRefresh implements ForgeRefreshController {
+  final List<String> refreshedPaths = [];
+
+  @override
+  void refreshNow(String path) => refreshedPaths.add(path);
+
+  @override
+  void refreshAfterGitOp(String path) => refreshedPaths.add(path);
+
+  @override
+  Duration? get scheduledInterval => null;
+
+  @override
+  Future<void>? get inFlightTick => null;
+
+  @override
+  Future<void> tick() async {}
+
+  @override
+  Ref get ref => throw UnimplementedError();
+
+  @override
+  Duration? get overrideInterval => null;
+
+  @override
+  bool get isActive => false;
+
+  @override
+  bool get canArm => false;
+
+  @override
+  String get logLabel => 'fake-forge-refresh';
+
+  @override
+  Duration backoffFor(Duration base, int failures) => base;
+
+  @override
+  bool readyForTick() => true;
+
+  @override
+  Future<bool> runTick() async => true;
+
+  @override
+  void disposeExtra() {}
+
+  @override
+  Duration? get base => null;
+
+  @override
+  set base(Duration? value) {}
+
+  @override
+  void resetBackoff() {}
+
+  @override
+  void armTimer() {}
 }
 
 void main() {
@@ -60,5 +132,85 @@ void main() {
 
     await actions.stageFile('a.txt');
     expect(git.calls.any((c) => c.first == 'add'), isTrue);
+  });
+
+  group('forge refresh on success', () {
+    late _FakeForgeRefresh forge;
+
+    ProviderContainer makeContainer(_FakeGit git) {
+      final c = ProviderContainer(
+        overrides: [
+          gitServiceProvider.overrideWithValue(git),
+          forgeRefreshProvider.overrideWithValue(forge),
+        ],
+      );
+      addTearDown(c.dispose);
+      return c;
+    }
+
+    setUp(() => forge = _FakeForgeRefresh());
+
+    test('a fetch the user asked for refreshes the forge panel', () async {
+      final actions = makeContainer(_FakeGit()).read(repoActionsProvider('/r'));
+
+      await actions.fetch();
+
+      expect(forge.refreshedPaths, ['/r']);
+    });
+
+    test(
+      'a silent (background) fetch never refreshes the forge panel',
+      () async {
+        final actions = makeContainer(_FakeGit())
+            .read(repoActionsProvider('/r'));
+
+        await actions.fetch(silent: true);
+
+        expect(forge.refreshedPaths, isEmpty);
+      },
+    );
+
+    test('a failed fetch never refreshes the forge panel', () async {
+      final actions = makeContainer(_FakeGit(netExitCode: 1))
+          .read(repoActionsProvider('/r'));
+
+      await actions.fetch();
+
+      expect(forge.refreshedPaths, isEmpty);
+    });
+
+    test('a successful pull refreshes the forge panel', () async {
+      final actions = makeContainer(_FakeGit()).read(repoActionsProvider('/r'));
+
+      await actions.pull();
+
+      expect(forge.refreshedPaths, ['/r']);
+    });
+
+    test('a failed pull never refreshes the forge panel', () async {
+      final actions = makeContainer(_FakeGit(netExitCode: 1))
+          .read(repoActionsProvider('/r'));
+
+      await actions.pull();
+
+      expect(forge.refreshedPaths, isEmpty);
+    });
+
+    test('a successful push refreshes the forge panel', () async {
+      final actions = makeContainer(_FakeGit()).read(repoActionsProvider('/r'));
+
+      await actions.push();
+
+      expect(forge.refreshedPaths, ['/r']);
+    });
+
+    test('a failed push never refreshes the forge panel', () async {
+      final actions = makeContainer(_FakeGit(netExitCode: 1))
+          .read(repoActionsProvider('/r'));
+
+      await actions.push();
+
+      expect(forge.refreshedPaths, isEmpty);
+    });
   });
 }

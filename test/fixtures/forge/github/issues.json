@@ -1,0 +1,27 @@
+[
+  {
+    "number": 12,
+    "title": "Crash on open",
+    "state": "open",
+    "updated_at": "2026-09-14T08:00:00Z",
+    "user": {"login": "reporter"},
+    "labels": [{"name": "bug"}, {"name": "needs triage"}]
+  },
+  {
+    "number": 7,
+    "title": "Fix the thing",
+    "state": "open",
+    "updated_at": "2026-09-14T10:11:12Z",
+    "user": {"login": "octocat"},
+    "labels": [],
+    "pull_request": {"url": "https://api.github.com/repos/o/r/pulls/7"}
+  },
+  {
+    "number": 3,
+    "title": "Old request",
+    "state": "closed",
+    "updated_at": "2026-08-01T08:00:00Z",
+    "user": {"login": "reporter"},
+    "labels": [{"name": "wontfix"}, "malformed-label-entry"]
+  }
+]

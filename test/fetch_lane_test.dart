@@ -6,10 +6,13 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/state/feedback.dart';
 import 'package:mergelio/state/repo_actions.dart';
+import 'package:mergelio/state/settings.dart';
+import 'package:mergelio/state/settings_controller.dart';
 
 class _FakeGit implements GitService {
   final List<List<String>> calls = [];
@@ -51,7 +54,17 @@ void main() {
   setUp(() {
     git = _FakeGit();
     container = ProviderContainer(
-      overrides: [gitServiceProvider.overrideWithValue(git)],
+      overrides: [
+        gitServiceProvider.overrideWithValue(git),
+        // A successful fetch/push now nudges the forge-refresh scheduler,
+        // which reads settings on construction.
+        settingsProvider.overrideWith(
+          (ref) => SettingsController(
+            InMemorySettingsRepository(),
+            const AppSettings(),
+          ),
+        ),
+      ],
     );
     addTearDown(container.dispose);
     actions = container.read(repoActionsProvider('/r'));

@@ -9,6 +9,18 @@ import 'graph_rail.dart';
 import 'rail_metrics.dart';
 import 'ref_pill.dart';
 
+/// Single-line natural width a string would take in [style], used only to
+/// weight how much a meta field shrinks relative to its siblings — not to
+/// actually size or place it.
+double _naturalTextWidth(String text, TextStyle style) {
+  final painter = TextPainter(
+    text: TextSpan(text: text, style: style),
+    textDirection: TextDirection.ltr,
+    maxLines: 1,
+  )..layout();
+  return painter.width;
+}
+
 /// One graph row: an optional branch-name gutter, the painted rail cell, then
 /// avatar · message · signed badge · tag pills, with a meta line
 /// (author/date/sha, each toggleable) in the two-line layout. Compact mode
@@ -135,12 +147,29 @@ class CommitRow extends StatelessWidget {
     children: [_titleLine(t, c), const SizedBox(height: 3), _metaLine(t, c)],
   );
 
-  Widget _singleLine(AppTokens t, Commit c) => Row(
-    children: [
-      Flexible(child: _titleLine(t, c)),
-      const SizedBox(width: 10),
-      _metaLine(t, c),
-    ],
+  Widget _singleLine(AppTokens t, Commit c) => LayoutBuilder(
+    builder: (context, constraints) {
+      // An even flex split caps the meta line at half the row no matter what
+      // it actually needs, so the message ellipsizes early on a wide row
+      // while empty space sits beside it. Letting the meta line size itself
+      // and only capping it (rather than granting it a fixed share) gives the
+      // message everything the meta line does not need, while still bounding
+      // the meta line so a long author or date cannot push the message to
+      // nothing on a narrow row.
+      final metaCap = constraints.hasBoundedWidth
+          ? constraints.maxWidth * 0.5
+          : double.infinity;
+      return Row(
+        children: [
+          Expanded(child: _titleLine(t, c)),
+          const SizedBox(width: 10),
+          ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: metaCap),
+            child: _metaLine(t, c),
+          ),
+        ],
+      );
+    },
   );
 
   /// Left gutter that names each branch once, at the top of its segment. Right-
@@ -286,14 +315,33 @@ class CommitRow extends StatelessWidget {
 
   Widget _metaLine(AppTokens t, Commit c) {
     final style = TextStyle(color: t.textFaint, fontSize: 11);
+
+    // An even three-way flex split caps every field at the same share
+    // regardless of what it needs: a long author ellipsizes even when the
+    // date and sha aren't using their own share. Weighting each field's flex
+    // by its own natural width shrinks every field by the same proportion of
+    // its need instead of by the same number of pixels, so a field that
+    // needs little keeps what it needs and doesn't take room from one that
+    // needs more — while every field stays Flexible, so none of this can
+    // ever push the row into an overflow.
+    Widget field(String text, TextStyle s) => Flexible(
+      flex: _naturalTextWidth(text, s).round().clamp(1, 1 << 20),
+      child: Text(
+        text,
+        style: s,
+        softWrap: false,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+
     final items = <Widget>[
-      if (_on('author')) Text(c.author, style: style),
+      if (_on('author')) field(c.author, style),
       if (_on('date'))
-        Text(formatCommitDate(c.date, format: dateFormat), style: style),
+        field(formatCommitDate(c.date, format: dateFormat), style),
       if (_on('sha'))
-        Text(
+        field(
           c.shortSha,
-          style: style.copyWith(
+          style.copyWith(
             fontFamily: AppFonts.mono,
             fontFamilyFallback: AppFonts.monoFallback,
             letterSpacing: 0.3,

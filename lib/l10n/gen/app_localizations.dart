@@ -2960,6 +2960,162 @@ abstract class AppLocalizations {
   /// **'Could not blame this file'**
   String get fiCouldNotBlame;
 
+  /// No description provided for @forgePullRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'Pull requests'**
+  String get forgePullRequests;
+
+  /// No description provided for @forgeNoPullRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'No open pull requests'**
+  String get forgeNoPullRequests;
+
+  /// No description provided for @forgeRefresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get forgeRefresh;
+
+  /// No description provided for @forgeCouldNotOpenPr.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the pull request in your browser'**
+  String get forgeCouldNotOpenPr;
+
+  /// No description provided for @forgeConnectHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Without a token: no auto-refresh, 60 requests an hour. Connect in Preferences → Credentials.'**
+  String get forgeConnectHint;
+
+  /// No description provided for @forgeErrUnauthenticated.
+  ///
+  /// In en, this message translates to:
+  /// **'GitHub rejected the saved token. Reconnect in Preferences.'**
+  String get forgeErrUnauthenticated;
+
+  /// No description provided for @forgeErrRateLimited.
+  ///
+  /// In en, this message translates to:
+  /// **'GitHub request limit reached. It resets at {time}.'**
+  String forgeErrRateLimited(String time);
+
+  /// No description provided for @forgeErrRateLimitedSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'GitHub request limit reached. Try again shortly.'**
+  String get forgeErrRateLimitedSoon;
+
+  /// No description provided for @forgeErrNotVisible.
+  ///
+  /// In en, this message translates to:
+  /// **'This repository is not visible to the current token.'**
+  String get forgeErrNotVisible;
+
+  /// No description provided for @forgeErrOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not reach GitHub.'**
+  String get forgeErrOffline;
+
+  /// No description provided for @forgeErrServer.
+  ///
+  /// In en, this message translates to:
+  /// **'GitHub answered with an error ({status}).'**
+  String forgeErrServer(int status);
+
+  /// No description provided for @forgeErrMalformed.
+  ///
+  /// In en, this message translates to:
+  /// **'GitHub sent a response this version could not read.'**
+  String get forgeErrMalformed;
+
+  /// No description provided for @forgeAccountTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'GitHub account'**
+  String get forgeAccountTitle;
+
+  /// No description provided for @forgeAccountConnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected'**
+  String get forgeAccountConnected;
+
+  /// No description provided for @forgeAccountNotConnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Not connected'**
+  String get forgeAccountNotConnected;
+
+  /// No description provided for @forgeTokenLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Personal access token'**
+  String get forgeTokenLabel;
+
+  /// No description provided for @forgeConnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect'**
+  String get forgeConnect;
+
+  /// No description provided for @forgeDisconnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnect'**
+  String get forgeDisconnect;
+
+  /// No description provided for @forgeTokenRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'GitHub rejected that token.'**
+  String get forgeTokenRejected;
+
+  /// No description provided for @forgeTokenSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected to GitHub.'**
+  String get forgeTokenSaved;
+
+  /// No description provided for @forgeTokenNotKept.
+  ///
+  /// In en, this message translates to:
+  /// **'GitHub accepted the token, but nothing on this system kept it. Set up a git credential helper and try again.'**
+  String get forgeTokenNotKept;
+
+  /// No description provided for @forgeTokenForgotten.
+  ///
+  /// In en, this message translates to:
+  /// **'Token removed.'**
+  String get forgeTokenForgotten;
+
+  /// No description provided for @forgeTokenNotForgotten.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not remove the token. It may still be stored by git\'s credential helper.'**
+  String get forgeTokenNotForgotten;
+
+  /// No description provided for @forgeRateBenefit.
+  ///
+  /// In en, this message translates to:
+  /// **'Without a token GitHub allows 60 requests an hour; with one, 5,000. Opening a repository costs one request for the list plus two for each pull request\'s checks — about 21 for the ten shown.'**
+  String get forgeRateBenefit;
+
+  /// No description provided for @forgeRateRemaining.
+  ///
+  /// In en, this message translates to:
+  /// **'{remaining} of {limit} requests left this hour.'**
+  String forgeRateRemaining(int remaining, int limit);
+
+  /// No description provided for @forgeRefreshInterval.
+  ///
+  /// In en, this message translates to:
+  /// **'Pull request refresh interval'**
+  String get forgeRefreshInterval;
+
   /// No description provided for @lhTitleLine.
   ///
   /// In en, this message translates to:

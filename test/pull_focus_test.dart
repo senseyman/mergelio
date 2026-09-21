@@ -3,10 +3,22 @@
 // graph selection, which the graph view already flies to.
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/state/graph_selection.dart';
 import 'package:mergelio/state/repo_actions.dart';
+import 'package:mergelio/state/settings.dart';
+import 'package:mergelio/state/settings_controller.dart';
+
+/// A successful pull now nudges the forge-refresh scheduler, which reads
+/// settings on construction.
+List<Override> get _settingsOverride => [
+  settingsProvider.overrideWith(
+    (ref) =>
+        SettingsController(InMemorySettingsRepository(), const AppSettings()),
+  ),
+];
 
 class _FakeGit implements GitService {
   final List<List<String>> calls = [];
@@ -50,7 +62,10 @@ void main() {
   test('pull focuses the graph on the commit HEAD ended up at', () async {
     final git = _FakeGit();
     final container = ProviderContainer(
-      overrides: [gitServiceProvider.overrideWithValue(git)],
+      overrides: [
+        gitServiceProvider.overrideWithValue(git),
+        ..._settingsOverride,
+      ],
     );
     addTearDown(container.dispose);
     container.read(selectedCommitProvider.notifier).state = 'stale';
@@ -82,7 +97,10 @@ void main() {
     // branch has no commit yet; there is no row to focus.
     final git = _FakeGit(headCode: 1, headOut: '');
     final container = ProviderContainer(
-      overrides: [gitServiceProvider.overrideWithValue(git)],
+      overrides: [
+        gitServiceProvider.overrideWithValue(git),
+        ..._settingsOverride,
+      ],
     );
     addTearDown(container.dispose);
     container.read(selectedCommitProvider.notifier).state = 'stale';

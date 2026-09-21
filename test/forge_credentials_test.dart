@@ -63,9 +63,23 @@ void main() {
   group('credentialRequestFor', () {
     test('builds a request ending in a blank line', () {
       expect(
-        credentialRequestFor('github.com'),
-        'protocol=https\nhost=github.com\n\n',
+        credentialRequestFor('github.com', forgeTokenUsername),
+        'protocol=https\nhost=github.com\nusername=x-access-token\n\n',
       );
+    });
+
+    test('names the account, so another one on the host is not read', () {
+      // Writing under one account and reading without naming it returns
+      // whichever credential the helper holds first — very likely the one the
+      // user pushes with, which is not this app's to send anywhere.
+      expect(
+        credentialRequestFor('github.com', forgeTokenUsername),
+        contains('username=x-access-token\n'),
+      );
+    });
+
+    test('refuses a username that could inject extra fields', () {
+      expect(credentialRequestFor('github.com', 'a\nhost=evil'), isNull);
     });
 
     test('refuses a host that could inject extra fields', () {
@@ -80,7 +94,11 @@ void main() {
         '',
         '   ',
       ]) {
-        expect(credentialRequestFor(host), isNull, reason: host);
+        expect(
+          credentialRequestFor(host, forgeTokenUsername),
+          isNull,
+          reason: host,
+        );
       }
     });
 
@@ -89,7 +107,10 @@ void main() {
       // non-breaking space has no legitimate place in a hostname, and a
       // bare code-unit scan for <= 0x20 would miss it.
       expect(
-        credentialRequestFor('github.com${String.fromCharCode(0xa0)}'),
+        credentialRequestFor(
+          'github.com${String.fromCharCode(0xa0)}',
+          forgeTokenUsername,
+        ),
         isNull,
       );
     });
@@ -135,11 +156,15 @@ void main() {
       final git = _RecordingGit(
         const GitResult(0, 'username=octocat\npassword=ghp_x\n', ''),
       );
-      final token = await ForgeCredentials(git).fill('github.com');
+      final token = await ForgeCredentials(git)
+          .fill('github.com', forgeTokenUsername);
 
       expect(token?.value, 'ghp_x');
       expect(git.calls.single, const ['credential', 'fill']);
-      expect(git.stdins.single, 'protocol=https\nhost=github.com\n\n');
+      expect(
+        git.stdins.single,
+        'protocol=https\nhost=github.com\nusername=x-access-token\n\n',
+      );
       // A helper with nothing for this host must fail silently, not prompt —
       // the UI's Connect row is the prompt, and a terminal or askpass dialog
       // here would be one the user never asked for.
@@ -153,23 +178,35 @@ void main() {
 
     test('fill returns null when the helper has nothing', () async {
       final git = _RecordingGit(const GitResult(0, 'protocol=https\n', ''));
-      expect(await ForgeCredentials(git).fill('github.com'), isNull);
+      expect(
+        await ForgeCredentials(git).fill('github.com', forgeTokenUsername),
+        isNull,
+      );
     });
 
     test('fill returns null when git itself fails', () async {
       final git = _RecordingGit(const GitResult(1, '', 'no helper configured'));
-      expect(await ForgeCredentials(git).fill('github.com'), isNull);
+      expect(
+        await ForgeCredentials(git).fill('github.com', forgeTokenUsername),
+        isNull,
+      );
     });
 
     test('fill returns null when git throws', () async {
       final git = _ThrowingGit();
-      expect(await ForgeCredentials(git).fill('github.com'), isNull);
+      expect(
+        await ForgeCredentials(git).fill('github.com', forgeTokenUsername),
+        isNull,
+      );
       expect(git.calls.single, const ['credential', 'fill']);
     });
 
     test('fill refuses an unusable host without running git', () async {
       final git = _RecordingGit(const GitResult(0, '', ''));
-      expect(await ForgeCredentials(git).fill('bad\nhost'), isNull);
+      expect(
+        await ForgeCredentials(git).fill('bad\nhost', forgeTokenUsername),
+        isNull,
+      );
       expect(git.calls, isEmpty);
     });
 
@@ -180,7 +217,10 @@ void main() {
       final git = _RecordingGit(
         const GitResult(0, 'protocol=https\npassword=ghp_x\rmalicious\n', ''),
       );
-      expect(await ForgeCredentials(git).fill('github.com'), isNull);
+      expect(
+        await ForgeCredentials(git).fill('github.com', forgeTokenUsername),
+        isNull,
+      );
     });
 
     test('approve hands the token to the helper on stdin, never as an argument', () async {
@@ -206,21 +246,22 @@ void main() {
     });
 
     test(
-      'reject asks the helper to forget the credential, with no username',
+      'reject names the account whose credential is to be forgotten',
       () async {
+        // A body with no username matches any account on the host, so an
+        // erase sent that way takes the user's own push credential with it.
         final git = _RecordingGit(const GitResult(0, '', ''));
-        final sent = await ForgeCredentials(git)
-            .reject('github.com', const ForgeToken('ghp_x'));
+        final sent = await ForgeCredentials(
+          git,
+        ).reject('github.com', forgeTokenUsername, const ForgeToken('ghp_x'));
 
         expect(sent, isTrue);
         expect(git.calls.single, const ['credential', 'reject']);
-        // reject has no username to offer; the body must not claim one, or the
-        // helper could forget the wrong credential.
         expect(
           git.stdins.single,
-          'protocol=https\nhost=github.com\npassword=ghp_x\n\n',
+          'protocol=https\nhost=github.com\nusername=x-access-token\n'
+          'password=ghp_x\n\n',
         );
-        expect(git.stdins.single, isNot(contains('username=')));
         expect(git.environments.single, const {
           'GIT_TERMINAL_PROMPT': '0',
           'GIT_ASKPASS': '',
@@ -229,6 +270,39 @@ void main() {
         expect(git.timeouts.single, const Duration(seconds: 60));
       },
     );
+
+    test(
+      'reject omits the password field entirely when the token is empty, so '
+      'the helper matches the erase request on host and username alone',
+      () async {
+        // git-credential-store (and osxkeychain) treat a present password=
+        // field, even an empty one, as part of what an erase must match —
+        // an empty stdin token would erase nothing rather than the intended
+        // credential, silently leaving it on disk.
+        final git = _RecordingGit(const GitResult(0, '', ''));
+        final sent = await ForgeCredentials(git)
+            .reject('github.com', forgeTokenUsername, const ForgeToken(''));
+
+        expect(sent, isTrue);
+        expect(git.calls.single, const ['credential', 'reject']);
+        expect(
+          git.stdins.single,
+          'protocol=https\nhost=github.com\nusername=x-access-token\n\n',
+        );
+        expect(git.stdins.single, isNot(contains('password=')));
+      },
+    );
+
+    test('reject refuses a username that could inject extra fields', () async {
+      final git = _RecordingGit(const GitResult(0, '', ''));
+      final sent = await ForgeCredentials(git).reject(
+        'github.com',
+        'octocat\nurl=https://evil.example',
+        const ForgeToken(''),
+      );
+      expect(sent, isFalse);
+      expect(git.calls, isEmpty);
+    });
 
     test(
       'approve does nothing and returns false when the host is unusable',
@@ -246,7 +320,7 @@ void main() {
       () async {
         final git = _RecordingGit(const GitResult(0, '', ''));
         final sent = await ForgeCredentials(git)
-            .reject('bad\nhost', const ForgeToken('t'));
+            .reject('bad\nhost', forgeTokenUsername, const ForgeToken('t'));
         expect(sent, isFalse);
         expect(git.calls, isEmpty);
       },
@@ -295,8 +369,9 @@ void main() {
       'reject does not propagate when git throws, and reports false',
       () async {
         final git = _ThrowingGit();
-        final sent = await ForgeCredentials(git)
-            .reject('github.com', const ForgeToken('ghp_x'));
+        final sent = await ForgeCredentials(
+          git,
+        ).reject('github.com', forgeTokenUsername, const ForgeToken('ghp_x'));
         expect(sent, isFalse);
         expect(git.calls.single, const ['credential', 'reject']);
       },
@@ -324,8 +399,9 @@ void main() {
         final git = _RecordingGit(
           const GitResult(1, '', 'credential rejected'),
         );
-        final sent = await ForgeCredentials(git)
-            .reject('github.com', const ForgeToken('ghp_x'));
+        final sent = await ForgeCredentials(
+          git,
+        ).reject('github.com', forgeTokenUsername, const ForgeToken('ghp_x'));
         expect(sent, isFalse);
         expect(git.calls.single, const ['credential', 'reject']);
       },

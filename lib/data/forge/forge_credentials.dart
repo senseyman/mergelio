@@ -13,6 +13,22 @@ class ForgeToken {
   String toString() => 'ForgeToken(hidden)';
 }
 
+/// The account name Mergelio stores its forge token under.
+///
+/// A host can hold several credentials, and the user very likely already has
+/// one of their own for pushing. Writing and erasing under a name of our own
+/// keeps the two apart: without it an erase matches every account on the host
+/// and takes the user's push credential with it. GitHub accepts any username
+/// alongside a token, and this is the name its own documentation uses.
+const forgeTokenUsername = 'x-access-token';
+
+/// The only forge Mergelio currently authenticates with a token.
+///
+/// Defined once so every caller that names it — reading, writing, or
+/// erasing — spells it identically. A second copy of this literal is
+/// exactly how a write and a read once drifted onto different accounts.
+const kGithubHost = 'github.com';
+
 /// Characters that cannot appear in a host name given to `git credential`.
 /// The protocol is newline-delimited key=value lines terminated by a blank
 /// one, so a host carrying a newline would add fields of its own choosing.
@@ -68,9 +84,15 @@ const _credentialTimeout = Duration(seconds: 60);
 /// matter how the repository itself is cloned, and the credential being
 /// looked up here is the API's, deliberately independent of the remote's
 /// transport.
-String? credentialRequestFor(String host) {
+String? credentialRequestFor(String host, String username) {
   if (!_usableHost(host)) return null;
-  return 'protocol=https\nhost=$host\n\n';
+  if (!_usableField(username)) return null;
+  // The account has to be named. A host usually carries more than one — the
+  // one this app stores for API reads, and whatever the person already had
+  // for pushing — and a lookup that names none gets whichever the helper
+  // happens to hold first. That is how a credential written under one
+  // account gets read back as another.
+  return 'protocol=https\nhost=$host\nusername=$username\n\n';
 }
 
 /// The key=value fields a `git credential` command wrote.
@@ -112,8 +134,8 @@ class ForgeCredentials {
   /// a missing or broken git install — that detail is lost here on purpose,
   /// in exchange for every caller being able to treat "no token" as the only
   /// failure mode instead of also handling a thrown exception.
-  Future<ForgeToken?> fill(String host) async {
-    final request = credentialRequestFor(host);
+  Future<ForgeToken?> fill(String host, String username) async {
+    final request = credentialRequestFor(host, username);
     if (request == null) return null;
     final GitResult result;
     try {
@@ -148,14 +170,22 @@ class ForgeCredentials {
   Future<bool> approve(String host, String username, ForgeToken token) =>
       _write('approve', host, username, token);
 
-  /// Asks the helper to forget its credential for [host], so a rejected token
-  /// is not handed back on the next attempt. False means nothing was
-  /// forgotten — either this file refused [host] or the token before git
-  /// ever ran, git itself could not be run, or git ran and exited with
-  /// failure. True means git accepted the request; it does not promise the
-  /// helper had anything to forget.
-  Future<bool> reject(String host, ForgeToken token) =>
-      _write('reject', host, '', token);
+  /// Asks the helper to forget the credential it holds for [username] on
+  /// [host], so a rejected token is not handed back on the next attempt.
+  ///
+  /// [username] is not optional, and must not be empty: a credential helper
+  /// matches an erase request on whatever fields the body carries, so a body
+  /// with no username means "any account on this host" and erases the user's
+  /// own push credential alongside this app's.
+  ///
+  /// False means nothing was forgotten — either this file refused [host],
+  /// [username] or the token before git ever ran, git itself could not be
+  /// run, or git ran and exited with failure. True means git accepted the
+  /// request; it does not promise the helper had anything to forget.
+  Future<bool> reject(String host, String username, ForgeToken token) {
+    if (username.isEmpty) return Future.value(false);
+    return _write('reject', host, username, token);
+  }
 
   Future<bool> _write(
     String verb,
@@ -171,7 +201,15 @@ class ForgeCredentials {
     if (!_usableField(token.value)) return false;
     final buffer = StringBuffer('protocol=https\nhost=$host\n');
     if (username.isNotEmpty) buffer.write('username=$username\n');
-    buffer.write('password=${token.value}\n\n');
+    // git-credential-store (and osxkeychain) match an erase request on
+    // whichever fields are present in the body; a password= field that is
+    // present but empty still counts as a field to match, so it erases
+    // nothing rather than the credential actually on disk. Omitting the
+    // line entirely — not writing it empty — leaves host and username as
+    // the only match criteria, which is what an erase-by-token-value-less
+    // caller like reject means to ask for.
+    if (token.value.isNotEmpty) buffer.write('password=${token.value}\n');
+    buffer.write('\n');
     try {
       final result = await git.run(
         ['credential', verb],
