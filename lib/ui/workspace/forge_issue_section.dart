@@ -7,6 +7,7 @@ import '../../l10n/gen/app_localizations.dart';
 import '../../state/feedback.dart';
 import '../../state/forge.dart';
 import '../../state/forge_refresh.dart';
+import '../../state/settings.dart';
 import '../../state/settings_controller.dart';
 import 'forge_presentation.dart';
 import 'sidebar_section.dart';
@@ -30,11 +31,10 @@ class ForgeIssueSection extends ConsumerWidget {
     if (host == null) return const SizedBox.shrink();
 
     final l = AppLocalizations.of(context);
-    final collapsed = ref.watch(
-      settingsProvider.select((s) => s.collapsedSections),
-    );
     final ctl = ref.read(settingsProvider.notifier);
-    final open = !(collapsed['issues'] ?? false);
+    final open = ref.watch(
+      settingsProvider.select((s) => s.sectionOpen('issues')),
+    );
     // A collapsed section shows nothing, so watching the panel while
     // collapsed would spend a forge fetch on rows nobody can see. The watch
     // only starts once the section is actually open, and stops (Riverpod

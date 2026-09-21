@@ -10,6 +10,7 @@ import '../../state/compare_target.dart';
 import '../../state/graph_selection.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
+import '../../state/settings.dart';
 import '../../state/settings_controller.dart';
 import '../../state/workspace.dart';
 import '../../state/worktrees.dart';
@@ -142,11 +143,11 @@ class _Sections extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context);
+    final ctl = ref.read(settingsProvider.notifier);
     final collapsed = ref.watch(
       settingsProvider.select((s) => s.collapsedSections),
     );
-    final ctl = ref.read(settingsProvider.notifier);
-    bool isOpen(String id) => !(collapsed[id] ?? false);
+    bool isOpen(String id) => sectionOpenIn(collapsed, id);
     final path = ref.watch(workspaceProvider).activeTab?.path;
     final actions = path == null ? null : ref.read(repoActionsProvider(path));
 
