@@ -1,3 +1,8 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../../core/tokens.dart';
 import '../../domain/forge/forge_error.dart';
 import '../../domain/forge/forge_host.dart';
 import '../../domain/forge/models.dart';
@@ -51,3 +56,57 @@ String forgePanelMessage(Object error, AppLocalizations l) {
 /// URL the forge sent back, so no response can decide where the browser opens.
 Uri pullRequestWebUrl(ForgeHost host, int number) =>
     Uri.https(host.host, '/${host.owner}/${host.repo}/pull/$number');
+
+/// Where a person goes to read issue [number] on the web.
+///
+/// Built the same way, and from the same local coordinates, as
+/// [pullRequestWebUrl] — but never down the same path: a forge numbers
+/// issues and pull requests in one sequence yet serves them from separate
+/// URLs, so an issue sent to the pull path opens a different page.
+Uri issueWebUrl(ForgeHost host, int number) =>
+    Uri.https(host.host, '/${host.owner}/${host.repo}/issues/$number');
+
+/// How a forge row opens its web page.
+///
+/// Overridable so a test can watch what would have been opened, or force a
+/// failure, without a real browser launch reaching a platform channel that a
+/// widget test cannot answer. Shared by every forge section, so a row's tap
+/// behaves the same wherever it lives.
+final forgeLaunchUrlProvider = Provider<Future<bool> Function(Uri)>(
+  (ref) => launchUrl,
+);
+
+/// One line of muted text standing in for rows: a hint, or a panel's error
+/// in the words [forgePanelMessage] chose.
+///
+/// Shared so every forge section says its piece the same way. They were
+/// separate copies once, identical by coincidence rather than by contract.
+class ForgeMessageRow extends StatelessWidget {
+  final String text;
+
+  const ForgeMessageRow({super.key, required this.text});
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+    child: Text(
+      text,
+      style: TextStyle(color: context.tokens.textMuted, fontSize: 12),
+    ),
+  );
+}
+
+/// What a forge section shows while its first read is in flight.
+class ForgeLoadingRow extends StatelessWidget {
+  const ForgeLoadingRow({super.key});
+
+  @override
+  Widget build(BuildContext context) => const Padding(
+    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    child: SizedBox(
+      width: 12,
+      height: 12,
+      child: CircularProgressIndicator(strokeWidth: 2),
+    ),
+  );
+}

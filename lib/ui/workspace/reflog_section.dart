@@ -8,6 +8,7 @@ import '../../l10n/gen/app_localizations.dart';
 import '../../state/graph_selection.dart';
 import '../../state/reflog.dart';
 import '../../state/repo_actions.dart';
+import '../../state/settings.dart';
 import '../../state/settings_controller.dart';
 import '../../state/undo_stack.dart';
 import '../common/confirm.dart';
@@ -25,14 +26,15 @@ class ReflogSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context);
-    final collapsed = ref.watch(
-      settingsProvider.select((s) => s.collapsedSections),
-    );
     final ctl = ref.read(settingsProvider.notifier);
     // Collapsed until asked for, unlike the other sections, which default to
     // open: this one spends a subprocess to fill and is a tool people reach
     // for when something went wrong, not a list to keep an eye on.
-    final open = !(collapsed['reflog'] ?? true);
+    final open = ref.watch(
+      settingsProvider.select(
+        (s) => s.sectionOpen('reflog', defaultOpen: false),
+      ),
+    );
     // Anything that moves a ref writes a reflog entry, so an open section has
     // to re-read once an operation lands. The undo stack is the signal for
     // that: it gains an entry exactly once per completed operation, and once

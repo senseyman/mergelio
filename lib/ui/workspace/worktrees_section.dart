@@ -8,6 +8,7 @@ import '../../domain/reveal.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
+import '../../state/settings.dart';
 import '../../state/settings_controller.dart';
 import '../../state/workspace.dart';
 import '../../state/worktrees.dart';
@@ -29,8 +30,8 @@ class WorktreesSection extends ConsumerWidget {
     final trees =
         ref.watch(worktreesProvider(repoPath)).valueOrNull ??
         const <Worktree>[];
-    final collapsed = ref.watch(
-      settingsProvider.select((s) => s.collapsedSections),
+    final open = ref.watch(
+      settingsProvider.select((s) => s.sectionOpen('worktrees')),
     );
     final ctl = ref.read(settingsProvider.notifier);
     final activePath = ref.watch(workspaceProvider).activeTab?.path;
@@ -44,7 +45,7 @@ class WorktreesSection extends ConsumerWidget {
       label: l.wtsWorktrees,
       count: trees.length,
       emptyLabel: l.wtsNoWorktrees,
-      open: !(collapsed['worktrees'] ?? false),
+      open: open,
       onToggle: () => ctl.toggleSection('worktrees'),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,

@@ -185,15 +185,26 @@ class GitHubForge implements Forge {
 
   @override
   Future<List<Issue>> issues({int limit = 50}) async {
-    final items = await _readList(
-      _repoUrl('/issues', {
-        'state': 'open',
-        'sort': 'updated',
-        'direction': 'desc',
-      }, limit),
-      limit: limit,
-      usableCount: (items) => parseIssues(items).length,
-    );
+    final List<Object?> items;
+    try {
+      items = await _readList(
+        _repoUrl('/issues', {
+          'state': 'open',
+          'sort': 'updated',
+          'direction': 'desc',
+        }, limit),
+        limit: limit,
+        usableCount: (items) => parseIssues(items).length,
+      );
+    } on ForgeServerFault catch (e) {
+      // A repository can switch its issue tracker off, and forks and mirrors
+      // often have. GitHub answers 410 Gone for the endpoint then. Nothing is
+      // broken, so reporting a server fault would blame the forge for a
+      // deliberate setting — there is simply no tracker, and nothing open.
+      // Narrow on purpose: every other fault still reaches the caller.
+      if (e.status != 410) rethrow;
+      return const [];
+    }
     return parseIssues(items).take(limit).toList(growable: false);
   }
 }

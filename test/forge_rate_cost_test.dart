@@ -27,41 +27,56 @@ String _pullsPage(int count) => jsonEncode([
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test(
-    'opening a repository costs one list request plus two per row',
-    () async {
-      final paths = <String>[];
-      final c = ProviderContainer(
-        overrides: [
-          originRemoteUrlProvider.overrideWith(
-            (ref, path) async => 'https://github.com/o/r.git',
-          ),
-          forgeTokenProvider.overrideWith((ref, path) async => null),
-          forgeHttpClientProvider.overrideWithValue(
-            MockClient((req) async {
-              paths.add(req.url.path);
-              return http.Response(
-                req.url.path.endsWith('/pulls')
-                    ? _pullsPage(kPullRequestLimit)
-                    : '{}',
-                200,
-              );
-            }),
-          ),
-        ],
-      );
-      addTearDown(c.dispose);
+  test('opening a repository costs a list request per section plus '
+      'two per pull request row', () async {
+    final paths = <String>[];
+    final c = ProviderContainer(
+      overrides: [
+        originRemoteUrlProvider.overrideWith(
+          (ref, path) async => 'https://github.com/o/r.git',
+        ),
+        forgeTokenProvider.overrideWith((ref, path) async => null),
+        forgeHttpClientProvider.overrideWithValue(
+          MockClient((req) async {
+            paths.add(req.url.path);
+            final path = req.url.path;
+            return http.Response(
+              path.endsWith('/pulls')
+                  ? _pullsPage(kPullRequestLimit)
+                  : path.endsWith('/issues')
+                  ? '[]'
+                  : '{}',
+              200,
+            );
+          }),
+        ),
+      ],
+    );
+    addTearDown(c.dispose);
 
-      final panel = await c.read(pullRequestPanelProvider('/repo').future);
+    final panel = await c.read(pullRequestPanelProvider('/repo').future);
 
-      expect(panel.pullRequests, hasLength(kPullRequestLimit));
-      // One page of rows — the list must not page for a section this size —
-      // then a combined-status and a check-runs read for each row.
-      expect(paths.where((p) => p.endsWith('/pulls')), hasLength(1));
-      expect(paths, hasLength(kForgeRequestsPerOpen));
-      expect(kForgeRequestsPerOpen, 1 + 2 * kPullRequestLimit);
-    },
-  );
+    expect(panel.pullRequests, hasLength(kPullRequestLimit));
+    // One page of rows — the list must not page for a section this size —
+    // then a combined-status and a check-runs read for each row.
+    expect(paths.where((p) => p.endsWith('/pulls')), hasLength(1));
+    expect(paths, hasLength(1 + 2 * kPullRequestLimit));
+
+    // The issue section rides along on the same open, and costs a single
+    // list read because its rows carry no CI.
+    await c.read(issuePanelProvider('/repo').future);
+
+    expect(paths.where((p) => p.endsWith('/issues')), hasLength(1));
+    expect(paths, hasLength(kForgeRequestsPerOpen));
+    expect(kForgeRequestsPerOpen, 1 + 2 * kPullRequestLimit + 1);
+  });
+
+  test('the quoted cost still assumes one page of issues', () {
+    // kForgeRequestsPerOpen counts the issue list as a single request. A
+    // limit above one page would quietly make that number, and the copy
+    // quoting it, wrong — with nothing else here to notice.
+    expect(kIssueLimit, lessThanOrEqualTo(100));
+  });
 
   test('the budget copy quotes the cost the code actually pays', () async {
     // A sentence that understates the cost is worse than no sentence: it

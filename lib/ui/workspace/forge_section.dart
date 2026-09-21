@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/tokens.dart';
 import '../../domain/forge/models.dart';
@@ -8,18 +7,10 @@ import '../../l10n/gen/app_localizations.dart';
 import '../../state/feedback.dart';
 import '../../state/forge.dart';
 import '../../state/forge_refresh.dart';
+import '../../state/settings.dart';
 import '../../state/settings_controller.dart';
 import 'forge_presentation.dart';
 import 'sidebar_section.dart';
-
-/// How a pull request row opens its web page.
-///
-/// Overridable so a test can watch what would have been opened, or force a
-/// failure, without a real browser launch reaching a platform channel that a
-/// widget test cannot answer.
-final forgeLaunchUrlProvider = Provider<Future<bool> Function(Uri)>(
-  (ref) => launchUrl,
-);
 
 /// The repository's open pull requests, with what CI made of each one.
 ///
@@ -36,11 +27,10 @@ class ForgePullRequestSection extends ConsumerWidget {
     if (host == null) return const SizedBox.shrink();
 
     final l = AppLocalizations.of(context);
-    final collapsed = ref.watch(
-      settingsProvider.select((s) => s.collapsedSections),
-    );
     final ctl = ref.read(settingsProvider.notifier);
-    final open = !(collapsed['pull-requests'] ?? false);
+    final open = ref.watch(
+      settingsProvider.select((s) => s.sectionOpen('pull-requests')),
+    );
     // A collapsed section shows nothing, so watching the panel while
     // collapsed would spend a forge fetch on rows nobody can see. The watch
     // only starts once the section is actually open, and stops (Riverpod
@@ -81,10 +71,10 @@ class ForgePullRequestSection extends ConsumerWidget {
             : () => ref.read(forgeRefreshProvider).refreshNow(repoPath),
       ),
       children: [
-        if (!connected) _HintRow(text: l.forgeConnectHint),
+        if (!connected) ForgeMessageRow(text: l.forgeConnectHint),
         ...?panel?.when(
-          loading: () => const [_LoadingRow()],
-          error: (e, _) => [_MessageRow(text: forgePanelMessage(e, l))],
+          loading: () => const [ForgeLoadingRow()],
+          error: (e, _) => [ForgeMessageRow(text: forgePanelMessage(e, l))],
           data: (p) => p.pullRequests.isEmpty
               // Nothing to say here: an empty list with the section open and
               // connected is exactly the case [SidebarSection] itself already
@@ -181,40 +171,4 @@ class _Badge extends StatelessWidget {
       CheckBadge.mixed => Icon(Icons.circle, size: 8, color: t.textMuted),
     };
   }
-}
-
-class _HintRow extends StatelessWidget {
-  final String text;
-  const _HintRow({required this.text});
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-    child: Text(
-      text,
-      style: TextStyle(color: context.tokens.textMuted, fontSize: 12),
-    ),
-  );
-}
-
-class _MessageRow extends StatelessWidget {
-  final String text;
-  const _MessageRow({required this.text});
-
-  @override
-  Widget build(BuildContext context) => _HintRow(text: text);
-}
-
-class _LoadingRow extends StatelessWidget {
-  const _LoadingRow();
-
-  @override
-  Widget build(BuildContext context) => const Padding(
-    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-    child: SizedBox(
-      height: 12,
-      width: 12,
-      child: CircularProgressIndicator(strokeWidth: 2),
-    ),
-  );
 }

@@ -8,7 +8,6 @@
   "apply": "Застосувати",
   "import": "Імпорт",
   "export": "Експорт",
-
   "tooltipTerminal": "Термінал (⌘`)",
   "tooltipSearch": "Пошук (⌘F)",
   "tooltipPalette": "Палітра команд (⌘K)",
@@ -16,7 +15,6 @@
   "tooltipProfiles": "Профілі",
   "tooltipProjectFiles": "Файли проєкту",
   "tooltipHistory": "Історія",
-
   "opFetch": "Отримати",
   "opPull": "Стягнути",
   "opPullRebase": "Стягнути (перебазувати)",
@@ -24,11 +22,9 @@
   "opPushOrigin": "Відправити в origin",
   "opForcePush": "Примусово відправити (with lease)",
   "opPushOptions": "Відправити…",
-
   "welcomeOpen": "Відкрити",
   "welcomeRecents": "Нещодавні репозиторії",
   "welcomeNoRecents": "Ще немає нещодавніх репозиторіїв",
-
   "prefsTitle": "Налаштування",
   "prefsTabGeneral": "Загальні",
   "prefsTabAppearance": "Вигляд",
@@ -53,7 +49,6 @@
   "prefsResetColours": "Скинути кольори",
   "prefsSavedThemes": "Збережені теми",
   "prefsSaveCurrent": "Зберегти поточну…",
-
   "strategyMerge": "злиття",
   "strategyRebase": "перебазування",
   "dateMedium": "середній",
@@ -62,15 +57,12 @@
   "prefsClockFormat": "Годинник",
   "clock24": "24-годинний",
   "clock12": "12-годинний",
-
   "themeDark": "темна",
   "themeLight": "світла",
   "themeSystem": "системна",
-
   "languageSystem": "Системна",
   "languageEnglish": "English",
   "languageUkrainian": "Українська",
-
   "graphHistory": "ІСТОРІЯ",
   "graphLoadingOlder": "Завантаження давніших комітів…",
   "graphCompact": "Компактно",
@@ -100,7 +92,9 @@
   "menuCompareWith": "Порівняти з {ref}",
   "@menuCompareWith": {
     "placeholders": {
-      "ref": {"type": "String"}
+      "ref": {
+        "type": "String"
+      }
     }
   },
   "rewordTitle": "Редагувати повідомлення коміту",
@@ -108,7 +102,9 @@
   "rewordPushedBody": "Цей коміт уже є в {branches}. Зміна повідомлення переписує історію, тож гілку доведеться відправити примусово, а всі, хто її отримав, муситимуть зробити reset.",
   "@rewordPushedBody": {
     "placeholders": {
-      "branches": {"type": "String"}
+      "branches": {
+        "type": "String"
+      }
     }
   },
   "rewordPushedConfirm": "Все одно переписати",
@@ -117,33 +113,47 @@
   "mergeCherryPick": "Cherry-pick {sha}",
   "@mergeCherryPick": {
     "placeholders": {
-      "sha": {"type": "String"}
+      "sha": {
+        "type": "String"
+      }
     }
   },
   "mergeRevert": "Відкотити {sha}",
   "@mergeRevert": {
     "placeholders": {
-      "sha": {"type": "String"}
+      "sha": {
+        "type": "String"
+      }
     }
   },
   "mergeInto": "Злиття {branch} → {into}",
   "@mergeInto": {
     "placeholders": {
-      "branch": {"type": "String"},
-      "into": {"type": "String"}
+      "branch": {
+        "type": "String"
+      },
+      "into": {
+        "type": "String"
+      }
     }
   },
   "mergeBranch": "Злиття {branch}",
   "@mergeBranch": {
     "placeholders": {
-      "branch": {"type": "String"}
+      "branch": {
+        "type": "String"
+      }
     }
   },
   "mergeResolvedCount": "{resolved} / {total} вирішено",
   "@mergeResolvedCount": {
     "placeholders": {
-      "resolved": {"type": "int"},
-      "total": {"type": "int"}
+      "resolved": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
     }
   },
   "mergeNextUnresolved": "Наступний невирішений",
@@ -152,14 +162,19 @@
   "a11yCommitRow": "Коміт {sha} від {author}: {message}",
   "@a11yCommitRow": {
     "placeholders": {
-      "sha": {"type": "String"},
-      "author": {"type": "String"},
-      "message": {"type": "String"}
+      "sha": {
+        "type": "String"
+      },
+      "author": {
+        "type": "String"
+      },
+      "message": {
+        "type": "String"
+      }
     }
   },
   "a11yWorkingChanges": "Зміни в робочому дереві",
   "a11yCommitGraph": "Граф історії комітів",
-
   "shellAddRepository": "Додати репозиторій",
   "shellOpenRepoMenu": "Відкрити…",
   "shellCloneRepoMenu": "Клонувати…",
@@ -181,7 +196,6 @@
   "shellMoveToGroup": "Перемістити до {name}",
   "tabWorktree": "Робоче дерево",
   "tabWorktreeOf": "Робоче дерево репозиторію {parent}",
-
   "wtAdd": "Додати робоче дерево",
   "wtLocation": "Розташування",
   "wtBrowse": "Огляд…",
@@ -214,7 +228,6 @@
   "wtNothingToPrune": "Нема чого очищати.",
   "wtEntriesWillBeRemoved": "Ці записи буде видалено:",
   "wtPrune": "Очистити",
-
   "sbRepository": "Репозиторій",
   "sbCollapse": "Згорнути",
   "sbCouldNotRead": "Не вдалося прочитати репозиторій",
@@ -306,7 +319,6 @@
   "sbDrop": "Вилучити",
   "sbRemoveSubmoduleTitle": "Вилучити {name}?",
   "sbRemoveSubmoduleBody": "Підмодуль за шляхом {path} буде деініціалізовано та вилучено з .gitmodules. Цю дію не можна скасувати.",
-
   "discard": "Відкинути",
   "create": "Створити",
   "edit": "Редагувати",
@@ -328,12 +340,10 @@
   "filesDiscardChangesTitle": "Відкинути зміни у {name}?",
   "filesRefresh": "Оновити",
   "filesCollapse": "Згорнути",
-
   "wtpAlsoDeleteUntracked": "{count, plural, one{Також видалити {count} невідстежуваний файл} few{Також видалити {count} невідстежувані файли} many{Також видалити {count} невідстежуваних файлів} other{Також видалити {count} невідстежуваного файла}}",
   "diffDiscardHunkTitle": "Відкинути блок змін?",
   "diffDiscardLinesTitle": "{count, plural, one{Відкинути {count} рядок?} few{Відкинути {count} рядки?} many{Відкинути {count} рядків?} other{Відкинути {count} рядка?}}",
   "diffDiscardLinesBody": "Це вилучить вибрані зміни з робочого дерева. Дію можна скасувати.",
-
   "bbOpenRepoFirst": "Спершу відкрийте репозиторій",
   "bbOperationRunning": "Операція вже виконується",
   "bbNoRemote": "Віддалений репозиторій не налаштовано",
@@ -410,7 +420,6 @@
   "ropMainlineParentFirst": "гілка, у яку зливали",
   "ropMainlineParentOther": "злита гілка",
   "shellPrevOpUnfinished": "Попередня операція могла не завершитися",
-
   "wtpChanges": "ЗМІНИ",
   "wtpDiscardAll": "Відкинути всі зміни",
   "wtpUnstaged": "НЕПРОІНДЕКСОВАНІ",
@@ -487,7 +496,6 @@
   "bsResetAndSwitch": "Скинути й переключитися",
   "wvChanges": "Зміни",
   "wvChangesSub": "Робоче дерево · індексація · коміт",
-
   "rdlgCloneTitle": "Клонувати репозиторій",
   "rdlgCreateTitle": "Створити репозиторій",
   "rdlgFolderName": "Назва теки",
@@ -539,17 +547,32 @@
   "fiCouldNotBlame": "Не вдалося визначити авторство цього файлу",
   "forgePullRequests": "Пулреквести",
   "forgeNoPullRequests": "Немає відкритих пулреквестів",
+  "forgeIssues": "Тікети",
+  "forgeNoIssues": "Немає відкритих тікетів",
   "forgeRefresh": "Оновити",
   "forgeCouldNotOpenPr": "Не вдалося відкрити пулреквест у браузері",
+  "forgeCouldNotOpenIssue": "Не вдалося відкрити тікет у браузері",
   "forgeConnectHint": "Без токена: без автооновлення, 60 запитів на годину. Підключіть у Налаштуваннях → Облікові дані.",
   "forgeErrUnauthenticated": "GitHub відхилив збережений токен. Підключіться знову в Налаштуваннях.",
   "forgeErrRateLimited": "Ліміт запитів GitHub вичерпано. Він оновиться о {time}.",
-  "@forgeErrRateLimited": { "placeholders": { "time": { "type": "String" } } },
+  "@forgeErrRateLimited": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
   "forgeErrRateLimitedSoon": "Ліміт запитів GitHub вичерпано. Спробуйте трохи пізніше.",
   "forgeErrNotVisible": "Цей репозиторій недоступний для поточного токена.",
   "forgeErrOffline": "Не вдалося зʼєднатися з GitHub.",
   "forgeErrServer": "GitHub відповів помилкою ({status}).",
-  "@forgeErrServer": { "placeholders": { "status": { "type": "int" } } },
+  "@forgeErrServer": {
+    "placeholders": {
+      "status": {
+        "type": "int"
+      }
+    }
+  },
   "forgeErrMalformed": "GitHub надіслав відповідь, яку ця версія не змогла прочитати.",
   "forgeAccountTitle": "Обліковий запис GitHub",
   "forgeAccountConnected": "Підключено",
@@ -562,9 +585,18 @@
   "forgeTokenNotKept": "GitHub прийняв токен, але жодне сховище в цій системі його не зберегло. Налаштуйте credential helper для git і спробуйте ще раз.",
   "forgeTokenForgotten": "Токен видалено.",
   "forgeTokenNotForgotten": "Не вдалося видалити токен. Він може залишатися у сховищі облікових даних git.",
-  "forgeRateBenefit": "Без токена GitHub дозволяє 60 запитів на годину; з токеном — 5000. Відкриття репозиторію коштує один запит на список плюс два на перевірки кожного пулреквеста — близько 21 для десяти показаних.",
+  "forgeRateBenefit": "Без токена GitHub дозволяє 60 запитів на годину; з токеном — 5000. Відкриття репозиторію коштує близько 22: по одному запиту на кожен список і ще два на перевірки кожного пулреквеста.",
   "forgeRateRemaining": "Залишилось {remaining} з {limit} запитів цієї години.",
-  "@forgeRateRemaining": { "placeholders": { "remaining": { "type": "int" }, "limit": { "type": "int" } } },
+  "@forgeRateRemaining": {
+    "placeholders": {
+      "remaining": {
+        "type": "int"
+      },
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
   "forgeRefreshInterval": "Інтервал оновлення пулреквестів",
   "lhTitleLine": "{path} · рядок {line}",
   "lhTitleRange": "{path} · рядки {range}",
@@ -574,7 +606,6 @@
   "ftvFlatList": "Показати плоским списком",
   "ftvGroupByFolder": "Групувати за текою",
   "confirmAction": "Підтвердити",
-
   "pfScCommandPalette": "Палітра команд",
   "pfScSearchCommits": "Пошук комітів",
   "pfScNextPrevMatch": "Наступний / попередній збіг",
@@ -666,7 +697,6 @@
   "rbNeedsTwo": "Потрібно щонайменше 2 коміти.",
   "rbCustomize": "Налаштувати кожен коміт",
   "rbCustomizeHint": "Виберіть дію для кожного коміту або перетягніть, щоб змінити порядок.",
-
   "dlgEditCommitMessage": "Редагувати повідомлення коміту",
   "dlgUnsavedOne": "{path} має зміни, яких немає на диску.",
   "dlgUnsavedMany": "Ці файли мають зміни, яких немає на диску:",
@@ -747,7 +777,6 @@
   "updatePrefsCheckNow": "Перевірити зараз",
   "updatePrefsLastCheck": "Остання перевірка: {when}",
   "updatePrefsNever": "ніколи",
-
   "askpassTitle": "Потрібна автентифікація",
   "askpassFallback": "Введіть облікові дані",
   "askpassSubmit": "OK",

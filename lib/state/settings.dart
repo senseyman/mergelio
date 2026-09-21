@@ -129,3 +129,27 @@ abstract class AppSettings with _$AppSettings {
   factory AppSettings.fromJson(Map<String, dynamic> json) =>
       _$AppSettingsFromJson(json);
 }
+
+/// Whether the sidebar section [id] is showing, given the sections someone
+/// has collapsed.
+///
+/// The map records only the exceptions, so a section nobody has touched is
+/// open. [defaultOpen] flips that for sections that start life collapsed —
+/// the reflog does, being a recovery tool rather than something read daily —
+/// which means its stored entry reads the opposite way round from every
+/// other section's. Getting that backwards silently reopens it for everyone,
+/// so the rule lives here once instead of at each call site.
+///
+/// Takes the map rather than the settings because the sidebar already holds
+/// one: branch folders remember their own collapse in the same store.
+bool sectionOpenIn(
+  Map<String, bool> collapsed,
+  String id, {
+  bool defaultOpen = true,
+}) => !(collapsed[id] ?? !defaultOpen);
+
+extension SectionVisibility on AppSettings {
+  /// Whether the section [id] is showing. See [sectionOpenIn] for the rule.
+  bool sectionOpen(String id, {bool defaultOpen = true}) =>
+      sectionOpenIn(collapsedSections, id, defaultOpen: defaultOpen);
+}

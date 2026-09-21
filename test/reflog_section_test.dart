@@ -155,6 +155,39 @@ void main() {
     expect(find.text('moving to HEAD~1'), findsOneWidget);
   });
 
+  testWidgets('a fresh install finds the section already collapsed', (
+    tester,
+  ) async {
+    // Every other test here writes the collapse flag explicitly, so none of
+    // them exercises what someone actually meets on first run: no stored
+    // entry at all. This section is the one that reads the opposite way
+    // round from the rest, and losing that default would spend a subprocess
+    // on every repository anyone opens.
+    final git = _FakeGit();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gitServiceProvider.overrideWithValue(git),
+          settingsProvider.overrideWith(
+            (_) => SettingsController(
+              InMemorySettingsRepository(),
+              const AppSettings(),
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          theme: ThemeData(extensions: [AppTokens.dark()]),
+          home: const Scaffold(body: ReflogSection(repoPath: '/r')),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(git.readReflog, isFalse);
+  });
+
   testWidgets('a collapsed section reads no reflog', (tester) async {
     // The section is collapsed by default, so opening a repository must not
     // pay for a reflog nobody asked to see.

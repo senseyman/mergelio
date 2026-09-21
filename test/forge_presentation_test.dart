@@ -89,6 +89,32 @@ void main() {
     });
   });
 
+  group('issueWebUrl', () {
+    const host = ForgeHost(
+      kind: ForgeKind.github,
+      host: 'github.com',
+      owner: 'senseyman',
+      repo: 'mergelio',
+    );
+
+    test('addresses the issue on the web UI', () {
+      expect(
+        issueWebUrl(host, 12).toString(),
+        'https://github.com/senseyman/mergelio/issues/12',
+      );
+    });
+
+    test('does not borrow the pull request path', () {
+      // GitHub serves /pull/<n> and /issues/<n> from different numbering;
+      // sending an issue to the pull path lands on someone else's page.
+      expect(issueWebUrl(host, 12).path, isNot(contains('/pull/')));
+    });
+
+    test('is always https, whatever the remote used', () {
+      expect(issueWebUrl(host, 1).scheme, 'https');
+    });
+  });
+
   group('pullRequestWebUrl', () {
     const host = ForgeHost(
       kind: ForgeKind.github,
