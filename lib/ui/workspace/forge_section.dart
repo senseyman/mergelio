@@ -84,8 +84,15 @@ class ForgePullRequestSection extends ConsumerWidget {
               : [
                   for (final pr in p.pullRequests)
                     _PullRequestRow(
+                      // Identity, not position. The forge sorts by last
+                      // update, so a comment on any request reshuffles this
+                      // list — and an opened row whose state belongs to a
+                      // slot would hand itself to whoever slid into it.
+                      key: ValueKey(pr.number),
                       pr: pr,
                       badge: checkBadgeFor(p.checksBySha[pr.headSha]),
+                      defaultBranch: p.defaultBranch,
+                      failedRuns: forgeFailedRuns(p.checksBySha[pr.headSha]),
                       // The URL is built from the locally-resolved [host]
                       // and a plain int, never from a string the forge sent
                       // back — nothing here can redirect this tap anywhere
@@ -115,40 +122,97 @@ class ForgePullRequestSection extends ConsumerWidget {
   }
 }
 
-class _PullRequestRow extends StatelessWidget {
+class _PullRequestRow extends StatefulWidget {
   final PullRequest pr;
   final CheckBadge badge;
+  final String? defaultBranch;
+  final List<CheckRun> failedRuns;
   final VoidCallback onOpen;
 
   const _PullRequestRow({
+    super.key,
     required this.pr,
     required this.badge,
+    required this.defaultBranch,
+    required this.failedRuns,
     required this.onOpen,
   });
 
   @override
+  State<_PullRequestRow> createState() => _PullRequestRowState();
+}
+
+class _PullRequestRowState extends State<_PullRequestRow> {
+  bool _expanded = false;
+
+  @override
   Widget build(BuildContext context) {
     final t = context.tokens;
+    final pr = widget.pr;
+    final failed = widget.failedRuns;
+    // Shortest first, so what runs off the end is the branch name: it is the
+    // longest field and the one a reader can most afford to lose.
+    final meta = forgeMetaLine([
+      pr.author.login,
+      forgeAgo(AppLocalizations.of(context), pr.updatedAt),
+      forgeBranchLabel(pr, widget.defaultBranch),
+    ]);
     return InkWell(
-      onTap: onOpen,
+      onTap: widget.onOpen,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              '#${pr.number}',
-              style: TextStyle(color: t.textMuted, fontSize: 12),
+            Row(
+              children: [
+                Text(
+                  '#${pr.number}',
+                  style: TextStyle(color: t.textMuted, fontSize: 12),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    pr.title,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: t.textPrimary, fontSize: 13),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // The badge answers a different question from the row, so it
+                // takes the press itself rather than letting it reach the
+                // row's tap target and navigate away. Only when there is
+                // something to read: a green badge opens onto nothing.
+                if (failed.isEmpty)
+                  _Badge(badge: widget.badge)
+                else
+                  GestureDetector(
+                    key: ValueKey('pr-checks-${pr.number}'),
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => setState(() => _expanded = !_expanded),
+                    child: _Badge(badge: widget.badge),
+                  ),
+              ],
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                pr.title,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: t.textPrimary, fontSize: 13),
+            if (meta.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  meta,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: t.textFaint, fontSize: 11),
+                ),
               ),
-            ),
-            const SizedBox(width: 8),
-            _Badge(badge: badge),
+            if (_expanded)
+              for (final run in failed)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2, left: 4),
+                  child: Text(
+                    run.name,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: t.danger, fontSize: 11),
+                  ),
+                ),
           ],
         ),
       ),

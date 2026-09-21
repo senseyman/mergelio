@@ -124,6 +124,11 @@ class _IssueRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
+    final meta = forgeMetaLine([
+      issue.author.login,
+      forgeAgo(AppLocalizations.of(context), issue.updatedAt),
+      ...issue.labels,
+    ]);
     return InkWell(
       onTap: onOpen,
       child: Padding(
@@ -147,13 +152,15 @@ class _IssueRow extends StatelessWidget {
                 ),
               ],
             ),
-            // Kept on a line of its own, and only here — never on a pull
-            // request row — so a long label list never crowds the title out.
-            if (issue.labels.isNotEmpty)
+            // One line beneath the title carrying everything secondary, with
+            // the labels last: they are the longest and the most expendable,
+            // so an overlong list ellipsises instead of pushing the author
+            // and the age out of view.
+            if (meta.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 2),
                 child: Text(
-                  issue.labels.join(' · '),
+                  meta,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(color: t.textFaint, fontSize: 11),
                 ),

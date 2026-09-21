@@ -60,7 +60,10 @@ void main() {
     // One page of rows — the list must not page for a section this size —
     // then a combined-status and a check-runs read for each row.
     expect(paths.where((p) => p.endsWith('/pulls')), hasLength(1));
-    expect(paths, hasLength(1 + 2 * kPullRequestLimit));
+    // The list, two check reads per row, and the repository read that
+    // names the trunk.
+    expect(paths, hasLength(1 + 2 * kPullRequestLimit + 1));
+    expect(paths.where((p) => p == '/repos/o/r'), hasLength(1));
 
     // The issue section rides along on the same open, and costs a single
     // list read because its rows carry no CI.
@@ -68,7 +71,7 @@ void main() {
 
     expect(paths.where((p) => p.endsWith('/issues')), hasLength(1));
     expect(paths, hasLength(kForgeRequestsPerOpen));
-    expect(kForgeRequestsPerOpen, 1 + 2 * kPullRequestLimit + 1);
+    expect(kForgeRequestsPerOpen, 1 + 2 * kPullRequestLimit + 1 + 1);
   });
 
   test('the quoted cost still assumes one page of issues', () {

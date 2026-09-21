@@ -26,6 +26,8 @@ PullRequest _prWithSha(int n, String sha) => PullRequest(
 );
 
 class _FakeForge implements Forge {
+  String? trunk;
+
   @override
   final ForgeHost host = _host;
 
@@ -37,6 +39,8 @@ class _FakeForge implements Forge {
   int checkCalls = 0;
   int _liveChecks = 0;
   int peakChecks = 0;
+
+  bool trunkThrows = false;
 
   _FakeForge({this.prCount = 3, this.failWith, this.delay = Duration.zero});
 
@@ -65,6 +69,12 @@ class _FakeForge implements Forge {
 
   @override
   Future<List<Issue>> issues({int limit = 50}) async => [];
+
+  @override
+  Future<String?> defaultBranch() async {
+    if (trunkThrows) throw const ForgeServerFault(500);
+    return trunk;
+  }
 }
 
 class _CiFailingForge extends _FakeForge {
@@ -163,6 +173,18 @@ void main() {
       );
       await _containerFor(forge).read(pullRequestPanelProvider('/repo').future);
       expect(forge.peakChecks, lessThanOrEqualTo(kChecksConcurrency));
+    });
+
+    test('an unreadable trunk costs the hint, not the panel', () async {
+      // The repository read is cosmetic: rows lose their branch context and
+      // nothing else. Letting it fail the panel would trade ten visible
+      // pull requests for one missing label.
+      final forge = _FakeForge(prCount: 1)..trunkThrows = true;
+      final panel = await _containerFor(forge)
+          .read(pullRequestPanelProvider('/repo').future);
+
+      expect(panel.pullRequests, hasLength(1));
+      expect(panel.defaultBranch, isNull);
     });
 
     test('a failed read reaches the caller, never an empty list', () async {

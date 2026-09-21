@@ -22,6 +22,8 @@ Issue _issue(int n, {List<String> labels = const []}) => Issue(
 );
 
 class _FakeForge implements Forge {
+  String? trunk;
+
   @override
   final ForgeHost host = _host;
 
@@ -50,6 +52,9 @@ class _FakeForge implements Forge {
   @override
   Future<ChecksSummary> checksForRef(String ref) async =>
       const ChecksSummary(overall: ChecksOverall.none);
+
+  @override
+  Future<String?> defaultBranch() async => trunk;
 }
 
 ProviderContainer _containerFor(Forge? forge) {
