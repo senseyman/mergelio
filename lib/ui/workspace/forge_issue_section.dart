@@ -74,8 +74,8 @@ class ForgeIssueSection extends ConsumerWidget {
       ),
       children: [
         ...?panel?.when(
-          loading: () => const [_LoadingRow()],
-          error: (e, _) => [_MessageRow(text: forgePanelMessage(e, l))],
+          loading: () => const [ForgeLoadingRow()],
+          error: (e, _) => [ForgeMessageRow(text: forgePanelMessage(e, l))],
           data: (issues) => issues.isEmpty
               // Nothing to say here: an empty list with the section open is
               // exactly the case [SidebarSection] itself already renders via
@@ -163,32 +163,4 @@ class _IssueRow extends StatelessWidget {
       ),
     );
   }
-}
-
-class _MessageRow extends StatelessWidget {
-  final String text;
-  const _MessageRow({required this.text});
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-    child: Text(
-      text,
-      style: TextStyle(color: context.tokens.textMuted, fontSize: 12),
-    ),
-  );
-}
-
-class _LoadingRow extends StatelessWidget {
-  const _LoadingRow();
-
-  @override
-  Widget build(BuildContext context) => const Padding(
-    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-    child: SizedBox(
-      width: 12,
-      height: 12,
-      child: CircularProgressIndicator(strokeWidth: 2),
-    ),
-  );
 }

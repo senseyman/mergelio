@@ -71,6 +71,13 @@ void main() {
     expect(kForgeRequestsPerOpen, 1 + 2 * kPullRequestLimit + 1);
   });
 
+  test('the quoted cost still assumes one page of issues', () {
+    // kForgeRequestsPerOpen counts the issue list as a single request. A
+    // limit above one page would quietly make that number, and the copy
+    // quoting it, wrong — with nothing else here to notice.
+    expect(kIssueLimit, lessThanOrEqualTo(100));
+  });
+
   test('the budget copy quotes the cost the code actually pays', () async {
     // A sentence that understates the cost is worse than no sentence: it
     // tells someone on the anonymous budget they can open twice as many

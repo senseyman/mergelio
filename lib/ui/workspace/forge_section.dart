@@ -71,10 +71,10 @@ class ForgePullRequestSection extends ConsumerWidget {
             : () => ref.read(forgeRefreshProvider).refreshNow(repoPath),
       ),
       children: [
-        if (!connected) _HintRow(text: l.forgeConnectHint),
+        if (!connected) ForgeMessageRow(text: l.forgeConnectHint),
         ...?panel?.when(
-          loading: () => const [_LoadingRow()],
-          error: (e, _) => [_MessageRow(text: forgePanelMessage(e, l))],
+          loading: () => const [ForgeLoadingRow()],
+          error: (e, _) => [ForgeMessageRow(text: forgePanelMessage(e, l))],
           data: (p) => p.pullRequests.isEmpty
               // Nothing to say here: an empty list with the section open and
               // connected is exactly the case [SidebarSection] itself already
@@ -171,40 +171,4 @@ class _Badge extends StatelessWidget {
       CheckBadge.mixed => Icon(Icons.circle, size: 8, color: t.textMuted),
     };
   }
-}
-
-class _HintRow extends StatelessWidget {
-  final String text;
-  const _HintRow({required this.text});
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-    child: Text(
-      text,
-      style: TextStyle(color: context.tokens.textMuted, fontSize: 12),
-    ),
-  );
-}
-
-class _MessageRow extends StatelessWidget {
-  final String text;
-  const _MessageRow({required this.text});
-
-  @override
-  Widget build(BuildContext context) => _HintRow(text: text);
-}
-
-class _LoadingRow extends StatelessWidget {
-  const _LoadingRow();
-
-  @override
-  Widget build(BuildContext context) => const Padding(
-    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-    child: SizedBox(
-      height: 12,
-      width: 12,
-      child: CircularProgressIndicator(strokeWidth: 2),
-    ),
-  );
 }

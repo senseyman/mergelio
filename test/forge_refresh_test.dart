@@ -437,6 +437,36 @@ void main() {
     expect(calls, 1);
   });
 
+  test('a git op does not refetch a section nobody is watching', () async {
+    var calls = 0;
+    final c = _container(
+      issues: (path) {
+        calls++;
+        return const <Issue>[];
+      },
+    );
+    addTearDown(c.dispose);
+    c.read(forgeRefreshProvider);
+    await _settle();
+    // The section was open once, so the panel holds a value...
+    await c.read(issuePanelProvider(_path).future);
+    expect(calls, 1);
+    // ...and is collapsed now, so nothing is listening to it.
+
+    c.read(forgeRefreshProvider).refreshAfterGitOp(_path);
+    await _settle();
+
+    expect(
+      calls,
+      1,
+      reason:
+          'invalidating leaves an unwatched panel dirty for whenever it is '
+          'next shown. Forcing the reload here instead — with refresh, say '
+          '— would make every fetch, pull and push pay for sections nobody '
+          'can see',
+    );
+  });
+
   group('refreshAfterGitOp spends only what a token affords', () {
     test('leaves pull requests alone without a token on file', () async {
       var calls = 0;

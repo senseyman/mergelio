@@ -25,6 +25,27 @@ GitHubForge forgeWith(MockClient client) => GitHubForge(
 );
 
 void main() {
+  test(
+    'a repository with its issue tracker switched off reads as empty',
+    () async {
+      // GitHub answers 410 Gone for /issues when a repository has issues
+      // disabled — a common setting on forks and mirrors. Nothing is broken,
+      // so surfacing it as a server fault would blame the forge for a
+      // deliberate choice; the honest reading is that there is no tracker and
+      // therefore nothing open.
+      final forge = forgeWith(MockClient((_) async => http.Response('', 410)));
+
+      expect(await forge.issues(), isEmpty);
+    },
+  );
+
+  test('a genuine server fault on issues still reaches the caller', () async {
+    // The 410 above must stay narrow: a real outage has to keep surfacing.
+    final forge = forgeWith(MockClient((_) async => http.Response('', 503)));
+
+    await expectLater(forge.issues(), throwsA(isA<ForgeServerFault>()));
+  });
+
   test('pullRequests calls the repository pulls endpoint', () async {
     late Uri called;
     final forge = forgeWith(

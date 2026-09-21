@@ -78,10 +78,13 @@ void main() {
       expect(issues.map((i) => i.number), [1, 2]);
     });
 
-    test('asks for the same budgeted row count pull requests use', () async {
+    test('asks for the issue section\'s own budgeted row count', () async {
       final forge = _FakeForge();
       await _containerFor(forge).read(issuePanelProvider('/repo').future);
-      expect(forge.sawLimit, kPullRequestLimit);
+      // Its own limit, not the pull request one: the two sections cost
+      // differently, so they are free to diverge. They happen to match today,
+      // which is exactly why naming the wrong one here would go unnoticed.
+      expect(forge.sawLimit, kIssueLimit);
     });
 
     test('a failed read reaches the caller, never an empty list', () async {
