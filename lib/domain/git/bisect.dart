@@ -115,3 +115,46 @@ String? firstBadFrom(List<BisectMark> marks, int revisionsLeft) {
   final bads = marks.where((m) => m.kind == BisectKind.bad).toList();
   return bads.isNotEmpty ? bads.first.sha : null;
 }
+
+/// A bisect as it currently stands, assembled from git's own state files.
+class BisectState {
+  final List<BisectMark> marks;
+
+  /// Branch the bisect started from, restored by a reset.
+  final String startBranch;
+  final BisectTerms terms;
+
+  /// The commit checked out for testing right now.
+  final String currentSha;
+
+  /// Candidates left and the steps they imply, or -1 before git has both ends
+  /// of the range and can count.
+  final int revisionsLeft;
+  final int steps;
+
+  final String? firstBad;
+
+  const BisectState({
+    required this.marks,
+    required this.startBranch,
+    required this.terms,
+    required this.currentSha,
+    required this.revisionsLeft,
+    required this.steps,
+    required this.firstBad,
+  });
+
+  /// A bad commit is known but no good one is, so git has nothing to halve and
+  /// no candidate to offer.
+  bool get awaitingGood =>
+      marks.any((m) => m.kind == BisectKind.bad) &&
+      !marks.any((m) => m.kind == BisectKind.good);
+
+  bool get finished => firstBad != null;
+
+  bool get running => !finished;
+
+  /// Verdict recorded for [sha], or null when it has none.
+  BisectKind? kindOf(String sha) =>
+      marks.where((m) => m.sha == sha).firstOrNull?.kind;
+}

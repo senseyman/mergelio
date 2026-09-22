@@ -94,4 +94,58 @@ void main() {
       expect(firstBadFrom(const [], 0), isNull);
     });
   });
+
+  group('BisectState', () {
+    BisectState state({
+      List<BisectMark> marks = const [],
+      int left = -1,
+      String? firstBad,
+    }) => BisectState(
+      marks: marks,
+      startBranch: 'main',
+      terms: const BisectTerms(),
+      currentSha: 'head1111',
+      revisionsLeft: left,
+      steps: -1,
+      firstBad: firstBad,
+    );
+
+    test('a bad mark with no good mark is awaiting a good commit', () {
+      final s = state(marks: const [BisectMark('aaa1111', BisectKind.bad)]);
+      expect(s.awaitingGood, isTrue);
+      expect(s.finished, isFalse);
+      expect(s.running, isTrue);
+    });
+
+    test('both endpoints present means it is no longer awaiting good', () {
+      final s = state(
+        marks: const [
+          BisectMark('aaa1111', BisectKind.bad),
+          BisectMark('bbb2222', BisectKind.good),
+        ],
+        left: 5,
+      );
+      expect(s.awaitingGood, isFalse);
+      expect(s.running, isTrue);
+    });
+
+    test('a first bad commit means finished, not running', () {
+      final s = state(left: 0, firstBad: 'aaa1111');
+      expect(s.finished, isTrue);
+      expect(s.running, isFalse);
+    });
+
+    test('finished follows firstBad, not the count', () {
+      // A found firstBad is finished even if the count was never (re)computed
+      // for this snapshot, and an awaiting-good state with an uncomputed
+      // count of -1 must never read as finished.
+      final found = state(left: -1, firstBad: 'aaa1111');
+      expect(found.finished, isTrue);
+
+      final awaiting = state(
+        marks: const [BisectMark('aaa1111', BisectKind.bad)],
+      );
+      expect(awaiting.finished, isFalse);
+    });
+  });
 }

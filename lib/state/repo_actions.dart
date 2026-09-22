@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/concurrency.dart';
 import '../core/logging.dart';
 import '../domain/file_edit.dart';
+import '../domain/git/bisect.dart';
 import '../domain/git/commit_message.dart';
 import '../domain/git/conflict.dart';
 import '../domain/git/git_providers.dart';
@@ -1947,6 +1948,52 @@ class RepoActions {
       );
     }
     return null;
+  }
+
+  /// The bisect this repository is in the middle of, or null when it is in
+  /// none. Read from git's own state rather than from anything the app
+  /// remembers, so a bisect started in a terminal — or one left running by an
+  /// earlier session — reads exactly the same.
+  ///
+  /// Nothing here parses command output. Git translates its progress messages,
+  /// so a regex over "revisions left" would find nothing under a non-English
+  /// locale; `for-each-ref` and `--bisect-vars` are stable in every locale.
+  Future<BisectState?> bisectState() async {
+    final startPath = await _stateFilePath('BISECT_START');
+    if (startPath == null || !File(startPath).existsSync()) return null;
+
+    final startBranch = File(startPath).readAsStringSync().trim();
+    final termsPath = await _stateFilePath('BISECT_TERMS');
+    final terms = parseBisectTerms(
+      termsPath != null && File(termsPath).existsSync()
+          ? File(termsPath).readAsStringSync()
+          : null,
+    );
+
+    final marks = parseBisectRefs(
+      await _out([
+        'for-each-ref',
+        '--format=%(objectname) %(refname)',
+        'refs/bisect',
+      ]),
+    );
+
+    // Only ask for counts once both ends of the range exist; with one end git
+    // would walk the whole history to answer.
+    final args = bisectVarsArgs(marks);
+    final vars = args.isEmpty
+        ? const BisectVars()
+        : parseBisectVars(await _out(['rev-list', '--bisect-vars', ...args]));
+
+    return BisectState(
+      marks: marks,
+      startBranch: startBranch,
+      terms: terms,
+      currentSha: await _headSha(),
+      revisionsLeft: vars.nr,
+      steps: vars.steps,
+      firstBad: firstBadFrom(marks, vars.nr),
+    );
   }
 
   /// The message git prepared for the merge in progress, for the commit
