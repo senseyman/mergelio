@@ -172,13 +172,62 @@ void main() {
       expect(summary.overall, isNot(ChecksOverall.success));
     });
 
-    test('a manual job with no result never reads as failure', () {
+    test('a manual job nobody triggered is not a result at all', () {
+      // GitLab does not count an untriggered manual job against the
+      // pipeline's own verdict, so a summary built from these rows must not
+      // carry one either — recording it as skipped drags an otherwise green
+      // pipeline off success.
       final summary = parseCommitStatuses(fixture('statuses.json'));
 
+      expect(summary.runs.map((r) => r.name), isNot(contains('deploy')));
+    });
+
+    test('a green pipeline with a manual job left over reads as success', () {
+      // The common shape of a manually-gated .gitlab-ci.yml: everything ran
+      // and passed, and one deploy job waits for a person to press it.
+      final summary = parseCommitStatuses([
+        {'id': 1, 'name': 'build', 'status': 'success'},
+        {'id': 2, 'name': 'test', 'status': 'success'},
+        {'id': 3, 'name': 'deploy', 'status': 'manual'},
+      ]);
+
+      expect(summary.overall, ChecksOverall.success);
+      expect(summary.runs.map((r) => r.name), ['build', 'test']);
+    });
+
+    test('a pipeline that is nothing but manual jobs reports no CI', () {
       expect(
-        summary.runs.firstWhere((r) => r.name == 'deploy').state,
-        CheckState.skipped,
+        parseCommitStatuses([
+          {'id': 1, 'name': 'deploy', 'status': 'manual'},
+        ]).overall,
+        ChecksOverall.none,
       );
+    });
+
+    test('a skipped job still counts, and still leaves the summary mixed', () {
+      // Skipped is a real outcome GitLab reached: the job was reached and
+      // deliberately not run. Only manual is dropped.
+      final summary = parseCommitStatuses([
+        {'id': 1, 'name': 'build', 'status': 'success'},
+        {'id': 2, 'name': 'test', 'status': 'skipped'},
+      ]);
+
+      expect(summary.runs.map((r) => r.name), ['build', 'test']);
+      expect(summary.overall, ChecksOverall.mixed);
+    });
+
+    test('a manual retry of a failed job drops the job, not just the '
+        'newest attempt', () {
+      // Newest attempt wins, as everywhere else here. A job whose latest
+      // entry is manual has no current result, so the older failure it
+      // replaced must not stand in for one.
+      final summary = parseCommitStatuses([
+        {'id': 1, 'name': 'deploy', 'status': 'failed'},
+        {'id': 2, 'name': 'deploy', 'status': 'manual'},
+      ]);
+
+      expect(summary.runs, isEmpty);
+      expect(summary.overall, ChecksOverall.none);
     });
 
     test('carries the description through as the details hint', () {
@@ -202,7 +251,8 @@ void main() {
       expect(stateOf('failed'), CheckState.failure);
       expect(stateOf('canceled'), CheckState.cancelled);
       expect(stateOf('skipped'), CheckState.skipped);
-      expect(stateOf('manual'), CheckState.skipped);
+      // 'manual' is deliberately absent here: it produces no run at all,
+      // which the tests above pin down.
       // A forge adding a status this version does not recognise must
       // never be reported as passing.
       expect(stateOf('martian'), CheckState.unknown);

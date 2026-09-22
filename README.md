@@ -193,13 +193,22 @@ change never needs a second window.*
 - A sidebar section for the repository's remote, once it resolves to a
   supported forge: **pull requests** on GitHub, **merge requests** on GitLab —
   each row shows its author, age, branch relationship and a CI/pipeline badge.
-  Absent entirely for a remote that is not on either forge.
+  Only the public clouds are recognised — `github.com` and `gitlab.com`. A
+  self-hosted GitLab or GitHub Enterprise remote is not supported, and the
+  section is absent entirely for it, as it is for any other remote.
 - An issues section alongside it, and a refresh control for both.
 - Every row opens the real pull/merge request or issue in your browser.
 - Connect a **personal access token** per forge from Preferences — GitHub and
-  GitLab each get their own account row, held in the OS keychain and never
-  logged. Without a token the section still works, just against the forge's
-  lower unauthenticated rate limit.
+  GitLab each get their own account row. Mergelio stores no token itself: it
+  hands the token to `git credential`, so where it ends up is whatever
+  `credential.helper` you have configured. That is the OS keychain on macOS,
+  and on Windows or Linux only if you set up a helper that uses one — the
+  common Linux choices are `store`, which writes plaintext to
+  `~/.git-credentials`, and `cache`, which keeps it in memory only. Either
+  way the token is never logged and never appears in an error message.
+  Without a token the section still works, just against the forge's lower
+  unauthenticated rate limit — on GitHub that is 60 requests an hour, and
+  opening one repository costs about 23 of them.
 - Read-only: nothing here creates, merges, comments, or opens anything on
   your behalf.
 

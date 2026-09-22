@@ -95,9 +95,10 @@ List<PullRequest> parseMergeRequests(Object? json) {
   return List.unmodifiable(out);
 }
 
-/// One job's state. An unrecognised value lands on [CheckState.unknown] so
-/// a status version this client has never seen is never reported passing.
-CheckState _statusState(Map<String, Object?> json) {
+/// One job's state, or null when the job carries no outcome to report. An
+/// unrecognised value lands on [CheckState.unknown] so a status version this
+/// client has never seen is never reported passing.
+CheckState? _statusState(Map<String, Object?> json) {
   // A job GitLab allowed to fail does not fail the pipeline, so reporting
   // failure here would claim a verdict GitLab itself never reached.
   // Unknown leaves it mixed, claiming nothing either way.
@@ -110,9 +111,15 @@ CheckState _statusState(Map<String, Object?> json) {
     'success' => CheckState.success,
     'failed' => CheckState.failure,
     'canceled' => CheckState.cancelled,
-    // A manual job nobody has triggered yet is an absent result, not a
-    // bad one.
-    'skipped' || 'manual' => CheckState.skipped,
+    // Skipped is an outcome GitLab actually reached: the job was considered
+    // and deliberately not run.
+    'skipped' => CheckState.skipped,
+    // A manual job waiting for someone to press it is not an outcome at
+    // all, and GitLab does not hold the pipeline's own verdict back for
+    // one. Carrying it as any state would leave a fully green,
+    // manually-gated pipeline reading as something other than green here,
+    // disagreeing with what GitLab itself shows.
+    'manual' => null,
     _ => CheckState.unknown,
   };
 }
@@ -125,9 +132,14 @@ CheckState _statusState(Map<String, Object?> json) {
 /// increase, and letting an old failure stand alongside the green retry
 /// that replaced it would report the commit red forever, since
 /// ChecksSummary ranks failure highest.
+///
+/// A job with no outcome of its own is still tracked by name here and
+/// dropped at the end, rather than skipped on the way in, so that the newest
+/// attempt keeps deciding: an older attempt it replaced must not stand in
+/// for a result that no longer exists.
 ChecksSummary parseCommitStatuses(Object? json) {
   if (json is! List) return const ChecksSummary(overall: ChecksOverall.none);
-  final newest = <String, ({int id, CheckRun run})>{};
+  final newest = <String, ({int id, CheckRun? run})>{};
   for (final entry in json) {
     final item = _obj(entry);
     final name = _str(item?['name']);
@@ -135,16 +147,21 @@ ChecksSummary parseCommitStatuses(Object? json) {
     final id = _int(item['id']) ?? 0;
     final existing = newest[name];
     if (existing != null && existing.id >= id) continue;
+    final state = _statusState(item);
     newest[name] = (
       id: id,
-      run: CheckRun(
-        name: name,
-        state: _statusState(item),
-        detailsHint: _str(item['description']) ?? '',
-      ),
+      run: state == null
+          ? null
+          : CheckRun(
+              name: name,
+              state: state,
+              detailsHint: _str(item['description']) ?? '',
+            ),
     );
   }
-  return ChecksSummary.from(List.unmodifiable(newest.values.map((e) => e.run)));
+  return ChecksSummary.from(
+    List.unmodifiable([for (final entry in newest.values) ?entry.run]),
+  );
 }
 
 /// Labels, since GitLab sends them as plain strings.

@@ -988,6 +988,102 @@ void main() {
       },
     );
 
+    testWidgets('each row explains its own forge budget', (tester) async {
+      // The two sentences are not interchangeable: GitHub's quotes the
+      // published 60/5,000 hourly figures and what one open costs against
+      // them, and GitLab publishes no such numbers. Showing either under
+      // the other heading tells the reader something untrue about the
+      // account they are about to connect.
+      for (final kind in ForgeKind.values) {
+        await _pump(
+          tester,
+          kind: kind,
+          overrides: [gitServiceProvider.overrideWithValue(_RecordingGit())],
+        );
+        await tester.pump();
+
+        final l = AppLocalizations.of(
+          tester.element(find.byType(ForgeAccountRow)),
+        );
+        final own = kind == ForgeKind.github
+            ? l.forgeRateBenefit
+            : l.forgeRateBenefitGitlab;
+        final other = kind == ForgeKind.github
+            ? l.forgeRateBenefitGitlab
+            : l.forgeRateBenefit;
+
+        expect(find.text(own), findsOneWidget, reason: '$kind');
+        expect(find.text(other), findsNothing, reason: '$kind');
+      }
+    });
+
+    testWidgets('the github row shows what is left of the hourly budget', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        overrides: [
+          gitServiceProvider.overrideWithValue(_RecordingGit()),
+          workspaceProvider.overrideWith((ref) {
+            final c = WorkspaceController();
+            c.openRepo('/repo');
+            return c;
+          }),
+          forgeRateLimitProvider.overrideWith(
+            (ref, path) async => const ForgeRateLimit(remaining: 12, limit: 60),
+          ),
+          settingsProvider.overrideWith(
+            (ref) => SettingsController(
+              InMemorySettingsRepository(),
+              const AppSettings(),
+            ),
+          ),
+        ],
+      );
+      await tester.pump();
+      await tester.pump();
+
+      final l = AppLocalizations.of(
+        tester.element(find.byType(ForgeAccountRow)),
+      );
+      expect(find.text(l.forgeRateRemaining(12, 60)), findsOneWidget);
+    });
+
+    testWidgets('the gitlab row never shows github figures', (tester) async {
+      // forgeRateLimitProvider answers for whichever repository is active,
+      // and only GitHub publishes a free budget endpoint. Watching it from
+      // the GitLab row would print a GitHub repository's remaining requests
+      // under a GitLab account's heading.
+      await _pump(
+        tester,
+        kind: ForgeKind.gitlab,
+        overrides: [
+          gitServiceProvider.overrideWithValue(_RecordingGit()),
+          workspaceProvider.overrideWith((ref) {
+            final c = WorkspaceController();
+            c.openRepo('/repo');
+            return c;
+          }),
+          forgeRateLimitProvider.overrideWith(
+            (ref, path) async => const ForgeRateLimit(remaining: 12, limit: 60),
+          ),
+          settingsProvider.overrideWith(
+            (ref) => SettingsController(
+              InMemorySettingsRepository(),
+              const AppSettings(),
+            ),
+          ),
+        ],
+      );
+      await tester.pump();
+      await tester.pump();
+
+      final l = AppLocalizations.of(
+        tester.element(find.byType(ForgeAccountRow)),
+      );
+      expect(find.text(l.forgeRateRemaining(12, 60)), findsNothing);
+    });
+
     testWidgets('the gitlab row validates against gitlab', (tester) async {
       late Uri called;
       final client = _TrackingClient(

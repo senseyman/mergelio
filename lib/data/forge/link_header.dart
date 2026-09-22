@@ -54,9 +54,18 @@ List<String> _splitSections(String header) {
 /// The URL of the next page named by [linkHeader], or null when the header is
 /// absent, names no next page, or names one that cannot be used.
 ///
+/// [requestedFrom] is the URL whose response carried [linkHeader]. A next page
+/// is only usable when it sits on that same host and port, because the caller
+/// will fetch it under the token it chose for that host. The parameter is
+/// required rather than optional so that a new pager cannot be written that
+/// quietly skips the check.
+///
 /// Anything unparseable is skipped rather than raised: a paging header is not
-/// worth failing a request that already returned its first page.
-Uri? nextPageUrl(String? linkHeader) {
+/// worth failing a request that already returned its first page. A header
+/// pointing somewhere else is treated the same way — it ends paging with the
+/// rows already in hand rather than raising, since a response naming another
+/// host is not something the person did.
+Uri? nextPageUrl(String? linkHeader, {required Uri requestedFrom}) {
   final header = linkHeader?.trim() ?? '';
   if (header.isEmpty) return null;
 
@@ -68,6 +77,16 @@ Uri? nextPageUrl(String? linkHeader) {
     // The server chooses this URL, so it gets the same transport rule every
     // other call gets: https or nothing.
     if (url == null || url.scheme != 'https' || !url.hasAuthority) return null;
+    // Whoever answered a request can also name where the next page lives, so
+    // an unchecked next link is a way to point the caller's credentials at
+    // any host at all — the same hazard a followed redirect would be. Host
+    // comparison is case-insensitive because host names are; the port is
+    // compared too, so a link cannot move the call to a different service on
+    // the same machine.
+    if (url.host.toLowerCase() != requestedFrom.host.toLowerCase() ||
+        url.port != requestedFrom.port) {
+      return null;
+    }
     return url;
   }
   return null;

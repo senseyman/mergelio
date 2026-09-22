@@ -75,7 +75,7 @@ class GitlabForge implements Forge {
         segments.any((s) => s.isEmpty || s == '.' || s == '..')) {
       // The detail is fixed text: it is echoed verbatim by toString(), so the
       // ref itself must not appear in it.
-      throw const ForgeMalformed('refusing unusable ref');
+      throw const ForgeMalformed('refusing an unusable ref');
     }
   }
 
@@ -85,7 +85,7 @@ class GitlabForge implements Forge {
     } on FormatException {
       // Fixed text: the detail is echoed verbatim, so no part of the body
       // may appear in it.
-      throw const ForgeMalformed('response was not json');
+      throw const ForgeMalformed('response was not valid json');
     }
   }
 
@@ -104,7 +104,7 @@ class GitlabForge implements Forge {
       if (response.notModified) {
         final cached = _cache.bodyFor(next);
         if (cached == null) {
-          throw const ForgeMalformed('cache miss on revalidated response');
+          throw const ForgeMalformed('cache miss on a revalidated response');
         }
         body = cached;
       } else {
@@ -114,7 +114,7 @@ class GitlabForge implements Forge {
       final decoded = _decode(body);
       if (decoded is List) items.addAll(decoded);
       if (usableCount(items) >= limit) break;
-      next = nextPageUrl(response.headers['link']);
+      next = nextPageUrl(response.headers['link'], requestedFrom: next);
     }
     return items;
   }
@@ -195,10 +195,16 @@ class GitlabForge implements Forge {
         usableCount: (items) => parseGitlabIssues(items).length,
       );
     } on ForgeNotVisible {
-      // A project can switch its issue tracker off, and GitLab answers 403 or
-      // 404 for the endpoint then — both reach here as ForgeNotVisible.
-      // Nothing is broken: there is no tracker, so nothing is open. Narrow on
-      // purpose, since every other failure still reaches the caller.
+      // A project can switch its issue tracker off, and GitLab answers 403
+      // or 404 for the endpoint then. It answers the same way for a project
+      // this token cannot see at all, and does so deliberately, so the two
+      // cannot be told apart here. Reading both as "nothing open" is a
+      // trade: a switched-off tracker is reported honestly, and a project
+      // the token has no access to shows an empty issues section instead of
+      // saying so. The merge-request section has no such ambiguity to
+      // absorb, so it still reports that same project as not visible — the
+      // two sections can disagree about one project, and that is this catch
+      // showing. Every other failure still reaches the caller.
       return const [];
     }
     return parseGitlabIssues(items).take(limit).toList(growable: false);

@@ -369,16 +369,43 @@ void main() {
       // headers would put mutable per-host state inside the transport.
       // Absent is the honest answer, and the row shows nothing rather than
       // a zero.
+      //
+      // The request count is what makes this bite. A null result alone
+      // proves nothing: without the guard the call goes out to
+      // api.github.com under a GitLab account's token and the failure is
+      // swallowed by the provider's own catch, which returns null too —
+      // and the suite would be making a live network call to say so.
+      var requests = 0;
       final c = ProviderContainer(
         overrides: [
           gitServiceProvider.overrideWithValue(_StubCredentialGitService()),
           originRemoteUrlProvider('/repo')
               .overrideWith((ref) async => 'https://gitlab.com/group/app.git'),
+          forgeHttpClientProvider.overrideWithValue(
+            MockClient((req) async {
+              requests++;
+              // A budget-shaped body, so a call that does go out reads as a
+              // success rather than failing its way back to null.
+              return http.Response(
+                jsonEncode({
+                  'resources': {
+                    'core': {'limit': 5000, 'remaining': 4999},
+                  },
+                }),
+                200,
+              );
+            }),
+          ),
         ],
       );
       addTearDown(c.dispose);
 
       expect(await c.read(forgeRateLimitProvider('/repo').future), isNull);
+      expect(
+        requests,
+        0,
+        reason: 'a gitlab repository must not ask github for a budget',
+      );
     });
 
     test('closes its http client once the single call is done', () async {

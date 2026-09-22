@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:mergelio/data/forge/forge_http.dart';
+import 'package:mergelio/data/forge/github_forge.dart';
 import 'package:mergelio/data/forge/gitlab_forge.dart';
 import 'package:mergelio/domain/forge/forge_error.dart';
 import 'package:mergelio/domain/forge/forge_host.dart';
@@ -141,10 +142,10 @@ void main() {
       called.path,
       '/api/v4/projects/group%2Fsub%2Fapp/repository/commits/abc123/statuses',
     );
-    expect(
-      summary.runs.map((r) => r.name),
-      containsAll(['build', 'lint', 'deploy']),
-    );
+    // 'deploy' is the fixture's untriggered manual job, which carries no
+    // result and so produces no run.
+    expect(summary.runs.map((r) => r.name), containsAll(['build', 'lint']));
+    expect(summary.runs.map((r) => r.name), isNot(contains('deploy')));
   });
 
   test('escapes a branch name used as a ref', () async {
@@ -236,5 +237,139 @@ void main() {
     );
 
     await expectLater(forge.pullRequests(), throwsA(isA<ForgeMalformed>()));
+  });
+
+  test('does not follow a next link that names another host', () async {
+    // The Link header is chosen by whatever answered the request. Following
+    // it to a host this call never resolved would send the user's GitLab
+    // token to that host; paging simply ends instead.
+    final hosts = <String>[];
+    final forge = forgeWith(
+      MockClient((req) async {
+        hosts.add(req.url.host);
+        return http.Response(
+          fixture('merge_requests.json'),
+          200,
+          headers: {
+            'link':
+                '<https://api.github.com/repos/o/r/pulls?page=2>; rel="next"',
+          },
+        );
+      }),
+    );
+
+    final prs = await forge.pullRequests(limit: 50);
+
+    expect(hosts, ['gitlab.com']);
+    // Ending paging is not an error: the rows already in hand are returned.
+    expect(prs.map((p) => p.number), [42, 43]);
+  });
+
+  test('stops paging at the cap rather than following forever', () async {
+    // A project with thousands of open requests must not spend a whole
+    // session's budget filling one sidebar section.
+    var calls = 0;
+    final forge = GitlabForge(
+      host: _host,
+      http: ForgeHttp(
+        kind: ForgeKind.gitlab,
+        client: MockClient((_) async {
+          calls++;
+          return http.Response(
+            '[]',
+            200,
+            headers: {
+              'link':
+                  '<https://gitlab.com/api/v4/projects/group%2Fsub%2Fapp'
+                  '/merge_requests?page=99>; rel="next"',
+            },
+          );
+        }),
+      ),
+      maxPages: 3,
+    );
+
+    await forge.pullRequests();
+
+    expect(calls, 3);
+  });
+
+  test('reuses one cache across calls, so a 304 is served locally', () async {
+    var bodies = 0;
+    final forge = forgeWith(
+      MockClient((req) async {
+        if (req.headers['if-none-match'] != null) {
+          return http.Response('', 304);
+        }
+        bodies++;
+        return http.Response(
+          fixture('issues.json'),
+          200,
+          headers: {'etag': 'W/"a"'},
+        );
+      }),
+    );
+
+    final first = await forge.issues();
+    final second = await forge.issues();
+
+    expect(bodies, 1, reason: 'the second call must revalidate, not refetch');
+    expect(second.map((i) => i.number), first.map((i) => i.number));
+    expect(second, isNotEmpty, reason: 'the cached body must be reused');
+  });
+
+  group('says the same thing as the GitHub forge for the same failure', () {
+    // Both forges raise ForgeMalformed for these three conditions. Two
+    // spellings of one condition read like two different conditions, and
+    // the detail is what toString() echoes, so it is the only thing a
+    // reader has to go on.
+    GitHubForge githubWith(MockClient client) => GitHubForge(
+      host: const ForgeHost(
+        kind: ForgeKind.github,
+        host: 'github.com',
+        owner: 'o',
+        repo: 'r',
+      ),
+      http: ForgeHttp(kind: ForgeKind.github, client: client),
+    );
+
+    Future<String> detailOf(Future<Object?> call) async {
+      try {
+        await call;
+      } on ForgeMalformed catch (e) {
+        return e.detail;
+      }
+      fail('expected a ForgeMalformed');
+    }
+
+    test('a body that is not json', () async {
+      MockClient client() =>
+          MockClient((_) async => http.Response('<html>', 200));
+
+      expect(
+        await detailOf(forgeWith(client()).pullRequests()),
+        await detailOf(githubWith(client()).pullRequests()),
+      );
+    });
+
+    test('a ref that cannot be put in a url', () async {
+      MockClient client() => MockClient((_) async => http.Response('[]', 200));
+
+      expect(
+        await detailOf(forgeWith(client()).checksForRef('..')),
+        await detailOf(githubWith(client()).checksForRef('..')),
+      );
+    });
+
+    test('a 304 with nothing cached to serve', () async {
+      // A validator is the only thing that can produce a 304, so an empty
+      // cache here means it went missing mid-flight.
+      MockClient client() => MockClient((_) async => http.Response('', 304));
+
+      expect(
+        await detailOf(forgeWith(client()).pullRequests()),
+        await detailOf(githubWith(client()).pullRequests()),
+      );
+    });
   });
 }
