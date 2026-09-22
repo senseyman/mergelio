@@ -11,6 +11,13 @@ import '../../state/feedback.dart';
 import '../../state/forge.dart';
 import '../../state/settings_controller.dart';
 import '../../state/workspace.dart';
+import '../workspace/forge_presentation.dart';
+
+/// The forge this row connects, named once so every message below agrees
+/// with the title above it. Hardcoded rather than derived from the active
+/// repository: the account it manages is github.com's, independent of
+/// whichever repository (or forge, or none) happens to be open.
+final _forgeName = forgeDisplayName(ForgeKind.github);
 
 /// Whether the forge accepts [token].
 ///
@@ -114,7 +121,7 @@ class _ForgeAccountRowState extends ConsumerState<ForgeAccountRow> {
       setState(() => _busy = false);
       ref
           .read(toastProvider.notifier)
-          .show(l.forgeTokenRejected, kind: ToastKind.error);
+          .show(l.forgeTokenRejected(_forgeName), kind: ToastKind.error);
       return;
     }
     final path = ref.read(workspaceProvider).activeTab?.path;
@@ -140,11 +147,11 @@ class _ForgeAccountRowState extends ConsumerState<ForgeAccountRow> {
     if (kept) {
       ref
           .read(toastProvider.notifier)
-          .show(l.forgeTokenSaved, kind: ToastKind.success);
+          .show(l.forgeTokenSaved(_forgeName), kind: ToastKind.success);
     } else {
       ref
           .read(toastProvider.notifier)
-          .show(l.forgeTokenNotKept, kind: ToastKind.error);
+          .show(l.forgeTokenNotKept(_forgeName), kind: ToastKind.error);
     }
   }
 
@@ -206,7 +213,7 @@ class _ForgeAccountRowState extends ConsumerState<ForgeAccountRow> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          l.forgeAccountTitle,
+          l.forgeAccountTitle(_forgeName),
           style: TextStyle(
             color: t.textPrimary,
             fontSize: 14,

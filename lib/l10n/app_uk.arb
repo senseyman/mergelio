@@ -553,36 +553,98 @@
   "forgeCouldNotOpenPr": "Не вдалося відкрити пулреквест у браузері",
   "forgeCouldNotOpenIssue": "Не вдалося відкрити тікет у браузері",
   "forgeConnectHint": "Без токена: без автооновлення, 60 запитів на годину. Підключіть у Налаштуваннях → Облікові дані.",
-  "forgeErrUnauthenticated": "GitHub відхилив збережений токен. Підключіться знову в Налаштуваннях.",
-  "forgeErrRateLimited": "Ліміт запитів GitHub вичерпано. Він оновиться о {time}.",
+  "forgeErrUnauthenticated": "{forge} відхилив збережений токен. Підключіться знову в Налаштуваннях.",
+  "@forgeErrUnauthenticated": {
+    "placeholders": {
+      "forge": {
+        "type": "String"
+      }
+    }
+  },
+  "forgeErrRateLimited": "Ліміт запитів {forge} вичерпано. Він оновиться о {time}.",
   "@forgeErrRateLimited": {
     "placeholders": {
+      "forge": {
+        "type": "String"
+      },
       "time": {
         "type": "String"
       }
     }
   },
-  "forgeErrRateLimitedSoon": "Ліміт запитів GitHub вичерпано. Спробуйте трохи пізніше.",
+  "forgeErrRateLimitedSoon": "Ліміт запитів {forge} вичерпано. Спробуйте трохи пізніше.",
+  "@forgeErrRateLimitedSoon": {
+    "placeholders": {
+      "forge": {
+        "type": "String"
+      }
+    }
+  },
   "forgeErrNotVisible": "Цей репозиторій недоступний для поточного токена.",
-  "forgeErrOffline": "Не вдалося зʼєднатися з GitHub.",
-  "forgeErrServer": "GitHub відповів помилкою ({status}).",
+  "forgeErrOffline": "Не вдалося зʼєднатися з {forge}.",
+  "@forgeErrOffline": {
+    "placeholders": {
+      "forge": {
+        "type": "String"
+      }
+    }
+  },
+  "forgeErrServer": "{forge} відповів помилкою ({status}).",
   "@forgeErrServer": {
     "placeholders": {
+      "forge": {
+        "type": "String"
+      },
       "status": {
         "type": "int"
       }
     }
   },
-  "forgeErrMalformed": "GitHub надіслав відповідь, яку ця версія не змогла прочитати.",
-  "forgeAccountTitle": "Обліковий запис GitHub",
+  "forgeErrMalformed": "{forge} надіслав відповідь, яку ця версія не змогла прочитати.",
+  "@forgeErrMalformed": {
+    "placeholders": {
+      "forge": {
+        "type": "String"
+      }
+    }
+  },
+  "forgeAccountTitle": "Обліковий запис {forge}",
+  "@forgeAccountTitle": {
+    "placeholders": {
+      "forge": {
+        "type": "String"
+      }
+    }
+  },
   "forgeAccountConnected": "Підключено",
   "forgeAccountNotConnected": "Не підключено",
   "forgeTokenLabel": "Персональний токен доступу",
   "forgeConnect": "Підключити",
   "forgeDisconnect": "Відключити",
-  "forgeTokenRejected": "GitHub відхилив цей токен.",
-  "forgeTokenSaved": "Підключено до GitHub.",
-  "forgeTokenNotKept": "GitHub прийняв токен, але жодне сховище в цій системі його не зберегло. Налаштуйте credential helper для git і спробуйте ще раз.",
+  "forgeTokenRejected": "{forge} відхилив цей токен.",
+  "@forgeTokenRejected": {
+    "placeholders": {
+      "forge": {
+        "type": "String"
+      }
+    }
+  },
+  "forgeTokenSaved": "Підключено до {forge}.",
+  "@forgeTokenSaved": {
+    "placeholders": {
+      "forge": {
+        "type": "String"
+      }
+    }
+  },
+  "forgeTokenNotKept": "{forge} прийняв токен, але жодне сховище в цій системі його не зберегло. Налаштуйте credential helper для git і спробуйте ще раз.",
+  "@forgeTokenNotKept": {
+    "placeholders": {
+      "forge": {
+        "type": "String"
+      }
+    }
+  },
   "forgeTokenForgotten": "Токен видалено.",
   "forgeTokenNotForgotten": "Не вдалося видалити токен. Він може залишатися у сховищі облікових даних git.",
   "forgeRateBenefit": "Без токена GitHub дозволяє 60 запитів на годину; з токеном — 5000. Відкриття репозиторію коштує близько 23: по одному запиту на кожен список, два на перевірки кожного пулреквеста і один на сам репозиторій.",

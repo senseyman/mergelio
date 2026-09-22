@@ -74,7 +74,9 @@ class ForgePullRequestSection extends ConsumerWidget {
         if (!connected) ForgeMessageRow(text: l.forgeConnectHint),
         ...?panel?.when(
           loading: () => const [ForgeLoadingRow()],
-          error: (e, _) => [ForgeMessageRow(text: forgePanelMessage(e, l))],
+          error: (e, _) => [
+            ForgeMessageRow(text: forgePanelMessage(e, l, host.kind)),
+          ],
           data: (p) => p.pullRequests.isEmpty
               // Nothing to say here: an empty list with the section open and
               // connected is exactly the case [SidebarSection] itself already

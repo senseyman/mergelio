@@ -1678,36 +1678,43 @@ class AppLocalizationsEn extends AppLocalizations {
       'Without a token: no auto-refresh, 60 requests an hour. Connect in Preferences → Credentials.';
 
   @override
-  String get forgeErrUnauthenticated =>
-      'GitHub rejected the saved token. Reconnect in Preferences.';
-
-  @override
-  String forgeErrRateLimited(String time) {
-    return 'GitHub request limit reached. It resets at $time.';
+  String forgeErrUnauthenticated(String forge) {
+    return '$forge rejected the saved token. Reconnect in Preferences.';
   }
 
   @override
-  String get forgeErrRateLimitedSoon =>
-      'GitHub request limit reached. Try again shortly.';
+  String forgeErrRateLimited(String forge, String time) {
+    return '$forge request limit reached. It resets at $time.';
+  }
+
+  @override
+  String forgeErrRateLimitedSoon(String forge) {
+    return '$forge request limit reached. Try again shortly.';
+  }
 
   @override
   String get forgeErrNotVisible =>
       'This repository is not visible to the current token.';
 
   @override
-  String get forgeErrOffline => 'Could not reach GitHub.';
-
-  @override
-  String forgeErrServer(int status) {
-    return 'GitHub answered with an error ($status).';
+  String forgeErrOffline(String forge) {
+    return 'Could not reach $forge.';
   }
 
   @override
-  String get forgeErrMalformed =>
-      'GitHub sent a response this version could not read.';
+  String forgeErrServer(String forge, int status) {
+    return '$forge answered with an error ($status).';
+  }
 
   @override
-  String get forgeAccountTitle => 'GitHub account';
+  String forgeErrMalformed(String forge) {
+    return '$forge sent a response this version could not read.';
+  }
+
+  @override
+  String forgeAccountTitle(String forge) {
+    return '$forge account';
+  }
 
   @override
   String get forgeAccountConnected => 'Connected';
@@ -1725,14 +1732,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get forgeDisconnect => 'Disconnect';
 
   @override
-  String get forgeTokenRejected => 'GitHub rejected that token.';
+  String forgeTokenRejected(String forge) {
+    return '$forge rejected that token.';
+  }
 
   @override
-  String get forgeTokenSaved => 'Connected to GitHub.';
+  String forgeTokenSaved(String forge) {
+    return 'Connected to $forge.';
+  }
 
   @override
-  String get forgeTokenNotKept =>
-      'GitHub accepted the token, but nothing on this system kept it. Set up a git credential helper and try again.';
+  String forgeTokenNotKept(String forge) {
+    return '$forge accepted the token, but nothing on this system kept it. Set up a git credential helper and try again.';
+  }
 
   @override
   String get forgeTokenForgotten => 'Token removed.';

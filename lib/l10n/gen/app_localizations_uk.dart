@@ -1686,36 +1686,43 @@ class AppLocalizationsUk extends AppLocalizations {
       'Без токена: без автооновлення, 60 запитів на годину. Підключіть у Налаштуваннях → Облікові дані.';
 
   @override
-  String get forgeErrUnauthenticated =>
-      'GitHub відхилив збережений токен. Підключіться знову в Налаштуваннях.';
-
-  @override
-  String forgeErrRateLimited(String time) {
-    return 'Ліміт запитів GitHub вичерпано. Він оновиться о $time.';
+  String forgeErrUnauthenticated(String forge) {
+    return '$forge відхилив збережений токен. Підключіться знову в Налаштуваннях.';
   }
 
   @override
-  String get forgeErrRateLimitedSoon =>
-      'Ліміт запитів GitHub вичерпано. Спробуйте трохи пізніше.';
+  String forgeErrRateLimited(String forge, String time) {
+    return 'Ліміт запитів $forge вичерпано. Він оновиться о $time.';
+  }
+
+  @override
+  String forgeErrRateLimitedSoon(String forge) {
+    return 'Ліміт запитів $forge вичерпано. Спробуйте трохи пізніше.';
+  }
 
   @override
   String get forgeErrNotVisible =>
       'Цей репозиторій недоступний для поточного токена.';
 
   @override
-  String get forgeErrOffline => 'Не вдалося зʼєднатися з GitHub.';
-
-  @override
-  String forgeErrServer(int status) {
-    return 'GitHub відповів помилкою ($status).';
+  String forgeErrOffline(String forge) {
+    return 'Не вдалося зʼєднатися з $forge.';
   }
 
   @override
-  String get forgeErrMalformed =>
-      'GitHub надіслав відповідь, яку ця версія не змогла прочитати.';
+  String forgeErrServer(String forge, int status) {
+    return '$forge відповів помилкою ($status).';
+  }
 
   @override
-  String get forgeAccountTitle => 'Обліковий запис GitHub';
+  String forgeErrMalformed(String forge) {
+    return '$forge надіслав відповідь, яку ця версія не змогла прочитати.';
+  }
+
+  @override
+  String forgeAccountTitle(String forge) {
+    return 'Обліковий запис $forge';
+  }
 
   @override
   String get forgeAccountConnected => 'Підключено';
@@ -1733,14 +1740,19 @@ class AppLocalizationsUk extends AppLocalizations {
   String get forgeDisconnect => 'Відключити';
 
   @override
-  String get forgeTokenRejected => 'GitHub відхилив цей токен.';
+  String forgeTokenRejected(String forge) {
+    return '$forge відхилив цей токен.';
+  }
 
   @override
-  String get forgeTokenSaved => 'Підключено до GitHub.';
+  String forgeTokenSaved(String forge) {
+    return 'Підключено до $forge.';
+  }
 
   @override
-  String get forgeTokenNotKept =>
-      'GitHub прийняв токен, але жодне сховище в цій системі його не зберегло. Налаштуйте credential helper для git і спробуйте ще раз.';
+  String forgeTokenNotKept(String forge) {
+    return '$forge прийняв токен, але жодне сховище в цій системі його не зберегло. Налаштуйте credential helper для git і спробуйте ще раз.';
+  }
 
   @override
   String get forgeTokenForgotten => 'Токен видалено.';

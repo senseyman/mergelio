@@ -3011,20 +3011,20 @@ abstract class AppLocalizations {
   /// No description provided for @forgeErrUnauthenticated.
   ///
   /// In en, this message translates to:
-  /// **'GitHub rejected the saved token. Reconnect in Preferences.'**
-  String get forgeErrUnauthenticated;
+  /// **'{forge} rejected the saved token. Reconnect in Preferences.'**
+  String forgeErrUnauthenticated(String forge);
 
   /// No description provided for @forgeErrRateLimited.
   ///
   /// In en, this message translates to:
-  /// **'GitHub request limit reached. It resets at {time}.'**
-  String forgeErrRateLimited(String time);
+  /// **'{forge} request limit reached. It resets at {time}.'**
+  String forgeErrRateLimited(String forge, String time);
 
   /// No description provided for @forgeErrRateLimitedSoon.
   ///
   /// In en, this message translates to:
-  /// **'GitHub request limit reached. Try again shortly.'**
-  String get forgeErrRateLimitedSoon;
+  /// **'{forge} request limit reached. Try again shortly.'**
+  String forgeErrRateLimitedSoon(String forge);
 
   /// No description provided for @forgeErrNotVisible.
   ///
@@ -3035,26 +3035,26 @@ abstract class AppLocalizations {
   /// No description provided for @forgeErrOffline.
   ///
   /// In en, this message translates to:
-  /// **'Could not reach GitHub.'**
-  String get forgeErrOffline;
+  /// **'Could not reach {forge}.'**
+  String forgeErrOffline(String forge);
 
   /// No description provided for @forgeErrServer.
   ///
   /// In en, this message translates to:
-  /// **'GitHub answered with an error ({status}).'**
-  String forgeErrServer(int status);
+  /// **'{forge} answered with an error ({status}).'**
+  String forgeErrServer(String forge, int status);
 
   /// No description provided for @forgeErrMalformed.
   ///
   /// In en, this message translates to:
-  /// **'GitHub sent a response this version could not read.'**
-  String get forgeErrMalformed;
+  /// **'{forge} sent a response this version could not read.'**
+  String forgeErrMalformed(String forge);
 
   /// No description provided for @forgeAccountTitle.
   ///
   /// In en, this message translates to:
-  /// **'GitHub account'**
-  String get forgeAccountTitle;
+  /// **'{forge} account'**
+  String forgeAccountTitle(String forge);
 
   /// No description provided for @forgeAccountConnected.
   ///
@@ -3089,20 +3089,20 @@ abstract class AppLocalizations {
   /// No description provided for @forgeTokenRejected.
   ///
   /// In en, this message translates to:
-  /// **'GitHub rejected that token.'**
-  String get forgeTokenRejected;
+  /// **'{forge} rejected that token.'**
+  String forgeTokenRejected(String forge);
 
   /// No description provided for @forgeTokenSaved.
   ///
   /// In en, this message translates to:
-  /// **'Connected to GitHub.'**
-  String get forgeTokenSaved;
+  /// **'Connected to {forge}.'**
+  String forgeTokenSaved(String forge);
 
   /// No description provided for @forgeTokenNotKept.
   ///
   /// In en, this message translates to:
-  /// **'GitHub accepted the token, but nothing on this system kept it. Set up a git credential helper and try again.'**
-  String get forgeTokenNotKept;
+  /// **'{forge} accepted the token, but nothing on this system kept it. Set up a git credential helper and try again.'**
+  String forgeTokenNotKept(String forge);
 
   /// No description provided for @forgeTokenForgotten.
   ///

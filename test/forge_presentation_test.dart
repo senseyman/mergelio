@@ -46,32 +46,38 @@ void main() {
 
     test('names each failure the user can act on', () {
       expect(
-        forgePanelMessage(const ForgeUnauthenticated(), l),
+        forgePanelMessage(const ForgeUnauthenticated(), l, ForgeKind.github),
         contains('token'),
       );
       expect(
-        forgePanelMessage(const ForgeNotVisible(), l),
+        forgePanelMessage(const ForgeNotVisible(), l, ForgeKind.github),
         contains('visible'),
       );
-      expect(forgePanelMessage(const ForgeOffline('x'), l), contains('reach'));
       expect(
-        forgePanelMessage(const ForgeServerFault(503), l),
+        forgePanelMessage(const ForgeOffline('x'), l, ForgeKind.github),
+        contains('reach'),
+      );
+      expect(
+        forgePanelMessage(const ForgeServerFault(503), l, ForgeKind.github),
         contains('503'),
       );
       expect(
-        forgePanelMessage(const ForgeMalformed('x'), l),
+        forgePanelMessage(const ForgeMalformed('x'), l, ForgeKind.github),
         contains('could not read'),
       );
     });
 
     test('a rate limit with a known reset says when', () {
       final at = DateTime.utc(2026, 9, 17, 14, 30);
-      expect(forgePanelMessage(ForgeRateLimited(at), l), contains('resets at'));
+      expect(
+        forgePanelMessage(ForgeRateLimited(at), l, ForgeKind.github),
+        contains('resets at'),
+      );
     });
 
     test('a rate limit with no reset still reads as a limit', () {
       expect(
-        forgePanelMessage(const ForgeRateLimited(null), l),
+        forgePanelMessage(const ForgeRateLimited(null), l, ForgeKind.github),
         contains('limit reached'),
       );
     });
@@ -79,13 +85,34 @@ void main() {
     test('never leaks a detail string that could carry a secret', () {
       // ForgeOffline and ForgeMalformed carry a detail field. The panel must
       // show its own words, not echo whatever was put in there.
-      final msg = forgePanelMessage(const ForgeOffline('token=abc123'), l);
+      final msg = forgePanelMessage(
+        const ForgeOffline('token=abc123'),
+        l,
+        ForgeKind.github,
+      );
       expect(msg, isNot(contains('abc123')));
     });
 
     test('an unexpected error still produces something showable', () {
-      expect(forgePanelMessage(StateError('boom'), l), isNotEmpty);
-      expect(forgePanelMessage(StateError('boom'), l), isNot(contains('boom')));
+      expect(
+        forgePanelMessage(StateError('boom'), l, ForgeKind.github),
+        isNotEmpty,
+      );
+      expect(
+        forgePanelMessage(StateError('boom'), l, ForgeKind.github),
+        isNot(contains('boom')),
+      );
+    });
+
+    test('error messages name the forge that answered', () async {
+      expect(
+        forgePanelMessage(const ForgeUnauthenticated(), l, ForgeKind.gitlab),
+        contains('GitLab'),
+      );
+      expect(
+        forgePanelMessage(const ForgeUnauthenticated(), l, ForgeKind.github),
+        contains('GitHub'),
+      );
     });
   });
 
@@ -95,6 +122,12 @@ void main() {
       host: 'github.com',
       owner: 'senseyman',
       repo: 'mergelio',
+    );
+    const gitlab = ForgeHost(
+      kind: ForgeKind.gitlab,
+      host: 'gitlab.com',
+      owner: 'group/sub',
+      repo: 'app',
     );
 
     test('addresses the issue on the web UI', () {
@@ -112,6 +145,17 @@ void main() {
 
     test('is always https, whatever the remote used', () {
       expect(issueWebUrl(host, 1).scheme, 'https');
+    });
+
+    test('a gitlab issue opens at its own path', () {
+      expect(
+        issueWebUrl(gitlab, 7).toString(),
+        'https://gitlab.com/group/sub/app/-/issues/7',
+      );
+    });
+
+    test('a gitlab issue never lands on the merge request path', () {
+      expect(issueWebUrl(gitlab, 7).path, isNot(contains('merge_requests')));
     });
   });
 
@@ -163,6 +207,19 @@ void main() {
       final url = pullRequestWebUrl(odd, 7);
       expect(url.host, 'github.com');
       expect(url.toString(), startsWith('https://github.com/'));
+    });
+
+    test('a gitlab merge request opens at its own path', () {
+      const gitlab = ForgeHost(
+        kind: ForgeKind.gitlab,
+        host: 'gitlab.com',
+        owner: 'group/sub',
+        repo: 'app',
+      );
+      expect(
+        pullRequestWebUrl(gitlab, 42).toString(),
+        'https://gitlab.com/group/sub/app/-/merge_requests/42',
+      );
     });
   });
 }
