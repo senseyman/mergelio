@@ -29,6 +29,13 @@ const forgeTokenUsername = 'x-access-token';
 /// exactly how a write and a read once drifted onto different accounts.
 const kGithubHost = 'github.com';
 
+/// The gitlab.com host a token is stored under.
+///
+/// Defined once for the same reason [kGithubHost] is: a write and a read
+/// that spell the host differently store and look for different
+/// credentials.
+const kGitlabHost = 'gitlab.com';
+
 /// Characters that cannot appear in a host name given to `git credential`.
 /// The protocol is newline-delimited key=value lines terminated by a blank
 /// one, so a host carrying a newline would add fields of its own choosing.

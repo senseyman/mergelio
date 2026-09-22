@@ -196,7 +196,12 @@ class _ForgeAccountRowState extends ConsumerState<ForgeAccountRow> {
     // once a token is on file to spend: with none, nothing on a timer is
     // ever eligible to tick.
     final connected =
-        ref.watch(forgeAccountTokenProvider(activePath)).valueOrNull != null;
+        ref
+            .watch(
+              forgeAccountTokenProvider((host: kGithubHost, path: activePath)),
+            )
+            .valueOrNull !=
+        null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

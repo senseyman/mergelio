@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:mergelio/data/forge/forge_credentials.dart';
 import 'package:mergelio/data/forge/github_forge.dart';
+import 'package:mergelio/data/forge/gitlab_forge.dart';
 import 'package:mergelio/domain/forge/forge_host.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
@@ -60,6 +61,34 @@ class _StubCredentialGitService implements GitService {
   }
 }
 
+/// A [GitService] that records the body of every `git credential` command it
+/// is given, so a test can assert which host a lookup actually named.
+class _RecordingCredentialGitService implements GitService {
+  final requests = <String>[];
+
+  @override
+  Future<String> version() async => 'git version 0.0.0';
+
+  @override
+  Future<bool> isRepository(String path) async => true;
+
+  @override
+  Future<GitResult> run(
+    List<String> args, {
+    String? repoPath,
+    Duration? timeout,
+    Map<String, String>? environment,
+    GitCancel? cancel,
+    String? stdin,
+  }) async {
+    if (args.length >= 2 && args[0] == 'credential') {
+      requests.add(stdin ?? '');
+      return const GitResult(0, 'password=stub-token\n\n', '');
+    }
+    return const GitResult(1, '', 'unsupported in this stub');
+  }
+}
+
 void main() {
   group('originRemoteUrlProvider', () {
     test('a repository that cannot answer resolves to empty', () async {
@@ -89,6 +118,29 @@ void main() {
       final token = await c.read(forgeTokenProvider('/repo').future);
 
       expect(token?.value, 'stub-token');
+    });
+  });
+
+  group('forgeAccountTokenProvider', () {
+    test('an account row reads the token for its own host', () async {
+      final git = _RecordingCredentialGitService();
+      final c = ProviderContainer(
+        overrides: [
+          gitServiceProvider.overrideWithValue(git),
+          originRemoteUrlProvider('/repo')
+              .overrideWith((ref) async => 'https://github.com/o/r.git'),
+        ],
+      );
+      addTearDown(c.dispose);
+
+      await c.read(
+        forgeAccountTokenProvider((host: kGitlabHost, path: '/repo')).future,
+      );
+
+      // The lookup must name gitlab.com even while a GitHub repository is
+      // open: a token is a fact about a host, not about the active tab.
+      expect(git.requests.single, contains('host=gitlab.com'));
+      expect(git.requests.single, contains('username=x-access-token'));
     });
   });
 
@@ -136,7 +188,7 @@ void main() {
     });
   });
 
-  group('githubForgeProvider', () {
+  group('forgeProvider', () {
     test('builds a forge for a github repository', () async {
       final c = ProviderContainer(
         overrides: [
@@ -148,7 +200,7 @@ void main() {
       );
       addTearDown(c.dispose);
 
-      final forge = await c.read(githubForgeProvider('/repo').future);
+      final forge = await c.read(forgeProvider('/repo').future);
 
       expect(forge, isA<GitHubForge>());
       expect(forge!.host.owner, 'o');
@@ -163,7 +215,7 @@ void main() {
       );
       addTearDown(c.dispose);
 
-      expect(await c.read(githubForgeProvider('/repo').future), isNull);
+      expect(await c.read(forgeProvider('/repo').future), isNull);
     });
 
     test('one etag cache is shared for the whole session', () {
@@ -196,7 +248,7 @@ void main() {
       );
       addTearDown(c.dispose);
 
-      final forge = await c.read(githubForgeProvider('/repo').future);
+      final forge = await c.read(forgeProvider('/repo').future);
       await forge!.pullRequests();
 
       expect(sentAuth, 'Bearer secret-token');
@@ -222,10 +274,40 @@ void main() {
       );
       addTearDown(c.dispose);
 
-      final forge = await c.read(githubForgeProvider('/repo').future);
+      final forge = await c.read(forgeProvider('/repo').future);
       await forge!.pullRequests();
 
       expect(sentAuth, isNull);
+    });
+
+    test('a gitlab remote builds a gitlab forge', () async {
+      final c = ProviderContainer(
+        overrides: [
+          gitServiceProvider.overrideWithValue(_StubCredentialGitService()),
+          originRemoteUrlProvider('/repo')
+              .overrideWith((ref) async => 'git@gitlab.com:group/sub/app.git'),
+        ],
+      );
+      addTearDown(c.dispose);
+
+      final forge = await c.read(forgeProvider('/repo').future);
+
+      expect(forge, isA<GitlabForge>());
+      expect(forge!.host.kind, ForgeKind.gitlab);
+      expect(forge.host.projectPath, 'group/sub/app');
+    });
+
+    test('a github remote still builds a github forge', () async {
+      final c = ProviderContainer(
+        overrides: [
+          gitServiceProvider.overrideWithValue(_StubCredentialGitService()),
+          originRemoteUrlProvider('/repo')
+              .overrideWith((ref) async => 'https://github.com/o/r.git'),
+        ],
+      );
+      addTearDown(c.dispose);
+
+      expect(await c.read(forgeProvider('/repo').future), isA<GitHubForge>());
     });
   });
 
@@ -282,6 +364,23 @@ void main() {
       },
     );
 
+    test('a gitlab repository reports no request budget', () async {
+      // GitLab has no free budget endpoint, and guessing one from response
+      // headers would put mutable per-host state inside the transport.
+      // Absent is the honest answer, and the row shows nothing rather than
+      // a zero.
+      final c = ProviderContainer(
+        overrides: [
+          gitServiceProvider.overrideWithValue(_StubCredentialGitService()),
+          originRemoteUrlProvider('/repo')
+              .overrideWith((ref) async => 'https://gitlab.com/group/app.git'),
+        ],
+      );
+      addTearDown(c.dispose);
+
+      expect(await c.read(forgeRateLimitProvider('/repo').future), isNull);
+    });
+
     test('closes its http client once the single call is done', () async {
       final client = _TrackingClient(
         MockClient((req) async => http.Response('not json', 500)),
@@ -298,7 +397,7 @@ void main() {
       addTearDown(c.dispose);
 
       // Deliberately not awaiting container disposal here: unlike
-      // [githubForgeProvider], nothing keeps this client alive between
+      // [forgeProvider], nothing keeps this client alive between
       // requests, so it must already be closed once the one call this
       // provider ever makes has returned — even though the response itself
       // could not be read as a rate limit.
@@ -309,7 +408,7 @@ void main() {
   });
 
   group('client lifetime', () {
-    test('githubForgeProvider closes its http client once nothing watches it '
+    test('forgeProvider closes its http client once nothing watches it '
         'any more', () async {
       final client = _TrackingClient(
         MockClient((req) async => http.Response('[]', 200)),
@@ -325,7 +424,7 @@ void main() {
       );
       addTearDown(c.dispose);
 
-      final forge = await c.read(githubForgeProvider('/repo').future);
+      final forge = await c.read(forgeProvider('/repo').future);
       await forge!.pullRequests();
       expect(
         client.closed,
