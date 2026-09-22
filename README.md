@@ -188,6 +188,21 @@ change never needs a second window.*
 - Remotes: add, edit name and URL, remove, prune — validated before they reach
   git, and undoable.
 
+### GitHub & GitLab
+
+- A sidebar section for the repository's remote, once it resolves to a
+  supported forge: **pull requests** on GitHub, **merge requests** on GitLab —
+  each row shows its author, age, branch relationship and a CI/pipeline badge.
+  Absent entirely for a remote that is not on either forge.
+- An issues section alongside it, and a refresh control for both.
+- Every row opens the real pull/merge request or issue in your browser.
+- Connect a **personal access token** per forge from Preferences — GitHub and
+  GitLab each get their own account row, held in the OS keychain and never
+  logged. Without a token the section still works, just against the forge's
+  lower unauthenticated rate limit.
+- Read-only: nothing here creates, merges, comments, or opens anything on
+  your behalf.
+
 ### Merge tool
 
 - Three-zone conflict resolution (ours / result / theirs) with word-level diff
