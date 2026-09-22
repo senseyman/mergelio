@@ -46,7 +46,7 @@ String forgePanelMessage(Object error, AppLocalizations l, ForgeKind kind) {
     final mm = local.minute.toString().padLeft(2, '0');
     return l.forgeErrRateLimited(forge, '$hh:$mm');
   }
-  if (error is ForgeNotVisible) return l.forgeErrNotVisible;
+  if (error is ForgeNotVisible) return l.forgeErrNotVisible(forge);
   if (error is ForgeOffline) return l.forgeErrOffline(forge);
   if (error is ForgeServerFault) return l.forgeErrServer(forge, error.status);
   return l.forgeErrMalformed(forge);

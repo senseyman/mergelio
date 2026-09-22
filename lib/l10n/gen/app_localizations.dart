@@ -3053,8 +3053,8 @@ abstract class AppLocalizations {
   /// No description provided for @forgeErrNotVisible.
   ///
   /// In en, this message translates to:
-  /// **'This repository is not visible to the current token.'**
-  String get forgeErrNotVisible;
+  /// **'This repository is not visible to the current {forge} token.'**
+  String forgeErrNotVisible(String forge);
 
   /// No description provided for @forgeErrOffline.
   ///
@@ -3131,14 +3131,14 @@ abstract class AppLocalizations {
   /// No description provided for @forgeTokenForgotten.
   ///
   /// In en, this message translates to:
-  /// **'Token removed.'**
-  String get forgeTokenForgotten;
+  /// **'{forge} token removed.'**
+  String forgeTokenForgotten(String forge);
 
   /// No description provided for @forgeTokenNotForgotten.
   ///
   /// In en, this message translates to:
-  /// **'Could not remove the token. It may still be stored by git\'s credential helper.'**
-  String get forgeTokenNotForgotten;
+  /// **'Could not remove the {forge} token. It may still be stored by git\'s credential helper.'**
+  String forgeTokenNotForgotten(String forge);
 
   /// No description provided for @forgeRateBenefit.
   ///
@@ -3161,7 +3161,7 @@ abstract class AppLocalizations {
   /// No description provided for @forgeRefreshInterval.
   ///
   /// In en, this message translates to:
-  /// **'Pull request refresh interval'**
+  /// **'Pull and merge request refresh interval'**
   String get forgeRefreshInterval;
 
   /// No description provided for @lhTitleLine.

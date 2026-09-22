@@ -1131,7 +1131,14 @@
       }
     }
   },
-  "forgeErrNotVisible": "This repository is not visible to the current token.",
+  "forgeErrNotVisible": "This repository is not visible to the current {forge} token.",
+  "@forgeErrNotVisible": {
+    "placeholders": {
+      "forge": {
+        "type": "String"
+      }
+    }
+  },
   "forgeErrOffline": "Could not reach {forge}.",
   "@forgeErrOffline": {
     "placeholders": {
@@ -1196,8 +1203,22 @@
       }
     }
   },
-  "forgeTokenForgotten": "Token removed.",
-  "forgeTokenNotForgotten": "Could not remove the token. It may still be stored by git's credential helper.",
+  "forgeTokenForgotten": "{forge} token removed.",
+  "@forgeTokenForgotten": {
+    "placeholders": {
+      "forge": {
+        "type": "String"
+      }
+    }
+  },
+  "forgeTokenNotForgotten": "Could not remove the {forge} token. It may still be stored by git's credential helper.",
+  "@forgeTokenNotForgotten": {
+    "placeholders": {
+      "forge": {
+        "type": "String"
+      }
+    }
+  },
   "forgeRateBenefit": "Without a token GitHub allows 60 requests an hour; with one, 5,000. Opening a repository costs about 23: one request for each list, two for every pull request's checks, and one for the repository itself.",
   "forgeRateBenefitGitlab": "Without a token, requests to GitLab share a low rate limit with every other anonymous caller. Connecting raises the limit to your own account's.",
   "forgeRateRemaining": "{remaining} of {limit} requests left this hour.",
@@ -1211,7 +1232,7 @@
       }
     }
   },
-  "forgeRefreshInterval": "Pull request refresh interval",
+  "forgeRefreshInterval": "Pull and merge request refresh interval",
   "lhTitleLine": "{path} · line {line}",
   "@lhTitleLine": {
     "placeholders": {

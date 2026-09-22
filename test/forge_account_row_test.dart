@@ -513,7 +513,12 @@ void main() {
           isTrue,
         );
         expect(cache.length, 0);
-        expect(container.read(toastProvider).last.title, 'Token removed.');
+        // The row names its own forge: two of these sit in one dialog, so a
+        // bare "Token removed." would not say which account was emptied.
+        expect(
+          container.read(toastProvider).last.title,
+          'GitHub token removed.',
+        );
         await tester.pump(const Duration(seconds: 4));
       },
     );
@@ -542,13 +547,13 @@ void main() {
         // that is the silent-failure shape this row must not repeat.
         expect(
           container.read(toastProvider).last.title,
-          isNot('Token removed.'),
+          isNot('GitHub token removed.'),
         );
         // The wording matters: a failed erase must say the token may still be
         // stored, not merely that something went wrong.
         expect(
           container.read(toastProvider).last.title,
-          "Could not remove the token. It may still be stored by git's "
+          "Could not remove the GitHub token. It may still be stored by git's "
           'credential helper.',
         );
         expect(container.read(toastProvider).last.kind, ToastKind.error);

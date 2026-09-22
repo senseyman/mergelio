@@ -78,6 +78,27 @@ void main() {
       );
     });
 
+    test('refuses a next link carrying credentials of its own', () {
+      // Credentials in the URL become an Authorization header built by the
+      // client, replacing the one the caller chose for this host — so the
+      // token meant for it silently stops being sent for that page. The host
+      // matches here, which is the point: this is refused on its own terms.
+      expect(
+        nextPageUrl(
+          '<https://user:secret@api.github.com/x?page=2>; rel="next"',
+          requestedFrom: _from,
+        ),
+        isNull,
+      );
+      expect(
+        nextPageUrl(
+          '<https://user@api.github.com/x?page=2>; rel="next"',
+          requestedFrom: _from,
+        ),
+        isNull,
+      );
+    });
+
     test('does not match a rel that merely starts with next', () {
       expect(
         nextPageUrl(

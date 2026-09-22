@@ -193,11 +193,11 @@ class _ForgeAccountRowState extends ConsumerState<ForgeAccountRow> {
     if (forgotten) {
       ref
           .read(toastProvider.notifier)
-          .show(l.forgeTokenForgotten, kind: ToastKind.success);
+          .show(l.forgeTokenForgotten(_forgeName), kind: ToastKind.success);
     } else {
       ref
           .read(toastProvider.notifier)
-          .show(l.forgeTokenNotForgotten, kind: ToastKind.error);
+          .show(l.forgeTokenNotForgotten(_forgeName), kind: ToastKind.error);
     }
   }
 

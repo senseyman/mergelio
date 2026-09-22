@@ -1707,8 +1707,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get forgeErrNotVisible =>
-      'This repository is not visible to the current token.';
+  String forgeErrNotVisible(String forge) {
+    return 'This repository is not visible to the current $forge token.';
+  }
 
   @override
   String forgeErrOffline(String forge) {
@@ -1761,11 +1762,14 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get forgeTokenForgotten => 'Token removed.';
+  String forgeTokenForgotten(String forge) {
+    return '$forge token removed.';
+  }
 
   @override
-  String get forgeTokenNotForgotten =>
-      'Could not remove the token. It may still be stored by git\'s credential helper.';
+  String forgeTokenNotForgotten(String forge) {
+    return 'Could not remove the $forge token. It may still be stored by git\'s credential helper.';
+  }
 
   @override
   String get forgeRateBenefit =>
@@ -1781,7 +1785,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get forgeRefreshInterval => 'Pull request refresh interval';
+  String get forgeRefreshInterval => 'Pull and merge request refresh interval';
 
   @override
   String lhTitleLine(String path, String line) {

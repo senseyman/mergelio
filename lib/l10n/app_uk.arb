@@ -584,7 +584,14 @@
       }
     }
   },
-  "forgeErrNotVisible": "Цей репозиторій недоступний для поточного токена.",
+  "forgeErrNotVisible": "Цей репозиторій недоступний для поточного токена {forge}.",
+  "@forgeErrNotVisible": {
+    "placeholders": {
+      "forge": {
+        "type": "String"
+      }
+    }
+  },
   "forgeErrOffline": "Не вдалося зʼєднатися з {forge}.",
   "@forgeErrOffline": {
     "placeholders": {
@@ -649,8 +656,22 @@
       }
     }
   },
-  "forgeTokenForgotten": "Токен видалено.",
-  "forgeTokenNotForgotten": "Не вдалося видалити токен. Він може залишатися у сховищі облікових даних git.",
+  "forgeTokenForgotten": "Токен {forge} видалено.",
+  "@forgeTokenForgotten": {
+    "placeholders": {
+      "forge": {
+        "type": "String"
+      }
+    }
+  },
+  "forgeTokenNotForgotten": "Не вдалося видалити токен {forge}. Він може залишатися у сховищі облікових даних git.",
+  "@forgeTokenNotForgotten": {
+    "placeholders": {
+      "forge": {
+        "type": "String"
+      }
+    }
+  },
   "forgeRateBenefit": "Без токена GitHub дозволяє 60 запитів на годину; з токеном — 5000. Відкриття репозиторію коштує близько 23: по одному запиту на кожен список, два на перевірки кожного пулреквеста і один на сам репозиторій.",
   "forgeRateBenefitGitlab": "Без токена запити до GitLab використовують спільний нижчий ліміт з усіма іншими анонімними користувачами. Підключення піднімає ліміт до ліміту вашого облікового запису.",
   "forgeRateRemaining": "Залишилось {remaining} з {limit} запитів цієї години.",
@@ -664,7 +685,7 @@
       }
     }
   },
-  "forgeRefreshInterval": "Інтервал оновлення пулреквестів",
+  "forgeRefreshInterval": "Інтервал оновлення пулреквестів і запитів на злиття",
   "lhTitleLine": "{path} · рядок {line}",
   "lhTitleRange": "{path} · рядки {range}",
   "lhLineHistory": "Історія рядків",

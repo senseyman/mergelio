@@ -87,6 +87,11 @@ Uri? nextPageUrl(String? linkHeader, {required Uri requestedFrom}) {
         url.port != requestedFrom.port) {
       return null;
     }
+    // Credentials in the URL itself are refused too. They would replace the
+    // header the caller built with one the server chose, so the token meant
+    // for this host silently stops being sent for that page — and no next
+    // link a forge legitimately produces carries them.
+    if (url.userInfo.isNotEmpty) return null;
     return url;
   }
   return null;

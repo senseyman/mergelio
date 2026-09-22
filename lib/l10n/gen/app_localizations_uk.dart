@@ -1715,8 +1715,9 @@ class AppLocalizationsUk extends AppLocalizations {
   }
 
   @override
-  String get forgeErrNotVisible =>
-      'Цей репозиторій недоступний для поточного токена.';
+  String forgeErrNotVisible(String forge) {
+    return 'Цей репозиторій недоступний для поточного токена $forge.';
+  }
 
   @override
   String forgeErrOffline(String forge) {
@@ -1769,11 +1770,14 @@ class AppLocalizationsUk extends AppLocalizations {
   }
 
   @override
-  String get forgeTokenForgotten => 'Токен видалено.';
+  String forgeTokenForgotten(String forge) {
+    return 'Токен $forge видалено.';
+  }
 
   @override
-  String get forgeTokenNotForgotten =>
-      'Не вдалося видалити токен. Він може залишатися у сховищі облікових даних git.';
+  String forgeTokenNotForgotten(String forge) {
+    return 'Не вдалося видалити токен $forge. Він може залишатися у сховищі облікових даних git.';
+  }
 
   @override
   String get forgeRateBenefit =>
@@ -1789,7 +1793,8 @@ class AppLocalizationsUk extends AppLocalizations {
   }
 
   @override
-  String get forgeRefreshInterval => 'Інтервал оновлення пулреквестів';
+  String get forgeRefreshInterval =>
+      'Інтервал оновлення пулреквестів і запитів на злиття';
 
   @override
   String lhTitleLine(String path, String line) {
