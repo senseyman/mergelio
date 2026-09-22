@@ -1996,6 +1996,97 @@ class RepoActions {
     );
   }
 
+  /// True when anything is staged, modified or untracked — a bisect checks
+  /// commits out, so it needs a tree it will not clobber.
+  Future<bool> _treeIsDirty() async =>
+      (await _out(['status', '--porcelain'])).isNotEmpty;
+
+  /// Opens a bisect with [sha] as the first bad commit.
+  ///
+  /// Refuses on a dirty tree rather than stashing: a stash popped several
+  /// steps later, possibly in a later session, is not something to do to
+  /// someone's work without being asked.
+  Future<void> startBisect(String sha) async {
+    if (await _treeIsDirty()) {
+      _ref
+          .read(toastProvider.notifier)
+          .show(
+            'Bisect',
+            description:
+                'Commit or stash your changes before starting a bisect.',
+            kind: ToastKind.error,
+          );
+      return;
+    }
+    final id = await _journalBegin('Bisect: start');
+    try {
+      await _timed('Bisect start', () async {
+        await _writer.bisectStart();
+        await _writer.bisectMark(const BisectTerms().bad, sha);
+      });
+      await _journalDone(id);
+    } on GitException catch (e) {
+      await _journalFail(id);
+      _toastErr('Bisect', e);
+    }
+    _refresh();
+  }
+
+  /// Records [kind] against [sha], opening a bisect first when none is running.
+  Future<void> markBisect(String sha, BisectKind kind) async {
+    final state = await bisectState();
+    if (state == null) {
+      if (kind != BisectKind.bad) {
+        _ref
+            .read(toastProvider.notifier)
+            .show(
+              'Bisect',
+              description: 'Mark a bad commit to start a bisect.',
+              kind: ToastKind.error,
+            );
+        return;
+      }
+      return startBisect(sha);
+    }
+    final id = await _journalBegin('Bisect: mark ${kind.name}');
+    try {
+      await _timed('Bisect ${kind.name}', () async {
+        if (kind == BisectKind.skip) {
+          await _writer.bisectSkip(rev: sha);
+        } else {
+          await _writer.bisectMark(bisectCommandFor(kind, state.terms), sha);
+        }
+      });
+      await _journalDone(id);
+    } on GitException catch (e) {
+      await _journalFail(id);
+      _toastErr('Bisect', e);
+    }
+    _refresh();
+  }
+
+  /// Sets the commit under test aside as untestable.
+  Future<void> skipBisect() async {
+    final sha = (await bisectState())?.currentSha;
+    if (sha == null) return;
+    await markBisect(sha, BisectKind.skip);
+  }
+
+  /// Ends the bisect and returns to the branch it started from.
+  Future<void> resetBisect() async {
+    final id = await _journalBegin('Bisect: reset');
+    try {
+      await _timed('Bisect reset', () => _writer.bisectReset());
+      await _journalDone(id);
+    } on GitException catch (e) {
+      await _journalFail(id);
+      _toastErr('Bisect', e);
+    }
+    _refresh();
+  }
+
+  Future<String> bisectLog() => _writer.bisectLog();
+
   /// The message git prepared for the merge in progress, for the commit
   /// composer to offer. Empty when no merge is open.
   ///

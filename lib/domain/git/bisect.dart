@@ -116,6 +116,17 @@ String? firstBadFrom(List<BisectMark> marks, int revisionsLeft) {
   return bads.isNotEmpty ? bads.first.sha : null;
 }
 
+/// The word that follows `git bisect` for [kind].
+///
+/// Good and bad are terms, and a repository may rename them. Skip is a
+/// subcommand and is never renamed — spelling it as a term yields a command
+/// git rejects.
+String bisectCommandFor(BisectKind kind, BisectTerms terms) => switch (kind) {
+  BisectKind.good => terms.good,
+  BisectKind.bad => terms.bad,
+  BisectKind.skip => 'skip',
+};
+
 /// A bisect as it currently stands, assembled from git's own state files.
 class BisectState {
   final List<BisectMark> marks;
