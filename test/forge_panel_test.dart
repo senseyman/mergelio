@@ -100,7 +100,7 @@ class _FixedForge extends _FakeForge {
 
 ProviderContainer _containerFor(Forge? forge) {
   final c = ProviderContainer(
-    overrides: [githubForgeProvider.overrideWith((ref, path) async => forge)],
+    overrides: [forgeProvider.overrideWith((ref, path) async => forge)],
   );
   addTearDown(c.dispose);
   return c;

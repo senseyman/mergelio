@@ -1658,6 +1658,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get forgeNoPullRequests => 'No open pull requests';
 
   @override
+  String get forgeMergeRequests => 'Merge requests';
+
+  @override
+  String get forgeNoMergeRequests => 'No open merge requests';
+
+  @override
   String get forgeIssues => 'Issues';
 
   @override
@@ -1671,6 +1677,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Could not open the pull request in your browser';
 
   @override
+  String get forgeCouldNotOpenMr =>
+      'Could not open the merge request in your browser';
+
+  @override
   String get forgeCouldNotOpenIssue => 'Could not open issue in browser';
 
   @override
@@ -1678,36 +1688,48 @@ class AppLocalizationsEn extends AppLocalizations {
       'Without a token: no auto-refresh, 60 requests an hour. Connect in Preferences → Credentials.';
 
   @override
-  String get forgeErrUnauthenticated =>
-      'GitHub rejected the saved token. Reconnect in Preferences.';
+  String get forgeConnectHintGitlab =>
+      'Without a token: no auto-refresh, and a lower shared rate limit. Connect in Preferences → Credentials.';
 
   @override
-  String forgeErrRateLimited(String time) {
-    return 'GitHub request limit reached. It resets at $time.';
+  String forgeErrUnauthenticated(String forge) {
+    return '$forge rejected the saved token. Reconnect in Preferences.';
   }
 
   @override
-  String get forgeErrRateLimitedSoon =>
-      'GitHub request limit reached. Try again shortly.';
-
-  @override
-  String get forgeErrNotVisible =>
-      'This repository is not visible to the current token.';
-
-  @override
-  String get forgeErrOffline => 'Could not reach GitHub.';
-
-  @override
-  String forgeErrServer(int status) {
-    return 'GitHub answered with an error ($status).';
+  String forgeErrRateLimited(String forge, String time) {
+    return '$forge request limit reached. It resets at $time.';
   }
 
   @override
-  String get forgeErrMalformed =>
-      'GitHub sent a response this version could not read.';
+  String forgeErrRateLimitedSoon(String forge) {
+    return '$forge request limit reached. Try again shortly.';
+  }
 
   @override
-  String get forgeAccountTitle => 'GitHub account';
+  String forgeErrNotVisible(String forge) {
+    return 'This repository is not visible to the current $forge token.';
+  }
+
+  @override
+  String forgeErrOffline(String forge) {
+    return 'Could not reach $forge.';
+  }
+
+  @override
+  String forgeErrServer(String forge, int status) {
+    return '$forge answered with an error ($status).';
+  }
+
+  @override
+  String forgeErrMalformed(String forge) {
+    return '$forge sent a response this version could not read.';
+  }
+
+  @override
+  String forgeAccountTitle(String forge) {
+    return '$forge account';
+  }
 
   @override
   String get forgeAccountConnected => 'Connected';
@@ -1725,25 +1747,37 @@ class AppLocalizationsEn extends AppLocalizations {
   String get forgeDisconnect => 'Disconnect';
 
   @override
-  String get forgeTokenRejected => 'GitHub rejected that token.';
+  String forgeTokenRejected(String forge) {
+    return '$forge rejected that token.';
+  }
 
   @override
-  String get forgeTokenSaved => 'Connected to GitHub.';
+  String forgeTokenSaved(String forge) {
+    return 'Connected to $forge.';
+  }
 
   @override
-  String get forgeTokenNotKept =>
-      'GitHub accepted the token, but nothing on this system kept it. Set up a git credential helper and try again.';
+  String forgeTokenNotKept(String forge) {
+    return '$forge accepted the token, but nothing on this system kept it. Set up a git credential helper and try again.';
+  }
 
   @override
-  String get forgeTokenForgotten => 'Token removed.';
+  String forgeTokenForgotten(String forge) {
+    return '$forge token removed.';
+  }
 
   @override
-  String get forgeTokenNotForgotten =>
-      'Could not remove the token. It may still be stored by git\'s credential helper.';
+  String forgeTokenNotForgotten(String forge) {
+    return 'Could not remove the $forge token. It may still be stored by git\'s credential helper.';
+  }
 
   @override
   String get forgeRateBenefit =>
       'Without a token GitHub allows 60 requests an hour; with one, 5,000. Opening a repository costs about 23: one request for each list, two for every pull request\'s checks, and one for the repository itself.';
+
+  @override
+  String get forgeRateBenefitGitlab =>
+      'Without a token, requests to GitLab share a low rate limit with every other anonymous caller. Connecting raises the limit to your own account\'s.';
 
   @override
   String forgeRateRemaining(int remaining, int limit) {
@@ -1751,7 +1785,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get forgeRefreshInterval => 'Pull request refresh interval';
+  String get forgeRefreshInterval => 'Pull and merge request refresh interval';
 
   @override
   String lhTitleLine(String path, String line) {

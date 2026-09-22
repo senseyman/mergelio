@@ -4,14 +4,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/tokens.dart';
 import '../../data/forge/forge_credentials.dart';
 import '../../data/forge/forge_http.dart';
+import '../../domain/forge/forge_host.dart';
 import '../../domain/git/git_providers.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/feedback.dart';
 import '../../state/forge.dart';
-import '../../state/settings_controller.dart';
 import '../../state/workspace.dart';
+import '../workspace/forge_presentation.dart';
 
-/// Whether the forge accepts [token].
+/// The url that proves a token is accepted, for each forge.
+///
+/// Each forge is asked about the account the token itself belongs to, which
+/// is the cheapest call that can only succeed with a valid token.
+Uri _validationUrl(ForgeKind kind) => switch (kind) {
+  ForgeKind.github => Uri.https('api.github.com', '/user'),
+  ForgeKind.gitlab => Uri.https('gitlab.com', '/api/v4/user'),
+};
+
+/// Whether [kind]'s forge accepts [token].
 ///
 /// One request, made before anything is written to the keychain, so a
 /// mistyped token is reported while the person is still looking at the field
@@ -21,11 +31,12 @@ import '../../state/workspace.dart';
 /// accepting it.
 Future<bool> validateForgeToken(
   ForgeToken token, {
+  required ForgeKind kind,
   ForgeHttp Function(ForgeToken token)? httpFor,
 }) async {
-  final http = (httpFor ?? (t) => ForgeHttp(token: t))(token);
+  final http = (httpFor ?? (t) => ForgeHttp(kind: kind, token: t))(token);
   try {
-    final response = await http.get(Uri.https('api.github.com', '/user'));
+    final response = await http.get(_validationUrl(kind));
     return response.status >= 200 && response.status < 300;
   } on Object {
     return false;
@@ -46,9 +57,10 @@ class _RedactedTextEditingController extends TextEditingController {
   String toString() => '${describeIdentity(this)}(hidden)';
 }
 
-/// Connect, inspect or disconnect the token used for github.com.
+/// Connect, inspect or disconnect the token used for one forge.
 class ForgeAccountRow extends ConsumerStatefulWidget {
-  const ForgeAccountRow({super.key});
+  final ForgeKind kind;
+  const ForgeAccountRow({super.key, required this.kind});
 
   @override
   ConsumerState<ForgeAccountRow> createState() => _ForgeAccountRowState();
@@ -57,6 +69,16 @@ class ForgeAccountRow extends ConsumerStatefulWidget {
 class _ForgeAccountRowState extends ConsumerState<ForgeAccountRow> {
   final _field = _RedactedTextEditingController();
   bool _busy = false;
+
+  /// The host this row's token is stored and validated under, named once so
+  /// every git-credential call and every provider read below agrees with
+  /// the forge the title above them names.
+  String get _host => switch (widget.kind) {
+    ForgeKind.github => kGithubHost,
+    ForgeKind.gitlab => kGitlabHost,
+  };
+
+  String get _forgeName => forgeDisplayName(widget.kind);
 
   @override
   void dispose() {
@@ -100,21 +122,25 @@ class _ForgeAccountRowState extends ConsumerState<ForgeAccountRow> {
     final token = ForgeToken(raw);
     final ok = await validateForgeToken(
       token,
-      httpFor: (t) =>
-          ForgeHttp(token: t, client: ref.read(forgeHttpClientProvider)),
+      kind: widget.kind,
+      httpFor: (t) => ForgeHttp(
+        kind: widget.kind,
+        token: t,
+        client: ref.read(forgeHttpClientProvider),
+      ),
     );
     if (!mounted) return;
     if (!ok) {
       setState(() => _busy = false);
       ref
           .read(toastProvider.notifier)
-          .show(l.forgeTokenRejected, kind: ToastKind.error);
+          .show(l.forgeTokenRejected(_forgeName), kind: ToastKind.error);
       return;
     }
     final path = ref.read(workspaceProvider).activeTab?.path;
     final credentials = _credentialsFor(path);
     final approved = await credentials.approve(
-      kGithubHost,
+      _host,
       forgeTokenUsername,
       token,
     );
@@ -126,7 +152,7 @@ class _ForgeAccountRowState extends ConsumerState<ForgeAccountRow> {
     // than trusting the exit code that just asked it to keep one.
     var kept = false;
     if (approved) {
-      kept = await credentials.fill(kGithubHost, forgeTokenUsername) != null;
+      kept = await credentials.fill(_host, forgeTokenUsername) != null;
       if (!mounted) return;
     }
     _field.clear();
@@ -134,11 +160,11 @@ class _ForgeAccountRowState extends ConsumerState<ForgeAccountRow> {
     if (kept) {
       ref
           .read(toastProvider.notifier)
-          .show(l.forgeTokenSaved, kind: ToastKind.success);
+          .show(l.forgeTokenSaved(_forgeName), kind: ToastKind.success);
     } else {
       ref
           .read(toastProvider.notifier)
-          .show(l.forgeTokenNotKept, kind: ToastKind.error);
+          .show(l.forgeTokenNotKept(_forgeName), kind: ToastKind.error);
     }
   }
 
@@ -155,7 +181,7 @@ class _ForgeAccountRowState extends ConsumerState<ForgeAccountRow> {
     // this app's entry from the one the user pushes with.
     final path = ref.read(workspaceProvider).activeTab?.path;
     final forgotten = await _credentialsFor(path)
-        .reject(kGithubHost, forgeTokenUsername, const ForgeToken(''));
+        .reject(_host, forgeTokenUsername, const ForgeToken(''));
     _forgetDerivedState();
     if (!mounted) return;
     setState(() => _busy = false);
@@ -167,11 +193,11 @@ class _ForgeAccountRowState extends ConsumerState<ForgeAccountRow> {
     if (forgotten) {
       ref
           .read(toastProvider.notifier)
-          .show(l.forgeTokenForgotten, kind: ToastKind.success);
+          .show(l.forgeTokenForgotten(_forgeName), kind: ToastKind.success);
     } else {
       ref
           .read(toastProvider.notifier)
-          .show(l.forgeTokenNotForgotten, kind: ToastKind.error);
+          .show(l.forgeTokenNotForgotten(_forgeName), kind: ToastKind.error);
     }
   }
 
@@ -179,23 +205,29 @@ class _ForgeAccountRowState extends ConsumerState<ForgeAccountRow> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final t = context.tokens;
+    final github = widget.kind == ForgeKind.github;
     final activePath = ref.watch(workspaceProvider).activeTab?.path;
-    final rateLimit = activePath == null
+    // Only GitHub publishes a budget that costs nothing to read (see
+    // forgeRateLimitProvider), and it is always about whichever repository
+    // is active — so watching it for the GitLab row would risk showing
+    // GitHub's own figures under the wrong account's heading.
+    final rateLimit = !github || activePath == null
         ? null
         : ref.watch(forgeRateLimitProvider(activePath)).valueOrNull;
     // Independent of whatever repository is active — or whether one is open
-    // at all: this row is about the github.com account, and a repository on
-    // GitLab, on no forge, or with no remote must not make an on-file token
-    // disappear from view. The refresh-interval control only makes sense
-    // once a token is on file to spend: with none, nothing on a timer is
-    // ever eligible to tick.
+    // at all: this row is about this forge's own account, and a repository
+    // on the other forge, on none, or with no remote must not make an
+    // on-file token disappear from view.
     final connected =
-        ref.watch(forgeAccountTokenProvider(activePath)).valueOrNull != null;
+        ref
+            .watch(forgeAccountTokenProvider((host: _host, path: activePath)))
+            .valueOrNull !=
+        null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          l.forgeAccountTitle,
+          l.forgeAccountTitle(_forgeName),
           style: TextStyle(
             color: t.textPrimary,
             fontSize: 14,
@@ -212,7 +244,7 @@ class _ForgeAccountRowState extends ConsumerState<ForgeAccountRow> {
         ),
         const SizedBox(height: 8),
         Text(
-          l.forgeRateBenefit,
+          github ? l.forgeRateBenefit : l.forgeRateBenefitGitlab,
           style: TextStyle(color: t.textMuted, fontSize: 13, height: 1.5),
         ),
         if (rateLimit != null) ...[
@@ -245,20 +277,6 @@ class _ForgeAccountRowState extends ConsumerState<ForgeAccountRow> {
             ),
           ],
         ),
-        // Belongs here, not on the General tab: unlike auto-fetch (which
-        // works with no token at all) this timer is inert without one, so
-        // it is only ever meaningful right beside the token that gates it.
-        if (connected) ...[
-          const SizedBox(height: 12),
-          _RefreshIntervalRow(
-            seconds: ref.watch(
-              settingsProvider.select((s) => s.forgeRefreshIntervalSeconds),
-            ),
-            onChanged: ref
-                .read(settingsProvider.notifier)
-                .setForgeRefreshInterval,
-          ),
-        ],
       ],
     );
   }
@@ -266,12 +284,20 @@ class _ForgeAccountRowState extends ConsumerState<ForgeAccountRow> {
 
 /// How often the pull-request panel refreshes on its own, offered only once
 /// a token makes the timer eligible to run at all.
-class _RefreshIntervalRow extends StatelessWidget {
+///
+/// Public, and placed by the dialog rather than by [ForgeAccountRow]: the
+/// interval is one setting shared by every forge, and rendering it inside
+/// each account row would draw it once per row instead of once.
+class ForgeRefreshIntervalRow extends StatelessWidget {
   static const _options = [120, 300, 600, 1800];
 
   final int seconds;
   final ValueChanged<int> onChanged;
-  const _RefreshIntervalRow({required this.seconds, required this.onChanged});
+  const ForgeRefreshIntervalRow({
+    super.key,
+    required this.seconds,
+    required this.onChanged,
+  });
 
   static String _label(int s) => switch (s) {
     120 => '2m',

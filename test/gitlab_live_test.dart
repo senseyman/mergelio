@@ -1,19 +1,19 @@
 @Tags(['live'])
 library;
 
-// Proof that the mocked tests still resemble the real GitHub API.
+// Proof that the mocked tests still resemble the real GitLab API.
 //
 // Every parser elsewhere is tested against hand-written JSON, which proves it
-// self-consistent, not correct. A field GitHub renames would turn into a
+// self-consistent, not correct. A field GitLab renames would turn into a
 // silently empty list — the one failure this layer's error model exists to
 // prevent. These tests read the real API and assert on shapes rather than on
 // contents, so they stay green while the data underneath keeps moving.
 //
-// By default they run unauthenticated against a public repository. Point them
+// By default they run unauthenticated against a public project. Point them
 // at your own, or at a private one, with:
 //
 //   MERGELIO_LIVE_OWNER=me MERGELIO_LIVE_REPO=secret \
-//   MERGELIO_LIVE_TOKEN=ghp_... flutter test --run-skipped --tags live
+//   MERGELIO_GITLAB_TOKEN=glpat-... flutter test --run-skipped --tags live
 
 import 'dart:io';
 
@@ -21,33 +21,33 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/data/forge/etag_cache.dart';
 import 'package:mergelio/data/forge/forge_credentials.dart';
 import 'package:mergelio/data/forge/forge_http.dart';
-import 'package:mergelio/data/forge/github_forge.dart';
+import 'package:mergelio/data/forge/gitlab_forge.dart';
 import 'package:mergelio/domain/forge/forge_error.dart';
 import 'package:mergelio/domain/forge/forge_host.dart';
 import 'package:mergelio/domain/forge/models.dart';
 
-/// A repository busy enough that every list below is non-empty. Override it
+/// A project busy enough that every list below is non-empty. Override it
 /// when you want to point these at your own work.
-final _owner = Platform.environment['MERGELIO_LIVE_OWNER'] ?? 'flutter';
-final _repo = Platform.environment['MERGELIO_LIVE_REPO'] ?? 'flutter';
+final _owner = Platform.environment['MERGELIO_LIVE_OWNER'] ?? 'gitlab-org';
+final _repo = Platform.environment['MERGELIO_LIVE_REPO'] ?? 'gitlab';
 
-/// Optional: raises the rate limit and reaches private repositories. Never
+/// Optional: raises the rate limit and reaches private projects. Never
 /// printed — [ForgeToken] hides itself, and nothing here logs a header.
 ForgeToken? get _token {
-  final raw = Platform.environment['MERGELIO_LIVE_TOKEN'];
+  final raw = Platform.environment['MERGELIO_GITLAB_TOKEN'];
   return raw == null || raw.isEmpty ? null : ForgeToken(raw);
 }
 
 ForgeHost get _host => ForgeHost(
-  kind: ForgeKind.github,
-  host: 'github.com',
+  kind: ForgeKind.gitlab,
+  host: 'gitlab.com',
   owner: _owner,
   repo: _repo,
 );
 
-GitHubForge _forge({EtagCache? cache, int maxPages = 1}) => GitHubForge(
+GitlabForge _forge({EtagCache? cache, int maxPages = 1}) => GitlabForge(
   host: _host,
-  http: ForgeHttp(kind: ForgeKind.github, token: _token),
+  http: ForgeHttp(kind: ForgeKind.gitlab, token: _token),
   cache: cache,
   maxPages: maxPages,
 );
@@ -59,35 +59,35 @@ Future<T> _reporting<T>(Future<T> Function() body) async {
     return await body();
   } on ForgeRateLimited catch (e) {
     fail(
-      'GitHub rate limit reached (resets ${e.resetAt ?? "shortly"}). '
-      'Unauthenticated callers get 60 requests an hour; set '
-      'MERGELIO_LIVE_TOKEN to raise it. This is not a code failure.',
+      'GitLab rate limit reached (resets ${e.resetAt ?? "shortly"}). '
+      'Unauthenticated callers get a shared quota; set '
+      'MERGELIO_GITLAB_TOKEN to raise it. This is not a code failure.',
     );
   } on ForgeOffline {
-    fail('Could not reach github.com. This is not a code failure.');
+    fail('Could not reach gitlab.com. This is not a code failure.');
   }
 }
 
 const _slow = Timeout(Duration(seconds: 90));
 
 void main() {
-  test('reads pull requests, with every field the UI needs', () async {
+  test('reads merge requests, with every field the UI needs', () async {
     final prs = await _reporting(() => _forge().pullRequests(limit: 10));
 
     // An empty list is the failure mode this whole error model exists to
     // prevent, so it is asserted against rather than tolerated.
-    expect(prs, isNotEmpty, reason: 'a busy repository has open requests');
+    expect(prs, isNotEmpty, reason: 'a busy project has open requests');
     for (final p in prs) {
       expect(p.title, isNotEmpty);
       expect(p.sourceBranch, isNotEmpty);
       expect(p.targetBranch, isNotEmpty);
-      expect(p.headSha, hasLength(40), reason: 'CI is keyed by this sha');
-      expect(p.author.login, isNot('unknown'), reason: 'user.login moved');
+      expect(p.headSha, isNotEmpty, reason: 'CI is keyed by this sha');
+      expect(p.author.login, isNot('unknown'), reason: 'author.username moved');
       expect(p.updatedAt?.isUtc, isTrue);
     }
   }, timeout: _slow);
 
-  test('reads issues, with the pull requests already excluded', () async {
+  test('reads issues, with every field the UI needs', () async {
     final issues = await _reporting(() => _forge().issues(limit: 20));
 
     expect(issues, isNotEmpty);
@@ -96,17 +96,6 @@ void main() {
       expect(i.number, greaterThan(0));
       expect(i.author.login, isNot('unknown'));
     }
-    // GitHub returns pull requests from /issues as well. If that filter ever
-    // stopped matching, the issue list would repeat the request list, and
-    // these numbers would collide.
-    final prNumbers = (await _reporting(() => _forge().pullRequests(limit: 20)))
-        .map((p) => p.number)
-        .toSet();
-    expect(
-      issues.map((i) => i.number).toSet().intersection(prNumbers),
-      isEmpty,
-      reason: 'a pull request reached the issue list',
-    );
   }, timeout: _slow);
 
   test('reads CI for a real commit without meeting a state it cannot '
@@ -120,9 +109,9 @@ void main() {
     for (final r in summary.runs) {
       expect(r.name, isNotEmpty);
     }
-    // An unrecognised status or conclusion is safe by design — it becomes
-    // unknown and never reads as green — but meeting one here means GitHub
-    // has added a value worth mapping deliberately.
+    // An unrecognised status is safe by design — it becomes unknown and
+    // never reads as green — but meeting one here means GitLab has added a
+    // value worth mapping deliberately.
     final unnamed = summary.runs
         .where((r) => r.state == CheckState.unknown)
         .map((r) => r.name)
@@ -130,15 +119,11 @@ void main() {
     expect(
       unnamed,
       isEmpty,
-      reason: 'GitHub sent a status or conclusion this version does not map',
+      reason: 'GitLab sent a status this version does not map',
     );
   }, timeout: _slow);
 
-  test('follows the Link header GitHub actually sends', () async {
-    // GitHub names the next page as /repositories/{id}/pulls rather than
-    // /repos/{owner}/{repo}/pulls. The pager follows whatever URL the server
-    // gives it, so the form does not matter — but only a real header proves
-    // that, and this breaks on page two or not at all.
+  test('follows the Link header GitLab actually sends', () async {
     final prs = await _reporting(
       () => _forge(maxPages: 2).pullRequests(limit: 500),
     );
@@ -161,24 +146,17 @@ void main() {
     expect(second.map((i) => i.number), first.map((i) => i.number));
   }, timeout: _slow);
 
-  test(
-    'reports a repository it cannot see, rather than an empty list',
-    () async {
-      final missing = GitHubForge(
-        host: ForgeHost(
-          kind: ForgeKind.github,
-          host: 'github.com',
-          owner: _owner,
-          repo: 'definitely-not-a-real-repository-9z8x7c',
-        ),
-        http: ForgeHttp(kind: ForgeKind.github, token: _token),
-      );
+  test('reports a project it cannot see, rather than an empty list', () async {
+    final missing = GitlabForge(
+      host: ForgeHost(
+        kind: ForgeKind.gitlab,
+        host: 'gitlab.com',
+        owner: _owner,
+        repo: 'definitely-not-a-real-project-9z8x7c',
+      ),
+      http: ForgeHttp(kind: ForgeKind.gitlab, token: _token),
+    );
 
-      await expectLater(
-        missing.pullRequests(),
-        throwsA(isA<ForgeNotVisible>()),
-      );
-    },
-    timeout: _slow,
-  );
+    await expectLater(missing.pullRequests(), throwsA(isA<ForgeNotVisible>()));
+  }, timeout: _slow);
 }

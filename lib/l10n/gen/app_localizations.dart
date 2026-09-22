@@ -2972,6 +2972,18 @@ abstract class AppLocalizations {
   /// **'No open pull requests'**
   String get forgeNoPullRequests;
 
+  /// No description provided for @forgeMergeRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge requests'**
+  String get forgeMergeRequests;
+
+  /// No description provided for @forgeNoMergeRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'No open merge requests'**
+  String get forgeNoMergeRequests;
+
   /// No description provided for @forgeIssues.
   ///
   /// In en, this message translates to:
@@ -2996,6 +3008,12 @@ abstract class AppLocalizations {
   /// **'Could not open the pull request in your browser'**
   String get forgeCouldNotOpenPr;
 
+  /// No description provided for @forgeCouldNotOpenMr.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the merge request in your browser'**
+  String get forgeCouldNotOpenMr;
+
   /// No description provided for @forgeCouldNotOpenIssue.
   ///
   /// In en, this message translates to:
@@ -3008,53 +3026,59 @@ abstract class AppLocalizations {
   /// **'Without a token: no auto-refresh, 60 requests an hour. Connect in Preferences → Credentials.'**
   String get forgeConnectHint;
 
+  /// No description provided for @forgeConnectHintGitlab.
+  ///
+  /// In en, this message translates to:
+  /// **'Without a token: no auto-refresh, and a lower shared rate limit. Connect in Preferences → Credentials.'**
+  String get forgeConnectHintGitlab;
+
   /// No description provided for @forgeErrUnauthenticated.
   ///
   /// In en, this message translates to:
-  /// **'GitHub rejected the saved token. Reconnect in Preferences.'**
-  String get forgeErrUnauthenticated;
+  /// **'{forge} rejected the saved token. Reconnect in Preferences.'**
+  String forgeErrUnauthenticated(String forge);
 
   /// No description provided for @forgeErrRateLimited.
   ///
   /// In en, this message translates to:
-  /// **'GitHub request limit reached. It resets at {time}.'**
-  String forgeErrRateLimited(String time);
+  /// **'{forge} request limit reached. It resets at {time}.'**
+  String forgeErrRateLimited(String forge, String time);
 
   /// No description provided for @forgeErrRateLimitedSoon.
   ///
   /// In en, this message translates to:
-  /// **'GitHub request limit reached. Try again shortly.'**
-  String get forgeErrRateLimitedSoon;
+  /// **'{forge} request limit reached. Try again shortly.'**
+  String forgeErrRateLimitedSoon(String forge);
 
   /// No description provided for @forgeErrNotVisible.
   ///
   /// In en, this message translates to:
-  /// **'This repository is not visible to the current token.'**
-  String get forgeErrNotVisible;
+  /// **'This repository is not visible to the current {forge} token.'**
+  String forgeErrNotVisible(String forge);
 
   /// No description provided for @forgeErrOffline.
   ///
   /// In en, this message translates to:
-  /// **'Could not reach GitHub.'**
-  String get forgeErrOffline;
+  /// **'Could not reach {forge}.'**
+  String forgeErrOffline(String forge);
 
   /// No description provided for @forgeErrServer.
   ///
   /// In en, this message translates to:
-  /// **'GitHub answered with an error ({status}).'**
-  String forgeErrServer(int status);
+  /// **'{forge} answered with an error ({status}).'**
+  String forgeErrServer(String forge, int status);
 
   /// No description provided for @forgeErrMalformed.
   ///
   /// In en, this message translates to:
-  /// **'GitHub sent a response this version could not read.'**
-  String get forgeErrMalformed;
+  /// **'{forge} sent a response this version could not read.'**
+  String forgeErrMalformed(String forge);
 
   /// No description provided for @forgeAccountTitle.
   ///
   /// In en, this message translates to:
-  /// **'GitHub account'**
-  String get forgeAccountTitle;
+  /// **'{forge} account'**
+  String forgeAccountTitle(String forge);
 
   /// No description provided for @forgeAccountConnected.
   ///
@@ -3089,38 +3113,44 @@ abstract class AppLocalizations {
   /// No description provided for @forgeTokenRejected.
   ///
   /// In en, this message translates to:
-  /// **'GitHub rejected that token.'**
-  String get forgeTokenRejected;
+  /// **'{forge} rejected that token.'**
+  String forgeTokenRejected(String forge);
 
   /// No description provided for @forgeTokenSaved.
   ///
   /// In en, this message translates to:
-  /// **'Connected to GitHub.'**
-  String get forgeTokenSaved;
+  /// **'Connected to {forge}.'**
+  String forgeTokenSaved(String forge);
 
   /// No description provided for @forgeTokenNotKept.
   ///
   /// In en, this message translates to:
-  /// **'GitHub accepted the token, but nothing on this system kept it. Set up a git credential helper and try again.'**
-  String get forgeTokenNotKept;
+  /// **'{forge} accepted the token, but nothing on this system kept it. Set up a git credential helper and try again.'**
+  String forgeTokenNotKept(String forge);
 
   /// No description provided for @forgeTokenForgotten.
   ///
   /// In en, this message translates to:
-  /// **'Token removed.'**
-  String get forgeTokenForgotten;
+  /// **'{forge} token removed.'**
+  String forgeTokenForgotten(String forge);
 
   /// No description provided for @forgeTokenNotForgotten.
   ///
   /// In en, this message translates to:
-  /// **'Could not remove the token. It may still be stored by git\'s credential helper.'**
-  String get forgeTokenNotForgotten;
+  /// **'Could not remove the {forge} token. It may still be stored by git\'s credential helper.'**
+  String forgeTokenNotForgotten(String forge);
 
   /// No description provided for @forgeRateBenefit.
   ///
   /// In en, this message translates to:
   /// **'Without a token GitHub allows 60 requests an hour; with one, 5,000. Opening a repository costs about 23: one request for each list, two for every pull request\'s checks, and one for the repository itself.'**
   String get forgeRateBenefit;
+
+  /// No description provided for @forgeRateBenefitGitlab.
+  ///
+  /// In en, this message translates to:
+  /// **'Without a token, requests to GitLab share a low rate limit with every other anonymous caller. Connecting raises the limit to your own account\'s.'**
+  String get forgeRateBenefitGitlab;
 
   /// No description provided for @forgeRateRemaining.
   ///
@@ -3131,7 +3161,7 @@ abstract class AppLocalizations {
   /// No description provided for @forgeRefreshInterval.
   ///
   /// In en, this message translates to:
-  /// **'Pull request refresh interval'**
+  /// **'Pull and merge request refresh interval'**
   String get forgeRefreshInterval;
 
   /// No description provided for @lhTitleLine.

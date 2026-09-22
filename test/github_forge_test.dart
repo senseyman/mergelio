@@ -21,7 +21,7 @@ String fixture(String name) =>
 
 GitHubForge forgeWith(MockClient client) => GitHubForge(
   host: _host,
-  http: ForgeHttp(client: client),
+  http: ForgeHttp(kind: ForgeKind.github, client: client),
 );
 
 void main() {
@@ -419,6 +419,7 @@ void main() {
     final forge = GitHubForge(
       host: _host,
       http: ForgeHttp(
+        kind: ForgeKind.github,
         client: MockClient((_) async {
           calls++;
           return http.Response(
@@ -504,5 +505,32 @@ void main() {
 
     expect(bodies, 1, reason: 'the second call must revalidate, not refetch');
     expect(second.map((i) => i.number), first.map((i) => i.number));
+  });
+
+  test('does not follow a next link that names another host', () async {
+    // The Link header is chosen by whatever answered the request. Following
+    // it to a host this call never resolved would send the user's GitHub
+    // token to that host; paging simply ends instead.
+    final hosts = <String>[];
+    final forge = forgeWith(
+      MockClient((req) async {
+        hosts.add(req.url.host);
+        return http.Response(
+          fixture('pulls.json'),
+          200,
+          headers: {
+            'link':
+                '<https://gitlab.com/api/v4/projects/1/merge_requests>; '
+                'rel="next"',
+          },
+        );
+      }),
+    );
+
+    final prs = await forge.pullRequests(limit: 50);
+
+    expect(hosts, ['api.github.com']);
+    // Ending paging is not an error: the rows already in hand are returned.
+    expect(prs, isNotEmpty);
   });
 }

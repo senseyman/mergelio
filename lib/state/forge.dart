@@ -9,6 +9,7 @@ import '../data/forge/forge_credentials.dart';
 import '../data/forge/forge_http.dart';
 import '../data/forge/github_forge.dart';
 import '../data/forge/github_parse.dart';
+import '../data/forge/gitlab_forge.dart';
 import '../domain/forge/forge.dart';
 import '../domain/forge/forge_error.dart';
 import '../domain/forge/forge_host.dart';
@@ -83,27 +84,31 @@ final forgeTokenProvider = FutureProvider.family<ForgeToken?, String>((
   ).fill(host.host, forgeTokenUsername);
 });
 
-/// Whether a `github.com` token is on file, independent of any repository.
+/// Which host's stored token an account row reads, and under which
+/// repository's git configuration to look for it.
+typedef ForgeAccountKey = ({String host, String? path});
+
+/// Whether a token for [ForgeAccountKey.host] is on file, independent of
+/// which repository is open.
 ///
 /// [forgeTokenProvider] answers for a specific repository's own resolved
-/// remote, so a repository on GitLab, on no forge at all, or with no origin
-/// configured resolves to null even when a `github.com` token is sitting in
-/// the same credential helper. The account row is about the account, not
-/// about whichever repository happens to be open, so it reads this instead.
+/// remote, so a repository on a different forge, on no forge at all, or with
+/// no origin configured resolves to null even when a token for this host is
+/// sitting in the same credential helper. An account row is about one named
+/// host, not about whichever repository happens to be open, which is why the
+/// Accounts rows read this instead of [forgeTokenProvider].
 ///
-/// [path] scopes the git config consulted exactly as [forgeTokenProvider]
-/// does; null falls back to the global configuration, for when no
-/// repository is open at all.
-final forgeAccountTokenProvider = FutureProvider.family<ForgeToken?, String?>((
-  ref,
-  path,
-) async {
-  final git = ref.watch(gitServiceProvider);
-  return ForgeCredentials(
-    git,
-    repoPath: path,
-  ).fill(kGithubHost, forgeTokenUsername);
-});
+/// [ForgeAccountKey.path] scopes the git config consulted exactly as
+/// [forgeTokenProvider] does; null falls back to the global configuration,
+/// for when no repository is open at all.
+final forgeAccountTokenProvider =
+    FutureProvider.family<ForgeToken?, ForgeAccountKey>((ref, key) async {
+      final git = ref.watch(gitServiceProvider);
+      return ForgeCredentials(
+        git,
+        repoPath: key.path,
+      ).fill(key.host, forgeTokenUsername);
+    });
 
 /// One cache for the application session.
 ///
@@ -121,14 +126,12 @@ final etagCacheProvider = Provider<EtagCache>((ref) => EtagCache());
 final forgeHttpClientProvider = Provider<http.Client?>((ref) => null);
 
 /// A forge for the repository at [path], or null when it is not on one.
-final githubForgeProvider = FutureProvider.family<Forge?, String>((
-  ref,
-  path,
-) async {
+final forgeProvider = FutureProvider.family<Forge?, String>((ref, path) async {
   final host = await ref.watch(forgeHostProvider(path).future);
   if (host == null) return null;
   final token = await ref.watch(forgeTokenProvider(path).future);
   final http = ForgeHttp(
+    kind: host.kind,
     token: token,
     client: ref.watch(forgeHttpClientProvider),
   );
@@ -137,11 +140,20 @@ final githubForgeProvider = FutureProvider.family<Forge?, String>((
   // only once nothing needs it any more, which is exactly what disposal
   // means here.
   ref.onDispose(http.close);
-  return GitHubForge(
-    host: host,
-    http: http,
-    cache: ref.watch(etagCacheProvider),
-  );
+  // Exhaustive with no default arm: a third forge must fail to compile here
+  // rather than silently falling back to GitHub.
+  return switch (host.kind) {
+    ForgeKind.github => GitHubForge(
+      host: host,
+      http: http,
+      cache: ref.watch(etagCacheProvider),
+    ),
+    ForgeKind.gitlab => GitlabForge(
+      host: host,
+      http: http,
+      cache: ref.watch(etagCacheProvider),
+    ),
+  };
 });
 
 /// How many pull requests one repository contributes to the section.
@@ -223,7 +235,7 @@ final pullRequestPanelProvider = FutureProvider.family<ForgePanel, String>((
   ref,
   path,
 ) async {
-  final forge = await ref.watch(githubForgeProvider(path).future);
+  final forge = await ref.watch(forgeProvider(path).future);
   if (forge == null) return const ForgePanel();
 
   final prs = await forge.pullRequests(limit: kPullRequestLimit);
@@ -275,7 +287,7 @@ final issuePanelProvider = FutureProvider.family<List<Issue>, String>((
   ref,
   path,
 ) async {
-  final forge = await ref.watch(githubForgeProvider(path).future);
+  final forge = await ref.watch(forgeProvider(path).future);
   if (forge == null) return const [];
   return forge.issues(limit: kIssueLimit);
 });
@@ -285,7 +297,7 @@ final issuePanelProvider = FutureProvider.family<List<Issue>, String>((
 ///
 /// Read from the forge's own budget endpoint rather than from response
 /// headers, so the transport keeps returning models and nothing else. The
-/// http client is the same overridable seam [githubForgeProvider] uses, so
+/// http client is the same overridable seam [forgeProvider] uses, so
 /// a test can answer this call without reaching the network.
 final forgeRateLimitProvider = FutureProvider.family<ForgeRateLimit?, String>((
   ref,
@@ -293,8 +305,16 @@ final forgeRateLimitProvider = FutureProvider.family<ForgeRateLimit?, String>((
 ) async {
   final host = await ref.watch(forgeHostProvider(path).future);
   if (host == null) return null;
+  if (host.kind != ForgeKind.github) {
+    // Only GitHub publishes a budget that costs nothing to read. GitLab
+    // reports its limits on ordinary responses, and holding those would mean
+    // mutable per-host state inside the transport; an absent number is the
+    // honest answer, and the row shows nothing rather than a zero.
+    return null;
+  }
   final token = await ref.watch(forgeTokenProvider(path).future);
   final http = ForgeHttp(
+    kind: host.kind,
     token: token,
     client: ref.watch(forgeHttpClientProvider),
   );
@@ -306,7 +326,7 @@ final forgeRateLimitProvider = FutureProvider.family<ForgeRateLimit?, String>((
     // panel.
     return null;
   } finally {
-    // One call and done: unlike [githubForgeProvider], nothing keeps this
+    // One call and done: unlike [forgeProvider], nothing keeps this
     // client around for a second request, so it is closed the moment this
     // one is finished with it rather than waiting on disposal.
     http.close();

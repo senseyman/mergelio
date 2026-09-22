@@ -11,6 +11,7 @@ import 'package:mergelio/data/forge/etag_cache.dart';
 import 'package:mergelio/data/forge/forge_credentials.dart';
 import 'package:mergelio/data/forge/forge_http.dart';
 import 'package:mergelio/data/settings_repository.dart';
+import 'package:mergelio/domain/forge/forge_host.dart';
 import 'package:mergelio/domain/forge/models.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
@@ -113,6 +114,10 @@ class _StoringCredentialGit implements GitService {
   String? stored;
   int fills = 0;
 
+  /// The stdin body of the most recent `credential` invocation, so a test
+  /// can see exactly which host and username a write or an erase named.
+  String? lastRequest;
+
   @override
   Future<String> version() async => 'git version 0.0.0';
 
@@ -129,6 +134,7 @@ class _StoringCredentialGit implements GitService {
     String? stdin,
   }) async {
     if (args.length >= 2 && args[0] == 'credential') {
+      lastRequest = stdin;
       switch (args[1]) {
         case 'fill':
           fills++;
@@ -195,6 +201,7 @@ class _SilentlyDecliningGit implements GitService {
 Future<ProviderContainer> _pump(
   WidgetTester tester, {
   required List<Override> overrides,
+  ForgeKind kind = ForgeKind.github,
 }) async {
   final container = ProviderContainer(overrides: overrides);
   addTearDown(container.dispose);
@@ -205,7 +212,7 @@ Future<ProviderContainer> _pump(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         theme: ThemeData(extensions: [AppTokens.dark()]),
-        home: const Scaffold(body: ForgeAccountRow()),
+        home: Scaffold(body: ForgeAccountRow(kind: kind)),
       ),
     ),
   );
@@ -217,7 +224,9 @@ void main() {
     test('accepts a token GitHub answers for', () async {
       final ok = await validateForgeToken(
         const ForgeToken('t'),
+        kind: ForgeKind.github,
         httpFor: (token) => ForgeHttp(
+          kind: ForgeKind.github,
           token: token,
           client: MockClient((_) async => http.Response('{"login":"me"}', 200)),
         ),
@@ -228,7 +237,9 @@ void main() {
     test('rejects a token GitHub refuses', () async {
       final ok = await validateForgeToken(
         const ForgeToken('bad'),
+        kind: ForgeKind.github,
         httpFor: (token) => ForgeHttp(
+          kind: ForgeKind.github,
           token: token,
           client: MockClient((_) async => http.Response('', 401)),
         ),
@@ -240,7 +251,9 @@ void main() {
       String? sent;
       await validateForgeToken(
         const ForgeToken('secret'),
+        kind: ForgeKind.github,
         httpFor: (token) => ForgeHttp(
+          kind: ForgeKind.github,
           token: token,
           client: MockClient((req) async {
             sent = req.headers['authorization'];
@@ -254,7 +267,9 @@ void main() {
     test('a forge that cannot be reached is not a rejected token', () async {
       final ok = await validateForgeToken(
         const ForgeToken('t'),
+        kind: ForgeKind.github,
         httpFor: (token) => ForgeHttp(
+          kind: ForgeKind.github,
           token: token,
           client: MockClient((_) async => throw const SocketExceptionStub()),
         ),
@@ -270,7 +285,9 @@ void main() {
         );
         await validateForgeToken(
           const ForgeToken('t'),
-          httpFor: (token) => ForgeHttp(token: token, client: accepted),
+          kind: ForgeKind.github,
+          httpFor: (token) =>
+              ForgeHttp(kind: ForgeKind.github, token: token, client: accepted),
         );
         expect(accepted.closed, isTrue);
 
@@ -279,7 +296,9 @@ void main() {
         );
         await validateForgeToken(
           const ForgeToken('t'),
-          httpFor: (token) => ForgeHttp(token: token, client: rejected),
+          kind: ForgeKind.github,
+          httpFor: (token) =>
+              ForgeHttp(kind: ForgeKind.github, token: token, client: rejected),
         );
         expect(rejected.closed, isTrue);
       },
@@ -291,7 +310,9 @@ void main() {
       );
       await validateForgeToken(
         const ForgeToken('t'),
-        httpFor: (token) => ForgeHttp(token: token, client: thrown),
+        kind: ForgeKind.github,
+        httpFor: (token) =>
+            ForgeHttp(kind: ForgeKind.github, token: token, client: thrown),
       );
       expect(thrown.closed, isTrue);
     });
@@ -492,7 +513,12 @@ void main() {
           isTrue,
         );
         expect(cache.length, 0);
-        expect(container.read(toastProvider).last.title, 'Token removed.');
+        // The row names its own forge: two of these sit in one dialog, so a
+        // bare "Token removed." would not say which account was emptied.
+        expect(
+          container.read(toastProvider).last.title,
+          'GitHub token removed.',
+        );
         await tester.pump(const Duration(seconds: 4));
       },
     );
@@ -521,13 +547,13 @@ void main() {
         // that is the silent-failure shape this row must not repeat.
         expect(
           container.read(toastProvider).last.title,
-          isNot('Token removed.'),
+          isNot('GitHub token removed.'),
         );
         // The wording matters: a failed erase must say the token may still be
         // stored, not merely that something went wrong.
         expect(
           container.read(toastProvider).last.title,
-          "Could not remove the token. It may still be stored by git's "
+          "Could not remove the GitHub token. It may still be stored by git's "
           'credential helper.',
         );
         expect(container.read(toastProvider).last.kind, ToastKind.error);
@@ -964,42 +990,41 @@ void main() {
         await tester.pump();
 
         expect(find.text('Connected'), findsOneWidget);
-        expect(find.text('10m'), findsOneWidget);
       },
     );
-  });
 
-  group('refresh interval', () {
-    List<Override> connectedOverrides(SettingsController Function(Ref) make) =>
-        [
-          gitServiceProvider.overrideWithValue(_RecordingGit()),
-          workspaceProvider.overrideWith((ref) {
-            final c = WorkspaceController();
-            c.openRepo('/repo');
-            return c;
-          }),
-          forgeTokenProvider.overrideWith(
-            (ref, path) async => const ForgeToken('ghp_x'),
-          ),
-          // The refresh-interval control is gated on the account-wide
-          // connected state, not on this specific repository's forge token.
-          forgeAccountTokenProvider.overrideWith(
-            (ref, path) async => const ForgeToken('ghp_x'),
-          ),
-          settingsProvider.overrideWith(make),
-        ];
+    testWidgets('each row explains its own forge budget', (tester) async {
+      // The two sentences are not interchangeable: GitHub's quotes the
+      // published 60/5,000 hourly figures and what one open costs against
+      // them, and GitLab publishes no such numbers. Showing either under
+      // the other heading tells the reader something untrue about the
+      // account they are about to connect.
+      for (final kind in ForgeKind.values) {
+        await _pump(
+          tester,
+          kind: kind,
+          overrides: [gitServiceProvider.overrideWithValue(_RecordingGit())],
+        );
+        await tester.pump();
 
-    testWidgets('is hidden without an active repository', (tester) async {
-      await _pump(
-        tester,
-        overrides: [gitServiceProvider.overrideWithValue(_RecordingGit())],
-      );
-      await tester.pump();
+        final l = AppLocalizations.of(
+          tester.element(find.byType(ForgeAccountRow)),
+        );
+        final own = kind == ForgeKind.github
+            ? l.forgeRateBenefit
+            : l.forgeRateBenefitGitlab;
+        final other = kind == ForgeKind.github
+            ? l.forgeRateBenefitGitlab
+            : l.forgeRateBenefit;
 
-      expect(find.text('10m'), findsNothing);
+        expect(find.text(own), findsOneWidget, reason: '$kind');
+        expect(find.text(other), findsNothing, reason: '$kind');
+      }
     });
 
-    testWidgets('is hidden until a token is connected', (tester) async {
+    testWidgets('the github row shows what is left of the hourly budget', (
+      tester,
+    ) async {
       await _pump(
         tester,
         overrides: [
@@ -1009,35 +1034,134 @@ void main() {
             c.openRepo('/repo');
             return c;
           }),
-          forgeAccountTokenProvider.overrideWith((ref, path) async => null),
+          forgeRateLimitProvider.overrideWith(
+            (ref, path) async => const ForgeRateLimit(remaining: 12, limit: 60),
+          ),
+          settingsProvider.overrideWith(
+            (ref) => SettingsController(
+              InMemorySettingsRepository(),
+              const AppSettings(),
+            ),
+          ),
         ],
       );
       await tester.pump();
+      await tester.pump();
 
-      expect(find.text('10m'), findsNothing);
+      final l = AppLocalizations.of(
+        tester.element(find.byType(ForgeAccountRow)),
+      );
+      expect(find.text(l.forgeRateRemaining(12, 60)), findsOneWidget);
     });
 
-    testWidgets('offers a choice once a token is connected', (tester) async {
-      late SettingsController ctl;
+    testWidgets('the gitlab row never shows github figures', (tester) async {
+      // forgeRateLimitProvider answers for whichever repository is active,
+      // and only GitHub publishes a free budget endpoint. Watching it from
+      // the GitLab row would print a GitHub repository's remaining requests
+      // under a GitLab account's heading.
       await _pump(
         tester,
-        overrides: connectedOverrides(
-          (ref) => ctl = SettingsController(
-            InMemorySettingsRepository(),
-            const AppSettings(),
+        kind: ForgeKind.gitlab,
+        overrides: [
+          gitServiceProvider.overrideWithValue(_RecordingGit()),
+          workspaceProvider.overrideWith((ref) {
+            final c = WorkspaceController();
+            c.openRepo('/repo');
+            return c;
+          }),
+          forgeRateLimitProvider.overrideWith(
+            (ref, path) async => const ForgeRateLimit(remaining: 12, limit: 60),
           ),
-        ),
+          settingsProvider.overrideWith(
+            (ref) => SettingsController(
+              InMemorySettingsRepository(),
+              const AppSettings(),
+            ),
+          ),
+        ],
       );
       await tester.pump();
       await tester.pump();
 
-      // Default interval (600s) selected.
-      expect(find.text('10m'), findsOneWidget);
+      final l = AppLocalizations.of(
+        tester.element(find.byType(ForgeAccountRow)),
+      );
+      expect(find.text(l.forgeRateRemaining(12, 60)), findsNothing);
+    });
 
-      await tester.tap(find.text('5m'));
-      await tester.pump();
+    testWidgets('the gitlab row validates against gitlab', (tester) async {
+      late Uri called;
+      final client = _TrackingClient(
+        MockClient((req) async {
+          called = req.url;
+          return http.Response('{}', 200);
+        }),
+      );
+      await _pump(
+        tester,
+        kind: ForgeKind.gitlab,
+        overrides: [
+          gitServiceProvider.overrideWithValue(_StoringCredentialGit()),
+          forgeHttpClientProvider.overrideWithValue(client),
+        ],
+      );
 
-      expect(ctl.state.forgeRefreshIntervalSeconds, 300);
+      await tester.enterText(find.byType(TextField), 'token');
+      await tester.tap(find.text('Connect'));
+      await tester.pumpAndSettle();
+
+      expect(called.toString(), 'https://gitlab.com/api/v4/user');
+      // pumpAndSettle only waits out animations, not the toast's own
+      // auto-dismiss Timer — left pending, it fails the next test's
+      // "no timers survived" invariant check instead of this one's.
+      await tester.pump(const Duration(seconds: 4));
+    });
+
+    testWidgets('the gitlab row stores its token under gitlab.com', (
+      tester,
+    ) async {
+      final git = _StoringCredentialGit();
+      await _pump(
+        tester,
+        kind: ForgeKind.gitlab,
+        overrides: [
+          gitServiceProvider.overrideWithValue(git),
+          forgeHttpClientProvider.overrideWithValue(
+            _TrackingClient(MockClient((_) async => http.Response('{}', 200))),
+          ),
+        ],
+      );
+
+      await tester.enterText(find.byType(TextField), 'token');
+      await tester.tap(find.text('Connect'));
+      await tester.pumpAndSettle();
+
+      // The credential body the helper was asked to store must name
+      // gitlab.com and the app's own account name, not github.com or an
+      // anonymous entry that would match the user's own push credential.
+      expect(git.lastRequest, contains('host=gitlab.com'));
+      expect(git.lastRequest, contains('username=x-access-token'));
+      await tester.pump(const Duration(seconds: 4));
+    });
+
+    testWidgets('disconnecting the gitlab row names only gitlab', (
+      tester,
+    ) async {
+      // An erase that names the wrong host — or no host — takes a
+      // credential the user still needs with it.
+      final git = _StoringCredentialGit();
+      await _pump(
+        tester,
+        kind: ForgeKind.gitlab,
+        overrides: [gitServiceProvider.overrideWithValue(git)],
+      );
+
+      await tester.tap(find.text('Disconnect'));
+      await tester.pumpAndSettle();
+
+      expect(git.lastRequest, contains('host=gitlab.com'));
+      expect(git.lastRequest, isNot(contains('github.com')));
+      await tester.pump(const Duration(seconds: 4));
     });
   });
 }

@@ -123,7 +123,7 @@ class GitHubForge implements Forge {
       final decoded = _decode(body);
       if (decoded is List) items.addAll(decoded);
       if (usableCount(items) >= limit) break;
-      next = nextPageUrl(response.headers['link']);
+      next = nextPageUrl(response.headers['link'], requestedFrom: next);
     }
     return items;
   }

@@ -1094,45 +1094,133 @@
   "fiCouldNotBlame": "Could not blame this file",
   "forgePullRequests": "Pull requests",
   "forgeNoPullRequests": "No open pull requests",
+  "forgeMergeRequests": "Merge requests",
+  "forgeNoMergeRequests": "No open merge requests",
   "forgeIssues": "Issues",
   "forgeNoIssues": "No open issues",
   "forgeRefresh": "Refresh",
   "forgeCouldNotOpenPr": "Could not open the pull request in your browser",
+  "forgeCouldNotOpenMr": "Could not open the merge request in your browser",
   "forgeCouldNotOpenIssue": "Could not open issue in browser",
   "forgeConnectHint": "Without a token: no auto-refresh, 60 requests an hour. Connect in Preferences → Credentials.",
-  "forgeErrUnauthenticated": "GitHub rejected the saved token. Reconnect in Preferences.",
-  "forgeErrRateLimited": "GitHub request limit reached. It resets at {time}.",
+  "forgeConnectHintGitlab": "Without a token: no auto-refresh, and a lower shared rate limit. Connect in Preferences → Credentials.",
+  "forgeErrUnauthenticated": "{forge} rejected the saved token. Reconnect in Preferences.",
+  "@forgeErrUnauthenticated": {
+    "placeholders": {
+      "forge": {
+        "type": "String"
+      }
+    }
+  },
+  "forgeErrRateLimited": "{forge} request limit reached. It resets at {time}.",
   "@forgeErrRateLimited": {
     "placeholders": {
+      "forge": {
+        "type": "String"
+      },
       "time": {
         "type": "String"
       }
     }
   },
-  "forgeErrRateLimitedSoon": "GitHub request limit reached. Try again shortly.",
-  "forgeErrNotVisible": "This repository is not visible to the current token.",
-  "forgeErrOffline": "Could not reach GitHub.",
-  "forgeErrServer": "GitHub answered with an error ({status}).",
+  "forgeErrRateLimitedSoon": "{forge} request limit reached. Try again shortly.",
+  "@forgeErrRateLimitedSoon": {
+    "placeholders": {
+      "forge": {
+        "type": "String"
+      }
+    }
+  },
+  "forgeErrNotVisible": "This repository is not visible to the current {forge} token.",
+  "@forgeErrNotVisible": {
+    "placeholders": {
+      "forge": {
+        "type": "String"
+      }
+    }
+  },
+  "forgeErrOffline": "Could not reach {forge}.",
+  "@forgeErrOffline": {
+    "placeholders": {
+      "forge": {
+        "type": "String"
+      }
+    }
+  },
+  "forgeErrServer": "{forge} answered with an error ({status}).",
   "@forgeErrServer": {
     "placeholders": {
+      "forge": {
+        "type": "String"
+      },
       "status": {
         "type": "int"
       }
     }
   },
-  "forgeErrMalformed": "GitHub sent a response this version could not read.",
-  "forgeAccountTitle": "GitHub account",
+  "forgeErrMalformed": "{forge} sent a response this version could not read.",
+  "@forgeErrMalformed": {
+    "placeholders": {
+      "forge": {
+        "type": "String"
+      }
+    }
+  },
+  "forgeAccountTitle": "{forge} account",
+  "@forgeAccountTitle": {
+    "placeholders": {
+      "forge": {
+        "type": "String"
+      }
+    }
+  },
   "forgeAccountConnected": "Connected",
   "forgeAccountNotConnected": "Not connected",
   "forgeTokenLabel": "Personal access token",
   "forgeConnect": "Connect",
   "forgeDisconnect": "Disconnect",
-  "forgeTokenRejected": "GitHub rejected that token.",
-  "forgeTokenSaved": "Connected to GitHub.",
-  "forgeTokenNotKept": "GitHub accepted the token, but nothing on this system kept it. Set up a git credential helper and try again.",
-  "forgeTokenForgotten": "Token removed.",
-  "forgeTokenNotForgotten": "Could not remove the token. It may still be stored by git's credential helper.",
+  "forgeTokenRejected": "{forge} rejected that token.",
+  "@forgeTokenRejected": {
+    "placeholders": {
+      "forge": {
+        "type": "String"
+      }
+    }
+  },
+  "forgeTokenSaved": "Connected to {forge}.",
+  "@forgeTokenSaved": {
+    "placeholders": {
+      "forge": {
+        "type": "String"
+      }
+    }
+  },
+  "forgeTokenNotKept": "{forge} accepted the token, but nothing on this system kept it. Set up a git credential helper and try again.",
+  "@forgeTokenNotKept": {
+    "placeholders": {
+      "forge": {
+        "type": "String"
+      }
+    }
+  },
+  "forgeTokenForgotten": "{forge} token removed.",
+  "@forgeTokenForgotten": {
+    "placeholders": {
+      "forge": {
+        "type": "String"
+      }
+    }
+  },
+  "forgeTokenNotForgotten": "Could not remove the {forge} token. It may still be stored by git's credential helper.",
+  "@forgeTokenNotForgotten": {
+    "placeholders": {
+      "forge": {
+        "type": "String"
+      }
+    }
+  },
   "forgeRateBenefit": "Without a token GitHub allows 60 requests an hour; with one, 5,000. Opening a repository costs about 23: one request for each list, two for every pull request's checks, and one for the repository itself.",
+  "forgeRateBenefitGitlab": "Without a token, requests to GitLab share a low rate limit with every other anonymous caller. Connecting raises the limit to your own account's.",
   "forgeRateRemaining": "{remaining} of {limit} requests left this hour.",
   "@forgeRateRemaining": {
     "placeholders": {
@@ -1144,7 +1232,7 @@
       }
     }
   },
-  "forgeRefreshInterval": "Pull request refresh interval",
+  "forgeRefreshInterval": "Pull and merge request refresh interval",
   "lhTitleLine": "{path} · line {line}",
   "@lhTitleLine": {
     "placeholders": {

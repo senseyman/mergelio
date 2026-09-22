@@ -1667,6 +1667,12 @@ class AppLocalizationsUk extends AppLocalizations {
   String get forgeNoPullRequests => 'Немає відкритих пулреквестів';
 
   @override
+  String get forgeMergeRequests => 'Запити на злиття';
+
+  @override
+  String get forgeNoMergeRequests => 'Немає відкритих запитів на злиття';
+
+  @override
   String get forgeIssues => 'Тікети';
 
   @override
@@ -1679,6 +1685,10 @@ class AppLocalizationsUk extends AppLocalizations {
   String get forgeCouldNotOpenPr => 'Не вдалося відкрити пулреквест у браузері';
 
   @override
+  String get forgeCouldNotOpenMr =>
+      'Не вдалося відкрити запит на злиття у браузері';
+
+  @override
   String get forgeCouldNotOpenIssue => 'Не вдалося відкрити тікет у браузері';
 
   @override
@@ -1686,36 +1696,48 @@ class AppLocalizationsUk extends AppLocalizations {
       'Без токена: без автооновлення, 60 запитів на годину. Підключіть у Налаштуваннях → Облікові дані.';
 
   @override
-  String get forgeErrUnauthenticated =>
-      'GitHub відхилив збережений токен. Підключіться знову в Налаштуваннях.';
+  String get forgeConnectHintGitlab =>
+      'Без токена: без автооновлення і зі спільним нижчим лімітом запитів. Підключіть у Налаштуваннях → Облікові дані.';
 
   @override
-  String forgeErrRateLimited(String time) {
-    return 'Ліміт запитів GitHub вичерпано. Він оновиться о $time.';
+  String forgeErrUnauthenticated(String forge) {
+    return '$forge відхилив збережений токен. Підключіться знову в Налаштуваннях.';
   }
 
   @override
-  String get forgeErrRateLimitedSoon =>
-      'Ліміт запитів GitHub вичерпано. Спробуйте трохи пізніше.';
-
-  @override
-  String get forgeErrNotVisible =>
-      'Цей репозиторій недоступний для поточного токена.';
-
-  @override
-  String get forgeErrOffline => 'Не вдалося зʼєднатися з GitHub.';
-
-  @override
-  String forgeErrServer(int status) {
-    return 'GitHub відповів помилкою ($status).';
+  String forgeErrRateLimited(String forge, String time) {
+    return 'Ліміт запитів $forge вичерпано. Він оновиться о $time.';
   }
 
   @override
-  String get forgeErrMalformed =>
-      'GitHub надіслав відповідь, яку ця версія не змогла прочитати.';
+  String forgeErrRateLimitedSoon(String forge) {
+    return 'Ліміт запитів $forge вичерпано. Спробуйте трохи пізніше.';
+  }
 
   @override
-  String get forgeAccountTitle => 'Обліковий запис GitHub';
+  String forgeErrNotVisible(String forge) {
+    return 'Цей репозиторій недоступний для поточного токена $forge.';
+  }
+
+  @override
+  String forgeErrOffline(String forge) {
+    return 'Не вдалося зʼєднатися з $forge.';
+  }
+
+  @override
+  String forgeErrServer(String forge, int status) {
+    return '$forge відповів помилкою ($status).';
+  }
+
+  @override
+  String forgeErrMalformed(String forge) {
+    return '$forge надіслав відповідь, яку ця версія не змогла прочитати.';
+  }
+
+  @override
+  String forgeAccountTitle(String forge) {
+    return 'Обліковий запис $forge';
+  }
 
   @override
   String get forgeAccountConnected => 'Підключено';
@@ -1733,25 +1755,37 @@ class AppLocalizationsUk extends AppLocalizations {
   String get forgeDisconnect => 'Відключити';
 
   @override
-  String get forgeTokenRejected => 'GitHub відхилив цей токен.';
+  String forgeTokenRejected(String forge) {
+    return '$forge відхилив цей токен.';
+  }
 
   @override
-  String get forgeTokenSaved => 'Підключено до GitHub.';
+  String forgeTokenSaved(String forge) {
+    return 'Підключено до $forge.';
+  }
 
   @override
-  String get forgeTokenNotKept =>
-      'GitHub прийняв токен, але жодне сховище в цій системі його не зберегло. Налаштуйте credential helper для git і спробуйте ще раз.';
+  String forgeTokenNotKept(String forge) {
+    return '$forge прийняв токен, але жодне сховище в цій системі його не зберегло. Налаштуйте credential helper для git і спробуйте ще раз.';
+  }
 
   @override
-  String get forgeTokenForgotten => 'Токен видалено.';
+  String forgeTokenForgotten(String forge) {
+    return 'Токен $forge видалено.';
+  }
 
   @override
-  String get forgeTokenNotForgotten =>
-      'Не вдалося видалити токен. Він може залишатися у сховищі облікових даних git.';
+  String forgeTokenNotForgotten(String forge) {
+    return 'Не вдалося видалити токен $forge. Він може залишатися у сховищі облікових даних git.';
+  }
 
   @override
   String get forgeRateBenefit =>
       'Без токена GitHub дозволяє 60 запитів на годину; з токеном — 5000. Відкриття репозиторію коштує близько 23: по одному запиту на кожен список, два на перевірки кожного пулреквеста і один на сам репозиторій.';
+
+  @override
+  String get forgeRateBenefitGitlab =>
+      'Без токена запити до GitLab використовують спільний нижчий ліміт з усіма іншими анонімними користувачами. Підключення піднімає ліміт до ліміту вашого облікового запису.';
 
   @override
   String forgeRateRemaining(int remaining, int limit) {
@@ -1759,7 +1793,8 @@ class AppLocalizationsUk extends AppLocalizations {
   }
 
   @override
-  String get forgeRefreshInterval => 'Інтервал оновлення пулреквестів';
+  String get forgeRefreshInterval =>
+      'Інтервал оновлення пулреквестів і запитів на злиття';
 
   @override
   String lhTitleLine(String path, String line) {

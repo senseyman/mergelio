@@ -33,29 +33,43 @@ CheckBadge checkBadgeFor(ChecksSummary? summary) {
 /// Every branch returns this file's own words. The detail carried by
 /// [ForgeOffline] and [ForgeMalformed] is deliberately dropped: it is written
 /// for a log, and echoing it into the interface is how a secret eventually
-/// reaches a screenshot.
-String forgePanelMessage(Object error, AppLocalizations l) {
-  if (error is ForgeUnauthenticated) return l.forgeErrUnauthenticated;
+/// reaches a screenshot. [kind] says which forge answered, so the sentence
+/// names the one a person would actually go reconnect.
+String forgePanelMessage(Object error, AppLocalizations l, ForgeKind kind) {
+  final forge = forgeDisplayName(kind);
+  if (error is ForgeUnauthenticated) return l.forgeErrUnauthenticated(forge);
   if (error is ForgeRateLimited) {
     final at = error.resetAt;
-    if (at == null) return l.forgeErrRateLimitedSoon;
+    if (at == null) return l.forgeErrRateLimitedSoon(forge);
     final local = at.toLocal();
     final hh = local.hour.toString().padLeft(2, '0');
     final mm = local.minute.toString().padLeft(2, '0');
-    return l.forgeErrRateLimited('$hh:$mm');
+    return l.forgeErrRateLimited(forge, '$hh:$mm');
   }
-  if (error is ForgeNotVisible) return l.forgeErrNotVisible;
-  if (error is ForgeOffline) return l.forgeErrOffline;
-  if (error is ForgeServerFault) return l.forgeErrServer(error.status);
-  return l.forgeErrMalformed;
+  if (error is ForgeNotVisible) return l.forgeErrNotVisible(forge);
+  if (error is ForgeOffline) return l.forgeErrOffline(forge);
+  if (error is ForgeServerFault) return l.forgeErrServer(forge, error.status);
+  return l.forgeErrMalformed(forge);
 }
 
-/// Where a person goes to read pull request [number] on the web.
+/// Where a person goes to read pull request (merge request) [number] on the
+/// web.
 ///
 /// Built from the repository's own coordinates and an integer, never from a
-/// URL the forge sent back, so no response can decide where the browser opens.
-Uri pullRequestWebUrl(ForgeHost host, int number) =>
-    Uri.https(host.host, '/${host.owner}/${host.repo}/pull/$number');
+/// URL the forge sent back, so no response can decide where the browser
+/// opens. The two forges spell the path differently, and GitLab's `/-/`
+/// separator is what keeps a group named `issues` from colliding with the
+/// route.
+Uri pullRequestWebUrl(ForgeHost host, int number) => switch (host.kind) {
+  ForgeKind.github => Uri.https(
+    host.host,
+    '/${host.owner}/${host.repo}/pull/$number',
+  ),
+  ForgeKind.gitlab => Uri.https(
+    host.host,
+    '/${host.owner}/${host.repo}/-/merge_requests/$number',
+  ),
+};
 
 /// Where a person goes to read issue [number] on the web.
 ///
@@ -63,8 +77,25 @@ Uri pullRequestWebUrl(ForgeHost host, int number) =>
 /// [pullRequestWebUrl] — but never down the same path: a forge numbers
 /// issues and pull requests in one sequence yet serves them from separate
 /// URLs, so an issue sent to the pull path opens a different page.
-Uri issueWebUrl(ForgeHost host, int number) =>
-    Uri.https(host.host, '/${host.owner}/${host.repo}/issues/$number');
+Uri issueWebUrl(ForgeHost host, int number) => switch (host.kind) {
+  ForgeKind.github => Uri.https(
+    host.host,
+    '/${host.owner}/${host.repo}/issues/$number',
+  ),
+  ForgeKind.gitlab => Uri.https(
+    host.host,
+    '/${host.owner}/${host.repo}/-/issues/$number',
+  ),
+};
+
+/// The forge's own name, for a sentence that has to say which one answered.
+///
+/// Not localized: these are product names, and translating them would name
+/// something that does not exist.
+String forgeDisplayName(ForgeKind kind) => switch (kind) {
+  ForgeKind.github => 'GitHub',
+  ForgeKind.gitlab => 'GitLab',
+};
 
 /// How a forge row opens its web page.
 ///

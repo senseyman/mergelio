@@ -26,6 +26,13 @@ const _host = ForgeHost(
   repo: 'r',
 );
 
+const _gitlabHost = ForgeHost(
+  kind: ForgeKind.gitlab,
+  host: 'gitlab.com',
+  owner: 'group',
+  repo: 'app',
+);
+
 PullRequest _pr(
   int n, {
   PullRequestState state = PullRequestState.open,
@@ -728,6 +735,119 @@ void main() {
 
     expect(container.read(toastProvider), hasLength(1));
     expect(container.read(toastProvider).single.kind, ToastKind.error);
+  });
+
+  testWidgets('a gitlab repository says merge requests', (t) async {
+    await _pump(
+      t,
+      overrides: [
+        forgeHostProvider.overrideWith((ref, path) async => _gitlabHost),
+        forgeTokenProvider.overrideWith((ref, path) async => null),
+        pullRequestPanelProvider.overrideWith(
+          (ref, path) async => const ForgePanel(),
+        ),
+      ],
+    );
+    await t.pumpAndSettle();
+
+    // The header renders its label upper-cased (see the guard test above),
+    // so that is the string a rendered "merge requests" header produces.
+    expect(find.text('MERGE REQUESTS'), findsOneWidget);
+    expect(find.text('PULL REQUESTS'), findsNothing);
+  });
+
+  testWidgets('a gitlab repository with nothing open says merge requests', (
+    t,
+  ) async {
+    // The empty-state wording follows the forge the same way the header
+    // does; "No open pull requests" under a GitLab project names something
+    // GitLab does not have.
+    await _pump(
+      t,
+      overrides: [
+        forgeHostProvider.overrideWith((ref, path) async => _gitlabHost),
+        forgeTokenProvider.overrideWith(
+          (ref, path) async => const ForgeToken('glpat_x'),
+        ),
+        pullRequestPanelProvider.overrideWith(
+          (ref, path) async => const ForgePanel(),
+        ),
+      ],
+    );
+    await t.pumpAndSettle();
+
+    expect(find.text('No open merge requests'), findsOneWidget);
+    expect(find.text('No open pull requests'), findsNothing);
+  });
+
+  testWidgets('the connect hint on gitlab is gitlab own', (t) async {
+    await _pump(
+      t,
+      overrides: [
+        forgeHostProvider.overrideWith((ref, path) async => _gitlabHost),
+        forgeTokenProvider.overrideWith((ref, path) async => null),
+        pullRequestPanelProvider.overrideWith(
+          (ref, path) async => ForgePanel(pullRequests: [_pr(1)]),
+        ),
+      ],
+    );
+    await t.pumpAndSettle();
+
+    final l = AppLocalizations.of(
+      t.element(find.byType(ForgePullRequestSection)),
+    );
+    // The two hints differ: GitHub's quotes its published hourly numbers,
+    // which GitLab does not publish. Showing GitHub's under a GitLab
+    // project would quote figures that do not apply.
+    expect(find.text(l.forgeConnectHintGitlab), findsOneWidget);
+    expect(find.text(l.forgeConnectHint), findsNothing);
+  });
+
+  testWidgets('a launch that failed on gitlab names the merge request', (
+    t,
+  ) async {
+    await _pump(
+      t,
+      overrides: [
+        forgeHostProvider.overrideWith((ref, path) async => _gitlabHost),
+        forgeTokenProvider.overrideWith((ref, path) async => null),
+        pullRequestPanelProvider.overrideWith(
+          (ref, path) async => ForgePanel(pullRequests: [_pr(7)]),
+        ),
+        forgeLaunchUrlProvider.overrideWithValue((url) async => false),
+      ],
+    );
+    await t.pumpAndSettle();
+
+    final element = t.element(find.byType(ForgePullRequestSection));
+    final l = AppLocalizations.of(element);
+    final container = ProviderScope.containerOf(element);
+
+    await t.tap(find.text('request 7'));
+    await t.pump();
+
+    expect(container.read(toastProvider).single.title, l.forgeCouldNotOpenMr);
+    expect(
+      container.read(toastProvider).single.title,
+      isNot(l.forgeCouldNotOpenPr),
+    );
+  });
+
+  testWidgets('a github repository still says pull requests', (t) async {
+    await _pump(
+      t,
+      overrides: [
+        forgeHostProvider.overrideWith((ref, path) async => _host),
+        forgeTokenProvider.overrideWith((ref, path) async => null),
+        pullRequestPanelProvider.overrideWith(
+          (ref, path) async => const ForgePanel(),
+        ),
+      ],
+    );
+    await t.pumpAndSettle();
+
+    expect(find.text('PULL REQUESTS'), findsOneWidget);
+    expect(find.text('MERGE REQUESTS'), findsNothing);
   });
 }
 

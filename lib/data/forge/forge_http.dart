@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:http/http.dart' as http;
 
 import '../../domain/forge/forge_error.dart';
+import '../../domain/forge/forge_host.dart';
 import 'forge_credentials.dart';
 
 /// One answer from a forge's HTTP API.
@@ -31,11 +32,17 @@ class ForgeHttpResponse {
 /// requests, pagination, or caching — that is what keeps it testable: a
 /// stub client keeps everything above it testable with no client at all.
 class ForgeHttp {
+  /// Which forge's dialect this transport speaks. Required, with no default:
+  /// a default would let a new call site send one forge's headers and token
+  /// scheme to the other, and the only reliable reviewer of that is the
+  /// compiler.
+  final ForgeKind kind;
   final http.Client _client;
   final ForgeToken? _token;
   final Duration _timeout;
 
   ForgeHttp({
+    required this.kind,
     http.Client? client,
     ForgeToken? token,
     Duration timeout = const Duration(seconds: 20),
@@ -46,6 +53,24 @@ class ForgeHttp {
        _token = token,
        // ignore: prefer_initializing_formals
        _timeout = timeout;
+
+  /// The headers every request to [kind] carries, with [token] applied under
+  /// whichever scheme that forge accepts.
+  ///
+  /// GitLab reads a personal access token from `PRIVATE-TOKEN`; GitHub reads
+  /// it from an `Authorization: Bearer` header. Sending both would hand the
+  /// token to a forge that was never asked for it.
+  Map<String, String> _headers(ForgeToken? token) => switch (kind) {
+    ForgeKind.github => {
+      'Accept': 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+      if (token != null) 'Authorization': 'Bearer ${token.value}',
+    },
+    ForgeKind.gitlab => {
+      'Accept': 'application/json',
+      if (token != null) 'PRIVATE-TOKEN': token.value,
+    },
+  };
 
   Future<ForgeHttpResponse> get(Uri url, {String? ifNoneMatch}) async {
     if (url.scheme != 'https') {
@@ -62,12 +87,7 @@ class ForgeHttp {
     // approve; a 3xx response is handled explicitly below instead.
     final request = http.Request('GET', url)
       ..followRedirects = false
-      ..headers.addAll({
-        'Accept': 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28',
-        if (token != null) 'Authorization': 'Bearer ${token.value}',
-        'If-None-Match': ?ifNoneMatch,
-      });
+      ..headers.addAll({..._headers(token), 'If-None-Match': ?ifNoneMatch});
 
     final http.Response response;
     try {

@@ -1,0 +1,6 @@
+[
+  {"id": 10, "name": "build", "status": "failed", "description": "flaked on first try"},
+  {"id": 11, "name": "build", "status": "success", "description": "passed on retry"},
+  {"id": 12, "name": "lint", "status": "failed", "allow_failure": true, "description": "non-blocking"},
+  {"id": 13, "name": "deploy", "status": "manual", "description": "awaiting approval"}
+]

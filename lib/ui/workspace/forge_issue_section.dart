@@ -75,7 +75,9 @@ class ForgeIssueSection extends ConsumerWidget {
       children: [
         ...?panel?.when(
           loading: () => const [ForgeLoadingRow()],
-          error: (e, _) => [ForgeMessageRow(text: forgePanelMessage(e, l))],
+          error: (e, _) => [
+            ForgeMessageRow(text: forgePanelMessage(e, l, host.kind)),
+          ],
           data: (issues) => issues.isEmpty
               // Nothing to say here: an empty list with the section open is
               // exactly the case [SidebarSection] itself already renders via

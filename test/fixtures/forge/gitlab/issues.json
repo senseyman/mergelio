@@ -1,0 +1,16 @@
+[
+  {
+    "id": 800001,
+    "iid": 7,
+    "title": "Crash on open",
+    "state": "opened",
+    "labels": ["bug", "needs triage"],
+    "author": {"username": "reporter", "name": "", "avatar_url": ""},
+    "updated_at": "2026-09-18T08:00:00.000Z"
+  },
+  {
+    "id": 800002,
+    "iid": 8,
+    "state": "opened"
+  }
+]
