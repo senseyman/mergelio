@@ -4,11 +4,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
 import '../../core/tokens.dart';
+import '../../data/forge/forge_credentials.dart';
+import '../../domain/forge/forge_host.dart';
 import '../../domain/ssh_keys.dart';
 import '../../domain/theme_io.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/feedback.dart';
+import '../../state/forge.dart';
 import '../../state/settings_controller.dart';
+import '../../state/workspace.dart';
 import '../common/dialogs.dart';
 import '../graph/commit_columns.dart';
 import 'forge_account_row.dart';
@@ -321,6 +325,24 @@ class _CredentialsTabState extends ConsumerState<_CredentialsTab> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final t = context.tokens;
+    final activePath = ref.watch(workspaceProvider).activeTab?.path;
+    // The refresh interval is one setting shared by every forge, so it is
+    // eligible the moment either account has a token on file — not only
+    // when both do, and not gated on which repository happens to be open.
+    final githubConnected =
+        ref
+            .watch(
+              forgeAccountTokenProvider((host: kGithubHost, path: activePath)),
+            )
+            .valueOrNull !=
+        null;
+    final gitlabConnected =
+        ref
+            .watch(
+              forgeAccountTokenProvider((host: kGitlabHost, path: activePath)),
+            )
+            .valueOrNull !=
+        null;
     return ListView(
       padding: const EdgeInsets.all(14),
       children: [
@@ -338,7 +360,24 @@ class _CredentialsTabState extends ConsumerState<_CredentialsTab> {
           style: TextStyle(color: t.textMuted, fontSize: 13, height: 1.5),
         ),
         const SizedBox(height: 20),
-        const ForgeAccountRow(),
+        const ForgeAccountRow(kind: ForgeKind.github),
+        const SizedBox(height: 20),
+        const ForgeAccountRow(kind: ForgeKind.gitlab),
+        // Belongs here, not on the General tab: unlike auto-fetch (which
+        // works with no token at all) this timer is inert without one, so
+        // it is only ever meaningful right beside the account rows that
+        // gate it.
+        if (githubConnected || gitlabConnected) ...[
+          const SizedBox(height: 12),
+          ForgeRefreshIntervalRow(
+            seconds: ref.watch(
+              settingsProvider.select((s) => s.forgeRefreshIntervalSeconds),
+            ),
+            onChanged: ref
+                .read(settingsProvider.notifier)
+                .setForgeRefreshInterval,
+          ),
+        ],
         const SizedBox(height: 20),
         const Divider(height: 1),
         const SizedBox(height: 20),

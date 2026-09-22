@@ -1658,6 +1658,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get forgeNoPullRequests => 'No open pull requests';
 
   @override
+  String get forgeMergeRequests => 'Merge requests';
+
+  @override
+  String get forgeNoMergeRequests => 'No open merge requests';
+
+  @override
   String get forgeIssues => 'Issues';
 
   @override
@@ -1671,11 +1677,19 @@ class AppLocalizationsEn extends AppLocalizations {
       'Could not open the pull request in your browser';
 
   @override
+  String get forgeCouldNotOpenMr =>
+      'Could not open the merge request in your browser';
+
+  @override
   String get forgeCouldNotOpenIssue => 'Could not open issue in browser';
 
   @override
   String get forgeConnectHint =>
       'Without a token: no auto-refresh, 60 requests an hour. Connect in Preferences → Credentials.';
+
+  @override
+  String get forgeConnectHintGitlab =>
+      'Without a token: no auto-refresh, and a lower shared rate limit. Connect in Preferences → Credentials.';
 
   @override
   String forgeErrUnauthenticated(String forge) {
@@ -1756,6 +1770,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get forgeRateBenefit =>
       'Without a token GitHub allows 60 requests an hour; with one, 5,000. Opening a repository costs about 23: one request for each list, two for every pull request\'s checks, and one for the repository itself.';
+
+  @override
+  String get forgeRateBenefitGitlab =>
+      'Without a token, requests to GitLab share a low rate limit with every other anonymous caller. Connecting raises the limit to your own account\'s.';
 
   @override
   String forgeRateRemaining(int remaining, int limit) {

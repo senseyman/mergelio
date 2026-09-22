@@ -26,6 +26,13 @@ const _host = ForgeHost(
   repo: 'r',
 );
 
+const _gitlabHost = ForgeHost(
+  kind: ForgeKind.gitlab,
+  host: 'gitlab.com',
+  owner: 'group',
+  repo: 'app',
+);
+
 PullRequest _pr(
   int n, {
   PullRequestState state = PullRequestState.open,
@@ -728,6 +735,42 @@ void main() {
 
     expect(container.read(toastProvider), hasLength(1));
     expect(container.read(toastProvider).single.kind, ToastKind.error);
+  });
+
+  testWidgets('a gitlab repository says merge requests', (t) async {
+    await _pump(
+      t,
+      overrides: [
+        forgeHostProvider.overrideWith((ref, path) async => _gitlabHost),
+        forgeTokenProvider.overrideWith((ref, path) async => null),
+        pullRequestPanelProvider.overrideWith(
+          (ref, path) async => const ForgePanel(),
+        ),
+      ],
+    );
+    await t.pumpAndSettle();
+
+    // The header renders its label upper-cased (see the guard test above),
+    // so that is the string a rendered "merge requests" header produces.
+    expect(find.text('MERGE REQUESTS'), findsOneWidget);
+    expect(find.text('PULL REQUESTS'), findsNothing);
+  });
+
+  testWidgets('a github repository still says pull requests', (t) async {
+    await _pump(
+      t,
+      overrides: [
+        forgeHostProvider.overrideWith((ref, path) async => _host),
+        forgeTokenProvider.overrideWith((ref, path) async => null),
+        pullRequestPanelProvider.overrideWith(
+          (ref, path) async => const ForgePanel(),
+        ),
+      ],
+    );
+    await t.pumpAndSettle();
+
+    expect(find.text('PULL REQUESTS'), findsOneWidget);
+    expect(find.text('MERGE REQUESTS'), findsNothing);
   });
 }
 

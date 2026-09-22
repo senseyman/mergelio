@@ -114,6 +114,10 @@ class _StoringCredentialGit implements GitService {
   String? stored;
   int fills = 0;
 
+  /// The stdin body of the most recent `credential` invocation, so a test
+  /// can see exactly which host and username a write or an erase named.
+  String? lastRequest;
+
   @override
   Future<String> version() async => 'git version 0.0.0';
 
@@ -130,6 +134,7 @@ class _StoringCredentialGit implements GitService {
     String? stdin,
   }) async {
     if (args.length >= 2 && args[0] == 'credential') {
+      lastRequest = stdin;
       switch (args[1]) {
         case 'fill':
           fills++;
@@ -196,6 +201,7 @@ class _SilentlyDecliningGit implements GitService {
 Future<ProviderContainer> _pump(
   WidgetTester tester, {
   required List<Override> overrides,
+  ForgeKind kind = ForgeKind.github,
 }) async {
   final container = ProviderContainer(overrides: overrides);
   addTearDown(container.dispose);
@@ -206,7 +212,7 @@ Future<ProviderContainer> _pump(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         theme: ThemeData(extensions: [AppTokens.dark()]),
-        home: const Scaffold(body: ForgeAccountRow()),
+        home: Scaffold(body: ForgeAccountRow(kind: kind)),
       ),
     ),
   );
@@ -218,6 +224,7 @@ void main() {
     test('accepts a token GitHub answers for', () async {
       final ok = await validateForgeToken(
         const ForgeToken('t'),
+        kind: ForgeKind.github,
         httpFor: (token) => ForgeHttp(
           kind: ForgeKind.github,
           token: token,
@@ -230,6 +237,7 @@ void main() {
     test('rejects a token GitHub refuses', () async {
       final ok = await validateForgeToken(
         const ForgeToken('bad'),
+        kind: ForgeKind.github,
         httpFor: (token) => ForgeHttp(
           kind: ForgeKind.github,
           token: token,
@@ -243,6 +251,7 @@ void main() {
       String? sent;
       await validateForgeToken(
         const ForgeToken('secret'),
+        kind: ForgeKind.github,
         httpFor: (token) => ForgeHttp(
           kind: ForgeKind.github,
           token: token,
@@ -258,6 +267,7 @@ void main() {
     test('a forge that cannot be reached is not a rejected token', () async {
       final ok = await validateForgeToken(
         const ForgeToken('t'),
+        kind: ForgeKind.github,
         httpFor: (token) => ForgeHttp(
           kind: ForgeKind.github,
           token: token,
@@ -275,6 +285,7 @@ void main() {
         );
         await validateForgeToken(
           const ForgeToken('t'),
+          kind: ForgeKind.github,
           httpFor: (token) =>
               ForgeHttp(kind: ForgeKind.github, token: token, client: accepted),
         );
@@ -285,6 +296,7 @@ void main() {
         );
         await validateForgeToken(
           const ForgeToken('t'),
+          kind: ForgeKind.github,
           httpFor: (token) =>
               ForgeHttp(kind: ForgeKind.github, token: token, client: rejected),
         );
@@ -298,6 +310,7 @@ void main() {
       );
       await validateForgeToken(
         const ForgeToken('t'),
+        kind: ForgeKind.github,
         httpFor: (token) =>
             ForgeHttp(kind: ForgeKind.github, token: token, client: thrown),
       );
@@ -972,80 +985,82 @@ void main() {
         await tester.pump();
 
         expect(find.text('Connected'), findsOneWidget);
-        expect(find.text('10m'), findsOneWidget);
       },
     );
-  });
 
-  group('refresh interval', () {
-    List<Override> connectedOverrides(SettingsController Function(Ref) make) =>
-        [
-          gitServiceProvider.overrideWithValue(_RecordingGit()),
-          workspaceProvider.overrideWith((ref) {
-            final c = WorkspaceController();
-            c.openRepo('/repo');
-            return c;
-          }),
-          forgeTokenProvider.overrideWith(
-            (ref, path) async => const ForgeToken('ghp_x'),
-          ),
-          // The refresh-interval control is gated on the account-wide
-          // connected state, not on this specific repository's forge token.
-          forgeAccountTokenProvider.overrideWith(
-            (ref, path) async => const ForgeToken('ghp_x'),
-          ),
-          settingsProvider.overrideWith(make),
-        ];
-
-    testWidgets('is hidden without an active repository', (tester) async {
-      await _pump(
-        tester,
-        overrides: [gitServiceProvider.overrideWithValue(_RecordingGit())],
+    testWidgets('the gitlab row validates against gitlab', (tester) async {
+      late Uri called;
+      final client = _TrackingClient(
+        MockClient((req) async {
+          called = req.url;
+          return http.Response('{}', 200);
+        }),
       );
-      await tester.pump();
-
-      expect(find.text('10m'), findsNothing);
-    });
-
-    testWidgets('is hidden until a token is connected', (tester) async {
       await _pump(
         tester,
+        kind: ForgeKind.gitlab,
         overrides: [
-          gitServiceProvider.overrideWithValue(_RecordingGit()),
-          workspaceProvider.overrideWith((ref) {
-            final c = WorkspaceController();
-            c.openRepo('/repo');
-            return c;
-          }),
-          forgeAccountTokenProvider.overrideWith((ref, path) async => null),
+          gitServiceProvider.overrideWithValue(_StoringCredentialGit()),
+          forgeHttpClientProvider.overrideWithValue(client),
         ],
       );
-      await tester.pump();
 
-      expect(find.text('10m'), findsNothing);
+      await tester.enterText(find.byType(TextField), 'token');
+      await tester.tap(find.text('Connect'));
+      await tester.pumpAndSettle();
+
+      expect(called.toString(), 'https://gitlab.com/api/v4/user');
+      // pumpAndSettle only waits out animations, not the toast's own
+      // auto-dismiss Timer — left pending, it fails the next test's
+      // "no timers survived" invariant check instead of this one's.
+      await tester.pump(const Duration(seconds: 4));
     });
 
-    testWidgets('offers a choice once a token is connected', (tester) async {
-      late SettingsController ctl;
+    testWidgets('the gitlab row stores its token under gitlab.com', (
+      tester,
+    ) async {
+      final git = _StoringCredentialGit();
       await _pump(
         tester,
-        overrides: connectedOverrides(
-          (ref) => ctl = SettingsController(
-            InMemorySettingsRepository(),
-            const AppSettings(),
+        kind: ForgeKind.gitlab,
+        overrides: [
+          gitServiceProvider.overrideWithValue(git),
+          forgeHttpClientProvider.overrideWithValue(
+            _TrackingClient(MockClient((_) async => http.Response('{}', 200))),
           ),
-        ),
+        ],
       );
-      await tester.pump();
-      await tester.pump();
 
-      // Default interval (600s) selected.
-      expect(find.text('10m'), findsOneWidget);
+      await tester.enterText(find.byType(TextField), 'token');
+      await tester.tap(find.text('Connect'));
+      await tester.pumpAndSettle();
 
-      await tester.tap(find.text('5m'));
-      await tester.pump();
+      // The credential body the helper was asked to store must name
+      // gitlab.com and the app's own account name, not github.com or an
+      // anonymous entry that would match the user's own push credential.
+      expect(git.lastRequest, contains('host=gitlab.com'));
+      expect(git.lastRequest, contains('username=x-access-token'));
+      await tester.pump(const Duration(seconds: 4));
+    });
 
-      expect(ctl.state.forgeRefreshIntervalSeconds, 300);
+    testWidgets('disconnecting the gitlab row names only gitlab', (
+      tester,
+    ) async {
+      // An erase that names the wrong host — or no host — takes a
+      // credential the user still needs with it.
+      final git = _StoringCredentialGit();
+      await _pump(
+        tester,
+        kind: ForgeKind.gitlab,
+        overrides: [gitServiceProvider.overrideWithValue(git)],
+      );
+
+      await tester.tap(find.text('Disconnect'));
+      await tester.pumpAndSettle();
+
+      expect(git.lastRequest, contains('host=gitlab.com'));
+      expect(git.lastRequest, isNot(contains('github.com')));
+      await tester.pump(const Duration(seconds: 4));
     });
   });
 }

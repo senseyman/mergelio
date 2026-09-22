@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
+import '../../domain/forge/forge_host.dart';
 import '../../domain/forge/models.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/feedback.dart';
@@ -25,6 +26,7 @@ class ForgePullRequestSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final host = ref.watch(forgeHostProvider(repoPath)).valueOrNull;
     if (host == null) return const SizedBox.shrink();
+    final gitlab = host.kind == ForgeKind.gitlab;
 
     final l = AppLocalizations.of(context);
     final ctl = ref.read(settingsProvider.notifier);
@@ -49,11 +51,11 @@ class ForgePullRequestSection extends ConsumerWidget {
     return SidebarSection(
       id: 'pull-requests',
       icon: Icons.merge_type,
-      label: l.forgePullRequests,
+      label: gitlab ? l.forgeMergeRequests : l.forgePullRequests,
       // Null, not 0, until the fetch resolves — a 0 here would claim the
       // repository has none before it is actually known.
       count: panel?.valueOrNull?.pullRequests.length,
-      emptyLabel: l.forgeNoPullRequests,
+      emptyLabel: gitlab ? l.forgeNoMergeRequests : l.forgeNoPullRequests,
       open: open,
       onToggle: () => ctl.toggleSection('pull-requests'),
       trailing: IconButton(
@@ -71,7 +73,10 @@ class ForgePullRequestSection extends ConsumerWidget {
             : () => ref.read(forgeRefreshProvider).refreshNow(repoPath),
       ),
       children: [
-        if (!connected) ForgeMessageRow(text: l.forgeConnectHint),
+        if (!connected)
+          ForgeMessageRow(
+            text: gitlab ? l.forgeConnectHintGitlab : l.forgeConnectHint,
+          ),
         ...?panel?.when(
           loading: () => const [ForgeLoadingRow()],
           error: (e, _) => [
@@ -111,7 +116,9 @@ class ForgePullRequestSection extends ConsumerWidget {
                           ref
                               .read(toastProvider.notifier)
                               .show(
-                                l.forgeCouldNotOpenPr,
+                                gitlab
+                                    ? l.forgeCouldNotOpenMr
+                                    : l.forgeCouldNotOpenPr,
                                 kind: ToastKind.error,
                               );
                         }

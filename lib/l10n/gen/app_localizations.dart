@@ -2972,6 +2972,18 @@ abstract class AppLocalizations {
   /// **'No open pull requests'**
   String get forgeNoPullRequests;
 
+  /// No description provided for @forgeMergeRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge requests'**
+  String get forgeMergeRequests;
+
+  /// No description provided for @forgeNoMergeRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'No open merge requests'**
+  String get forgeNoMergeRequests;
+
   /// No description provided for @forgeIssues.
   ///
   /// In en, this message translates to:
@@ -2996,6 +3008,12 @@ abstract class AppLocalizations {
   /// **'Could not open the pull request in your browser'**
   String get forgeCouldNotOpenPr;
 
+  /// No description provided for @forgeCouldNotOpenMr.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the merge request in your browser'**
+  String get forgeCouldNotOpenMr;
+
   /// No description provided for @forgeCouldNotOpenIssue.
   ///
   /// In en, this message translates to:
@@ -3007,6 +3025,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Without a token: no auto-refresh, 60 requests an hour. Connect in Preferences → Credentials.'**
   String get forgeConnectHint;
+
+  /// No description provided for @forgeConnectHintGitlab.
+  ///
+  /// In en, this message translates to:
+  /// **'Without a token: no auto-refresh, and a lower shared rate limit. Connect in Preferences → Credentials.'**
+  String get forgeConnectHintGitlab;
 
   /// No description provided for @forgeErrUnauthenticated.
   ///
@@ -3121,6 +3145,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Without a token GitHub allows 60 requests an hour; with one, 5,000. Opening a repository costs about 23: one request for each list, two for every pull request\'s checks, and one for the repository itself.'**
   String get forgeRateBenefit;
+
+  /// No description provided for @forgeRateBenefitGitlab.
+  ///
+  /// In en, this message translates to:
+  /// **'Without a token, requests to GitLab share a low rate limit with every other anonymous caller. Connecting raises the limit to your own account\'s.'**
+  String get forgeRateBenefitGitlab;
 
   /// No description provided for @forgeRateRemaining.
   ///

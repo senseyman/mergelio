@@ -1094,12 +1094,16 @@
   "fiCouldNotBlame": "Could not blame this file",
   "forgePullRequests": "Pull requests",
   "forgeNoPullRequests": "No open pull requests",
+  "forgeMergeRequests": "Merge requests",
+  "forgeNoMergeRequests": "No open merge requests",
   "forgeIssues": "Issues",
   "forgeNoIssues": "No open issues",
   "forgeRefresh": "Refresh",
   "forgeCouldNotOpenPr": "Could not open the pull request in your browser",
+  "forgeCouldNotOpenMr": "Could not open the merge request in your browser",
   "forgeCouldNotOpenIssue": "Could not open issue in browser",
   "forgeConnectHint": "Without a token: no auto-refresh, 60 requests an hour. Connect in Preferences → Credentials.",
+  "forgeConnectHintGitlab": "Without a token: no auto-refresh, and a lower shared rate limit. Connect in Preferences → Credentials.",
   "forgeErrUnauthenticated": "{forge} rejected the saved token. Reconnect in Preferences.",
   "@forgeErrUnauthenticated": {
     "placeholders": {
@@ -1195,6 +1199,7 @@
   "forgeTokenForgotten": "Token removed.",
   "forgeTokenNotForgotten": "Could not remove the token. It may still be stored by git's credential helper.",
   "forgeRateBenefit": "Without a token GitHub allows 60 requests an hour; with one, 5,000. Opening a repository costs about 23: one request for each list, two for every pull request's checks, and one for the repository itself.",
+  "forgeRateBenefitGitlab": "Without a token, requests to GitLab share a low rate limit with every other anonymous caller. Connecting raises the limit to your own account's.",
   "forgeRateRemaining": "{remaining} of {limit} requests left this hour.",
   "@forgeRateRemaining": {
     "placeholders": {

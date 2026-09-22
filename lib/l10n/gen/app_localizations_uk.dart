@@ -1667,6 +1667,12 @@ class AppLocalizationsUk extends AppLocalizations {
   String get forgeNoPullRequests => 'Немає відкритих пулреквестів';
 
   @override
+  String get forgeMergeRequests => 'Запити на злиття';
+
+  @override
+  String get forgeNoMergeRequests => 'Немає відкритих запитів на злиття';
+
+  @override
   String get forgeIssues => 'Тікети';
 
   @override
@@ -1679,11 +1685,19 @@ class AppLocalizationsUk extends AppLocalizations {
   String get forgeCouldNotOpenPr => 'Не вдалося відкрити пулреквест у браузері';
 
   @override
+  String get forgeCouldNotOpenMr =>
+      'Не вдалося відкрити запит на злиття у браузері';
+
+  @override
   String get forgeCouldNotOpenIssue => 'Не вдалося відкрити тікет у браузері';
 
   @override
   String get forgeConnectHint =>
       'Без токена: без автооновлення, 60 запитів на годину. Підключіть у Налаштуваннях → Облікові дані.';
+
+  @override
+  String get forgeConnectHintGitlab =>
+      'Без токена: без автооновлення і зі спільним нижчим лімітом запитів. Підключіть у Налаштуваннях → Облікові дані.';
 
   @override
   String forgeErrUnauthenticated(String forge) {
@@ -1764,6 +1778,10 @@ class AppLocalizationsUk extends AppLocalizations {
   @override
   String get forgeRateBenefit =>
       'Без токена GitHub дозволяє 60 запитів на годину; з токеном — 5000. Відкриття репозиторію коштує близько 23: по одному запиту на кожен список, два на перевірки кожного пулреквеста і один на сам репозиторій.';
+
+  @override
+  String get forgeRateBenefitGitlab =>
+      'Без токена запити до GitLab використовують спільний нижчий ліміт з усіма іншими анонімними користувачами. Підключення піднімає ліміт до ліміту вашого облікового запису.';
 
   @override
   String forgeRateRemaining(int remaining, int limit) {
