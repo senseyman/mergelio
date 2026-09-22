@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/tokens.dart';
 import '../../data/forge/forge_credentials.dart';
 import '../../data/forge/forge_http.dart';
+import '../../domain/forge/forge_host.dart';
 import '../../domain/git/git_providers.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/feedback.dart';
@@ -23,7 +24,9 @@ Future<bool> validateForgeToken(
   ForgeToken token, {
   ForgeHttp Function(ForgeToken token)? httpFor,
 }) async {
-  final http = (httpFor ?? (t) => ForgeHttp(token: t))(token);
+  final http = (httpFor ?? (t) => ForgeHttp(kind: ForgeKind.github, token: t))(
+    token,
+  );
   try {
     final response = await http.get(Uri.https('api.github.com', '/user'));
     return response.status >= 200 && response.status < 300;
@@ -100,8 +103,11 @@ class _ForgeAccountRowState extends ConsumerState<ForgeAccountRow> {
     final token = ForgeToken(raw);
     final ok = await validateForgeToken(
       token,
-      httpFor: (t) =>
-          ForgeHttp(token: t, client: ref.read(forgeHttpClientProvider)),
+      httpFor: (t) => ForgeHttp(
+        kind: ForgeKind.github,
+        token: t,
+        client: ref.read(forgeHttpClientProvider),
+      ),
     );
     if (!mounted) return;
     if (!ok) {

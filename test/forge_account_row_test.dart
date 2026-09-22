@@ -11,6 +11,7 @@ import 'package:mergelio/data/forge/etag_cache.dart';
 import 'package:mergelio/data/forge/forge_credentials.dart';
 import 'package:mergelio/data/forge/forge_http.dart';
 import 'package:mergelio/data/settings_repository.dart';
+import 'package:mergelio/domain/forge/forge_host.dart';
 import 'package:mergelio/domain/forge/models.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
@@ -218,6 +219,7 @@ void main() {
       final ok = await validateForgeToken(
         const ForgeToken('t'),
         httpFor: (token) => ForgeHttp(
+          kind: ForgeKind.github,
           token: token,
           client: MockClient((_) async => http.Response('{"login":"me"}', 200)),
         ),
@@ -229,6 +231,7 @@ void main() {
       final ok = await validateForgeToken(
         const ForgeToken('bad'),
         httpFor: (token) => ForgeHttp(
+          kind: ForgeKind.github,
           token: token,
           client: MockClient((_) async => http.Response('', 401)),
         ),
@@ -241,6 +244,7 @@ void main() {
       await validateForgeToken(
         const ForgeToken('secret'),
         httpFor: (token) => ForgeHttp(
+          kind: ForgeKind.github,
           token: token,
           client: MockClient((req) async {
             sent = req.headers['authorization'];
@@ -255,6 +259,7 @@ void main() {
       final ok = await validateForgeToken(
         const ForgeToken('t'),
         httpFor: (token) => ForgeHttp(
+          kind: ForgeKind.github,
           token: token,
           client: MockClient((_) async => throw const SocketExceptionStub()),
         ),
@@ -270,7 +275,8 @@ void main() {
         );
         await validateForgeToken(
           const ForgeToken('t'),
-          httpFor: (token) => ForgeHttp(token: token, client: accepted),
+          httpFor: (token) =>
+              ForgeHttp(kind: ForgeKind.github, token: token, client: accepted),
         );
         expect(accepted.closed, isTrue);
 
@@ -279,7 +285,8 @@ void main() {
         );
         await validateForgeToken(
           const ForgeToken('t'),
-          httpFor: (token) => ForgeHttp(token: token, client: rejected),
+          httpFor: (token) =>
+              ForgeHttp(kind: ForgeKind.github, token: token, client: rejected),
         );
         expect(rejected.closed, isTrue);
       },
@@ -291,7 +298,8 @@ void main() {
       );
       await validateForgeToken(
         const ForgeToken('t'),
-        httpFor: (token) => ForgeHttp(token: token, client: thrown),
+        httpFor: (token) =>
+            ForgeHttp(kind: ForgeKind.github, token: token, client: thrown),
       );
       expect(thrown.closed, isTrue);
     });

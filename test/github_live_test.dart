@@ -47,7 +47,7 @@ ForgeHost get _host => ForgeHost(
 
 GitHubForge _forge({EtagCache? cache, int maxPages = 1}) => GitHubForge(
   host: _host,
-  http: ForgeHttp(token: _token),
+  http: ForgeHttp(kind: ForgeKind.github, token: _token),
   cache: cache,
   maxPages: maxPages,
 );
@@ -171,7 +171,7 @@ void main() {
           owner: _owner,
           repo: 'definitely-not-a-real-repository-9z8x7c',
         ),
-        http: ForgeHttp(token: _token),
+        http: ForgeHttp(kind: ForgeKind.github, token: _token),
       );
 
       await expectLater(

@@ -21,7 +21,7 @@ String fixture(String name) =>
 
 GitHubForge forgeWith(MockClient client) => GitHubForge(
   host: _host,
-  http: ForgeHttp(client: client),
+  http: ForgeHttp(kind: ForgeKind.github, client: client),
 );
 
 void main() {
@@ -419,6 +419,7 @@ void main() {
     final forge = GitHubForge(
       host: _host,
       http: ForgeHttp(
+        kind: ForgeKind.github,
         client: MockClient((_) async {
           calls++;
           return http.Response(

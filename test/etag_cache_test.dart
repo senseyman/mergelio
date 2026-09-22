@@ -4,6 +4,7 @@ import 'package:http/testing.dart';
 import 'package:mergelio/data/forge/etag_cache.dart';
 import 'package:mergelio/data/forge/forge_http.dart';
 import 'package:mergelio/domain/forge/forge_error.dart';
+import 'package:mergelio/domain/forge/forge_host.dart';
 
 final _url = Uri.parse('https://api.github.com/repos/o/r/pulls');
 
@@ -135,6 +136,7 @@ void main() {
     test('sends no validator on a cold cache and stores the answer', () async {
       var sentIfNoneMatch = 'unset';
       final forge = ForgeHttp(
+        kind: ForgeKind.github,
         client: MockClient((req) async {
           sentIfNoneMatch = req.headers['if-none-match'] ?? 'absent';
           return http.Response('[1]', 200, headers: {'etag': 'W/"a"'});
@@ -152,6 +154,7 @@ void main() {
     test('revalidates with the stored validator and serves a 304', () async {
       var sentIfNoneMatch = 'unset';
       final forge = ForgeHttp(
+        kind: ForgeKind.github,
         client: MockClient((req) async {
           sentIfNoneMatch = req.headers['if-none-match'] ?? 'absent';
           return http.Response('', 304);
@@ -169,6 +172,7 @@ void main() {
       // Only a stored validator can produce a 304, so this means the cache was
       // dropped underneath the request; returning '' would look like no data.
       final forge = ForgeHttp(
+        kind: ForgeKind.github,
         client: MockClient((_) async => http.Response('', 304)),
       );
 
@@ -180,6 +184,7 @@ void main() {
 
     test('a fresh 200 replaces the cached body', () async {
       final forge = ForgeHttp(
+        kind: ForgeKind.github,
         client: MockClient(
           (_) async => http.Response('[2]', 200, headers: {'etag': 'W/"b"'}),
         ),

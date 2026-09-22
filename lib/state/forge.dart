@@ -129,6 +129,7 @@ final githubForgeProvider = FutureProvider.family<Forge?, String>((
   if (host == null) return null;
   final token = await ref.watch(forgeTokenProvider(path).future);
   final http = ForgeHttp(
+    kind: host.kind,
     token: token,
     client: ref.watch(forgeHttpClientProvider),
   );
@@ -295,6 +296,7 @@ final forgeRateLimitProvider = FutureProvider.family<ForgeRateLimit?, String>((
   if (host == null) return null;
   final token = await ref.watch(forgeTokenProvider(path).future);
   final http = ForgeHttp(
+    kind: host.kind,
     token: token,
     client: ref.watch(forgeHttpClientProvider),
   );
