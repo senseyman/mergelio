@@ -86,4 +86,20 @@ void main() {
       ),
     );
   });
+
+  test('a failing bisect log throws stderr attached', () async {
+    git.result = const GitResult(1, '', 'fatal: not valid object name');
+    // project's handlers read result?.err ahead message, so an
+    // exception thrown without its GitResult reaches user as empty text.
+    await expectLater(
+      writer.bisectLog(),
+      throwsA(
+        isA<GitException>().having(
+          (e) => e.result?.err,
+          'stderr',
+          contains('fatal: not valid object name'),
+        ),
+      ),
+    );
+  });
 }
