@@ -384,35 +384,6 @@ class _GraphListState extends ConsumerState<GraphList> {
     );
   }
 
-  /// Right-click menu for a chip in the graph's left gutter. Labels carry the
-  /// name as shown — a remote-only branch keeps its `remote/` prefix — so the
-  /// copied name is the one git accepts as a ref. The '+N' chip stands for
-  /// several branches at once, so each gets its own named entry.
-  Future<void> _branchChipMenu(
-    BuildContext context,
-    List<String> labels,
-    Offset at,
-  ) async {
-    if (labels.isEmpty) return;
-    final l = AppLocalizations.of(context);
-    final single = labels.length == 1;
-    await showContextMenu<void>(
-      context: context,
-      position: at,
-      items: [
-        for (final label in labels)
-          PopupMenuItem(
-            height: 34,
-            onTap: () => Clipboard.setData(ClipboardData(text: label)),
-            child: Text(
-              single ? l.sbCopyName : l.sbCopyNamed(label),
-              style: const TextStyle(fontSize: 13),
-            ),
-          ),
-      ],
-    );
-  }
-
   KeyEventResult _onKey(FocusNode node, KeyEvent event, double rowHeight) {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
@@ -595,14 +566,20 @@ class _GraphListState extends ConsumerState<GraphList> {
                       final prevLabels = ci > 0
                           ? (labels[d.commits[ci - 1].sha] ?? const <String>[])
                           : const <String>[];
+                      final showBranchLabel =
+                          rowLabels.isNotEmpty &&
+                          !listEquals(rowLabels, prevLabels);
                       final row = _CommitContextMenu(
                         commit: c,
+                        // Only the segment top names its branches, so only
+                        // there can the menu offer to copy them.
+                        branchLabels: showBranchLabel
+                            ? rowLabels
+                            : const <String>[],
                         child: CommitRow(
                           commit: c,
                           branchLabels: rowLabels,
-                          showBranchLabel:
-                              rowLabels.isNotEmpty &&
-                              !listEquals(rowLabels, prevLabels),
+                          showBranchLabel: showBranchLabel,
                           metrics: metrics,
                           maxLane: maxLane,
                           cols: cols,
@@ -616,8 +593,6 @@ class _GraphListState extends ConsumerState<GraphList> {
                             _focus.requestFocus();
                             _select(c.sha, metrics.rowHeight);
                           },
-                          onBranchMenu: (labels, at) =>
-                              _branchChipMenu(context, labels, at),
                           onBranchActivated: (label) {
                             final repoPath = ref
                                 .read(workspaceProvider)
@@ -1265,8 +1240,17 @@ class _WipRailPainter extends CustomPainter {
 /// Per-commit right-click menu wired to real, undoable git operations.
 class _CommitContextMenu extends ConsumerWidget {
   final Commit commit;
+
+  /// Branches named in this row's left gutter, as shown — a remote-only branch
+  /// keeps its `remote/` prefix — so the copied name is the one git accepts as
+  /// a ref. Empty when the row names none.
+  final List<String> branchLabels;
   final Widget child;
-  const _CommitContextMenu({required this.commit, required this.child});
+  const _CommitContextMenu({
+    required this.commit,
+    required this.branchLabels,
+    required this.child,
+  });
 
   /// Cherry-picks or reverts this commit. A merge has no single set of changes
   /// to replay, so git needs the mainline parent first — asking beats the bare
@@ -1425,6 +1409,16 @@ class _CommitContextMenu extends ConsumerWidget {
           l.menuEditMessage,
           () => editCommitMessage(context, ref, repoPath: path, commit: commit),
         ),
+        // One menu covers the whole row, gutter included, so a right-click
+        // anywhere on it reaches both the commit's actions and the names of
+        // the branches sitting on it — each named, since a row can carry
+        // several. They lead the copy group: reaching a branch name was one
+        // click on its chip before, and it stays near the top here.
+        for (final label in branchLabels)
+          item(
+            l.sbCopyNamed(label),
+            () => Clipboard.setData(ClipboardData(text: label)),
+          ),
         item(
           l.menuCopySummary,
           () => Clipboard.setData(ClipboardData(text: commit.message)),
