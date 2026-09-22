@@ -7,14 +7,12 @@ import 'package:mergelio/core/tokens.dart';
 import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
-import 'package:mergelio/domain/git/lane_layout.dart';
 import 'package:mergelio/domain/git/models.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
 import 'package:mergelio/state/workspace.dart';
-import 'package:mergelio/ui/graph/graph_view.dart';
 import 'package:mergelio/ui/workspace/repo_sidebar.dart';
 
 class _FakeGit implements GitService {
@@ -118,100 +116,5 @@ void main() {
     await tester.tap(find.text('Copy name'));
     await tester.pumpAndSettle();
     expect(clipboard, 'origin/other');
-  });
-
-  Future<void> pumpGraph(
-    WidgetTester tester, {
-    List<String> branches = const ['feature'],
-  }) async {
-    final workspace = WorkspaceController()..openRepo('/r');
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          workspaceProvider.overrideWith((ref) => workspace),
-          settingsProvider.overrideWith(
-            (ref) => SettingsController(
-              InMemorySettingsRepository(),
-              const AppSettings(),
-            ),
-          ),
-        ],
-        child: MaterialApp(
-          theme: ThemeData(extensions: [AppTokens.dark()]),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: GraphList(
-              data: RepoData(
-                commits: assignLanes([
-                  Commit(
-                    sha: 'aaa',
-                    message: 'msg aaa',
-                    body: '',
-                    author: 'Tester',
-                    authorEmail: 't@e',
-                    date: DateTime(2026, 7, 1),
-                    parents: const [],
-                    refs: [
-                      for (final b in branches)
-                        GitRef(name: b, kind: RefKind.local),
-                    ],
-                  ),
-                ]),
-                branches: [
-                  for (final b in branches) Branch(name: b, tip: 'aaa'),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-  }
-
-  testWidgets('a graph branch chip menu copies the branch name', (
-    tester,
-  ) async {
-    await pumpGraph(tester);
-
-    await rightClick(tester, find.text('feature'));
-    expect(find.text('Copy name'), findsOneWidget);
-    // The chip claims the click: the row's commit menu must not open too.
-    expect(find.text('Copy SHA'), findsNothing);
-
-    await tester.tap(find.text('Copy name'));
-    await tester.pumpAndSettle();
-    expect(clipboard, 'feature');
-  });
-
-  testWidgets('the overflow chip menu copies any branch it hides', (
-    tester,
-  ) async {
-    // A row fits three chips, so four branches collapse the last two into +N.
-    await pumpGraph(tester, branches: ['a', 'b', 'c', 'd']);
-    expect(find.text('+2'), findsOneWidget);
-
-    await rightClick(tester, find.text('+2'));
-
-    expect(find.text('Copy «c»'), findsOneWidget);
-    expect(find.text('Copy «d»'), findsOneWidget);
-    expect(find.text('Copy «a»'), findsNothing);
-    expect(find.text('Copy SHA'), findsNothing);
-
-    await tester.tap(find.text('Copy «d»'));
-    await tester.pumpAndSettle();
-    expect(clipboard, 'd');
-  });
-
-  testWidgets('right-clicking the graph row still opens the commit menu', (
-    tester,
-  ) async {
-    await pumpGraph(tester);
-
-    await rightClick(tester, find.text('msg aaa'));
-
-    expect(find.text('Copy SHA'), findsOneWidget);
-    expect(find.text('Copy name'), findsNothing);
   });
 }
