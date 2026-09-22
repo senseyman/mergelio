@@ -56,3 +56,62 @@ BisectTerms parseBisectTerms(String? contents) {
   if (lines.length < 2) return const BisectTerms();
   return BisectTerms(bad: lines[0], good: lines[1]);
 }
+
+/// Counts from `rev-list --bisect-vars`. A count of -1 means git was never
+/// asked — the range had no endpoints yet — which is not the same as a range
+/// that has narrowed to nothing.
+class BisectVars {
+  final String rev;
+  final int nr;
+  final int steps;
+  const BisectVars({this.rev = '', this.nr = -1, this.steps = -1});
+}
+
+/// `rev-list --bisect-vars` emits shell assignments, one per line, and adds
+/// new ones over time; only these three are read and the rest are ignored.
+BisectVars parseBisectVars(String out) {
+  var rev = '';
+  var nr = -1;
+  var steps = -1;
+  for (final line in out.split('\n')) {
+    final eq = line.indexOf('=');
+    if (eq <= 0) continue;
+    final key = line.substring(0, eq).trim();
+    // Some values arrive single-quoted, some bare.
+    final value = line.substring(eq + 1).trim().replaceAll("'", '');
+    switch (key) {
+      case 'bisect_rev':
+        rev = value;
+      case 'bisect_nr':
+        nr = int.tryParse(value) ?? -1;
+      case 'bisect_steps':
+        steps = int.tryParse(value) ?? -1;
+    }
+  }
+  return BisectVars(rev: rev, nr: nr, steps: steps);
+}
+
+/// Range arguments for `rev-list --bisect-vars`: the bad commit, then every
+/// good commit behind `--not`.
+///
+/// Returns empty when either end is missing. Git cannot size a range with only
+/// one end, and running the command anyway would walk the entire history.
+/// Skips are verdicts, not endpoints, so they never appear here.
+List<String> bisectVarsArgs(List<BisectMark> marks) {
+  final bads = marks.where((m) => m.kind == BisectKind.bad).toList();
+  final bad = bads.isNotEmpty ? bads.first : null;
+  final good = marks.where((m) => m.kind == BisectKind.good).toList();
+  if (bad == null || good.isEmpty) return const [];
+  return [bad.sha, '--not', for (final g in good) g.sha];
+}
+
+/// The commit that introduced the breakage, or null while the hunt continues.
+///
+/// When the candidate range has narrowed to nothing, the commit still marked
+/// bad is by definition the first bad one — that is the answer a bisect exists
+/// to produce.
+String? firstBadFrom(List<BisectMark> marks, int revisionsLeft) {
+  if (revisionsLeft != 0) return null;
+  final bads = marks.where((m) => m.kind == BisectKind.bad).toList();
+  return bads.isNotEmpty ? bads.first.sha : null;
+}
