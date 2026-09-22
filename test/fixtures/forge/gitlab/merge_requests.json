@@ -1,0 +1,37 @@
+[
+  {
+    "id": 900001,
+    "iid": 42,
+    "title": "Speed up graph",
+    "state": "opened",
+    "draft": false,
+    "source_branch": "feat/graph",
+    "target_branch": "main",
+    "sha": "abc123",
+    "updated_at": "2026-09-20T10:11:12.000Z",
+    "author": {"username": "ada", "name": "Ada L.", "avatar_url": "https://gitlab.com/a.png"}
+  },
+  {
+    "id": 900002,
+    "iid": 43,
+    "title": "Work in progress",
+    "state": "opened",
+    "draft": true,
+    "source_branch": "wip/thing",
+    "target_branch": "main",
+    "sha": "def456",
+    "updated_at": "2026-09-19T10:11:12.000Z",
+    "author": {"username": "bob", "name": "", "avatar_url": ""}
+  },
+  {
+    "id": 900003,
+    "iid": 44,
+    "title": "Missing its head sha",
+    "state": "opened",
+    "draft": false,
+    "source_branch": "feat/x",
+    "target_branch": "main",
+    "updated_at": "2026-09-18T10:11:12.000Z",
+    "author": {"username": "carol", "name": "Carol", "avatar_url": ""}
+  }
+]
