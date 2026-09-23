@@ -1642,5 +1642,6 @@
   "bisectQuitTitle": "Bisect in progress",
   "bisectQuitBody": "Quitting leaves this repository on a detached HEAD. Reset the bisect first?",
   "bisectQuitAnyway": "Quit anyway",
-  "bisectNoMarks": "Bisecting. Mark a bad commit to begin."
+  "bisectNoMarks": "Bisecting. Mark a bad commit to begin.",
+  "bisectUnreadable": "Bisect state could not be read"
 }

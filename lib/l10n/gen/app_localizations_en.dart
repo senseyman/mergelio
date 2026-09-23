@@ -2516,4 +2516,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get bisectNoMarks => 'Bisecting. Mark a bad commit to begin.';
+
+  @override
+  String get bisectUnreadable => 'Bisect state could not be read';
 }

@@ -2537,4 +2537,7 @@ class AppLocalizationsUk extends AppLocalizations {
   @override
   String get bisectNoMarks =>
       'Бісекція триває. Позначте зламаний коміт, щоб почати.';
+
+  @override
+  String get bisectUnreadable => 'Не вдалося прочитати стан бісекції';
 }

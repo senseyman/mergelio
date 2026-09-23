@@ -3,6 +3,8 @@
 // in the whole feature is a guard that outlives the bar and blocks quitting
 // forever, or one that never registers and lets a detached HEAD slip by
 // unannounced.
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -134,6 +136,51 @@ void main() {
     // A guard that outlives its widget blocks quitting the repository
     // forever — the bug this guard exists to avoid.
     expect(await container.read(unsavedGuardsProvider).confirm('/r'), isTrue);
+  });
+
+  // A read that failed says nothing about the repository: it may well still
+  // be sat on a bisect's detached HEAD. Dropping the guard on it would let
+  // that slip past unannounced, which is what the guard exists to prevent.
+  group('a bisect state that cannot be read', () {
+    ProviderContainer unreadable() {
+      final container = ProviderContainer(
+        overrides: [
+          bisectStateProvider('/r').overrideWith(
+            (ref) => Future<BisectState?>.error(StateError('git unavailable')),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      return container;
+    }
+
+    testWidgets('keeps the quit guard', (tester) async {
+      final container = unreadable();
+      await _pumpBar(tester, container);
+
+      expect(await _confirmAndDismiss(tester, container), isFalse);
+    });
+
+    testWidgets('says so rather than vanishing', (tester) async {
+      final container = unreadable();
+      await _pumpBar(tester, container);
+
+      expect(find.text('Bisect state could not be read'), findsOneWidget);
+    });
+
+    testWidgets('a read still in flight keeps the guard too', (tester) async {
+      final container = ProviderContainer(
+        overrides: [
+          bisectStateProvider('/r')
+              .overrideWith((ref) => Completer<BisectState?>().future),
+        ],
+      );
+      addTearDown(container.dispose);
+      await _pumpBar(tester, container);
+
+      // Not yet answered is not the same answer as "no bisect".
+      expect(await _confirmAndDismiss(tester, container), isFalse);
+    });
   });
 
   // Graph mode and Files mode are two branches of the same build, so one

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -39,7 +41,12 @@ BisectState _runningState() => const BisectState(
 );
 
 void main() {
-  Future<void> openMenu(WidgetTester tester, {BisectState? bisect}) async {
+  Future<void> openMenu(
+    WidgetTester tester, {
+    BisectState? bisect,
+    bool unreadable = false,
+    bool stillReading = false,
+  }) async {
     final workspace = WorkspaceController()..openRepo('/r');
     await tester.pumpWidget(
       ProviderScope(
@@ -51,7 +58,13 @@ void main() {
               const AppSettings(),
             ),
           ),
-          bisectStateProvider('/r').overrideWith((ref) => bisect),
+          bisectStateProvider('/r').overrideWith((ref) {
+            if (unreadable) {
+              return Future<BisectState?>.error(StateError('git unavailable'));
+            }
+            if (stillReading) return Completer<BisectState?>().future;
+            return bisect;
+          }),
         ],
         child: MaterialApp(
           theme: ThemeData(extensions: [AppTokens.dark()]),
@@ -105,5 +118,32 @@ void main() {
     final bisectY = tester.getTopLeft(find.text('Mark as good')).dy;
 
     expect(bisectY, greaterThan(copyY));
+  });
+
+  testWidgets('a bisect state that cannot be read offers nothing', (
+    tester,
+  ) async {
+    await openMenu(tester, unreadable: true);
+
+    // `git bisect start` on a hunt already in progress throws every ref away
+    // and exits 0, so offering it while nobody knows whether one is running
+    // puts a whole search one click from gone.
+    expect(find.text('Start bisect from here'), findsNothing);
+    // The verdicts are withheld for the same reason: they would be recorded
+    // against a bisect nobody has confirmed exists.
+    expect(find.text('Mark as good'), findsNothing);
+    expect(find.text('Mark as bad'), findsNothing);
+    expect(find.text('Skip this commit'), findsNothing);
+    // The rest of the menu is unaffected.
+    expect(find.text('Copy SHA'), findsOneWidget);
+  });
+
+  testWidgets('a read still in flight offers nothing either', (tester) async {
+    await openMenu(tester, stillReading: true);
+
+    // Not yet answered is not the same answer as "no bisect".
+    expect(find.text('Start bisect from here'), findsNothing);
+    expect(find.text('Mark as good'), findsNothing);
+    expect(find.text('Copy SHA'), findsOneWidget);
   });
 }

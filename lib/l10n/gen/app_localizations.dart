@@ -4435,6 +4435,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Bisecting. Mark a bad commit to begin.'**
   String get bisectNoMarks;
+
+  /// No description provided for @bisectUnreadable.
+  ///
+  /// In en, this message translates to:
+  /// **'Bisect state could not be read'**
+  String get bisectUnreadable;
 }
 
 class _AppLocalizationsDelegate

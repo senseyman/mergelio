@@ -97,39 +97,55 @@ class _BisectBarState extends ConsumerState<BisectBar> {
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(bisectStateProvider(widget.repoPath)).valueOrNull;
-    _syncGuard(active: state != null);
-    if (state == null) return const SizedBox.shrink();
+    final read = ref.watch(bisectStateProvider(widget.repoPath));
+    final state = read.bisect;
+    // An unread state is not a repository known to be clear of a bisect, and
+    // only the second of those is safe to stop guarding: the detached HEAD
+    // may well still be there.
+    _syncGuard(active: read.unknown || state != null);
     final l = AppLocalizations.of(context);
-    final actions = ref.read(repoActionsProvider(widget.repoPath));
     final t = context.tokens;
 
-    final hasBad = state.marks.any((m) => m.kind == BisectKind.bad);
-    final children = state.finished
-        ? _finished(l, state, actions)
-        // No bad mark yet: git has nothing to halve, whether that's because
-        // no marks exist at all or only good ones were typed at a terminal
-        // before a bad one. Both read the same to the person using the bar.
-        : !hasBad
-        ? _noMarks(l, actions)
-        : state.awaitingGood
-        ? _awaitingGood(l, actions)
-        : _running(l, state, actions);
+    if (read.unknown) {
+      // A failed read gets a line saying so; one merely still in flight gets
+      // nothing, so opening a repository does not flash a warning that the
+      // next frame withdraws.
+      return read.hasError ? _wrap(t, [Text(l.bisectUnreadable)]) : _hidden;
+    }
+    if (state == null) return _hidden;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: t.bgElevated,
-        border: Border(bottom: BorderSide(color: t.border)),
-      ),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: children,
-      ),
+    final actions = ref.read(repoActionsProvider(widget.repoPath));
+    final hasBad = state.marks.any((m) => m.kind == BisectKind.bad);
+    return _wrap(
+      t,
+      state.finished
+          ? _finished(l, state, actions)
+          // No bad mark yet: git has nothing to halve, whether that's because
+          // no marks exist at all or only good ones were typed at a terminal
+          // before a bad one. Both read the same to the person using the bar.
+          : !hasBad
+          ? _noMarks(l, actions)
+          : state.awaitingGood
+          ? _awaitingGood(l, actions)
+          : _running(l, state, actions),
     );
   }
+
+  static const _hidden = SizedBox.shrink();
+
+  Widget _wrap(AppTokens t, List<Widget> children) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    decoration: BoxDecoration(
+      color: t.bgElevated,
+      border: Border(bottom: BorderSide(color: t.border)),
+    ),
+    child: Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: children,
+    ),
+  );
 
   /// `git bisect start` was run but nothing has been marked yet: not
   /// awaiting-good (that needs a bad mark), not finished, and the vars git

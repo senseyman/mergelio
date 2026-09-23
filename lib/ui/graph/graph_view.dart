@@ -491,9 +491,12 @@ class _GraphListState extends ConsumerState<GraphList> {
     // Read once here rather than per row: every row's bisect pill and the
     // context menu's verdict group come from the same snapshot, so they
     // never disagree with each other or with the bar above the list.
+    //
+    // A read that failed leaves the pills off: a verdict shown against a
+    // commit nobody could confirm is worse than no verdict shown at all.
     final bisectState = repo == null
         ? null
-        : ref.watch(bisectStateProvider(repo)).valueOrNull;
+        : ref.watch(bisectStateProvider(repo)).bisect;
     final pathShas = (query == null || query.path.isEmpty || repo == null)
         ? null
         : ref.watch(pathHistoryProvider(PathKey(repo, query.path))).valueOrNull;
@@ -1307,7 +1310,7 @@ class _CommitContextMenu extends ConsumerWidget {
     final sha = commit.sha;
     final mark = ref.read(compareMarkProvider);
     final marked = mark != null && mark.repoPath == path && mark.sha == sha;
-    final bisect = ref.read(bisectStateProvider(path)).valueOrNull;
+    final bisect = ref.read(bisectStateProvider(path));
     final l = AppLocalizations.of(context);
 
     PopupMenuItem<void> item(
@@ -1463,22 +1466,31 @@ class _CommitContextMenu extends ConsumerWidget {
           ),
         ],
         item(l.menuCopySha, () => Clipboard.setData(ClipboardData(text: sha))),
-        const PopupMenuDivider(),
-        // Starting only makes sense with no bisect already in progress, and
-        // recording a verdict only makes sense with one running — the two
-        // groups are mutually exclusive, never shown together.
-        if (bisect == null)
-          item(l.bisectMenuStart, () => actions.startBisect(sha))
-        else ...[
-          item(
-            l.bisectMenuGood,
-            () => actions.markBisect(sha, BisectKind.good),
-          ),
-          item(l.bisectMenuBad, () => actions.markBisect(sha, BisectKind.bad)),
-          item(
-            l.bisectMenuSkip,
-            () => actions.markBisect(sha, BisectKind.skip),
-          ),
+        // Nothing bisect-related is offered while the state is unknown, so
+        // the divider that heads the group goes with it. `git bisect start`
+        // on a hunt already running throws its refs away and exits 0, which
+        // is one click between a failed read and a search that is gone.
+        if (!bisect.unknown) ...[
+          const PopupMenuDivider(),
+          // Starting only makes sense with no bisect already in progress, and
+          // recording a verdict only makes sense with one running — the two
+          // groups are mutually exclusive, never shown together.
+          if (bisect.bisect == null)
+            item(l.bisectMenuStart, () => actions.startBisect(sha))
+          else ...[
+            item(
+              l.bisectMenuGood,
+              () => actions.markBisect(sha, BisectKind.good),
+            ),
+            item(
+              l.bisectMenuBad,
+              () => actions.markBisect(sha, BisectKind.bad),
+            ),
+            item(
+              l.bisectMenuSkip,
+              () => actions.markBisect(sha, BisectKind.skip),
+            ),
+          ],
         ],
       ],
     );
