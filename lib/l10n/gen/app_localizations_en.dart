@@ -2502,10 +2502,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get bisectQuitBody =>
-      'Quitting leaves this repository on a detached HEAD. Reset the bisect first?';
+      'Quitting, or closing this repository, leaves it on a detached HEAD. Reset the bisect first?';
 
   @override
-  String get bisectQuitAnyway => 'Quit anyway';
+  String get bisectQuitAnyway => 'Continue anyway';
 
   @override
   String get bisectNoMarks => 'Bisecting. Mark a bad commit to begin.';

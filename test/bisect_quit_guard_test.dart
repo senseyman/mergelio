@@ -121,6 +121,43 @@ void main() {
     expect(await _confirmAndDismiss(tester, container), isFalse);
   });
 
+  testWidgets('quitting the app consults the bar guard too', (tester) async {
+    final container = ProviderContainer(
+      overrides: [bisectStateProvider('/r').overrideWith((ref) => _running())],
+    );
+    addTearDown(container.dispose);
+    await _pumpBar(tester, container);
+
+    // Closing one tab asks confirm(); quitting asks confirmAll(). Both have
+    // to reach this guard, or the detached HEAD slips out the other door.
+    final confirmed = container.read(unsavedGuardsProvider).confirmAll();
+    await tester.pumpAndSettle();
+    expect(find.text('Bisect in progress'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(await confirmed, isFalse);
+  });
+
+  testWidgets('the dialog covers closing the repository, not only quitting', (
+    tester,
+  ) async {
+    final container = ProviderContainer(
+      overrides: [bisectStateProvider('/r').overrideWith((ref) => _running())],
+    );
+    addTearDown(container.dispose);
+    await _pumpBar(tester, container);
+
+    final confirmed = container.read(unsavedGuardsProvider).confirm('/r');
+    await tester.pumpAndSettle();
+    // This dialog stands in for the close-tab prompt as well as the quit one,
+    // so copy naming only one of them describes the wrong action half the
+    // times it is read — and the way out of it cannot be spelled "Quit".
+    expect(find.textContaining('closing'), findsOneWidget);
+    await tester.tap(find.text('Continue anyway'));
+    await tester.pumpAndSettle();
+    expect(await confirmed, isTrue);
+  });
+
   testWidgets('a finished bisect still registers a quit guard', (tester) async {
     final container = ProviderContainer(
       overrides: [bisectStateProvider('/r').overrideWith((ref) => _finished())],

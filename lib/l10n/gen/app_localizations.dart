@@ -4409,13 +4409,13 @@ abstract class AppLocalizations {
   /// No description provided for @bisectQuitBody.
   ///
   /// In en, this message translates to:
-  /// **'Quitting leaves this repository on a detached HEAD. Reset the bisect first?'**
+  /// **'Quitting, or closing this repository, leaves it on a detached HEAD. Reset the bisect first?'**
   String get bisectQuitBody;
 
   /// No description provided for @bisectQuitAnyway.
   ///
   /// In en, this message translates to:
-  /// **'Quit anyway'**
+  /// **'Continue anyway'**
   String get bisectQuitAnyway;
 
   /// No description provided for @bisectNoMarks.

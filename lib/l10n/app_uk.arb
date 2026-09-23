@@ -914,8 +914,8 @@
   "bisectMenuBad": "Позначити як зламаний",
   "bisectMenuSkip": "Пропустити цей коміт",
   "bisectQuitTitle": "Бісекція триває",
-  "bisectQuitBody": "Вихід залишить репозиторій у стані detached HEAD. Спочатку скинути бісекцію?",
-  "bisectQuitAnyway": "Все одно вийти",
+  "bisectQuitBody": "Вихід або закриття репозиторію залишить його у стані detached HEAD. Спочатку скинути бісекцію?",
+  "bisectQuitAnyway": "Все одно продовжити",
   "bisectNoMarks": "Бісекція триває. Позначте зламаний коміт, щоб почати.",
   "bisectUnreadable": "Не вдалося прочитати стан бісекції"
 }

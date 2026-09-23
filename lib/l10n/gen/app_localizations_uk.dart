@@ -2522,10 +2522,10 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get bisectQuitBody =>
-      'Вихід залишить репозиторій у стані detached HEAD. Спочатку скинути бісекцію?';
+      'Вихід або закриття репозиторію залишить його у стані detached HEAD. Спочатку скинути бісекцію?';
 
   @override
-  String get bisectQuitAnyway => 'Все одно вийти';
+  String get bisectQuitAnyway => 'Все одно продовжити';
 
   @override
   String get bisectNoMarks =>

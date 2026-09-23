@@ -1638,8 +1638,8 @@
   "bisectMenuBad": "Mark as bad",
   "bisectMenuSkip": "Skip this commit",
   "bisectQuitTitle": "Bisect in progress",
-  "bisectQuitBody": "Quitting leaves this repository on a detached HEAD. Reset the bisect first?",
-  "bisectQuitAnyway": "Quit anyway",
+  "bisectQuitBody": "Quitting, or closing this repository, leaves it on a detached HEAD. Reset the bisect first?",
+  "bisectQuitAnyway": "Continue anyway",
   "bisectNoMarks": "Bisecting. Mark a bad commit to begin.",
   "bisectUnreadable": "Bisect state could not be read"
 }

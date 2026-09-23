@@ -613,15 +613,25 @@ class RepoActions {
     return name == 'HEAD' ? await _headSha() : name;
   }
 
-  void _toastErr(String label, GitException e) {
-    final err = e.result?.err ?? '';
+  /// Reports a failed op to the user.
+  ///
+  /// Takes any error rather than only a [GitException]: git is not the only
+  /// thing an op touches, and an error that reaches here has nowhere else to
+  /// land — most of these run from a button nobody awaits, where anything
+  /// not reported is never seen at all.
+  void _toastErr(String label, Object e) {
+    final String description;
+    if (e is GitException) {
+      // Stderr first: it is what git itself said, where the exception's own
+      // message is only the wrapper this code put around it.
+      final err = e.result?.err ?? '';
+      description = err.isNotEmpty ? err : e.message;
+    } else {
+      description = '$e';
+    }
     _ref
         .read(toastProvider.notifier)
-        .show(
-          '$label failed',
-          description: err.isNotEmpty ? err : e.message,
-          kind: ToastKind.error,
-        );
+        .show('$label failed', description: description, kind: ToastKind.error);
   }
 
   /// Runs an undoable op: executes [run], records its inverse, refreshes. The
@@ -1958,6 +1968,11 @@ class RepoActions {
   /// Nothing here parses command output. Git translates its progress messages,
   /// so a regex over "revisions left" would find nothing under a non-English
   /// locale; `for-each-ref` and `--bisect-vars` are stable in every locale.
+  /// Throws what it hits. A git call that cannot run raises a
+  /// [GitException], but the state files are read straight off disk, so a
+  /// file that vanishes between the existence test and the read — or one
+  /// that will not decode — raises a [FileSystemException] instead. Every
+  /// caller that runs from a button has to be ready for both.
   Future<BisectState?> bisectState() async {
     final startPath = await _stateFilePath('BISECT_START');
     if (startPath == null || !File(startPath).existsSync()) return null;
@@ -2026,7 +2041,7 @@ class RepoActions {
         await _writer.bisectMark(const BisectTerms().bad, sha);
       });
       await _journalDone(id);
-    } on GitException catch (e) {
+    } catch (e) {
       await _journalFail(id);
       _toastErr('Bisect', e);
     }
@@ -2042,7 +2057,7 @@ class RepoActions {
     final BisectState? current;
     try {
       current = await bisectState();
-    } on GitException catch (e) {
+    } catch (e) {
       _toastErr('Bisect', e);
       return;
     }
@@ -2072,7 +2087,7 @@ class RepoActions {
         }
       });
       await _journalDone(id);
-    } on GitException catch (e) {
+    } catch (e) {
       await _journalFail(id);
       _toastErr('Bisect', e);
     }
@@ -2084,7 +2099,7 @@ class RepoActions {
     final String? sha;
     try {
       sha = (await bisectState())?.currentSha;
-    } on GitException catch (e) {
+    } catch (e) {
       _toastErr('Bisect', e);
       return;
     }
@@ -2098,7 +2113,7 @@ class RepoActions {
     try {
       await _timed('Bisect reset', () => _writer.bisectReset());
       await _journalDone(id);
-    } on GitException catch (e) {
+    } catch (e) {
       await _journalFail(id);
       _toastErr('Bisect', e);
     }

@@ -207,6 +207,40 @@ void main() {
         isTrue,
       );
     });
+
+    // Not every way a state read fails is a git failure. The read tests a
+    // state file with existsSync() and then reads it, and the read throws a
+    // FileSystemException of its own — a file that vanished in between, a
+    // corrupt one that will not decode, an I/O fault on the disk. Caught
+    // only as a GitException, that escapes a button callback nobody awaits
+    // and the press does nothing at all, not even complain.
+    void corruptTermsFile() =>
+        File('${gitDir.path}/BISECT_TERMS')
+            .writeAsBytesSync([0xC3, 0x28, 0xFF]);
+
+    test('markBisect reports a state read that faulted outside git', () async {
+      corruptTermsFile();
+
+      await actions.markBisect('sha1', BisectKind.bad);
+
+      expect(writer.calls, isEmpty);
+      expect(
+        container.read(toastProvider).any((t) => t.kind == ToastKind.error),
+        isTrue,
+      );
+    });
+
+    test('skipBisect reports a state read that faulted outside git', () async {
+      corruptTermsFile();
+
+      await actions.skipBisect();
+
+      expect(writer.calls, isEmpty);
+      expect(
+        container.read(toastProvider).any((t) => t.kind == ToastKind.error),
+        isTrue,
+      );
+    });
   });
 
   group('startBisect / markBisect with no bisect running', () {
