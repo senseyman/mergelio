@@ -147,5 +147,26 @@ void main() {
       );
       expect(awaiting.finished, isFalse);
     });
+
+    test('no marks means not awaiting good commit', () {
+      // A bare `git bisect start` from the terminal leaves BISECT_START
+      // present with no refs yet. With nothing marked there is no range to
+      // narrow, so this is not the awaiting-good state.
+      expect(state().awaitingGood, isFalse);
+    });
+
+    test('kindOf reports the verdict for a marked commit, null otherwise', () {
+      final s = state(
+        marks: const [
+          BisectMark('aaa1111', BisectKind.bad),
+          BisectMark('bbb2222', BisectKind.good),
+          BisectMark('ccc3333', BisectKind.skip),
+        ],
+      );
+      expect(s.kindOf('aaa1111'), BisectKind.bad);
+      expect(s.kindOf('bbb2222'), BisectKind.good);
+      expect(s.kindOf('ccc3333'), BisectKind.skip);
+      expect(s.kindOf('zzz9999'), isNull);
+    });
   });
 }
