@@ -24,24 +24,41 @@ class BisectTerms {
 /// and the name suffix agree, but the target is what the ref actually points
 /// at; that is the one to trust. Refs that match no known verdict are skipped;
 /// a future git version adding one must not break the rest.
-List<BisectMark> parseBisectRefs(String out) {
-  const kinds = {
-    'bad': BisectKind.bad,
-    'good': BisectKind.good,
-    'skip': BisectKind.skip,
-  };
+///
+/// Git names those refs after [terms], so a repository that renamed its ends
+/// has none called good or bad — pass the terms read from the repository or
+/// every mark it holds reads as nothing at all.
+List<BisectMark> parseBisectRefs(
+  String out, [
+  BisectTerms terms = const BisectTerms(),
+]) {
   final marks = <BisectMark>[];
   for (final line in out.split('\n')) {
     final parts = line.trim().split(RegExp(r'\s+'));
     if (parts.length < 2) continue;
-    final name = parts[1].replaceFirst('refs/bisect/', '');
-    final kind = kinds[name.split('-').first];
+    final kind = _kindOfRef(parts[1].replaceFirst('refs/bisect/', ''), terms);
     if (kind != null) {
       marks.add(BisectMark(parts[0], kind));
     }
   }
   return marks;
 }
+
+/// The verdict a `refs/bisect/*` name records, or null when it records none.
+///
+/// The bad end is a bare ref name, the good end and skips carry a `-<sha>`
+/// suffix. Matching whole words against the terms rather than cutting the name
+/// at its first hyphen keeps terms that contain one (`known-good`) readable.
+BisectKind? _kindOfRef(String name, BisectTerms terms) {
+  // Skip is a subcommand rather than a term, so git never renames it.
+  if (_namesTerm(name, 'skip')) return BisectKind.skip;
+  if (_namesTerm(name, terms.bad)) return BisectKind.bad;
+  if (_namesTerm(name, terms.good)) return BisectKind.good;
+  return null;
+}
+
+bool _namesTerm(String name, String term) =>
+    name == term || name.startsWith('$term-');
 
 /// Parse BISECT_TERMS: `bad_word\ngood_word`.
 ///

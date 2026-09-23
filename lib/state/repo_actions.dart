@@ -1970,12 +1970,16 @@ class RepoActions {
           : null,
     );
 
+    // Read against the repository's own terms: git names these refs after
+    // them, so a repository that renamed its ends holds no ref called good or
+    // bad and every mark in it would otherwise read as nothing at all.
     final marks = parseBisectRefs(
       await _out([
         'for-each-ref',
         '--format=%(objectname) %(refname)',
         'refs/bisect',
       ]),
+      terms,
     );
 
     // Only ask for counts once both ends of the range exist; with one end git

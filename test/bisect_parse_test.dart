@@ -36,6 +36,62 @@ void main() {
     test('empty output yields no marks', () {
       expect(parseBisectRefs(''), isEmpty);
     });
+
+    test('reads refs named after the repository own terms', () {
+      // `git bisect start --term-old=works --term-new=broken` makes git name
+      // the refs after those words, so nothing here may assume good/bad.
+      final marks = parseBisectRefs(
+        'aaa1111 refs/bisect/broken\n'
+        'bbb2222 refs/bisect/works-bbb2222\n'
+        'ccc3333 refs/bisect/skip-ccc3333\n',
+        const BisectTerms(bad: 'broken', good: 'works'),
+      );
+      expect(marks, hasLength(3));
+      expect(marks[0].kind, BisectKind.bad);
+      expect(marks[0].sha, 'aaa1111');
+      expect(marks[1].kind, BisectKind.good);
+      expect(marks[1].sha, 'bbb2222');
+      expect(marks[2].kind, BisectKind.skip);
+    });
+
+    test('reads the old/new term pair', () {
+      final marks = parseBisectRefs(
+        'aaa1111 refs/bisect/new\n'
+        'bbb2222 refs/bisect/old-bbb2222\n',
+        const BisectTerms(bad: 'new', good: 'old'),
+      );
+      expect(marks.map((m) => m.kind), [BisectKind.bad, BisectKind.good]);
+    });
+
+    test('a term containing a hyphen is not cut short at the hyphen', () {
+      final marks = parseBisectRefs(
+        'aaa1111 refs/bisect/still-broken\n'
+        'bbb2222 refs/bisect/known-good-bbb2222\n',
+        const BisectTerms(bad: 'still-broken', good: 'known-good'),
+      );
+      expect(marks.map((m) => m.kind), [BisectKind.bad, BisectKind.good]);
+    });
+
+    test('skip keeps its own name when the terms are renamed', () {
+      // Skip is a subcommand rather than a term, so git never renames it —
+      // and renamed terms must not swallow its refs either.
+      final marks = parseBisectRefs(
+        'ccc3333 refs/bisect/skip-ccc3333\n',
+        const BisectTerms(bad: 'broken', good: 'works'),
+      );
+      expect(marks.single.kind, BisectKind.skip);
+    });
+
+    test('default good/bad refs are ignored once the terms are renamed', () {
+      // Under renamed terms git writes no good/bad refs, so anything left
+      // under those names belongs to no live verdict and is not a mark.
+      final marks = parseBisectRefs(
+        'aaa1111 refs/bisect/bad\n'
+        'bbb2222 refs/bisect/good-bbb2222\n',
+        const BisectTerms(bad: 'broken', good: 'works'),
+      );
+      expect(marks, isEmpty);
+    });
   });
 
   group('parseBisectTerms', () {

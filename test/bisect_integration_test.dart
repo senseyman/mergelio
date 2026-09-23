@@ -217,4 +217,78 @@ void main() {
 
     await g(repo.path, ['bisect', 'reset']);
   });
+
+  test('bisectState reads marks recorded under renamed terms', () async {
+    final repo = await makeRepo(commits: 8, breakAt: 5);
+    addTearDown(() => repo.delete(recursive: true));
+
+    final container = ProviderContainer(
+      overrides: [gitServiceProvider.overrideWithValue(svc)],
+    );
+    addTearDown(container.dispose);
+
+    final shas = await shasOldestFirst(repo.path);
+    // A repository may name the two ends whatever it likes, and git then
+    // names the refs it writes after those words — refs/bisect/broken and
+    // refs/bisect/works-<sha> here, with not a good or a bad among them.
+    await g(repo.path, [
+      'bisect',
+      'start',
+      '--term-old=works',
+      '--term-new=broken',
+    ]);
+    await g(repo.path, ['bisect', 'broken', shas.last]);
+    await g(repo.path, ['bisect', 'works', shas.first]);
+
+    final state = await actionsFor(container, repo.path).bisectState();
+    expect(state, isNotNull);
+    expect(state!.terms.bad, 'broken');
+    expect(state.terms.good, 'works');
+    expect(
+      state.marks.where((m) => m.kind == BisectKind.bad).map((m) => m.sha),
+      contains(shas.last),
+    );
+    expect(
+      state.marks.where((m) => m.kind == BisectKind.good).map((m) => m.sha),
+      contains(shas.first),
+    );
+    // Both ends are known, so git can size the range: a -1 here would mean
+    // the marks never made it through, and the bar would go on asking for a
+    // bad commit that was marked several steps ago.
+    expect(state.revisionsLeft, greaterThanOrEqualTo(0));
+    expect(state.awaitingGood, isFalse);
+
+    await g(repo.path, ['bisect', 'reset']);
+  });
+
+  test('a skip under renamed terms still reads back as a skip', () async {
+    final repo = await makeRepo(commits: 8, breakAt: 5);
+    addTearDown(() => repo.delete(recursive: true));
+
+    final container = ProviderContainer(
+      overrides: [gitServiceProvider.overrideWithValue(svc)],
+    );
+    addTearDown(container.dispose);
+
+    final shas = await shasOldestFirst(repo.path);
+    await g(repo.path, [
+      'bisect',
+      'start',
+      '--term-old=works',
+      '--term-new=broken',
+    ]);
+    await g(repo.path, ['bisect', 'broken', shas.last]);
+    await g(repo.path, ['bisect', 'works', shas.first]);
+    await g(repo.path, ['bisect', 'skip']);
+
+    final state = await actionsFor(container, repo.path).bisectState();
+    expect(state, isNotNull);
+    expect(
+      state!.marks.where((m) => m.kind == BisectKind.skip),
+      isNotEmpty,
+      reason: 'skip refs keep their own name even when the terms are renamed',
+    );
+
+    await g(repo.path, ['bisect', 'reset']);
+  });
 }
