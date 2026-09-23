@@ -68,18 +68,70 @@ void main() {
   });
 
   test('an unregistered guard is not consulted again', () async {
-    guards
-      ..register('/r', () async => false)
-      ..unregister('/r');
+    guards.register('/r', () async => false)();
 
     expect(await guards.confirm('/r'), isTrue);
   });
 
-  test('re-registering replaces the previous guard', () async {
+  test('a second guard joins the first rather than replacing it', () async {
+    // An editor pane and a bisect bar guard the same repository for different
+    // reasons. Whichever registered first must still be asked.
     guards
       ..register('/r', () async => false)
       ..register('/r', () async => true);
 
+    expect(await guards.confirm('/r'), isFalse);
+  });
+
+  test('every guard on a repository is asked', () async {
+    var asked = 0;
+    Future<bool> count() async {
+      asked++;
+      return true;
+    }
+
+    guards
+      ..register('/r', count)
+      ..register('/r', count);
+
     expect(await guards.confirm('/r'), isTrue);
+    expect(asked, 2);
+  });
+
+  test('dropping one guard leaves the others in place', () async {
+    final dropFirst = guards.register('/r', () async => true);
+    guards.register('/r', () async => false);
+
+    dropFirst();
+
+    // Dropping by path would have taken the second guard too — the way an
+    // editor pane being torn down can silently remove somebody else's.
+    expect(await guards.confirm('/r'), isFalse);
+  });
+
+  test('dropping a guard twice takes nothing else with it', () async {
+    final drop = guards.register('/r', () async => true);
+    drop();
+    guards.register('/r', () async => false);
+
+    drop();
+
+    expect(await guards.confirm('/r'), isFalse);
+  });
+
+  test('quitting asks every guard of every repository', () async {
+    var asked = 0;
+    Future<bool> count() async {
+      asked++;
+      return true;
+    }
+
+    guards
+      ..register('/a', count)
+      ..register('/a', count)
+      ..register('/b', count);
+
+    expect(await guards.confirmAll(), isTrue);
+    expect(asked, 3);
   });
 }

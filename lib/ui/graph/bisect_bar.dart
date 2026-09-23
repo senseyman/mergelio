@@ -47,7 +47,11 @@ class _BisectBarState extends ConsumerState<BisectBar> {
   // Held rather than read through `ref`, which is off limits by the time
   // this bar is being torn down.
   late final UnsavedGuards _guards;
-  bool _guarding = false;
+
+  /// Drops this bar's own registration, and null while it holds none. Other
+  /// guards on the same repository — an editor pane's, across a switch
+  /// between Files and the graph — are none of this bar's business.
+  DropGuard? _dropGuard;
 
   @override
   void initState() {
@@ -60,7 +64,7 @@ class _BisectBarState extends ConsumerState<BisectBar> {
     // A guard that outlives this widget would block the user from ever
     // quitting the repository again — far worse than the detached HEAD it
     // exists to warn about.
-    if (_guarding) _guards.unregister(widget.repoPath);
+    _dropGuard?.call();
     super.dispose();
   }
 
@@ -68,13 +72,13 @@ class _BisectBarState extends ConsumerState<BisectBar> {
   /// A finished bisect still sits on a detached HEAD until it is reset, so
   /// only `state == null` — no bisect, of any kind — drops the guard.
   void _syncGuard({required bool active}) {
-    if (active == _guarding) return;
+    if (active == (_dropGuard != null)) return;
     if (active) {
-      _guards.register(widget.repoPath, _confirmQuit);
+      _dropGuard = _guards.register(widget.repoPath, _confirmQuit);
     } else {
-      _guards.unregister(widget.repoPath);
+      _dropGuard?.call();
+      _dropGuard = null;
     }
-    _guarding = active;
   }
 
   Future<bool> _confirmQuit() async {

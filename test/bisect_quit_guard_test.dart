@@ -8,10 +8,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mergelio/core/tokens.dart';
+import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/domain/git/bisect.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/state/bisect.dart';
+import 'package:mergelio/state/file_editor.dart';
+import 'package:mergelio/state/open_files.dart';
+import 'package:mergelio/state/settings.dart';
+import 'package:mergelio/state/settings_controller.dart';
 import 'package:mergelio/state/unsaved_guard.dart';
+import 'package:mergelio/ui/files/file_editor_pane.dart';
 import 'package:mergelio/ui/graph/bisect_bar.dart';
 
 BisectState _running() => const BisectState(
@@ -128,5 +134,87 @@ void main() {
     // A guard that outlives its widget blocks quitting the repository
     // forever — the bug this guard exists to avoid.
     expect(await container.read(unsavedGuardsProvider).confirm('/r'), isTrue);
+  });
+
+  // Graph mode and Files mode are two branches of the same build, so one
+  // repository's bar and its editor pane swap places inside a single frame:
+  // the arriving widget registers its guard before the departing one is
+  // disposed. Both hold a guard on the same repository path, and neither may
+  // take the other's with it.
+  group('switching between the graph and Files', () {
+    ProviderContainer containerFor() {
+      final container = ProviderContainer(
+        overrides: [
+          bisectStateProvider('/r').overrideWith((ref) => _running()),
+          settingsProvider.overrideWith(
+            (ref) => SettingsController(
+              InMemorySettingsRepository(),
+              const AppSettings(),
+            ),
+          ),
+          editableFileForPathProvider.overrideWith(
+            (ref, FileRef key) async =>
+                EditableFile(text: 'body of ${key.relPath}'),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      return container;
+    }
+
+    Future<void> pumpEditor(WidgetTester tester, ProviderContainer container) =>
+        _pump(
+          tester,
+          container,
+          const SizedBox(
+            width: 800,
+            height: 600,
+            child: FileEditorPane(repoPath: '/r'),
+          ),
+        );
+
+    Future<void> dirtyAFile(
+      WidgetTester tester,
+      ProviderContainer container,
+    ) async {
+      container.read(openFilesProvider('/r').notifier).open('README.md');
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'changed');
+      await tester.pumpAndSettle();
+      expect(container.read(openFilesProvider('/r')).dirty, {'README.md'});
+    }
+
+    testWidgets('leaving Files mid-bisect keeps the quit guard', (
+      tester,
+    ) async {
+      final container = containerFor();
+      await pumpEditor(tester, container);
+      await dirtyAFile(tester, container);
+
+      await _pumpBar(tester, container);
+
+      // The editor is gone and its unsaved text with it, but the repository
+      // is still on the bisect's detached HEAD, so the bar's guard has to be
+      // the one still standing.
+      expect(await _confirmAndDismiss(tester, container), isFalse);
+    });
+
+    testWidgets('entering Files mid-bisect keeps the unsaved-text guard', (
+      tester,
+    ) async {
+      final container = containerFor();
+      await _pumpBar(tester, container);
+      await pumpEditor(tester, container);
+      await dirtyAFile(tester, container);
+
+      final confirmed = container.read(unsavedGuardsProvider).confirm('/r');
+      await tester.pumpAndSettle();
+      // Unsaved text is what the editor's guard exists to protect; closing
+      // over it without a word is the loss this seam can cause.
+      expect(find.text('Unsaved changes'), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(await confirmed, isFalse);
+    });
   });
 }
