@@ -71,6 +71,9 @@ class _BisectBarState extends ConsumerState<BisectBar> {
   /// Registers or drops the guard to match whether a bisect exists at all.
   /// A finished bisect still sits on a detached HEAD until it is reset, so
   /// only `state == null` — no bisect, of any kind — drops the guard.
+  ///
+  /// Only ever called with an answer git actually gave: an unknown read
+  /// leaves the guard exactly as it was.
   void _syncGuard({required bool active}) {
     if (active == (_dropGuard != null)) return;
     if (active) {
@@ -99,10 +102,15 @@ class _BisectBarState extends ConsumerState<BisectBar> {
   Widget build(BuildContext context) {
     final read = ref.watch(bisectStateProvider(widget.repoPath));
     final state = read.bisect;
-    // An unread state is not a repository known to be clear of a bisect, and
-    // only the second of those is safe to stop guarding: the detached HEAD
-    // may well still be there.
-    _syncGuard(active: read.unknown || state != null);
+    // The guard tracks the last thing git actually said, not the last thing
+    // that happened. An unknown read — a first load still in flight, or one
+    // that failed — is not a repository known to be clear of a bisect, so it
+    // never drops a guard; but it is not one known to be in a bisect either,
+    // so it must not arm one. Arming on it would warn about a hunt that was
+    // never running the moment a tab is opened and closed again, and would
+    // make a repository whose reads always fail prompt on every quit with
+    // nothing for the dialog's Reset to undo.
+    if (!read.unknown) _syncGuard(active: state != null);
     final l = AppLocalizations.of(context);
     final t = context.tokens;
 

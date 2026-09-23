@@ -89,6 +89,24 @@ Future<bool> _confirmAndDismiss(
   return confirmed;
 }
 
+/// Drives a single [bisectStateProvider] through a sequence of answers so a
+/// test can pin what the guard does to a *change* of answer rather than to
+/// one frozen state.
+enum _Phase { running, unreadable, none }
+
+final _readPhase = StateProvider<_Phase>((ref) => _Phase.running);
+
+Override _phased() => bisectStateProvider('/r').overrideWith((ref) {
+  switch (ref.watch(_readPhase)) {
+    case _Phase.running:
+      return _running();
+    case _Phase.unreadable:
+      return Future<BisectState?>.error(StateError('git unavailable'));
+    case _Phase.none:
+      return null;
+  }
+});
+
 void main() {
   testWidgets('a running bisect registers a quit guard', (tester) async {
     final container = ProviderContainer(
@@ -138,10 +156,13 @@ void main() {
     expect(await container.read(unsavedGuardsProvider).confirm('/r'), isTrue);
   });
 
-  // A read that failed says nothing about the repository: it may well still
-  // be sat on a bisect's detached HEAD. Dropping the guard on it would let
-  // that slip past unannounced, which is what the guard exists to prevent.
-  group('a bisect state that cannot be read', () {
+  // A read that failed, or has not landed yet, says nothing about the
+  // repository — and that cuts both ways. It cannot drop a guard a confirmed
+  // bisect armed, because the detached HEAD may well still be there; and it
+  // cannot arm one, because prompting about a hunt nobody has been told
+  // exists is how opening a tab and quitting again turns into a warning for
+  // a repository that was never bisecting.
+  group('a bisect state that is not known', () {
     ProviderContainer unreadable() {
       final container = ProviderContainer(
         overrides: [
@@ -154,21 +175,9 @@ void main() {
       return container;
     }
 
-    testWidgets('keeps the quit guard', (tester) async {
-      final container = unreadable();
-      await _pumpBar(tester, container);
-
-      expect(await _confirmAndDismiss(tester, container), isFalse);
-    });
-
-    testWidgets('says so rather than vanishing', (tester) async {
-      final container = unreadable();
-      await _pumpBar(tester, container);
-
-      expect(find.text('Bisect state could not be read'), findsOneWidget);
-    });
-
-    testWidgets('a read still in flight keeps the guard too', (tester) async {
+    testWidgets('a first load still in flight registers no guard', (
+      tester,
+    ) async {
       final container = ProviderContainer(
         overrides: [
           bisectStateProvider('/r')
@@ -178,8 +187,53 @@ void main() {
       addTearDown(container.dispose);
       await _pumpBar(tester, container);
 
-      // Not yet answered is not the same answer as "no bisect".
+      // Nothing has confirmed a bisect, so there is nothing to warn about:
+      // the confirm goes straight through without a dialog.
+      expect(await _confirmAndDismiss(tester, container), isTrue);
+    });
+
+    testWidgets('a persistent error with no earlier answer registers no '
+        'guard', (tester) async {
+      final container = unreadable();
+      await _pumpBar(tester, container);
+
+      // Every quit would otherwise prompt, and the dialog's Reset could not
+      // help: there is no bisect anyone knows of to reset.
+      expect(await _confirmAndDismiss(tester, container), isTrue);
+    });
+
+    testWidgets('says so rather than vanishing', (tester) async {
+      final container = unreadable();
+      await _pumpBar(tester, container);
+
+      expect(find.text('Bisect state could not be read'), findsOneWidget);
+    });
+
+    testWidgets('an error after a confirmed bisect keeps the guard', (
+      tester,
+    ) async {
+      final container = ProviderContainer(overrides: [_phased()]);
+      addTearDown(container.dispose);
+      await _pumpBar(tester, container);
+
+      container.read(_readPhase.notifier).state = _Phase.unreadable;
+      await tester.pumpAndSettle();
+
+      // The hunt is still on and the repository still detached; a read that
+      // momentarily failed must not be read as "the bisect went away".
       expect(await _confirmAndDismiss(tester, container), isFalse);
+    });
+
+    testWidgets('a confirmed bisect that ends drops the guard', (tester) async {
+      final container = ProviderContainer(overrides: [_phased()]);
+      addTearDown(container.dispose);
+      await _pumpBar(tester, container);
+
+      container.read(_readPhase.notifier).state = _Phase.none;
+      await tester.pumpAndSettle();
+
+      // Only git saying so is allowed to drop the guard.
+      expect(await _confirmAndDismiss(tester, container), isTrue);
     });
   });
 
