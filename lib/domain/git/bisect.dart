@@ -8,6 +8,13 @@ class BisectMark {
   const BisectMark(this.sha, this.kind);
 }
 
+extension on List<BisectMark> {
+  /// The first mark of [kind], or null when there is none. Bisect keeps one
+  /// bad end at a time, so for that kind "first" is the only one there is.
+  BisectMark? firstOfKind(BisectKind kind) =>
+      where((m) => m.kind == kind).firstOrNull;
+}
+
 /// Word pair that bisect uses. Git defaults to good/bad but lets a
 /// repository pick its own (old/new for a bisect that hunts a fix rather
 /// than a break). The command shows the repository's own words.
@@ -115,9 +122,8 @@ BisectVars parseBisectVars(String out) {
 /// one end, and running the command anyway would walk the entire history.
 /// Skips are verdicts, not endpoints, so they never appear here.
 List<String> bisectVarsArgs(List<BisectMark> marks) {
-  final bads = marks.where((m) => m.kind == BisectKind.bad).toList();
-  final bad = bads.isNotEmpty ? bads.first : null;
-  final good = marks.where((m) => m.kind == BisectKind.good).toList();
+  final bad = marks.firstOfKind(BisectKind.bad);
+  final good = marks.where((m) => m.kind == BisectKind.good);
   if (bad == null || good.isEmpty) return const [];
   return [bad.sha, '--not', for (final g in good) g.sha];
 }
@@ -129,8 +135,7 @@ List<String> bisectVarsArgs(List<BisectMark> marks) {
 /// to produce.
 String? firstBadFrom(List<BisectMark> marks, int revisionsLeft) {
   if (revisionsLeft != 0) return null;
-  final bads = marks.where((m) => m.kind == BisectKind.bad).toList();
-  return bads.isNotEmpty ? bads.first.sha : null;
+  return marks.firstOfKind(BisectKind.bad)?.sha;
 }
 
 /// The word that follows `git bisect` for [kind].

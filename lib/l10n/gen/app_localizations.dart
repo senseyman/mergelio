@@ -4340,12 +4340,6 @@ abstract class AppLocalizations {
   /// **'Reset bisect'**
   String get bisectReset;
 
-  /// No description provided for @bisectLog.
-  ///
-  /// In en, this message translates to:
-  /// **'Log'**
-  String get bisectLog;
-
   /// No description provided for @bisectFirstBadTitle.
   ///
   /// In en, this message translates to:
@@ -4405,12 +4399,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Skip this commit'**
   String get bisectMenuSkip;
-
-  /// No description provided for @bisectDirtyTree.
-  ///
-  /// In en, this message translates to:
-  /// **'Commit or stash your changes before starting a bisect.'**
-  String get bisectDirtyTree;
 
   /// No description provided for @bisectQuitTitle.
   ///

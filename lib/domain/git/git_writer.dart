@@ -307,14 +307,6 @@ class GitWriter {
   /// Exits the bisect session and returns to the original branch.
   Future<void> bisectReset() => _ok(['bisect', 'reset'], 'git bisect reset');
 
-  /// Reads the log of verdicts in the current bisect session, returning its
-  /// raw git output.
-  Future<String> bisectLog() async {
-    final r = await _run(['bisect', 'log']);
-    if (!r.ok) throw GitException('git bisect log', r);
-    return r.stdout;
-  }
-
   // --- Branch ops -----------------------------------------------------------
 
   /// Creates branch [name], optionally pointing at [at] (a commit/ref).

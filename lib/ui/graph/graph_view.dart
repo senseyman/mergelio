@@ -488,9 +488,11 @@ class _GraphListState extends ConsumerState<GraphList> {
     // Only the loaded value counts: while the read is in flight the filter has
     // no shas yet and the graph shows no matches.
     final repo = ref.watch(workspaceProvider.select((w) => w.activeTab?.path));
-    // Read once here rather than per row: every row's bisect pill and the
-    // context menu's verdict group come from the same snapshot, so they
-    // never disagree with each other or with the bar above the list.
+    // Read once for the whole list rather than per row, so no two rows can
+    // draw their pills from different snapshots. The context menu reads the
+    // provider again when it opens, by which time a verdict may have landed;
+    // that is the point — the menu offers what is true now, not what the
+    // list was painted with.
     //
     // A read that failed leaves the pills off: a verdict shown against a
     // commit nobody could confirm is worse than no verdict shown at all.

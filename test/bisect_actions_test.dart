@@ -17,6 +17,10 @@ class _ScriptedGit implements GitService {
   final calls = <List<String>>[];
   final Map<String, GitResult> responses = {};
 
+  /// Argument lists that cannot run at all, the way every command fails while
+  /// there is no usable git binary to run it.
+  final unrunnable = <String>{};
+
   @override
   Future<GitResult> run(
     List<String> args, {
@@ -27,6 +31,9 @@ class _ScriptedGit implements GitService {
     String? stdin,
   }) async {
     calls.add(args);
+    if (unrunnable.contains(args.join(' '))) {
+      throw GitUnavailableException('git could not be found');
+    }
     return responses[args.join(' ')] ?? const GitResult(0, '', '');
   }
 
@@ -67,12 +74,6 @@ class _RecordingWriter extends GitWriter {
   Future<void> bisectReset() {
     calls.add('reset');
     return super.bisectReset();
-  }
-
-  @override
-  Future<String> bisectLog() {
-    calls.add('log');
-    return super.bisectLog();
   }
 }
 
@@ -177,6 +178,35 @@ void main() {
 
       expect(writer.calls, ['skip:deadbeef']);
     });
+
+    // These run from buttons nobody awaits, so an error thrown out of the
+    // pre-flight read has nowhere to land: the user presses the button and
+    // absolutely nothing happens, not even a complaint.
+    test('markBisect reports a state read that could not run', () async {
+      git.unrunnable.add('rev-parse --git-path BISECT_START');
+
+      await actions.markBisect('sha1', BisectKind.bad);
+
+      // And emphatically does not read the failure as "no bisect running"
+      // and open a fresh one over the hunt already in progress.
+      expect(writer.calls, isEmpty);
+      expect(
+        container.read(toastProvider).any((t) => t.kind == ToastKind.error),
+        isTrue,
+      );
+    });
+
+    test('skipBisect reports a state read that could not run', () async {
+      git.unrunnable.add('rev-parse --git-path BISECT_START');
+
+      await actions.skipBisect();
+
+      expect(writer.calls, isEmpty);
+      expect(
+        container.read(toastProvider).any((t) => t.kind == ToastKind.error),
+        isTrue,
+      );
+    });
   });
 
   group('startBisect / markBisect with no bisect running', () {
@@ -201,6 +231,18 @@ void main() {
         ' M file.txt\n',
         '',
       );
+
+      await actions.startBisect('sha6');
+
+      expect(writer.calls, isEmpty);
+      expect(
+        container.read(toastProvider).any((t) => t.kind == ToastKind.error),
+        isTrue,
+      );
+    });
+
+    test('startBisect reports a dirty-tree check that could not run', () async {
+      git.unrunnable.add('status --porcelain');
 
       await actions.startBisect('sha6');
 
@@ -247,19 +289,6 @@ void main() {
       await actions.resetBisect();
 
       expect(writer.calls, ['reset']);
-    });
-
-    test('bisectLog reads back the writer own log', () async {
-      git.responses['bisect log'] = const GitResult(
-        0,
-        'git bisect start\ngit bisect bad aaa\n',
-        '',
-      );
-
-      final log = await actions.bisectLog();
-
-      expect(log, contains('git bisect bad aaa'));
-      expect(writer.calls, ['log']);
     });
   });
 

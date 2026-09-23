@@ -2488,9 +2488,6 @@ class AppLocalizationsUk extends AppLocalizations {
   String get bisectReset => 'Скинути бісекцію';
 
   @override
-  String get bisectLog => 'Журнал';
-
-  @override
   String get bisectFirstBadTitle => 'Перший зламаний коміт';
 
   @override
@@ -2519,10 +2516,6 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get bisectMenuSkip => 'Пропустити цей коміт';
-
-  @override
-  String get bisectDirtyTree =>
-      'Закомітьте або відкладіть зміни перед початком бісекції.';
 
   @override
   String get bisectQuitTitle => 'Бісекція триває';

@@ -2011,19 +2011,16 @@ class RepoActions {
   /// steps later, possibly in a later session, is not something to do to
   /// someone's work without being asked.
   Future<void> startBisect(String sha) async {
-    if (await _treeIsDirty()) {
-      _ref
-          .read(toastProvider.notifier)
-          .show(
-            'Bisect',
-            description:
-                'Commit or stash your changes before starting a bisect.',
-            kind: ToastKind.error,
-          );
-      return;
-    }
     final id = await _journalBegin('Bisect: start');
     try {
+      // Inside the try because it is a git call like any other: one that
+      // cannot run has to be reported, not thrown out of a button callback
+      // nobody awaits, where it disappears without a toast or a journal entry.
+      if (await _treeIsDirty()) {
+        throw GitException(
+          'Commit or stash your changes before starting a bisect.',
+        );
+      }
       await _timed('Bisect start', () async {
         await _writer.bisectStart();
         await _writer.bisectMark(const BisectTerms().bad, sha);
@@ -2038,8 +2035,18 @@ class RepoActions {
 
   /// Records [kind] against [sha], opening a bisect first when none is running.
   Future<void> markBisect(String sha, BisectKind kind) async {
-    final state = await bisectState();
-    if (state == null) {
+    // Reported here rather than allowed to escape: this runs from a button
+    // nobody awaits, and a state read that failed is not a repository known
+    // to have no bisect — opening one over a hunt already in progress would
+    // throw its refs away.
+    final BisectState? current;
+    try {
+      current = await bisectState();
+    } on GitException catch (e) {
+      _toastErr('Bisect', e);
+      return;
+    }
+    if (current == null) {
       if (kind != BisectKind.bad) {
         _ref
             .read(toastProvider.notifier)
@@ -2052,6 +2059,9 @@ class RepoActions {
       }
       return startBisect(sha);
     }
+    // Rebound now it is known non-null: a variable assigned somewhere other
+    // than its declaration loses its promotion inside the closure below.
+    final state = current;
     final id = await _journalBegin('Bisect: mark ${kind.name}');
     try {
       await _timed('Bisect ${kind.name}', () async {
@@ -2071,7 +2081,13 @@ class RepoActions {
 
   /// Sets the commit under test aside as untestable.
   Future<void> skipBisect() async {
-    final sha = (await bisectState())?.currentSha;
+    final String? sha;
+    try {
+      sha = (await bisectState())?.currentSha;
+    } on GitException catch (e) {
+      _toastErr('Bisect', e);
+      return;
+    }
     if (sha == null) return;
     await markBisect(sha, BisectKind.skip);
   }
@@ -2088,8 +2104,6 @@ class RepoActions {
     }
     _refresh();
   }
-
-  Future<String> bisectLog() => _writer.bisectLog();
 
   /// The message git prepared for the merge in progress, for the commit
   /// composer to offer. Empty when no merge is open.

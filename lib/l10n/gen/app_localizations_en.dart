@@ -2468,9 +2468,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bisectReset => 'Reset bisect';
 
   @override
-  String get bisectLog => 'Log';
-
-  @override
   String get bisectFirstBadTitle => 'First bad commit';
 
   @override
@@ -2499,10 +2496,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get bisectMenuSkip => 'Skip this commit';
-
-  @override
-  String get bisectDirtyTree =>
-      'Commit or stash your changes before starting a bisect.';
 
   @override
   String get bisectQuitTitle => 'Bisect in progress';
