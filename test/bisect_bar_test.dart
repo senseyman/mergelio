@@ -70,6 +70,25 @@ void main() {
     },
   );
 
+  testWidgets(
+    'a good-only mark (no bad yet) still shows the bare-start message, '
+    'not testing/verdict UI',
+    (tester) async {
+      await _pump(
+        tester,
+        _state(marks: const [BisectMark('bbb2222', BisectKind.good)]),
+      );
+      expect(
+        find.text('Bisecting. Mark a bad commit to begin.'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Testing'), findsNothing);
+      expect(find.text('Good'), findsNothing);
+      expect(find.text('Bad'), findsNothing);
+      expect(find.text('Skip'), findsNothing);
+    },
+  );
+
   testWidgets('awaiting good shows guidance and reset only', (tester) async {
     await _pump(
       tester,

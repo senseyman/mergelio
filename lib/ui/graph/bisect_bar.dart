@@ -38,9 +38,13 @@ class BisectBar extends ConsumerWidget {
     final actions = ref.read(repoActionsProvider(repoPath));
     final t = context.tokens;
 
+    final hasBad = state.marks.any((m) => m.kind == BisectKind.bad);
     final children = state.finished
         ? _finished(l, state, actions)
-        : state.marks.isEmpty
+        // No bad mark yet: git has nothing to halve, whether that's because
+        // no marks exist at all or only good ones were typed at a terminal
+        // before a bad one. Both read the same to the person using the bar.
+        : !hasBad
         ? _noMarks(l, actions)
         : state.awaitingGood
         ? _awaitingGood(l, actions)

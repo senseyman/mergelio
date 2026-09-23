@@ -21,6 +21,33 @@ GraphRailPainter _painter({BisectKind? bisect}) => GraphRailPainter(
   bisect: bisect,
 );
 
+/// Records the colour of every circle `paint()` draws, in call order, and
+/// no-ops every other [Canvas] method — a fake covering the whole interface
+/// via [noSuchMethod], since [Canvas] has far more members than this test
+/// cares about.
+class _RecordingCanvas implements Canvas {
+  final List<Color?> circleColors = [];
+
+  @override
+  void drawCircle(Offset c, double radius, Paint paint) {
+    circleColors.add(paint.color);
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => null;
+}
+
+/// The colour of the node's centre dot as actually painted — the last of
+/// the three circles a non-stash node draws (fill, ring, centre), and the
+/// one carrying the verdict tint. Reading this from a real `paint()` call
+/// (rather than from a private getter) also catches a `paint()` that stops
+/// wiring the tint through, not just a broken mapping.
+Color? _paintedNodeColor(BisectKind? bisect) {
+  final canvas = _RecordingCanvas();
+  _painter(bisect: bisect).paint(canvas, const Size(40, 40));
+  return canvas.circleColors.last;
+}
+
 void main() {
   test('shouldRepaint is true when the bisect verdict changes', () {
     final old = _painter(bisect: null);
@@ -32,5 +59,27 @@ void main() {
     final old = _painter(bisect: BisectKind.good);
     final next = _painter(bisect: BisectKind.good);
     expect(next.shouldRepaint(old), isFalse);
+  });
+
+  test('good, bad and skip each paint a distinct node colour', () {
+    final colors = {
+      for (final kind in BisectKind.values) kind: _paintedNodeColor(kind),
+    };
+    expect(
+      colors.values.toSet(),
+      hasLength(BisectKind.values.length),
+      reason: 'every verdict must paint its own colour: $colors',
+    );
+  });
+
+  test('a verdict paints a colour different from the untinted lane node', () {
+    final untinted = _paintedNodeColor(null);
+    for (final kind in BisectKind.values) {
+      expect(
+        _paintedNodeColor(kind),
+        isNot(equals(untinted)),
+        reason: '$kind must not fall back to the untinted lane colour',
+      );
+    }
   });
 }
