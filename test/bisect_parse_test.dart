@@ -72,6 +72,20 @@ void main() {
       expect(marks.map((m) => m.kind), [BisectKind.bad, BisectKind.good]);
     });
 
+    test('a term does not match a ref that merely starts with it', () {
+      // A ref named "older-<sha>" must not be bucketed under the shorter
+      // term "old" just because the name starts with it — only a bare match
+      // or a match cut at the term's own trailing hyphen counts.
+      final marks = parseBisectRefs(
+        'aaa1111 refs/bisect/old-aaa1111\n'
+        'bbb2222 refs/bisect/older-bbb2222\n',
+        const BisectTerms(bad: 'new', good: 'old'),
+      );
+      expect(marks, hasLength(1));
+      expect(marks.single.sha, 'aaa1111');
+      expect(marks.single.kind, BisectKind.good);
+    });
+
     test('skip keeps its own name when the terms are renamed', () {
       // Skip is a subcommand rather than a term, so git never renames it —
       // and renamed terms must not swallow its refs either.
