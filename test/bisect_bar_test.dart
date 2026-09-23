@@ -15,7 +15,6 @@ BisectState _state({
   String? firstBad,
 }) => BisectState(
   marks: marks,
-  startBranch: 'main',
   terms: const BisectTerms(),
   currentSha: 'head1111',
   revisionsLeft: left,

@@ -125,7 +125,9 @@ class CommitRow extends StatelessWidget {
                         palette: t.branchPalette,
                         nodeFill: t.bgApp,
                         stash: stashLabel != null,
-                        bisect: bisectKind,
+                        bisectTint: bisectKind == null
+                            ? null
+                            : bisectVerdictColor(bisectKind!, t),
                       ),
                     ),
                   ),
@@ -321,11 +323,12 @@ class CommitRow extends StatelessWidget {
   /// read by colour alone is invisible to the commonest form of colour
   /// vision deficiency.
   Widget _bisectPill(AppTokens t, AppLocalizations l, BisectKind kind) {
-    final (color, label) = switch (kind) {
-      BisectKind.bad => (t.danger, l.bisectPillBad),
-      BisectKind.good => (t.success, l.bisectPillGood),
-      BisectKind.skip => (t.textFaint, l.bisectPillSkip),
+    final label = switch (kind) {
+      BisectKind.bad => l.bisectPillBad,
+      BisectKind.good => l.bisectPillGood,
+      BisectKind.skip => l.bisectPillSkip,
     };
+    final color = bisectVerdictColor(kind, t);
     return Container(
       margin: const EdgeInsets.only(left: 6),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),

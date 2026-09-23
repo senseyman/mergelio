@@ -111,16 +111,16 @@ BisectTerms parseBisectTerms(String? contents) {
 /// asked — the range had no endpoints yet — which is not the same as a range
 /// that has narrowed to nothing.
 class BisectVars {
-  final String rev;
   final int nr;
   final int steps;
-  const BisectVars({this.rev = '', this.nr = -1, this.steps = -1});
+  const BisectVars({this.nr = -1, this.steps = -1});
 }
 
 /// `rev-list --bisect-vars` emits shell assignments, one per line, and adds
-/// new ones over time; only these three are read and the rest are ignored.
+/// new ones over time; only these two are read and the rest are ignored —
+/// `bisect_rev` among them, since the commit to test next is read back off
+/// HEAD, where git has already checked it out.
 BisectVars parseBisectVars(String out) {
-  var rev = '';
   var nr = -1;
   var steps = -1;
   for (final line in out.split('\n')) {
@@ -130,15 +130,13 @@ BisectVars parseBisectVars(String out) {
     // Some values arrive single-quoted, some bare.
     final value = line.substring(eq + 1).trim().replaceAll("'", '');
     switch (key) {
-      case 'bisect_rev':
-        rev = value;
       case 'bisect_nr':
         nr = int.tryParse(value) ?? -1;
       case 'bisect_steps':
         steps = int.tryParse(value) ?? -1;
     }
   }
-  return BisectVars(rev: rev, nr: nr, steps: steps);
+  return BisectVars(nr: nr, steps: steps);
 }
 
 /// Range arguments for `rev-list --bisect-vars`: the bad commit, then every
@@ -179,8 +177,6 @@ String bisectCommandFor(BisectKind kind, BisectTerms terms) => switch (kind) {
 class BisectState {
   final List<BisectMark> marks;
 
-  /// Branch the bisect started from, restored by a reset.
-  final String startBranch;
   final BisectTerms terms;
 
   /// The commit checked out for testing right now.
@@ -193,9 +189,8 @@ class BisectState {
 
   final String? firstBad;
 
-  const BisectState({
+  BisectState({
     required this.marks,
-    required this.startBranch,
     required this.terms,
     required this.currentSha,
     required this.revisionsLeft,
@@ -214,6 +209,14 @@ class BisectState {
   bool get running => !finished;
 
   /// Verdict recorded for [sha], or null when it has none.
-  BisectKind? kindOf(String sha) =>
-      marks.where((m) => m.sha == sha).firstOrNull?.kind;
+  ///
+  /// Built once instead of scanning [marks] per call: the graph asks for
+  /// every visible row on every build, and a state is replaced rather than
+  /// edited, so the answer cannot go stale under it. This is why the class
+  /// has no const constructor.
+  BisectKind? kindOf(String sha) => _bySha[sha];
+
+  late final Map<String, BisectKind> _bySha = {
+    for (final m in marks) m.sha: m.kind,
+  };
 }

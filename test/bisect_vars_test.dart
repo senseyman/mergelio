@@ -3,28 +3,25 @@ import 'package:mergelio/domain/git/bisect.dart';
 
 void main() {
   group('parseBisectVars', () {
-    test('reads rev, nr and steps', () {
+    test('reads nr and steps, ignoring the rest', () {
       final v = parseBisectVars(
         "bisect_rev='aaa1111'\n"
         "bisect_nr=12\n"
         "bisect_steps=4\n"
         "bisect_all=25\n",
       );
-      expect(v.rev, 'aaa1111');
       expect(v.nr, 12);
       expect(v.steps, 4);
     });
 
     test('missing assignments stay at the not-computed sentinel', () {
       final v = parseBisectVars('bisect_rev=aaa1111\n');
-      expect(v.rev, 'aaa1111');
       expect(v.nr, -1);
       expect(v.steps, -1);
     });
 
     test('empty output yields all sentinels', () {
       final v = parseBisectVars('');
-      expect(v.rev, '');
       expect(v.nr, -1);
       expect(v.steps, -1);
     });
@@ -102,7 +99,6 @@ void main() {
       String? firstBad,
     }) => BisectState(
       marks: marks,
-      startBranch: 'main',
       terms: const BisectTerms(),
       currentSha: 'head1111',
       revisionsLeft: left,

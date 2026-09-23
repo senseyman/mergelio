@@ -22,12 +22,11 @@ import 'package:mergelio/state/unsaved_guard.dart';
 import 'package:mergelio/ui/files/file_editor_pane.dart';
 import 'package:mergelio/ui/graph/bisect_bar.dart';
 
-BisectState _running() => const BisectState(
+BisectState _running() => BisectState(
   marks: [
     BisectMark('aaa', BisectKind.bad),
     BisectMark('bbb', BisectKind.good),
   ],
-  startBranch: 'main',
   terms: BisectTerms(),
   currentSha: 'ccc11111',
   revisionsLeft: 3,
@@ -35,9 +34,8 @@ BisectState _running() => const BisectState(
   firstBad: null,
 );
 
-BisectState _finished() => const BisectState(
+BisectState _finished() => BisectState(
   marks: [BisectMark('aaa', BisectKind.bad)],
-  startBranch: 'main',
   terms: BisectTerms(),
   currentSha: 'aaa',
   revisionsLeft: 0,

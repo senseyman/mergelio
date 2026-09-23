@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mergelio/core/tokens.dart';
 import 'package:mergelio/domain/git/bisect.dart';
 import 'package:mergelio/domain/git/models.dart';
 import 'package:mergelio/ui/graph/graph_rail.dart';
@@ -18,8 +19,12 @@ GraphRailPainter _painter({BisectKind? bisect}) => GraphRailPainter(
   m: const RailMetrics(),
   palette: const [Colors.red],
   nodeFill: Colors.white,
-  bisect: bisect,
+  // Resolved the same way the commit row resolves it, so what these tests
+  // pin is the colour the rail actually paints in a real theme.
+  bisectTint: bisect == null ? null : bisectVerdictColor(bisect, _tokens),
 );
+
+final _tokens = AppTokens.dark();
 
 /// Records the colour of every circle `paint()` draws, in call order, and
 /// no-ops every other [Canvas] method — a fake covering the whole interface

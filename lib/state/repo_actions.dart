@@ -1974,10 +1974,11 @@ class RepoActions {
   /// that will not decode — raises a [FileSystemException] instead. Every
   /// caller that runs from a button has to be ready for both.
   Future<BisectState?> bisectState() async {
-    final startPath = await _stateFilePath('BISECT_START');
-    if (startPath == null || !File(startPath).existsSync()) return null;
+    // BISECT_START is only asked whether it is there: its contents are the
+    // branch a reset returns to, which is git's business to remember and
+    // nothing here has to know.
+    if (!await _stateFileExists('BISECT_START')) return null;
 
-    final startBranch = File(startPath).readAsStringSync().trim();
     final termsPath = await _stateFilePath('BISECT_TERMS');
     final terms = parseBisectTerms(
       termsPath != null && File(termsPath).existsSync()
@@ -2006,7 +2007,6 @@ class RepoActions {
 
     return BisectState(
       marks: marks,
-      startBranch: startBranch,
       terms: terms,
       currentSha: await _headSha(),
       revisionsLeft: vars.nr,
@@ -2074,16 +2074,17 @@ class RepoActions {
       }
       return startBisect(sha);
     }
-    // Rebound now it is known non-null: a variable assigned somewhere other
-    // than its declaration loses its promotion inside the closure below.
-    final state = current;
+    // Read out here rather than inside the closure below: a local assigned
+    // somewhere other than its declaration keeps its promotion in straight
+    // line code but loses it inside a closure.
+    final terms = current.terms;
     final id = await _journalBegin('Bisect: mark ${kind.name}');
     try {
       await _timed('Bisect ${kind.name}', () async {
         if (kind == BisectKind.skip) {
           await _writer.bisectSkip(rev: sha);
         } else {
-          await _writer.bisectMark(bisectCommandFor(kind, state.terms), sha);
+          await _writer.bisectMark(bisectCommandFor(kind, terms), sha);
         }
       });
       await _journalDone(id);

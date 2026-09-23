@@ -33,7 +33,6 @@ BisectState _running({int left = 3, int steps = 2}) => BisectState(
     BisectMark('aaa', BisectKind.bad),
     BisectMark('bbb', BisectKind.good),
   ],
-  startBranch: 'main',
   terms: const BisectTerms(),
   currentSha: 'ccc11111',
   revisionsLeft: left,

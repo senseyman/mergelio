@@ -27,12 +27,11 @@ Commit _c(String sha) => Commit(
   parents: const [],
 );
 
-BisectState _runningState() => const BisectState(
+BisectState _runningState() => BisectState(
   marks: [
     BisectMark('zzz', BisectKind.bad),
     BisectMark('yyy', BisectKind.good),
   ],
-  startBranch: 'main',
   terms: BisectTerms(),
   currentSha: 'aaa',
   revisionsLeft: 1,

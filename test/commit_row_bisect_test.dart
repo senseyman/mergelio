@@ -60,6 +60,40 @@ void main() {
     expect(find.text('skip'), findsNothing);
   });
 
+  // The rail tint and the text pill are two layers of one design: a hue that
+  // reads at a glance and the word that carries the verdict for anyone who
+  // cannot rely on hue. Two layers of one design have to agree, so they may
+  // not each keep their own copy of the colour to drift apart on the next
+  // theme change.
+  testWidgets('the rail tint and the pill agree on every verdict', (
+    tester,
+  ) async {
+    const labels = {
+      BisectKind.good: 'good',
+      BisectKind.bad: 'bad',
+      BisectKind.skip: 'skip',
+    };
+    for (final kind in BisectKind.values) {
+      await _pump(tester, bisectKind: kind);
+      final painter =
+          tester
+                  .widget<CustomPaint>(
+                    find.byWidgetPredicate(
+                      (w) => w is CustomPaint && w.painter is GraphRailPainter,
+                    ),
+                  )
+                  .painter
+              as GraphRailPainter;
+      final pill = tester.widget<Text>(find.text(labels[kind]!));
+      expect(painter.bisectTint, pill.style?.color, reason: '$kind');
+      expect(
+        painter.bisectTint,
+        bisectVerdictColor(kind, AppTokens.dark()),
+        reason: '$kind must come from the theme, not a second copy',
+      );
+    }
+  });
+
   testWidgets('the verdict reaches the rail painter, not only the pill', (
     tester,
   ) async {
@@ -69,6 +103,6 @@ void main() {
     );
     final painter =
         tester.widget<CustomPaint>(finder).painter as GraphRailPainter;
-    expect(painter.bisect, BisectKind.bad);
+    expect(painter.bisectTint, AppTokens.dark().danger);
   });
 }
