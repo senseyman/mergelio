@@ -7,6 +7,8 @@ import '../../domain/git/bisect.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/bisect.dart';
 import '../../state/repo_actions.dart';
+import '../../state/unsaved_guard.dart';
+import '../common/dialogs.dart';
 
 /// Persistent strip above the commit list while a bisect is running: how
 /// the hunt is going, and the verdict buttons to move it along.
@@ -20,7 +22,14 @@ import '../../state/repo_actions.dart';
 /// Laid out with [Wrap] rather than [Row]: the graph panel is the window
 /// minus the sidebar and detail panel, and the running row's four buttons
 /// plus counts run out of width well before the window itself gets narrow.
-class BisectBar extends ConsumerWidget {
+///
+/// Stateful so it can register a quit guard with [unsavedGuardsProvider]
+/// while a bisect is in progress and drop it again when there is none.
+/// Quitting — or closing this repository's tab — checks that guard first;
+/// without it the app would happily leave the repository on a detached HEAD
+/// with no warning, which is the one edge this whole feature cannot afford
+/// to get wrong.
+class BisectBar extends ConsumerStatefulWidget {
   final String repoPath;
   final void Function(String sha) onJumpToCommit;
 
@@ -31,11 +40,64 @@ class BisectBar extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(bisectStateProvider(repoPath)).valueOrNull;
+  ConsumerState<BisectBar> createState() => _BisectBarState();
+}
+
+class _BisectBarState extends ConsumerState<BisectBar> {
+  // Held rather than read through `ref`, which is off limits by the time
+  // this bar is being torn down.
+  late final UnsavedGuards _guards;
+  bool _guarding = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _guards = ref.read(unsavedGuardsProvider);
+  }
+
+  @override
+  void dispose() {
+    // A guard that outlives this widget would block the user from ever
+    // quitting the repository again — far worse than the detached HEAD it
+    // exists to warn about.
+    if (_guarding) _guards.unregister(widget.repoPath);
+    super.dispose();
+  }
+
+  /// Registers or drops the guard to match whether a bisect exists at all.
+  /// A finished bisect still sits on a detached HEAD until it is reset, so
+  /// only `state == null` — no bisect, of any kind — drops the guard.
+  void _syncGuard({required bool active}) {
+    if (active == _guarding) return;
+    if (active) {
+      _guards.register(widget.repoPath, _confirmQuit);
+    } else {
+      _guards.unregister(widget.repoPath);
+    }
+    _guarding = active;
+  }
+
+  Future<bool> _confirmQuit() async {
+    if (!mounted) return false;
+    final choice = await showBisectQuitDialog(context);
+    switch (choice) {
+      case BisectQuitChoice.cancel:
+        return false;
+      case BisectQuitChoice.quitAnyway:
+        return true;
+      case BisectQuitChoice.reset:
+        await ref.read(repoActionsProvider(widget.repoPath)).resetBisect();
+        return true;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(bisectStateProvider(widget.repoPath)).valueOrNull;
+    _syncGuard(active: state != null);
     if (state == null) return const SizedBox.shrink();
     final l = AppLocalizations.of(context);
-    final actions = ref.read(repoActionsProvider(repoPath));
+    final actions = ref.read(repoActionsProvider(widget.repoPath));
     final t = context.tokens;
 
     final hasBad = state.marks.any((m) => m.kind == BisectKind.bad);
@@ -114,7 +176,7 @@ class BisectBar extends ConsumerWidget {
       Text(l.bisectFirstBadTitle),
       Text(_short(firstBad)),
       TextButton(
-        onPressed: () => onJumpToCommit(firstBad),
+        onPressed: () => widget.onJumpToCommit(firstBad),
         child: Text(l.bisectJumpToCommit),
       ),
       TextButton(
@@ -126,4 +188,54 @@ class BisectBar extends ConsumerWidget {
   }
 
   String _short(String sha) => sha.length > 7 ? sha.substring(0, 7) : sha;
+}
+
+/// What to do about the detached HEAD a bisect leaves behind, offered in
+/// place of a plain quit/close confirmation.
+enum BisectQuitChoice { reset, quitAnyway, cancel }
+
+/// Asked instead of the normal quit/close prompt while [BisectBar]'s guard
+/// is registered — a bisect running or finished but not yet reset, either
+/// way sitting on a detached HEAD.
+Future<BisectQuitChoice> showBisectQuitDialog(BuildContext context) async {
+  final l = AppLocalizations.of(context);
+  final result = await showAppModal<BisectQuitChoice>(
+    context: context,
+    title: l.bisectQuitTitle,
+    icon: Icons.warning_amber_rounded,
+    width: 460,
+    body: Builder(
+      builder: (ctx) => Text(
+        l.bisectQuitBody,
+        style: TextStyle(
+          color: ctx.tokens.textMuted,
+          fontSize: 13,
+          height: 1.5,
+        ),
+      ),
+    ),
+    actions: [
+      Builder(
+        builder: (ctx) => TextButton(
+          onPressed: () => Navigator.of(ctx).pop(BisectQuitChoice.cancel),
+          child: Text(l.cancel),
+        ),
+      ),
+      Builder(
+        builder: (ctx) => TextButton(
+          onPressed: () => Navigator.of(ctx).pop(BisectQuitChoice.quitAnyway),
+          child: Text(l.bisectQuitAnyway),
+        ),
+      ),
+      Builder(
+        builder: (ctx) => FilledButton(
+          onPressed: () => Navigator.of(ctx).pop(BisectQuitChoice.reset),
+          child: Text(l.bisectReset),
+        ),
+      ),
+    ],
+  );
+  // Dismissing the barrier is a decision not to leave silently: same as
+  // cancel.
+  return result ?? BisectQuitChoice.cancel;
 }
