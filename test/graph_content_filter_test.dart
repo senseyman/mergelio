@@ -15,6 +15,7 @@ import 'package:mergelio/state/content_search.dart';
 import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/state/search.dart';
 import 'package:mergelio/state/settings.dart';
+import 'package:mergelio/state/bisect.dart';
 import 'package:mergelio/state/settings_controller.dart';
 import 'package:mergelio/state/workspace.dart';
 import 'package:mergelio/ui/graph/graph_view.dart';
@@ -47,6 +48,7 @@ void main() {
       ProviderScope(
         overrides: [
           workspaceProvider.overrideWith((ref) => workspace),
+          bisectStateProvider('/r').overrideWith((ref) => null),
           settingsProvider.overrideWith(
             (ref) => SettingsController(
               InMemorySettingsRepository(),
