@@ -35,21 +35,47 @@ class BisectTerms {
 /// Git names those refs after [terms], so a repository that renamed its ends
 /// has none called good or bad — pass the terms read from the repository or
 /// every mark it holds reads as nothing at all.
+///
+/// One commit gets one verdict, in the order it was first seen. Git is
+/// willing to leave two refs on the same commit — marking a commit bad after
+/// it was marked good moves `refs/bisect/bad` onto it, complains, and leaves
+/// the stale `refs/bisect/good-<sha>` where it was — and read literally that
+/// sha lands on both sides of the range, which rev-list refuses to walk at
+/// all, so the hunt's counts never arrive.
 List<BisectMark> parseBisectRefs(
   String out, [
   BisectTerms terms = const BisectTerms(),
 ]) {
-  final marks = <BisectMark>[];
+  // Insertion-ordered, so the marks come back in the order git listed them.
+  final verdicts = <String, BisectKind>{};
   for (final line in out.split('\n')) {
     final parts = line.trim().split(RegExp(r'\s+'));
     if (parts.length < 2) continue;
     final kind = _kindOfRef(parts[1].replaceFirst('refs/bisect/', ''), terms);
-    if (kind != null) {
-      marks.add(BisectMark(parts[0], kind));
-    }
+    if (kind == null) continue;
+    final held = verdicts[parts[0]];
+    if (held == null || _outranks(kind, held)) verdicts[parts[0]] = kind;
   }
-  return marks;
+  return [for (final e in verdicts.entries) BisectMark(e.key, e.value)];
 }
+
+/// Which of two verdicts on one commit git is still standing behind.
+///
+/// Bad outranks good: `refs/bisect/bad` is the single bad end git maintains
+/// and moves, so it is the ref the last accepted command wrote, while a
+/// good ref on the same commit is what git declined to tidy up. Reading it
+/// the other way round would throw the hunt's only bad end away.
+///
+/// A verdict outranks a skip for the same reason a later word outranks an
+/// earlier one: skipping says "cannot tell", and a commit someone has since
+/// ruled on is no longer untestable.
+bool _outranks(BisectKind kind, BisectKind held) => _rank(kind) > _rank(held);
+
+int _rank(BisectKind kind) => switch (kind) {
+  BisectKind.bad => 2,
+  BisectKind.good => 1,
+  BisectKind.skip => 0,
+};
 
 /// The verdict a `refs/bisect/*` name records, or null when it records none.
 ///

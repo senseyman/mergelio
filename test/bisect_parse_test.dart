@@ -37,6 +37,59 @@ void main() {
       expect(parseBisectRefs(''), isEmpty);
     });
 
+    // Git lets a commit end up under two verdicts at once: `git bisect bad`
+    // on a commit already marked good moves refs/bisect/bad onto it and
+    // leaves the stale refs/bisect/good-<sha> behind, complaining but not
+    // cleaning up. Read literally that sha lands on both sides of the
+    // `--not` in the range, which rev-list refuses outright — so the counts
+    // never arrive and the hunt appears frozen.
+    test('a commit marked both good and bad reads as bad only', () {
+      final marks = parseBisectRefs(
+        'aaa1111 refs/bisect/bad\n'
+        'aaa1111 refs/bisect/good-aaa1111\n'
+        'bbb2222 refs/bisect/good-bbb2222\n',
+      );
+      expect(marks.where((m) => m.sha == 'aaa1111'), hasLength(1));
+      expect(marks.singleWhere((m) => m.sha == 'aaa1111').kind, BisectKind.bad);
+      expect(
+        marks.singleWhere((m) => m.sha == 'bbb2222').kind,
+        BisectKind.good,
+      );
+    });
+
+    test('bad wins however the two refs happen to be ordered', () {
+      // for-each-ref sorts by refname, so the stale good ref comes second
+      // under the default terms and first under, say, old/new. The verdict
+      // may not depend on which.
+      final marks = parseBisectRefs(
+        'aaa1111 refs/bisect/old-aaa1111\n'
+        'aaa1111 refs/bisect/new\n',
+        const BisectTerms(bad: 'new', good: 'old'),
+      );
+      expect(marks, hasLength(1));
+      expect(marks.single.kind, BisectKind.bad);
+    });
+
+    test('a real verdict replaces a skip left on the same commit', () {
+      // Marking a skipped commit good leaves its skip ref in place too. The
+      // verdict is the later, stronger statement; the skip is leftovers.
+      final marks = parseBisectRefs(
+        'aaa1111 refs/bisect/good-aaa1111\n'
+        'aaa1111 refs/bisect/skip-aaa1111\n',
+      );
+      expect(marks, hasLength(1));
+      expect(marks.single.kind, BisectKind.good);
+    });
+
+    test('a contradictory sha never lands on both sides of --not', () {
+      final marks = parseBisectRefs(
+        'aaa1111 refs/bisect/bad\n'
+        'aaa1111 refs/bisect/good-aaa1111\n'
+        'bbb2222 refs/bisect/good-bbb2222\n',
+      );
+      expect(bisectVarsArgs(marks), ['aaa1111', '--not', 'bbb2222']);
+    });
+
     test('reads refs named after the repository own terms', () {
       // `git bisect start --term-old=works --term-new=broken` makes git name
       // the refs after those words, so nothing here may assume good/bad.

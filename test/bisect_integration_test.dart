@@ -191,6 +191,63 @@ void main() {
     },
   );
 
+  // Git does not stop a commit acquiring two verdicts: marking one bad after
+  // it was already marked good moves refs/bisect/bad onto it, complains, and
+  // leaves the stale good ref in place. Read literally that sha appears on
+  // both sides of the range, rev-list refuses it, and the bar sits on an
+  // uncomputed -1 forever with no way out but Reset.
+  test(
+    'a commit marked both good and bad still reads a usable state',
+    () async {
+      final repo = await makeRepo(commits: 12, breakAt: 8);
+      addTearDown(() => repo.delete(recursive: true));
+
+      final container = ProviderContainer(
+        overrides: [gitServiceProvider.overrideWithValue(svc)],
+      );
+      addTearDown(container.dispose);
+
+      final actions = actionsFor(container, repo.path);
+      final shas = await shasOldestFirst(repo.path);
+      await actions.startBisect(shas.last);
+      await actions.markBisect(shas.first, BisectKind.good);
+
+      final midpoint = (await actions.bisectState())!.currentSha;
+      await actions.markBisect(midpoint, BisectKind.good);
+      // Contradicts the verdict just given. git exits non-zero here, so this
+      // goes through markBisect (which reports rather than throws) exactly as
+      // it would from the button.
+      await actions.markBisect(midpoint, BisectKind.bad);
+
+      // Both refs really are on disk: the state below is read from a genuinely
+      // self-contradictory repository, not a hypothetical one.
+      final refsOut = await out(repo.path, [
+        'for-each-ref',
+        '--format=%(objectname) %(refname)',
+        'refs/bisect',
+      ]);
+      expect(refsOut, contains('$midpoint refs/bisect/bad'));
+      expect(refsOut, contains('$midpoint refs/bisect/good-$midpoint'));
+
+      final state = await actions.bisectState();
+      expect(state, isNotNull);
+      expect(
+        state!.marks.where((m) => m.sha == midpoint),
+        hasLength(1),
+        reason: 'one commit must carry one verdict',
+      );
+      expect(state.kindOf(midpoint), BisectKind.bad);
+      expect(state.marks.where((m) => m.sha == shas.first), hasLength(1));
+      expect(state.kindOf(shas.first), BisectKind.good);
+      // The whole point: git was asked a range it could answer, so the hunt
+      // reports real counts instead of the -1 that means "never computed".
+      expect(state.revisionsLeft, greaterThanOrEqualTo(0));
+      expect(state.steps, greaterThanOrEqualTo(0));
+
+      await actions.resetBisect();
+    },
+  );
+
   test('bisectState reads a lone good mark with no bad yet', () async {
     final repo = await makeRepo(commits: 4, breakAt: 3);
     addTearDown(() => repo.delete(recursive: true));
