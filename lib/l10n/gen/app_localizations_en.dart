@@ -2424,4 +2424,96 @@ class AppLocalizationsEn extends AppLocalizations {
   String forgeAgoDays(int n) {
     return '${n}d';
   }
+
+  @override
+  String get bisectAwaitingGood => 'Bisecting. Mark a commit you know is good.';
+
+  @override
+  String bisectRevisionsLeft(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count revisions left',
+      one: '$count revision left',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String bisectStepsLeft(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'about $count steps',
+      one: 'about $count step',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String bisectTesting(String sha) {
+    return 'Testing $sha';
+  }
+
+  @override
+  String get bisectGood => 'Good';
+
+  @override
+  String get bisectBad => 'Bad';
+
+  @override
+  String get bisectSkip => 'Skip';
+
+  @override
+  String get bisectReset => 'Reset bisect';
+
+  @override
+  String get bisectLog => 'Log';
+
+  @override
+  String get bisectFirstBadTitle => 'First bad commit';
+
+  @override
+  String get bisectJumpToCommit => 'Jump to commit';
+
+  @override
+  String get bisectCopySha => 'Copy SHA';
+
+  @override
+  String get bisectPillGood => 'good';
+
+  @override
+  String get bisectPillBad => 'bad';
+
+  @override
+  String get bisectPillSkip => 'skip';
+
+  @override
+  String get bisectMenuStart => 'Start bisect from here';
+
+  @override
+  String get bisectMenuGood => 'Mark as good';
+
+  @override
+  String get bisectMenuBad => 'Mark as bad';
+
+  @override
+  String get bisectMenuSkip => 'Skip this commit';
+
+  @override
+  String get bisectDirtyTree =>
+      'Commit or stash your changes before starting a bisect.';
+
+  @override
+  String get bisectQuitTitle => 'Bisect in progress';
+
+  @override
+  String get bisectQuitBody =>
+      'Quitting leaves this repository on a detached HEAD. Reset the bisect first?';
+
+  @override
+  String get bisectQuitAnyway => 'Quit anyway';
+
+  @override
+  String get bisectNoMarks => 'Bisecting. Mark a bad commit to begin.';
 }

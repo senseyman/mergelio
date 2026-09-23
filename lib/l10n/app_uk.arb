@@ -894,5 +894,29 @@
         "type": "int"
       }
     }
-  }
+  },
+  "bisectAwaitingGood": "Бісекція триває. Позначте коміт, який точно робочий.",
+  "bisectRevisionsLeft": "{count, plural, one{залишився {count} коміт} few{залишилося {count} коміти} many{залишилося {count} комітів} other{залишилося {count} коміта}}",
+  "bisectStepsLeft": "{count, plural, one{приблизно {count} крок} few{приблизно {count} кроки} many{приблизно {count} кроків} other{приблизно {count} кроку}}",
+  "bisectTesting": "Перевіряємо {sha}",
+  "bisectGood": "Робочий",
+  "bisectBad": "Зламаний",
+  "bisectSkip": "Пропустити",
+  "bisectReset": "Скинути бісекцію",
+  "bisectLog": "Журнал",
+  "bisectFirstBadTitle": "Перший зламаний коміт",
+  "bisectJumpToCommit": "Перейти до коміта",
+  "bisectCopySha": "Копіювати SHA",
+  "bisectPillGood": "робочий",
+  "bisectPillBad": "зламаний",
+  "bisectPillSkip": "пропущено",
+  "bisectMenuStart": "Почати бісекцію звідси",
+  "bisectMenuGood": "Позначити як робочий",
+  "bisectMenuBad": "Позначити як зламаний",
+  "bisectMenuSkip": "Пропустити цей коміт",
+  "bisectDirtyTree": "Закомітьте або відкладіть зміни перед початком бісекції.",
+  "bisectQuitTitle": "Бісекція триває",
+  "bisectQuitBody": "Вихід залишить репозиторій у стані detached HEAD. Спочатку скинути бісекцію?",
+  "bisectQuitAnyway": "Все одно вийти",
+  "bisectNoMarks": "Бісекція триває. Позначте зламаний коміт, щоб почати."
 }

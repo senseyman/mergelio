@@ -4291,6 +4291,150 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{n}d'**
   String forgeAgoDays(int n);
+
+  /// No description provided for @bisectAwaitingGood.
+  ///
+  /// In en, this message translates to:
+  /// **'Bisecting. Mark a commit you know is good.'**
+  String get bisectAwaitingGood;
+
+  /// No description provided for @bisectRevisionsLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{{count} revision left} other{{count} revisions left}}'**
+  String bisectRevisionsLeft(int count);
+
+  /// No description provided for @bisectStepsLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{about {count} step} other{about {count} steps}}'**
+  String bisectStepsLeft(int count);
+
+  /// No description provided for @bisectTesting.
+  ///
+  /// In en, this message translates to:
+  /// **'Testing {sha}'**
+  String bisectTesting(String sha);
+
+  /// No description provided for @bisectGood.
+  ///
+  /// In en, this message translates to:
+  /// **'Good'**
+  String get bisectGood;
+
+  /// No description provided for @bisectBad.
+  ///
+  /// In en, this message translates to:
+  /// **'Bad'**
+  String get bisectBad;
+
+  /// No description provided for @bisectSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip'**
+  String get bisectSkip;
+
+  /// No description provided for @bisectReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset bisect'**
+  String get bisectReset;
+
+  /// No description provided for @bisectLog.
+  ///
+  /// In en, this message translates to:
+  /// **'Log'**
+  String get bisectLog;
+
+  /// No description provided for @bisectFirstBadTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'First bad commit'**
+  String get bisectFirstBadTitle;
+
+  /// No description provided for @bisectJumpToCommit.
+  ///
+  /// In en, this message translates to:
+  /// **'Jump to commit'**
+  String get bisectJumpToCommit;
+
+  /// No description provided for @bisectCopySha.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy SHA'**
+  String get bisectCopySha;
+
+  /// No description provided for @bisectPillGood.
+  ///
+  /// In en, this message translates to:
+  /// **'good'**
+  String get bisectPillGood;
+
+  /// No description provided for @bisectPillBad.
+  ///
+  /// In en, this message translates to:
+  /// **'bad'**
+  String get bisectPillBad;
+
+  /// No description provided for @bisectPillSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'skip'**
+  String get bisectPillSkip;
+
+  /// No description provided for @bisectMenuStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Start bisect from here'**
+  String get bisectMenuStart;
+
+  /// No description provided for @bisectMenuGood.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark as good'**
+  String get bisectMenuGood;
+
+  /// No description provided for @bisectMenuBad.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark as bad'**
+  String get bisectMenuBad;
+
+  /// No description provided for @bisectMenuSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip this commit'**
+  String get bisectMenuSkip;
+
+  /// No description provided for @bisectDirtyTree.
+  ///
+  /// In en, this message translates to:
+  /// **'Commit or stash your changes before starting a bisect.'**
+  String get bisectDirtyTree;
+
+  /// No description provided for @bisectQuitTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Bisect in progress'**
+  String get bisectQuitTitle;
+
+  /// No description provided for @bisectQuitBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Quitting leaves this repository on a detached HEAD. Reset the bisect first?'**
+  String get bisectQuitBody;
+
+  /// No description provided for @bisectQuitAnyway.
+  ///
+  /// In en, this message translates to:
+  /// **'Quit anyway'**
+  String get bisectQuitAnyway;
+
+  /// No description provided for @bisectNoMarks.
+  ///
+  /// In en, this message translates to:
+  /// **'Bisecting. Mark a bad commit to begin.'**
+  String get bisectNoMarks;
 }
 
 class _AppLocalizationsDelegate

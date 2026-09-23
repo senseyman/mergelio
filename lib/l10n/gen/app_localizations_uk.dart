@@ -2439,4 +2439,102 @@ class AppLocalizationsUk extends AppLocalizations {
   String forgeAgoDays(int n) {
     return '$nд';
   }
+
+  @override
+  String get bisectAwaitingGood =>
+      'Бісекція триває. Позначте коміт, який точно робочий.';
+
+  @override
+  String bisectRevisionsLeft(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'залишилося $count коміта',
+      many: 'залишилося $count комітів',
+      few: 'залишилося $count коміти',
+      one: 'залишився $count коміт',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String bisectStepsLeft(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'приблизно $count кроку',
+      many: 'приблизно $count кроків',
+      few: 'приблизно $count кроки',
+      one: 'приблизно $count крок',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String bisectTesting(String sha) {
+    return 'Перевіряємо $sha';
+  }
+
+  @override
+  String get bisectGood => 'Робочий';
+
+  @override
+  String get bisectBad => 'Зламаний';
+
+  @override
+  String get bisectSkip => 'Пропустити';
+
+  @override
+  String get bisectReset => 'Скинути бісекцію';
+
+  @override
+  String get bisectLog => 'Журнал';
+
+  @override
+  String get bisectFirstBadTitle => 'Перший зламаний коміт';
+
+  @override
+  String get bisectJumpToCommit => 'Перейти до коміта';
+
+  @override
+  String get bisectCopySha => 'Копіювати SHA';
+
+  @override
+  String get bisectPillGood => 'робочий';
+
+  @override
+  String get bisectPillBad => 'зламаний';
+
+  @override
+  String get bisectPillSkip => 'пропущено';
+
+  @override
+  String get bisectMenuStart => 'Почати бісекцію звідси';
+
+  @override
+  String get bisectMenuGood => 'Позначити як робочий';
+
+  @override
+  String get bisectMenuBad => 'Позначити як зламаний';
+
+  @override
+  String get bisectMenuSkip => 'Пропустити цей коміт';
+
+  @override
+  String get bisectDirtyTree =>
+      'Закомітьте або відкладіть зміни перед початком бісекції.';
+
+  @override
+  String get bisectQuitTitle => 'Бісекція триває';
+
+  @override
+  String get bisectQuitBody =>
+      'Вихід залишить репозиторій у стані detached HEAD. Спочатку скинути бісекцію?';
+
+  @override
+  String get bisectQuitAnyway => 'Все одно вийти';
+
+  @override
+  String get bisectNoMarks =>
+      'Бісекція триває. Позначте зламаний коміт, щоб почати.';
 }
