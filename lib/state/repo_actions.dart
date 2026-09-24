@@ -2021,6 +2021,17 @@ class RepoActions {
   Future<bool> _treeIsDirty() async =>
       (await _out(['status', '--porcelain'])).isNotEmpty;
 
+  /// True when tracked files have been changed, ignoring untracked ones.
+  ///
+  /// This is the question a failed run asks: a command that writes scratch
+  /// files of its own leaves git free to check the next commit out, while a
+  /// change to a tracked file stops the hunt dead. Counting scratch files here
+  /// would tell the user their command modified tracked files when it did not,
+  /// and bury the real ending git reported.
+  Future<bool> _trackedFilesDirty() async =>
+      (await _out(['status', '--porcelain', '--untracked-files=no']))
+          .isNotEmpty;
+
   /// Opens a bisect with [sha] as the first bad commit.
   ///
   /// Refuses on a dirty tree rather than stashing: a stash popped several
@@ -2147,7 +2158,7 @@ class RepoActions {
         r.err,
         // Only asked on failure: a clean run has nothing to explain, and this
         // costs a subprocess.
-        treeDirty: r.ok ? false : await _treeIsDirty(),
+        treeDirty: r.ok ? false : await _trackedFilesDirty(),
       );
       await _journalDone(id);
       return outcome;

@@ -489,15 +489,38 @@ void main() {
 
     test('a run that dirties the tree is named for the real cause', () async {
       git.bisectRunResult = const GitResult(1, '', 'some failure');
-      git.responses['status --porcelain'] = const GitResult(
-        0,
-        ' M file.txt\n',
-        '',
-      );
+      // The run asks about tracked files only: a command's own scratch files
+      // do not stop git checking the next commit out, so they are no
+      // explanation for a failure.
+      git.responses['status --porcelain --untracked-files=no'] =
+          const GitResult(0, ' M file.txt\n', '');
 
       final outcome = await actions.runBisect('./t.sh');
 
       expect(outcome, BisectRunOutcome.treeDirtied);
+    });
+
+    test('untracked files a run left behind are not a dirtied tree', () async {
+      git.bisectRunResult = const GitResult(
+        2,
+        '',
+        'error: bisect run cannot continue any more',
+      );
+      // What `status --porcelain` would have reported, and what the run asks
+      // for instead. Reported as a dirtied tree, the exhaustion the user can
+      // act on would be replaced by a claim about tracked files they never
+      // touched.
+      git.responses['status --porcelain'] = const GitResult(
+        0,
+        '?? scratch.log\n',
+        '',
+      );
+      git.responses['status --porcelain --untracked-files=no'] =
+          const GitResult(0, '', '');
+
+      final outcome = await actions.runBisect('./t.sh');
+
+      expect(outcome, BisectRunOutcome.exhausted);
     });
 
     test(

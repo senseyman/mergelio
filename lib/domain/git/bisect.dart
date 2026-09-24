@@ -248,13 +248,17 @@ BisectRunOutcome classifyBisectRun(
   required bool treeDirty,
 }) {
   if (exitCode == 0) return BisectRunOutcome.finished;
-  // Checked first: git reports this one by blaming its own `bisect good`,
-  // naming neither the command nor the tree it dirtied.
+  // Checked first: git closes this one by blaming its own `bisect good` for an
+  // error code of -1. A refused checkout above it may name the file, but
+  // nothing git says connects either to the command that ran.
   if (treeDirty) return BisectRunOutcome.treeDirtied;
   if (stderr.contains('bogus exit code')) {
     return BisectRunOutcome.commandUnrunnable;
   }
-  if (stderr.contains('We cannot bisect more')) {
+  // git announces the exhaustion itself ("We cannot bisect more!") on stdout,
+  // where a reading of stderr never sees it. The line below is what the run
+  // puts on stderr when it gives up with only skipped commits left.
+  if (stderr.contains('bisect run cannot continue any more')) {
     return BisectRunOutcome.exhausted;
   }
   return BisectRunOutcome.failed;

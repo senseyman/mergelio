@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/domain/git/bisect.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
+import 'package:mergelio/domain/git/git_writer.dart';
 import 'package:mergelio/state/repo_actions.dart';
 
 /// Integration tests: drive a real temporary repository through the system
@@ -347,4 +348,214 @@ void main() {
 
     await g(repo.path, ['bisect', 'reset']);
   });
+
+  // --- bisect run ------------------------------------------------------------
+
+  // A run hands the rest of the hunt to a command, and how it ended has to be
+  // read back out of git's exit code and stderr. Every wording the classifier
+  // keys on is pinned below against a real run: a message git prints on stdout,
+  // or stops printing, is invisible to a classifier reading stderr.
+
+  /// A hunt opened on [repo] with the newest commit bad and the oldest good,
+  /// ready for a run to finish. Returns the actions it was opened through.
+  Future<RepoActions> openHunt(
+    ProviderContainer container,
+    Directory repo,
+  ) async {
+    final actions = actionsFor(container, repo.path);
+    final shas = await shasOldestFirst(repo.path);
+    await actions.startBisect(shas.last);
+    await actions.markBisect(shas.first, BisectKind.good);
+    return actions;
+  }
+
+  ProviderContainer containerForTest() {
+    final container = ProviderContainer(
+      overrides: [gitServiceProvider.overrideWithValue(svc)],
+    );
+    // Disposing the container disposes RepoActions with it, which cancels the
+    // refresh timer a run leaves behind. Without that the timer outlives the
+    // test and fires against a disposed container.
+    addTearDown(container.dispose);
+    return container;
+  }
+
+  test('a run over a known break lands on the first bad commit', () async {
+    final repo = await makeRepo(commits: 8, breakAt: 5);
+    addTearDown(() => repo.delete(recursive: true));
+    final actions = await openHunt(containerForTest(), repo);
+
+    // Exit 0 says good and exit 1 says bad, decided by reading the tree git
+    // has just checked out — the signal a person bisecting by hand uses.
+    final outcome = await actions.runBisect('test ! -f broken.marker');
+
+    expect(outcome, BisectRunOutcome.finished);
+    final state = await actions.bisectState();
+    expect(state, isNotNull);
+    expect(state!.finished, isTrue);
+    // Commit 5 (1-based) is the one that introduced broken.marker, so index
+    // 4 of the oldest-first list is the true first bad commit.
+    expect(state.firstBad, (await shasOldestFirst(repo.path))[4]);
+
+    await actions.resetBisect();
+  }, timeout: const Timeout(Duration(seconds: 120)));
+
+  test('a command git cannot run is not mistaken for a verdict', () async {
+    final repo = await makeRepo(commits: 6, breakAt: 4);
+    addTearDown(() => repo.delete(recursive: true));
+    final actions = await openHunt(containerForTest(), repo);
+
+    final outcome = await actions.runBisect('./no-such-script.sh');
+
+    expect(outcome, BisectRunOutcome.commandUnrunnable);
+    // The shell exits 127 for a command it cannot find, which sits inside
+    // the range git otherwise reads as a verdict. Taken as one it would
+    // convict a commit the command never actually tested, so nothing at all
+    // must have been decided here.
+    final state = await actions.bisectState();
+    expect(state, isNotNull);
+    expect(state!.firstBad, isNull);
+
+    await actions.resetBisect();
+  }, timeout: const Timeout(Duration(seconds: 120)));
+
+  test(
+    'a command that modifies a tracked file reports the dirtied tree',
+    () async {
+      final repo = await makeRepo(commits: 8, breakAt: 5);
+      addTearDown(() => repo.delete(recursive: true));
+      final actions = await openHunt(containerForTest(), repo);
+
+      final outcome = await actions.runBisect(
+        'echo dirt >> f.txt; test ! -f broken.marker',
+      );
+
+      // git closes this with `bisect run failed: 'git bisect good' exited with
+      // error code -1`, which names neither the command nor the change that
+      // stopped the checkout — which is why the tree is asked about separately
+      // instead of being read out of git's words.
+      expect(outcome, BisectRunOutcome.treeDirtied);
+      expect(
+        await out(repo.path, ['status', '--porcelain', '--untracked-files=no']),
+        isNotEmpty,
+      );
+      final state = await actions.bisectState();
+      expect(state, isNotNull);
+      expect(state!.firstBad, isNull);
+
+      await g(repo.path, ['checkout', '--', '.']);
+      await actions.resetBisect();
+    },
+    timeout: const Timeout(Duration(seconds: 120)),
+  );
+
+  test('a run that can test nothing reports an exhausted hunt', () async {
+    final repo = await makeRepo(commits: 8, breakAt: 5);
+    addTearDown(() => repo.delete(recursive: true));
+    final actions = await openHunt(containerForTest(), repo);
+
+    // 125 is git's "cannot tell" code, so every candidate is skipped in turn
+    // until the hunt has nothing left to try.
+    final outcome = await actions.runBisect('exit 125');
+
+    expect(outcome, BisectRunOutcome.exhausted);
+    final state = await actions.bisectState();
+    expect(state, isNotNull);
+    expect(state!.firstBad, isNull);
+
+    await actions.resetBisect();
+  }, timeout: const Timeout(Duration(seconds: 120)));
+
+  test('a command that writes only untracked files still finishes', () async {
+    final repo = await makeRepo(commits: 8, breakAt: 5);
+    addTearDown(() => repo.delete(recursive: true));
+    final actions = await openHunt(containerForTest(), repo);
+
+    // A scratch file of its own is the normal way a test command works. git
+    // checks the next commit out straight through it, so the hunt lands.
+    final outcome = await actions.runBisect(
+      'echo x >> scratch.log; test ! -f broken.marker',
+    );
+
+    expect(outcome, BisectRunOutcome.finished);
+    expect(
+      (await actions.bisectState())!.firstBad,
+      (await shasOldestFirst(repo.path))[4],
+    );
+    expect(
+      await out(repo.path, ['status', '--porcelain']),
+      contains('scratch.log'),
+    );
+
+    await actions.resetBisect();
+  }, timeout: const Timeout(Duration(seconds: 120)));
+
+  test('a scratch file left behind does not hide how the run ended', () async {
+    final repo = await makeRepo(commits: 8, breakAt: 5);
+    addTearDown(() => repo.delete(recursive: true));
+    final actions = await openHunt(containerForTest(), repo);
+
+    final outcome = await actions.runBisect('echo x >> scratch.log; exit 125');
+
+    // The run really did leave the tree untidy, but with a file git never
+    // had to check out over. Reported as a dirtied tree it would tell the
+    // user their command modified tracked files, which it did not, and hide
+    // the only thing they can act on: every candidate was skipped.
+    expect(outcome, BisectRunOutcome.exhausted);
+    expect(
+      await out(repo.path, ['status', '--porcelain']),
+      contains('scratch.log'),
+    );
+    expect(
+      await out(repo.path, ['status', '--porcelain', '--untracked-files=no']),
+      isEmpty,
+    );
+
+    await actions.resetBisect();
+  }, timeout: const Timeout(Duration(seconds: 120)));
+
+  test(
+    'the words the classifier keys on are the words git puts on stderr',
+    () async {
+      final repo = await makeRepo(commits: 8, breakAt: 5);
+      addTearDown(() => repo.delete(recursive: true));
+      final shas = await shasOldestFirst(repo.path);
+
+      Future<void> open() async {
+        await g(repo.path, ['bisect', 'start']);
+        await g(repo.path, ['bisect', 'bad', shas.last]);
+        await g(repo.path, ['bisect', 'good', shas.first]);
+      }
+
+      // Exhaustion. git announces "We cannot bisect more!" on stdout, where a
+      // classifier reading stderr never sees it; this is the line it does get.
+      await open();
+      final skipped = await svc.run(
+        bisectRunArgs('exit 125'),
+        repoPath: repo.path,
+      );
+      expect(skipped.ok, isFalse);
+      expect(skipped.err, contains('bisect run cannot continue any more'));
+      expect(
+        classifyBisectRun(skipped.exitCode, skipped.err, treeDirty: false),
+        BisectRunOutcome.exhausted,
+      );
+      await g(repo.path, ['bisect', 'reset']);
+
+      // A command that cannot be executed at all.
+      await open();
+      final missing = await svc.run(
+        bisectRunArgs('./no-such-script.sh'),
+        repoPath: repo.path,
+      );
+      expect(missing.ok, isFalse);
+      expect(missing.err, contains('bogus exit code'));
+      expect(
+        classifyBisectRun(missing.exitCode, missing.err, treeDirty: false),
+        BisectRunOutcome.commandUnrunnable,
+      );
+      await g(repo.path, ['bisect', 'reset']);
+    },
+    timeout: const Timeout(Duration(seconds: 120)),
+  );
 }

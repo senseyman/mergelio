@@ -23,13 +23,14 @@ void main() {
       );
     });
 
-    test('a dirty tree outranks a bogus exit code message', () {
-      // Even if stderr has a message we'd normally classify specially, a dirty
-      // tree takes precedence because it explains the failure more directly.
+    test('a dirty tree outranks a message git does spell out', () {
+      // What git really says when a command dirties a tracked file and then
+      // cannot be run: it reports the verification it could not do, not the
+      // change that stopped it. The dirty tree is the more direct answer.
       expect(
         classifyBisectRun(
           1,
-          "error: bogus exit code 127 for 'good' revision [abc]",
+          "error: unable to verify '/bin/sh' '-c' './nope.sh' on 'good' revision",
           treeDirty: true,
         ),
         BisectRunOutcome.treeDirtied,
@@ -40,21 +41,33 @@ void main() {
       expect(
         classifyBisectRun(
           1,
-          "error: bogus exit code 127 for 'good' revision [abc]",
+          "error: bogus exit code 127 for 'good' revision",
           treeDirty: false,
         ),
         BisectRunOutcome.commandUnrunnable,
       );
     });
 
-    test('cannot-bisect-more means every candidate was skipped', () {
+    test('a run that cannot continue means every candidate was skipped', () {
+      // git's own "We cannot bisect more!" goes to stdout, so this — the whole
+      // of what it puts on stderr — is all the classifier gets to read.
       expect(
         classifyBisectRun(
           2,
-          'We cannot bisect more!\nerror: bisect run cannot continue any more',
+          'error: bisect run cannot continue any more',
           treeDirty: false,
         ),
         BisectRunOutcome.exhausted,
+      );
+    });
+
+    test('the stdout-only exhaustion notice is not read from stderr', () {
+      // A guard against keying on the wrong stream again: on its own this
+      // string never reaches stderr, and a classifier that matched it would
+      // have let the real exhaustion above go by as a plain failure.
+      expect(
+        classifyBisectRun(2, 'We cannot bisect more!', treeDirty: false),
+        BisectRunOutcome.failed,
       );
     });
 
