@@ -4,8 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mergelio/core/tokens.dart';
 import 'package:mergelio/domain/git/bisect.dart';
+import 'package:mergelio/domain/git/models.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/state/bisect.dart';
+import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/ui/graph/bisect_bar.dart';
 
 BisectState _state({
@@ -22,14 +24,43 @@ BisectState _state({
   firstBad: firstBad,
 );
 
+Commit _commit(
+  String sha, {
+  String message = 'subject',
+  String author = 'Ada Lovelace',
+  List<String> parents = const [],
+}) => Commit(
+  sha: sha,
+  message: message,
+  author: author,
+  authorEmail: 'ada@example.com',
+  date: DateTime(2026, 5, 1),
+  parents: parents,
+);
+
+/// The finished state the hunt ends in, with [firstBad] as the answer.
+BisectState _finishedOn(String firstBad) => _state(
+  marks: [BisectMark(firstBad, BisectKind.bad)],
+  left: 0,
+  firstBad: firstBad,
+);
+
 Future<void> _pump(
   WidgetTester tester,
   BisectState? state, {
   void Function(String sha)? onJumpToCommit,
+  List<Commit> commits = const [],
 }) async {
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [bisectStateProvider('/r').overrideWith((ref) async => state)],
+      overrides: [
+        bisectStateProvider('/r').overrideWith((ref) async => state),
+        // Resolved synchronously: the bar reads the loaded page to put a
+        // subject and an author against the sha, and a provider that reaches
+        // the filesystem would never resolve under a widget test.
+        repoDataProvider('/r')
+            .overrideWith((ref) => RepoData(commits: commits)),
+      ],
       child: MaterialApp(
         theme: ThemeData(extensions: [AppTokens.dark()]),
         localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -190,6 +221,67 @@ void main() {
     await tester.tap(find.text('Jump to commit'));
     await tester.pumpAndSettle();
     expect(jumped, 'aaa1111');
+  });
+
+  testWidgets('finished card names the commit, not just its sha', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      _finishedOn('aaa1111'),
+      commits: [
+        _commit('aaa1111', message: 'Break the parser', author: 'Ada Lovelace'),
+      ],
+    );
+    expect(find.text('First bad commit'), findsOneWidget);
+    expect(find.text('Break the parser'), findsOneWidget);
+    expect(find.textContaining('Ada Lovelace'), findsOneWidget);
+    expect(find.textContaining('aaa1111'), findsOneWidget);
+  });
+
+  testWidgets(
+    'a first bad commit outside the loaded page still shows its sha',
+    (tester) async {
+      await _pump(
+        tester,
+        _finishedOn('aaa1111'),
+        commits: [_commit('bbb2222', message: 'Some other commit')],
+      );
+      expect(tester.takeException(), isNull);
+      expect(find.text('First bad commit'), findsOneWidget);
+      expect(find.textContaining('aaa1111'), findsOneWidget);
+      // The subject of an unrelated commit must never stand in for the
+      // answer: better a bare sha than the wrong commit named.
+      expect(find.text('Some other commit'), findsNothing);
+      expect(find.text('Jump to commit'), findsOneWidget);
+      expect(find.text('Copy SHA'), findsOneWidget);
+    },
+  );
+
+  testWidgets('finished card wraps without overflow at narrow width', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(520, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await _pump(
+      tester,
+      _finishedOn('aaa1111'),
+      commits: [
+        _commit(
+          'aaa1111',
+          message:
+              'Rewrite the whole lane layout pass so that long subjects like '
+              'this one cannot push the bisect bar off the side of a narrow '
+              'window',
+          author: 'Grace Brewster Murray Hopper',
+        ),
+      ],
+    );
+
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('running row wraps without overflow at narrow width', (

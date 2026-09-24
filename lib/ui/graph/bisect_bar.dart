@@ -4,11 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
 import '../../domain/git/bisect.dart';
+import '../../domain/git/models.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/bisect.dart';
 import '../../state/repo_actions.dart';
+import '../../state/repo_data.dart';
 import '../../state/unsaved_guard.dart';
 import '../common/dialogs.dart';
+import 'graph_rail.dart';
 
 /// Persistent strip above the commit list while a bisect is running: how
 /// the hunt is going, and the verdict buttons to move it along.
@@ -118,7 +121,9 @@ class _BisectBarState extends ConsumerState<BisectBar> {
       // A failed read gets a line saying so; one merely still in flight gets
       // nothing, so opening a repository does not flash a warning that the
       // next frame withdraws.
-      return read.hasError ? _wrap(t, [Text(l.bisectUnreadable)]) : _hidden;
+      return read.hasError
+          ? _wrap(t, (_) => [Text(l.bisectUnreadable)])
+          : _hidden;
     }
     if (state == null) return _hidden;
 
@@ -126,8 +131,8 @@ class _BisectBarState extends ConsumerState<BisectBar> {
     final hasBad = state.marks.any((m) => m.kind == BisectKind.bad);
     return _wrap(
       t,
-      state.finished
-          ? _finished(l, state, actions)
+      (width) => state.finished
+          ? _finished(l, t, state, actions, width)
           // No bad mark yet: git has nothing to halve, whether that's because
           // no marks exist at all or only good ones were typed at a terminal
           // before a bad one. Both read the same to the person using the bar.
@@ -141,19 +146,26 @@ class _BisectBarState extends ConsumerState<BisectBar> {
 
   static const _hidden = SizedBox.shrink();
 
-  Widget _wrap(AppTokens t, List<Widget> children) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-    decoration: BoxDecoration(
-      color: t.bgElevated,
-      border: Border(bottom: BorderSide(color: t.border)),
-    ),
-    child: Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: children,
-    ),
-  );
+  /// The strip, with its children built against the width they have to fit
+  /// into. [Wrap] offers every child unbounded width, so a child that has to
+  /// ellipsize rather than overflow — the first bad commit's subject — can
+  /// only learn its ceiling from the strip itself.
+  Widget _wrap(AppTokens t, List<Widget> Function(double width) children) =>
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: t.bgElevated,
+          border: Border(bottom: BorderSide(color: t.border)),
+        ),
+        child: LayoutBuilder(
+          builder: (context, c) => Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: children(c.maxWidth),
+          ),
+        ),
+      );
 
   /// `git bisect start` was run but nothing has been marked yet: not
   /// awaiting-good (that needs a bad mark), not finished, and the vars git
@@ -194,16 +206,37 @@ class _BisectBarState extends ConsumerState<BisectBar> {
     TextButton(onPressed: actions.resetBisect, child: Text(l.bisectReset)),
   ];
 
+  /// The commit the hunt landed on, as the graph already knows it, or null
+  /// when it sits outside the page of history currently loaded.
+  ///
+  /// The graph pages its walk, and a bisect can end on a commit older than
+  /// the page — nothing guarantees the answer is on screen. A miss is a
+  /// normal outcome, not a failure: the card falls back to the sha, which is
+  /// the one thing always known.
+  Commit? _loadedCommit(String sha) {
+    final commits = ref
+        .watch(repoDataProvider(widget.repoPath))
+        .valueOrNull
+        ?.commits;
+    if (commits == null) return null;
+    for (final c in commits) {
+      if (c.sha == sha) return c;
+    }
+    return null;
+  }
+
   List<Widget> _finished(
     AppLocalizations l,
+    AppTokens t,
     BisectState state,
     RepoActions actions,
+    double width,
   ) {
     final firstBad = state.firstBad!;
+    final commit = _loadedCommit(firstBad);
     return [
-      Text(l.bisectFirstBadTitle),
-      Text(_short(firstBad)),
-      TextButton(
+      _firstBadCard(l, t, firstBad, commit, width),
+      ElevatedButton(
         onPressed: () => widget.onJumpToCommit(firstBad),
         child: Text(l.bisectJumpToCommit),
       ),
@@ -213,6 +246,81 @@ class _BisectBarState extends ConsumerState<BisectBar> {
       ),
       TextButton(onPressed: actions.resetBisect, child: Text(l.bisectReset)),
     ];
+  }
+
+  /// The answer the whole feature exists to produce, given the weight to say
+  /// so: the bad verdict's own colour from [bisectVerdictColor], so the card
+  /// and the marked row in the graph read as one thing, and the commit named
+  /// in words rather than left as a hex string.
+  ///
+  /// Capped at the strip's own width so a long subject ellipsizes instead of
+  /// pushing the row off the side of a narrow window.
+  Widget _firstBadCard(
+    AppLocalizations l,
+    AppTokens t,
+    String sha,
+    Commit? commit,
+    double width,
+  ) {
+    final bad = bisectVerdictColor(BisectKind.bad, t);
+    // Sha first, because it is the part that is always there; the author
+    // joins it only when the commit is one the graph has loaded.
+    final meta = [
+      _short(sha),
+      if (commit != null && commit.author.isNotEmpty) commit.author,
+    ].join('  ·  ');
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: width),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(10, 6, 12, 6),
+        decoration: BoxDecoration(
+          color: bad.withValues(alpha: 0.12),
+          border: Border.all(color: bad.withValues(alpha: 0.5)),
+          borderRadius: BorderRadius.circular(t.rCard),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.report_problem_outlined, size: 17, color: bad),
+            const SizedBox(width: 9),
+            Flexible(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l.bisectFirstBadTitle,
+                    style: TextStyle(
+                      color: bad,
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                  if (commit != null)
+                    Text(
+                      commit.message,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: t.textPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  Text(
+                    meta,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: t.textMuted, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   String _short(String sha) => sha.length > 7 ? sha.substring(0, 7) : sha;
