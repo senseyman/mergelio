@@ -5,6 +5,7 @@ import 'package:mergelio/domain/git/git_writer.dart';
 class _RecordingGit implements GitService {
   final calls = <List<String>>[];
   GitResult result = const GitResult(0, '', '');
+  GitCancel? lastCancel;
 
   @override
   Future<GitResult> run(
@@ -16,6 +17,7 @@ class _RecordingGit implements GitService {
     String? stdin,
   }) async {
     calls.add(args);
+    lastCancel = cancel;
     return result;
   }
 
@@ -104,5 +106,37 @@ void main() {
         ),
       ),
     );
+  });
+
+  test('the command is handed to a shell, never split on spaces', () {
+    final args = bisectRunArgs('npm test -- --grep "two words"');
+    expect(args[0], 'bisect');
+    expect(args[1], 'run');
+    // The whole command survives as ONE argument: splitting it would break
+    // quoting, pipes and shell builtins.
+    expect(args.last, 'npm test -- --grep "two words"');
+    expect(args.length, 5);
+  });
+
+  test('a command containing a pipe is not mangled', () {
+    final args = bisectRunArgs('make 2>&1 | grep -q FAIL');
+    expect(args.last, 'make 2>&1 | grep -q FAIL');
+  });
+
+  test(
+    'bisectRun returns the result rather than throwing on failure',
+    () async {
+      // The exit code IS the outcome here, so throwing would discard it.
+      git.result = const GitResult(1, '', "error: bogus exit code 127");
+      final r = await writer.bisectRun('false');
+      expect(r.exitCode, 1);
+      expect(r.err, contains('bogus exit code'));
+    },
+  );
+
+  test('bisectRun passes the cancel handle through', () async {
+    final cancel = GitCancel();
+    await writer.bisectRun('true', cancel: cancel);
+    expect(git.lastCancel, same(cancel));
   });
 }

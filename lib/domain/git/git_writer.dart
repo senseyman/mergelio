@@ -5,6 +5,20 @@ import 'askpass.dart';
 import 'commit_message.dart';
 import 'git_service.dart';
 
+/// Arguments for `git bisect run`, with [command] handed to a shell as a
+/// single string.
+///
+/// Splitting on whitespace would break quoting, pipes and shell builtins, so
+/// the user's line goes through verbatim. The shell matches the one the
+/// terminal uses, so a command behaves the same in both places.
+List<String> bisectRunArgs(String command) {
+  final shell =
+      Platform.environment['SHELL'] ??
+      (Platform.isWindows ? 'cmd.exe' : '/bin/sh');
+  final flag = Platform.isWindows ? '/c' : '-c';
+  return ['bisect', 'run', shell, flag, command];
+}
+
 /// Which side wins a hunk both branches changed (`-X ours` / `-X theirs`).
 /// Only overlapping hunks are decided this way; work the two sides did in
 /// different places is still combined.
@@ -321,6 +335,17 @@ class GitWriter {
     if (!r.ok) throw GitException('git bisect log', r);
     return r.stdout;
   }
+
+  /// Runs [command] over the remaining candidates until git lands on the first
+  /// bad commit or gives up.
+  ///
+  /// Returns the result instead of throwing: the exit code and stderr together
+  /// say which of several outcomes happened, and an exception would discard
+  /// that. Carries no timeout — a run is the command multiplied by the number
+  /// of steps and can legitimately last an hour — so [cancel] is the only way
+  /// to stop it.
+  Future<GitResult> bisectRun(String command, {GitCancel? cancel}) =>
+      _run(bisectRunArgs(command), cancel: cancel);
 
   // --- Branch ops -----------------------------------------------------------
 
