@@ -129,6 +129,10 @@ void main() {
       writer = _RecordingWriter(git, '/r');
       actions = RepoActions(container.read(_refProvider), '/r', writer);
       addTearDown(() {
+        // Built directly rather than through repoActionsProvider, so the
+        // provider's onDispose never runs: without this the refresh
+        // coalescer's timer outlives the container and fires against it.
+        actions.dispose();
         container.dispose();
         gitDir.deleteSync(recursive: true);
       });
@@ -256,7 +260,14 @@ void main() {
       );
       writer = _RecordingWriter(git, '/r');
       actions = RepoActions(container.read(_refProvider), '/r', writer);
-      addTearDown(container.dispose);
+      addTearDown(() {
+        // Cancels the refresh coalescer's pending timer. These actions are
+        // built directly rather than through repoActionsProvider, so the
+        // provider's onDispose never runs and the timer would otherwise fire
+        // against an already-disposed container.
+        actions.dispose();
+        container.dispose();
+      });
     });
 
     test('startBisect refuses a dirty tree and touches nothing', () async {
@@ -341,7 +352,14 @@ void main() {
         '/r',
         GitWriter(git, '/r'),
       );
-      addTearDown(container.dispose);
+      addTearDown(() {
+        // Cancels the refresh coalescer's pending timer. These actions are
+        // built directly rather than through repoActionsProvider, so the
+        // provider's onDispose never runs and the timer would otherwise fire
+        // against an already-disposed container.
+        actions.dispose();
+        container.dispose();
+      });
     });
 
     List<Toast> errors() => container
