@@ -4465,6 +4465,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Bisect state could not be read'**
   String get bisectUnreadable;
+
+  /// No description provided for @bisectRun.
+  ///
+  /// In en, this message translates to:
+  /// **'Run a command…'**
+  String get bisectRun;
+
+  /// No description provided for @bisectRunTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Run a command to bisect'**
+  String get bisectRunTitle;
+
+  /// No description provided for @bisectRunHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Command to test each commit'**
+  String get bisectRunHint;
+
+  /// No description provided for @bisectRunWillExecute.
+  ///
+  /// In en, this message translates to:
+  /// **'Will run:'**
+  String get bisectRunWillExecute;
+
+  /// No description provided for @bisectRunTreeWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'A command that modifies tracked files will break the run.'**
+  String get bisectRunTreeWarning;
+
+  /// No description provided for @bisectRunStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Run'**
+  String get bisectRunStart;
+
+  /// No description provided for @bisectRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Running {command}'**
+  String bisectRunning(String command);
+
+  /// No description provided for @bisectRunExhausted.
+  ///
+  /// In en, this message translates to:
+  /// **'Every remaining commit was skipped, so git cannot narrow this further.'**
+  String get bisectRunExhausted;
+
+  /// No description provided for @bisectRunUnrunnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Your command could not be run. Check that it exists and is executable.'**
+  String get bisectRunUnrunnable;
+
+  /// No description provided for @bisectRunTreeDirtied.
+  ///
+  /// In en, this message translates to:
+  /// **'Your command modified tracked files, so git could not check out the next commit.'**
+  String get bisectRunTreeDirtied;
+
+  /// No description provided for @bisectRunCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Run cancelled. The marks recorded so far are kept.'**
+  String get bisectRunCancelled;
 }
 
 class _AppLocalizationsDelegate

@@ -1647,5 +1647,23 @@
   "bisectQuitBody": "Quitting, or closing this repository, leaves it on a detached HEAD. Reset the bisect first?",
   "bisectQuitAnyway": "Continue anyway",
   "bisectNoMarks": "Bisecting. Mark a bad commit to begin.",
-  "bisectUnreadable": "Bisect state could not be read"
+  "bisectUnreadable": "Bisect state could not be read",
+  "bisectRun": "Run a command…",
+  "bisectRunTitle": "Run a command to bisect",
+  "bisectRunHint": "Command to test each commit",
+  "bisectRunWillExecute": "Will run:",
+  "bisectRunTreeWarning": "A command that modifies tracked files will break the run.",
+  "bisectRunStart": "Run",
+  "bisectRunning": "Running {command}",
+  "bisectRunExhausted": "Every remaining commit was skipped, so git cannot narrow this further.",
+  "bisectRunUnrunnable": "Your command could not be run. Check that it exists and is executable.",
+  "bisectRunTreeDirtied": "Your command modified tracked files, so git could not check out the next commit.",
+  "bisectRunCancelled": "Run cancelled. The marks recorded so far are kept.",
+  "@bisectRunning": {
+    "placeholders": {
+      "command": {
+        "type": "String"
+      }
+    }
+  }
 }

@@ -2531,4 +2531,44 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get bisectUnreadable => 'Bisect state could not be read';
+
+  @override
+  String get bisectRun => 'Run a command…';
+
+  @override
+  String get bisectRunTitle => 'Run a command to bisect';
+
+  @override
+  String get bisectRunHint => 'Command to test each commit';
+
+  @override
+  String get bisectRunWillExecute => 'Will run:';
+
+  @override
+  String get bisectRunTreeWarning =>
+      'A command that modifies tracked files will break the run.';
+
+  @override
+  String get bisectRunStart => 'Run';
+
+  @override
+  String bisectRunning(String command) {
+    return 'Running $command';
+  }
+
+  @override
+  String get bisectRunExhausted =>
+      'Every remaining commit was skipped, so git cannot narrow this further.';
+
+  @override
+  String get bisectRunUnrunnable =>
+      'Your command could not be run. Check that it exists and is executable.';
+
+  @override
+  String get bisectRunTreeDirtied =>
+      'Your command modified tracked files, so git could not check out the next commit.';
+
+  @override
+  String get bisectRunCancelled =>
+      'Run cancelled. The marks recorded so far are kept.';
 }
