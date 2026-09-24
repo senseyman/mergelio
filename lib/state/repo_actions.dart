@@ -15,6 +15,7 @@ import '../domain/git/git_service.dart';
 import '../domain/git/git_writer.dart';
 import '../domain/git/models.dart';
 import '../domain/git/rebase_plan.dart';
+import 'bisect.dart';
 import 'feedback.dart';
 import 'forge_refresh.dart';
 import 'merge_session.dart';
@@ -2119,6 +2120,49 @@ class RepoActions {
       _toastErr('Bisect', e);
     }
     _refresh();
+  }
+
+  /// Hands the rest of the hunt to [command], which git runs over each
+  /// remaining candidate until it lands or gives up.
+  ///
+  /// Returns the outcome rather than toasting a generic success: a run ends in
+  /// several materially different ways and the caller decides what to say.
+  Future<BisectRunOutcome> runBisect(String command) async {
+    final cancel = GitCancel();
+    _ref.read(bisectRunProvider.notifier).state = command;
+    // The status bar renders Cancel from this, so a stalled command can be
+    // given up on without a second affordance of our own.
+    _ref.read(busyProvider.notifier).state = BusyState(
+      'Bisect run',
+      onCancel: cancel.cancel,
+    );
+    final id = await _journalBegin('Bisect: run');
+    try {
+      final r = await _timed(
+        'Bisect run',
+        () => _writer.bisectRun(command, cancel: cancel),
+      );
+      final outcome = classifyBisectRun(
+        r.exitCode,
+        r.err,
+        // Only asked on failure: a clean run has nothing to explain, and this
+        // costs a subprocess.
+        treeDirty: r.ok ? false : await _treeIsDirty(),
+      );
+      await _journalDone(id);
+      return outcome;
+    } on GitCancelledException {
+      await _journalFail(id);
+      return BisectRunOutcome.cancelled;
+    } catch (e) {
+      await _journalFail(id);
+      _toastErr('Bisect run', e);
+      return BisectRunOutcome.failed;
+    } finally {
+      _ref.read(bisectRunProvider.notifier).state = null;
+      _ref.read(busyProvider.notifier).state = null;
+      _refresh();
+    }
   }
 
   /// The verdict trail git recorded for the session in progress, or null when

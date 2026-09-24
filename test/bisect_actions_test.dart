@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,6 +22,25 @@ class _ScriptedGit implements GitService {
   /// there is no usable git binary to run it.
   final unrunnable = <String>{};
 
+  /// Result for a `bisect run` invocation, scripted separately from
+  /// [responses]: `bisectRunArgs` appends the caller's shell and its flag, so
+  /// the full argument list varies by platform and by `$SHELL` and cannot be
+  /// keyed exactly the way every other command is.
+  GitResult? bisectRunResult;
+
+  /// When true, the `bisect run` invocation throws [GitCancelledException]
+  /// instead of returning [bisectRunResult] — the way a real cancel reaches
+  /// the caller, from inside the process run rather than from its result.
+  bool bisectRunCancelled = false;
+
+  /// When set, the `bisect run` invocation waits on this before returning or
+  /// throwing, so a test can assert on state while the run is still in
+  /// flight and then let it finish on its own schedule.
+  Completer<void>? bisectRunGate;
+
+  bool _isBisectRun(List<String> args) =>
+      args.length >= 2 && args[0] == 'bisect' && args[1] == 'run';
+
   @override
   Future<GitResult> run(
     List<String> args, {
@@ -33,6 +53,14 @@ class _ScriptedGit implements GitService {
     calls.add(args);
     if (unrunnable.contains(args.join(' '))) {
       throw GitUnavailableException('git could not be found');
+    }
+    if (_isBisectRun(args)) {
+      final gate = bisectRunGate;
+      if (gate != null) await gate.future;
+      if (bisectRunCancelled) {
+        throw GitCancelledException('git ${args.join(' ')} cancelled');
+      }
+      return bisectRunResult ?? const GitResult(0, '', '');
     }
     return responses[args.join(' ')] ?? const GitResult(0, '', '');
   }
@@ -425,6 +453,97 @@ void main() {
       final state = await container.read(bisectStateProvider('/r').future);
 
       expect(state, isNull);
+    });
+  });
+
+  group('runBisect', () {
+    late _ScriptedGit git;
+    late ProviderContainer container;
+    late RepoActions actions;
+
+    setUp(() {
+      git = _ScriptedGit();
+      container = ProviderContainer(
+        overrides: [gitServiceProvider.overrideWithValue(git)],
+      );
+      actions = RepoActions(
+        container.read(_refProvider),
+        '/r',
+        GitWriter(git, '/r'),
+      );
+      addTearDown(() {
+        // Cancels the refresh coalescer's pending timer. These actions are
+        // built directly rather than through repoActionsProvider, so the
+        // provider's onDispose never runs and the timer would otherwise fire
+        // against an already-disposed container.
+        actions.dispose();
+        container.dispose();
+      });
+    });
+
+    test('a clean run reports a finished hunt', () async {
+      // Default scripted response for `bisect run` is exit code 0.
+      final outcome = await actions.runBisect('./t.sh');
+      expect(outcome, BisectRunOutcome.finished);
+    });
+
+    test('a run that dirties the tree is named for the real cause', () async {
+      git.bisectRunResult = const GitResult(1, '', 'some failure');
+      git.responses['status --porcelain'] = const GitResult(
+        0,
+        ' M file.txt\n',
+        '',
+      );
+
+      final outcome = await actions.runBisect('./t.sh');
+
+      expect(outcome, BisectRunOutcome.treeDirtied);
+    });
+
+    test(
+      'the running command is published while it runs and cleared after',
+      () async {
+        final gate = Completer<void>();
+        git.bisectRunGate = gate;
+
+        expect(container.read(bisectRunProvider), isNull);
+        final future = actions.runBisect('./slow.sh');
+        // Lets the journal write (itself async, but no real timer) run to
+        // completion, landing squarely inside the gated git call — still
+        // "while it runs" rather than testing only the synchronous prologue.
+        await Future<void>.delayed(Duration.zero);
+        expect(container.read(bisectRunProvider), './slow.sh');
+
+        gate.complete();
+        await future;
+
+        expect(container.read(bisectRunProvider), isNull);
+      },
+    );
+
+    test('cancelling a run reports cancelled and keeps the bisect', () async {
+      git.bisectRunCancelled = true;
+
+      final outcome = await actions.runBisect('./t.sh');
+
+      expect(outcome, BisectRunOutcome.cancelled);
+      // The marks already recorded survive: abandoning automation is not
+      // abandoning the hunt.
+      expect(container.read(bisectRunProvider), isNull);
+    });
+
+    test('a run offers a cancel through the shared busy state', () async {
+      final gate = Completer<void>();
+      git.bisectRunGate = gate;
+
+      final future = actions.runBisect('./slow.sh');
+      await Future<void>.delayed(Duration.zero);
+      expect(container.read(busyProvider)?.onCancel, isNotNull);
+
+      gate.complete();
+      await future;
+
+      expect(container.read(busyProvider), isNull);
     });
   });
 }

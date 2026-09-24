@@ -24,6 +24,12 @@ final bisectStateProvider = FutureProvider.family<BisectState?, String>((
 /// null is how an unreachable git turns into a menu offering `git bisect
 /// start` in the middle of a hunt — a command that throws every bisect ref
 /// away and exits 0, losing a search nobody can get back.
+/// The `git bisect run` command executing right now, or null when none is.
+///
+/// Held so the bar can name what is running and hide the verdict buttons
+/// while it does: a click on Good mid-run would race git's own marking.
+final bisectRunProvider = StateProvider<String?>((ref) => null);
+
 extension BisectRead on AsyncValue<BisectState?> {
   /// True while the answer is not in: the read failed, or it has not landed
   /// yet. A refresh over an earlier answer does not count — git has already
