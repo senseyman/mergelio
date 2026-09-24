@@ -4358,6 +4358,12 @@ abstract class AppLocalizations {
   /// **'Copy SHA'**
   String get bisectCopySha;
 
+  /// No description provided for @bisectCopyFixup.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy fixup!'**
+  String get bisectCopyFixup;
+
   /// No description provided for @bisectRevertCommit.
   ///
   /// In en, this message translates to:

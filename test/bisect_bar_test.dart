@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -460,5 +461,78 @@ void main() {
     );
 
     expect(tester.takeException(), isNull);
+  });
+
+  /// Watches what the card actually hands the platform, so the assertion is on
+  /// the text that reaches the clipboard rather than on the widget that asked.
+  String? clipboardText;
+
+  void watchClipboard() {
+    clipboardText = null;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+          if (call.method == 'Clipboard.setData') {
+            clipboardText = (call.arguments as Map)['text'] as String?;
+          }
+          return null;
+        });
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, null),
+    );
+  }
+
+  testWidgets('the finished card copies a fixup line for the culprit', (
+    tester,
+  ) async {
+    watchClipboard();
+    await _pump(
+      tester,
+      _finishedOn('aaa1111'),
+      commits: [_commit('aaa1111', message: 'Break parser')],
+    );
+
+    await tester.tap(find.text('Copy fixup!'));
+    await tester.pumpAndSettle();
+
+    // Exactly what `git commit --fixup` writes: the marker, one space, the
+    // subject, and nothing else for git to fail to match on.
+    expect(clipboardText, 'fixup! Break parser');
+  });
+
+  testWidgets('only the subject line reaches the fixup, never the body', (
+    tester,
+  ) async {
+    watchClipboard();
+    await _pump(
+      tester,
+      _finishedOn('aaa1111'),
+      commits: [
+        _commit(
+          'aaa1111',
+          message: 'Break parser\n\nThe body explains why at length.\n',
+        ),
+      ],
+    );
+
+    await tester.tap(find.text('Copy fixup!'));
+    await tester.pumpAndSettle();
+
+    expect(clipboardText, 'fixup! Break parser');
+  });
+
+  testWidgets('no fixup action when the culprit is outside the loaded page', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      _finishedOn('aaa1111'),
+      commits: [_commit('bbb2222', message: 'Some other commit')],
+    );
+
+    // Without the commit there is no subject to name, and a fixup line git
+    // cannot match onto anything is worse than no action at all.
+    expect(find.text('Copy fixup!'), findsNothing);
+    expect(find.text('Copy SHA'), findsOneWidget);
   });
 }

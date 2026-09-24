@@ -1630,6 +1630,7 @@
   "bisectFirstBadTitle": "First bad commit",
   "bisectJumpToCommit": "Jump to commit",
   "bisectCopySha": "Copy SHA",
+  "bisectCopyFixup": "Copy fixup!",
   "bisectRevertCommit": "Revert this commit",
   "bisectRevertNotLoaded": "This commit is outside the loaded history. Scroll the graph to load it, then revert it from its row.",
   "bisectPillGood": "good",

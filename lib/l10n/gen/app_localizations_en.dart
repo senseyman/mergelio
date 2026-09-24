@@ -2477,6 +2477,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bisectCopySha => 'Copy SHA';
 
   @override
+  String get bisectCopyFixup => 'Copy fixup!';
+
+  @override
   String get bisectRevertCommit => 'Revert this commit';
 
   @override

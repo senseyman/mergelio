@@ -282,6 +282,17 @@ class _BisectBarState extends ConsumerState<BisectBar> {
         onPressed: () => Clipboard.setData(ClipboardData(text: firstBad)),
         child: Text(l.bisectCopySha),
       ),
+      // Offered only when the commit is loaded: a fixup names its target by
+      // subject, and the sha the card always has is not one. Nothing here
+      // would guess a subject, so the action stays away rather than put a
+      // line on the clipboard git will later refuse to match.
+      if (commit != null)
+        TextButton(
+          onPressed: () => Clipboard.setData(
+            ClipboardData(text: _fixupLine(commit.message)),
+          ),
+          child: Text(l.bisectCopyFixup),
+        ),
       TextButton(onPressed: actions.resetBisect, child: Text(l.bisectReset)),
     ];
   }
@@ -405,6 +416,15 @@ class _BisectBarState extends ConsumerState<BisectBar> {
 
   String _short(String sha) => sha.length > 7 ? sha.substring(0, 7) : sha;
 }
+
+/// The `fixup!` line that marks a commit as amending [message]'s commit.
+///
+/// Git pairs a fixup with its target by matching the text after the marker
+/// against the target's subject, so only the first line may travel: a second
+/// line belongs to the body, and carrying it would leave an autosquash with
+/// nothing to match.
+String _fixupLine(String message) =>
+    'fixup! ${message.split('\n').first.trim()}';
 
 /// What to do about the detached HEAD a bisect leaves behind, offered in
 /// place of a plain quit/close confirmation.

@@ -2497,6 +2497,9 @@ class AppLocalizationsUk extends AppLocalizations {
   String get bisectCopySha => 'Копіювати SHA';
 
   @override
+  String get bisectCopyFixup => 'Копіювати fixup!';
+
+  @override
   String get bisectRevertCommit => 'Відкотити цей коміт';
 
   @override
