@@ -2497,6 +2497,13 @@ class AppLocalizationsUk extends AppLocalizations {
   String get bisectCopySha => 'Копіювати SHA';
 
   @override
+  String get bisectRevertCommit => 'Відкотити цей коміт';
+
+  @override
+  String get bisectRevertNotLoaded =>
+      'Цей коміт поза завантаженою історією. Прогорніть граф, щоб завантажити його, і відкотіть із його рядка.';
+
+  @override
   String get bisectPillGood => 'робочий';
 
   @override

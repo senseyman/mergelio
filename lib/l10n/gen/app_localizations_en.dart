@@ -2477,6 +2477,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bisectCopySha => 'Copy SHA';
 
   @override
+  String get bisectRevertCommit => 'Revert this commit';
+
+  @override
+  String get bisectRevertNotLoaded =>
+      'This commit is outside the loaded history. Scroll the graph to load it, then revert it from its row.';
+
+  @override
   String get bisectPillGood => 'good';
 
   @override

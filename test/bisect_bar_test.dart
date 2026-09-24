@@ -330,6 +330,72 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('a loaded plain commit can be reverted straight from the card', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      _finishedOn('aaa1111'),
+      commits: [_commit('aaa1111', message: 'Break the parser')],
+    );
+    final button = tester.widget<TextButton>(
+      find.widgetWithText(TextButton, 'Revert this commit'),
+    );
+    expect(button.onPressed, isNotNull);
+  });
+
+  testWidgets('reverting a merge asks which parent to keep first', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      _finishedOn('aaa1111'),
+      commits: [
+        _commit(
+          'aaa1111',
+          message: 'Merge topic into main',
+          parents: const ['ccc3333', 'ddd4444'],
+        ),
+        _commit('ccc3333', message: 'Mainline side'),
+        _commit('ddd4444', message: 'Topic side'),
+      ],
+    );
+
+    await tester.tap(find.text('Revert this commit'));
+    await tester.pumpAndSettle();
+
+    // The graph's own picker, reached with the revert wording and this
+    // commit: git refuses a merge revert without being told the mainline,
+    // and the bar must not hand it one it never asked for.
+    expect(find.text('Revert merge aaa1111'), findsOneWidget);
+    expect(find.text('Mainline side'), findsOneWidget);
+    expect(find.text('Topic side'), findsOneWidget);
+  });
+
+  testWidgets(
+    'revert is disabled, with a reason, when the commit is not loaded',
+    (tester) async {
+      await _pump(
+        tester,
+        _finishedOn('aaa1111'),
+        commits: [_commit('bbb2222', message: 'Some other commit')],
+      );
+      // Nothing here knows whether the culprit is a merge, so there is no
+      // honest revert to offer — better to say so than to let git error.
+      final button = tester.widget<TextButton>(
+        find.widgetWithText(TextButton, 'Revert this commit'),
+      );
+      expect(button.onPressed, isNull);
+      expect(
+        find.byTooltip(
+          'This commit is outside the loaded history. Scroll the graph to '
+          'load it, then revert it from its row.',
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
   testWidgets('the hunt landing puts the graph cursor on the culprit', (
     tester,
   ) async {

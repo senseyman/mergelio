@@ -906,6 +906,8 @@
   "bisectFirstBadTitle": "Перший зламаний коміт",
   "bisectJumpToCommit": "Перейти до коміта",
   "bisectCopySha": "Копіювати SHA",
+  "bisectRevertCommit": "Відкотити цей коміт",
+  "bisectRevertNotLoaded": "Цей коміт поза завантаженою історією. Прогорніть граф, щоб завантажити його, і відкотіть із його рядка.",
   "bisectPillGood": "робочий",
   "bisectPillBad": "зламаний",
   "bisectPillSkip": "пропущено",

@@ -4358,6 +4358,18 @@ abstract class AppLocalizations {
   /// **'Copy SHA'**
   String get bisectCopySha;
 
+  /// No description provided for @bisectRevertCommit.
+  ///
+  /// In en, this message translates to:
+  /// **'Revert this commit'**
+  String get bisectRevertCommit;
+
+  /// No description provided for @bisectRevertNotLoaded.
+  ///
+  /// In en, this message translates to:
+  /// **'This commit is outside the loaded history. Scroll the graph to load it, then revert it from its row.'**
+  String get bisectRevertNotLoaded;
+
   /// No description provided for @bisectPillGood.
   ///
   /// In en, this message translates to:

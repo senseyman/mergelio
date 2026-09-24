@@ -12,6 +12,7 @@ import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
 import '../../state/unsaved_guard.dart';
 import '../common/dialogs.dart';
+import '../shell/repo_op_dialogs.dart';
 import 'graph_rail.dart';
 
 /// Persistent strip above the commit list while a bisect is running: how
@@ -276,12 +277,55 @@ class _BisectBarState extends ConsumerState<BisectBar> {
         onPressed: () => widget.onJumpToCommit(firstBad),
         child: Text(l.bisectJumpToCommit),
       ),
+      _revertAction(l, actions, commit),
       TextButton(
         onPressed: () => Clipboard.setData(ClipboardData(text: firstBad)),
         child: Text(l.bisectCopySha),
       ),
       TextButton(onPressed: actions.resetBisect, child: Text(l.bisectReset)),
     ];
+  }
+
+  /// Undoing the commit the hunt just named, without the detour of jumping to
+  /// the row and opening its context menu first.
+  ///
+  /// Routed through [replayCommit], the same call the graph's own menu makes,
+  /// so a merge is asked which parent to keep rather than handed to git
+  /// without the `-m` it demands.
+  ///
+  /// A culprit outside the loaded page has no parent list to ask about, so
+  /// there is no way to tell a merge from a plain commit and no parents to
+  /// offer if it is one. That is a disabled action with a reason, not a
+  /// revert fired off in the hope git accepts it.
+  Widget _revertAction(
+    AppLocalizations l,
+    RepoActions actions,
+    Commit? commit,
+  ) {
+    if (commit == null) {
+      return Tooltip(
+        message: l.bisectRevertNotLoaded,
+        child: TextButton(onPressed: null, child: Text(l.bisectRevertCommit)),
+      );
+    }
+    return TextButton(
+      onPressed: () => replayCommit(
+        commit: commit,
+        op: MainlineOp.revert,
+        actions: actions,
+        pick: () => showMainlineDialog(
+          context,
+          commit: commit,
+          op: MainlineOp.revert,
+          subjects: parentSubjects(
+            commit,
+            ref.read(repoDataProvider(widget.repoPath)).valueOrNull?.commits ??
+                const <Commit>[],
+          ),
+        ),
+      ),
+      child: Text(l.bisectRevertCommit),
+    );
   }
 
   /// The answer the whole feature exists to produce, given the weight to say
