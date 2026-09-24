@@ -5,10 +5,13 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mergelio/core/tokens.dart';
 import 'package:mergelio/domain/git/bisect.dart';
+import 'package:mergelio/domain/git/git_service.dart';
+import 'package:mergelio/domain/git/git_writer.dart';
 import 'package:mergelio/domain/git/models.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/state/bisect.dart';
 import 'package:mergelio/state/graph_selection.dart';
+import 'package:mergelio/state/repo_actions.dart';
 import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/ui/graph/bisect_bar.dart';
 
@@ -47,11 +50,48 @@ BisectState _finishedOn(String firstBad) => _state(
   firstBad: firstBad,
 );
 
+/// Never runs: the bar's log tests script the answer at the actions layer,
+/// so the writer underneath it only has to exist.
+class _IdleGit implements GitService {
+  @override
+  Future<GitResult> run(
+    List<String> args, {
+    String? repoPath,
+    Duration? timeout,
+    Map<String, String>? environment,
+    GitCancel? cancel,
+    String? stdin,
+  }) async => const GitResult(0, '', '');
+
+  @override
+  Future<String> version() async => 'git version 2.55.0';
+
+  @override
+  Future<bool> isRepository(String path) async => true;
+}
+
+/// Actions whose bisect log is decided by the test rather than by a
+/// repository: [log] is the trail to hand back, or null for a fetch that
+/// failed and was already reported.
+class _LogActions extends RepoActions {
+  final String? log;
+  int fetches = 0;
+
+  _LogActions(super.ref, super.path, super.writer, {required this.log});
+
+  @override
+  Future<String?> bisectLog() async {
+    fetches++;
+    return log;
+  }
+}
+
 Future<void> _pump(
   WidgetTester tester,
   BisectState? state, {
   void Function(String sha)? onJumpToCommit,
   List<Commit> commits = const [],
+  ({String? text})? log,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
@@ -62,6 +102,17 @@ Future<void> _pump(
         // the filesystem would never resolve under a widget test.
         repoDataProvider('/r')
             .overrideWith((ref) => RepoData(commits: commits)),
+        // Only the tests that open the log panel script it; the rest keep the
+        // real actions object the rest of the bar is wired to.
+        if (log != null)
+          repoActionsProvider('/r').overrideWith(
+            (ref) => _LogActions(
+              ref,
+              '/r',
+              GitWriter(_IdleGit(), '/r'),
+              log: log.text,
+            ),
+          ),
       ],
       child: MaterialApp(
         theme: ThemeData(extensions: [AppTokens.dark()]),
@@ -534,5 +585,128 @@ void main() {
     // cannot match onto anything is worse than no action at all.
     expect(find.text('Copy fixup!'), findsNothing);
     expect(find.text('Copy SHA'), findsOneWidget);
+  });
+
+  const trail =
+      'git bisect start\n'
+      'git bisect bad aaa1111\n'
+      'git bisect good ccc3333\n';
+
+  testWidgets('the log toggle is offered while the hunt is still narrowing', (
+    tester,
+  ) async {
+    await _pump(tester, _running(), log: (text: trail));
+    expect(find.text('Log'), findsOneWidget);
+    // Closed until asked for: the trail is reference material, not something
+    // to spend the commit list's height on unprompted.
+    expect(find.textContaining('git bisect bad aaa1111'), findsNothing);
+  });
+
+  testWidgets('the log toggle is offered on the finished card too', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      _finishedOn('aaa1111'),
+      commits: [_commit('aaa1111')],
+      log: (text: trail),
+    );
+    expect(find.text('Log'), findsOneWidget);
+  });
+
+  testWidgets('expanding the log shows the trail git recorded', (tester) async {
+    await _pump(tester, _running(), log: (text: trail));
+
+    await tester.tap(find.text('Log'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('git bisect good ccc3333'), findsOneWidget);
+  });
+
+  testWidgets('toggling the log again puts it away', (tester) async {
+    await _pump(tester, _running(), log: (text: trail));
+
+    await tester.tap(find.text('Log'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('git bisect start'), findsOneWidget);
+
+    await tester.tap(find.text('Log'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('git bisect start'), findsNothing);
+  });
+
+  testWidgets('a failed fetch says so rather than opening an empty panel', (
+    tester,
+  ) async {
+    // The actions layer has already toasted git's own words; what is left for
+    // the panel is to not sit there blank as if the hunt recorded nothing.
+    await _pump(tester, _running(), log: (text: null));
+
+    await tester.tap(find.text('Log'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('The bisect log could not be read.'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a log git printed nothing for says so as well', (tester) async {
+    await _pump(tester, _running(), log: (text: '\n  \n'));
+
+    await tester.tap(find.text('Log'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('No verdicts recorded yet.'), findsOneWidget);
+  });
+
+  testWidgets('a long log scrolls inside the bar instead of growing it', (
+    tester,
+  ) async {
+    final long = [
+      for (var i = 0; i < 200; i++) 'git bisect good ${i.toString() * 7}',
+    ].join('\n');
+    await _pump(tester, _running(), log: (text: long));
+    final closed = tester.getSize(find.byType(BisectBar)).height;
+
+    await tester.tap(find.text('Log'));
+    await tester.pumpAndSettle();
+
+    // The bar takes its height out of the commit list below it, so a trail
+    // 200 verdicts long must not be allowed to push the graph off screen.
+    final open = tester.getSize(find.byType(BisectBar)).height;
+    expect(open, greaterThan(closed));
+    expect(open, lessThan(400));
+    expect(
+      find.descendant(
+        of: find.byType(BisectBar),
+        matching: find.byType(SingleChildScrollView),
+      ),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the bar with its log open lays out at a narrow width', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(520, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await _pump(
+      tester,
+      _running(),
+      log: (
+        text:
+            'git bisect start\n'
+            'git bisect bad 0123456789abcdef0123456789abcdef01234567\n',
+      ),
+    );
+
+    await tester.tap(find.text('Log'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
   });
 }

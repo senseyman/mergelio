@@ -307,6 +307,21 @@ class GitWriter {
   /// Exits the bisect session and returns to the original branch.
   Future<void> bisectReset() => _ok(['bisect', 'reset'], 'git bisect reset');
 
+  /// The verdict trail of the session in progress: the good, bad and skip
+  /// decisions git recorded, in the order they were given, as the replayable
+  /// script git writes them out as.
+  ///
+  /// Raw stdout, unparsed — it is git's own record of how the hunt got here,
+  /// where the refs only say where it currently stands.
+  Future<String> bisectLog() async {
+    final r = await _run(['bisect', 'log']);
+    // The result travels with the exception on purpose: handlers here read
+    // its stderr ahead of the message, so a message-only throw would reach
+    // the user as empty text.
+    if (!r.ok) throw GitException('git bisect log', r);
+    return r.stdout;
+  }
+
   // --- Branch ops -----------------------------------------------------------
 
   /// Creates branch [name], optionally pointing at [at] (a commit/ref).

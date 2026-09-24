@@ -2488,6 +2488,15 @@ class AppLocalizationsUk extends AppLocalizations {
   String get bisectReset => 'Скинути бісекцію';
 
   @override
+  String get bisectLog => 'Журнал';
+
+  @override
+  String get bisectLogFailed => 'Не вдалося прочитати журнал бісекції.';
+
+  @override
+  String get bisectLogEmpty => 'Рішень ще не записано.';
+
+  @override
   String get bisectFirstBadTitle => 'Перший зламаний коміт';
 
   @override

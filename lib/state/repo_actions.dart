@@ -2121,6 +2121,30 @@ class RepoActions {
     _refresh();
   }
 
+  /// The verdict trail git recorded for the session in progress, or null when
+  /// it could not be read.
+  ///
+  /// Reported here and handed back as null rather than thrown, the way every
+  /// other bisect action reports: this runs from a button nobody awaits, so
+  /// an escaping failure would be seen by no one. Null is what tells the
+  /// caller apart "git had nothing to say" from "git could not be asked" —
+  /// an empty string for both would render a failure as a blank panel.
+  ///
+  /// Reads nothing about the repository's own state, so there is nothing for
+  /// the graph to catch up with and no refresh to schedule.
+  Future<String?> bisectLog() async {
+    final id = await _journalBegin('Bisect: log');
+    try {
+      final log = await _timed('Bisect log', () => _writer.bisectLog());
+      await _journalDone(id);
+      return log;
+    } catch (e) {
+      await _journalFail(id);
+      _toastErr('Bisect', e);
+      return null;
+    }
+  }
+
   /// The message git prepared for the merge in progress, for the commit
   /// composer to offer. Empty when no merge is open.
   ///

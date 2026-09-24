@@ -326,6 +326,76 @@ void main() {
     });
   });
 
+  group('bisectLog', () {
+    late _ScriptedGit git;
+    late ProviderContainer container;
+    late RepoActions actions;
+
+    setUp(() {
+      git = _ScriptedGit();
+      container = ProviderContainer(
+        overrides: [gitServiceProvider.overrideWithValue(git)],
+      );
+      actions = RepoActions(
+        container.read(_refProvider),
+        '/r',
+        GitWriter(git, '/r'),
+      );
+      addTearDown(container.dispose);
+    });
+
+    List<Toast> errors() => container
+        .read(toastProvider)
+        .where((t) => t.kind == ToastKind.error)
+        .toList();
+
+    test('hands back the trail git printed', () async {
+      git.responses['bisect log'] = const GitResult(
+        0,
+        'git bisect start\ngit bisect bad aaa1111\ngit bisect good ccc3333\n',
+        '',
+      );
+
+      final log = await actions.bisectLog();
+
+      expect(log, contains('git bisect good ccc3333'));
+      expect(errors(), isEmpty);
+    });
+
+    test('reports a failed read and hands back nothing', () async {
+      git.responses['bisect log'] = const GitResult(
+        1,
+        '',
+        'fatal: not a valid object name',
+      );
+
+      final log = await actions.bisectLog();
+
+      // Null rather than an empty string: the caller has to tell "git said
+      // nothing" apart from "git could not be asked", or a failed fetch
+      // renders as a blank panel.
+      expect(log, isNull);
+      // Git's own words, not the wrapper this code put around them — which
+      // only arrives when the exception carried its GitResult.
+      expect(
+        errors().single.description,
+        contains('fatal: not a valid object name'),
+      );
+    });
+
+    test('reports a log that could not run at all', () async {
+      // A broken toolchain throws a type of its own carrying no result, and
+      // a handler that catches only the narrow one lets this escape a
+      // callback nobody awaits, where it is never reported at all.
+      git.unrunnable.add('bisect log');
+
+      final log = await actions.bisectLog();
+
+      expect(log, isNull);
+      expect(errors(), hasLength(1));
+    });
+  });
+
   group('bisectStateProvider', () {
     test('surfaces null when no bisect is in progress', () async {
       final git = _ScriptedGit();

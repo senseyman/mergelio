@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme.dart';
 import '../../core/tokens.dart';
 import '../../domain/git/bisect.dart';
 import '../../domain/git/models.dart';
@@ -117,6 +118,37 @@ class _BisectBarState extends ConsumerState<BisectBar> {
     });
   }
 
+  /// The verdict trail as last fetched, and null until a fetch has come back
+  /// with one. [_logFailed] tells that apart from a fetch that failed, which
+  /// also leaves nothing to show but means something quite different.
+  String? _log;
+  bool _logFailed = false;
+
+  /// Whether the trail is on screen, and whether a fetch for it is in flight.
+  /// The panel only appears once a fetch has returned, so a slow read shows a
+  /// disabled button rather than an empty box that fills in later.
+  bool _logOpen = false;
+  bool _logBusy = false;
+
+  Future<void> _toggleLog(RepoActions actions) async {
+    if (_logOpen) {
+      setState(() => _logOpen = false);
+      return;
+    }
+    if (_logBusy) return;
+    setState(() => _logBusy = true);
+    // Re-fetched on every open rather than cached: verdicts are recorded
+    // between one open and the next, and a stale trail is worse than none.
+    final log = await actions.bisectLog();
+    if (!mounted) return;
+    setState(() {
+      _logBusy = false;
+      _logOpen = true;
+      _log = log;
+      _logFailed = log == null;
+    });
+  }
+
   Future<bool> _confirmQuit() async {
     if (!mounted) return false;
     final choice = await showBisectQuitDialog(context);
@@ -178,6 +210,7 @@ class _BisectBarState extends ConsumerState<BisectBar> {
           : state.awaitingGood
           ? _awaitingGood(l, actions)
           : _running(l, state, actions),
+      below: _logOpen ? _logPanel(l, t) : null,
     );
   }
 
@@ -187,14 +220,24 @@ class _BisectBarState extends ConsumerState<BisectBar> {
   /// into. [Wrap] offers every child unbounded width, so a child that has to
   /// ellipsize rather than overflow — the first bad commit's subject — can
   /// only learn its ceiling from the strip itself.
-  Widget _wrap(AppTokens t, List<Widget> Function(double width) children) =>
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: t.bgElevated,
-          border: Border(bottom: BorderSide(color: t.border)),
-        ),
-        child: LayoutBuilder(
+  ///
+  /// [below] hangs under the row of controls, full width, for the one thing
+  /// too tall to wrap alongside them: the verdict trail.
+  Widget _wrap(
+    AppTokens t,
+    List<Widget> Function(double width) children, {
+    Widget? below,
+  }) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    decoration: BoxDecoration(
+      color: t.bgElevated,
+      border: Border(bottom: BorderSide(color: t.border)),
+    ),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        LayoutBuilder(
           builder: (context, c) => Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -202,7 +245,49 @@ class _BisectBarState extends ConsumerState<BisectBar> {
             children: children(c.maxWidth),
           ),
         ),
-      );
+        if (below != null) ...[const SizedBox(height: 8), below],
+      ],
+    ),
+  );
+
+  /// How tall the trail may get before it scrolls instead of growing.
+  ///
+  /// The bar sits above the commit list and takes its height out of it, so an
+  /// uncapped trail — a long hunt records a line per verdict, and git replays
+  /// the whole session — would push the graph off the bottom of the window.
+  static const _logMaxHeight = 160.0;
+
+  /// The verdict trail, as git wrote it.
+  ///
+  /// Shown verbatim in a monospace face: it is a replayable script, and the
+  /// point of having it is being able to copy it out somewhere it will be
+  /// run or quoted. Nothing to show says so in words — a failed fetch and an
+  /// empty trail are different facts, and an empty box states neither.
+  Widget _logPanel(AppLocalizations l, AppTokens t) {
+    final text = _log?.trim() ?? '';
+    final nothing = _logFailed
+        ? l.bisectLogFailed
+        : text.isEmpty
+        ? l.bisectLogEmpty
+        : null;
+    return Container(
+      constraints: const BoxConstraints(maxHeight: _logMaxHeight),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: t.bgApp,
+        border: Border.all(color: t.border),
+        borderRadius: BorderRadius.circular(t.rCard),
+      ),
+      child: nothing != null
+          ? Text(nothing, style: TextStyle(color: t.textMuted, fontSize: 12))
+          : SingleChildScrollView(
+              child: SelectableText(
+                text,
+                style: AppFonts.mns(size: 11.5, color: t.textPrimary),
+              ),
+            ),
+    );
+  }
 
   /// `git bisect start` was run but nothing has been marked yet: not
   /// awaiting-good (that needs a bad mark), not finished, and the vars git
@@ -240,8 +325,16 @@ class _BisectBarState extends ConsumerState<BisectBar> {
       child: Text(l.bisectBad),
     ),
     TextButton(onPressed: actions.skipBisect, child: Text(l.bisectSkip)),
+    _logToggle(l, actions),
     TextButton(onPressed: actions.resetBisect, child: Text(l.bisectReset)),
   ];
+
+  /// Shows and hides the verdict trail. Disabled only while a fetch is in
+  /// flight, so a second press cannot stack a second read on the first.
+  Widget _logToggle(AppLocalizations l, RepoActions actions) => TextButton(
+    onPressed: _logBusy ? null : () => _toggleLog(actions),
+    child: Text(l.bisectLog),
+  );
 
   /// The commit the hunt landed on, as the graph already knows it, or null
   /// when it sits outside the page of history currently loaded.
@@ -293,6 +386,7 @@ class _BisectBarState extends ConsumerState<BisectBar> {
           ),
           child: Text(l.bisectCopyFixup),
         ),
+      _logToggle(l, actions),
       TextButton(onPressed: actions.resetBisect, child: Text(l.bisectReset)),
     ];
   }

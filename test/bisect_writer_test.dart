@@ -62,6 +62,35 @@ void main() {
     expect(git.calls.single, ['bisect', 'reset']);
   });
 
+  test('bisectLog returns the verdict trail git printed', () async {
+    git.result = const GitResult(
+      0,
+      'git bisect start\ngit bisect bad aaa\n',
+      '',
+    );
+
+    final log = await writer.bisectLog();
+
+    expect(git.calls.single, ['bisect', 'log']);
+    expect(log, contains('git bisect bad aaa'));
+  });
+
+  test('a failing bisect log throws with its stderr attached', () async {
+    git.result = const GitResult(1, '', 'fatal: not a valid object name');
+    // Handlers here read result.err ahead of the exception's own message, so
+    // a throw without its GitResult reaches the user as empty text.
+    await expectLater(
+      writer.bisectLog(),
+      throwsA(
+        isA<GitException>().having(
+          (e) => e.result?.err,
+          'stderr',
+          contains('fatal: not a valid object name'),
+        ),
+      ),
+    );
+  });
+
   test('a failing bisect command throws with its stderr attached', () async {
     git.result = const GitResult(1, '', 'not a valid object name');
     // The handler reads result.err, so the message alone is not enough.

@@ -4340,6 +4340,24 @@ abstract class AppLocalizations {
   /// **'Reset bisect'**
   String get bisectReset;
 
+  /// No description provided for @bisectLog.
+  ///
+  /// In en, this message translates to:
+  /// **'Log'**
+  String get bisectLog;
+
+  /// No description provided for @bisectLogFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The bisect log could not be read.'**
+  String get bisectLogFailed;
+
+  /// No description provided for @bisectLogEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No verdicts recorded yet.'**
+  String get bisectLogEmpty;
+
   /// No description provided for @bisectFirstBadTitle.
   ///
   /// In en, this message translates to:

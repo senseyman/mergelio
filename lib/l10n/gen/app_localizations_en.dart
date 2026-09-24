@@ -2468,6 +2468,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bisectReset => 'Reset bisect';
 
   @override
+  String get bisectLog => 'Log';
+
+  @override
+  String get bisectLogFailed => 'The bisect log could not be read.';
+
+  @override
+  String get bisectLogEmpty => 'No verdicts recorded yet.';
+
+  @override
   String get bisectFirstBadTitle => 'First bad commit';
 
   @override
