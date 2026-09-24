@@ -7,6 +7,7 @@ import 'package:mergelio/domain/git/bisect.dart';
 import 'package:mergelio/domain/git/models.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/state/bisect.dart';
+import 'package:mergelio/state/graph_selection.dart';
 import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/ui/graph/bisect_bar.dart';
 
@@ -76,6 +77,51 @@ Future<void> _pump(
   );
   await tester.pumpAndSettle();
 }
+
+/// The bisect state a test can move under a bar that stays mounted, so a hunt
+/// can be driven from running to finished the way a real one arrives rather
+/// than by remounting the widget on an already-finished state.
+final _driver = StateProvider<BisectState?>((_) => null);
+
+Future<ProviderContainer> _pumpLive(
+  WidgetTester tester, {
+  required BisectState? initial,
+  List<Commit> commits = const [],
+}) async {
+  final container = ProviderContainer(
+    overrides: [
+      bisectStateProvider('/r').overrideWith((ref) => ref.watch(_driver)),
+      repoDataProvider('/r').overrideWith((ref) => RepoData(commits: commits)),
+    ],
+  );
+  addTearDown(container.dispose);
+  container.read(_driver.notifier).state = initial;
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        theme: ThemeData(extensions: [AppTokens.dark()]),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: BisectBar(repoPath: '/r', onJumpToCommit: (_) {}),
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+  return container;
+}
+
+/// A hunt still narrowing: a bad and a good end, candidates left.
+BisectState _running() => _state(
+  marks: const [
+    BisectMark('aaa1111', BisectKind.bad),
+    BisectMark('ccc3333', BisectKind.good),
+  ],
+  left: 3,
+  steps: 2,
+);
 
 void main() {
   testWidgets('no active bisect renders nothing', (tester) async {
@@ -282,6 +328,49 @@ void main() {
     );
 
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the hunt landing puts the graph cursor on the culprit', (
+    tester,
+  ) async {
+    final c = await _pumpLive(
+      tester,
+      initial: _running(),
+      commits: [_commit('aaa1111', message: 'Break the parser')],
+    );
+    expect(
+      c.read(selectedCommitProvider),
+      isNull,
+      reason: 'a running hunt selects nothing',
+    );
+
+    c.read(_driver.notifier).state = _finishedOn('aaa1111');
+    await tester.pumpAndSettle();
+
+    expect(c.read(selectedCommitProvider), 'aaa1111');
+  });
+
+  testWidgets('a rebuild after the user picks another row leaves it alone', (
+    tester,
+  ) async {
+    final c = await _pumpLive(
+      tester,
+      initial: _running(),
+      commits: [_commit('aaa1111'), _commit('bbb2222')],
+    );
+    c.read(_driver.notifier).state = _finishedOn('aaa1111');
+    await tester.pumpAndSettle();
+    expect(c.read(selectedCommitProvider), 'aaa1111');
+
+    // The user reads the culprit, then clicks a different row to look around.
+    c.read(selectedCommitProvider.notifier).state = 'bbb2222';
+    // A refresh re-reads the same finished bisect: a fresh object carrying
+    // the same answer. Re-asserting the cursor here would yank it back every
+    // time anything in the repository changed.
+    c.read(_driver.notifier).state = _finishedOn('aaa1111');
+    await tester.pumpAndSettle();
+
+    expect(c.read(selectedCommitProvider), 'bbb2222');
   });
 
   testWidgets('running row wraps without overflow at narrow width', (

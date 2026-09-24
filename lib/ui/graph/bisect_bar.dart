@@ -7,6 +7,7 @@ import '../../domain/git/bisect.dart';
 import '../../domain/git/models.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/bisect.dart';
+import '../../state/graph_selection.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
 import '../../state/unsaved_guard.dart';
@@ -87,6 +88,34 @@ class _BisectBarState extends ConsumerState<BisectBar> {
     }
   }
 
+  /// The first bad sha this bar has already moved the cursor onto, so the
+  /// move happens once per answer and never again.
+  ///
+  /// Selecting on every build would fight the user: the bar rebuilds on every
+  /// repository refresh, and each rebuild would drag the cursor back off
+  /// whatever row they had clicked since. Cleared only when git gives a
+  /// definite answer with no first bad commit in it — a reset, or a fresh
+  /// hunt — so the next hunt to land is auto-selected in its turn while an
+  /// unreadable moment mid-hunt is not mistaken for one.
+  String? _autoSelected;
+
+  void _trackFirstBad(String? firstBad) {
+    if (firstBad == null) {
+      _autoSelected = null;
+      return;
+    }
+    if (firstBad == _autoSelected) return;
+    // Recorded before the frame ends rather than inside the callback, so a
+    // second build in the same frame cannot queue the same move twice.
+    _autoSelected = firstBad;
+    // Writing a provider during a build is an error, and the hunt landing is
+    // exactly the moment a build is running.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(selectedCommitProvider.notifier).state = firstBad;
+    });
+  }
+
   Future<bool> _confirmQuit() async {
     if (!mounted) return false;
     final choice = await showBisectQuitDialog(context);
@@ -113,7 +142,14 @@ class _BisectBarState extends ConsumerState<BisectBar> {
     // never running the moment a tab is opened and closed again, and would
     // make a repository whose reads always fail prompt on every quit with
     // nothing for the dialog's Reset to undo.
-    if (!read.unknown) _syncGuard(active: state != null);
+    if (!read.unknown) {
+      _syncGuard(active: state != null);
+      // Same rule for the cursor: only an answer git gave moves it, so a
+      // failed read mid-hunt cannot be read as "the hunt is over" and a later
+      // successful one cannot re-select a commit the user has already moved
+      // away from.
+      _trackFirstBad(state?.firstBad);
+    }
     final l = AppLocalizations.of(context);
     final t = context.tokens;
 
