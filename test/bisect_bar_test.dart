@@ -50,6 +50,14 @@ BisectState _finishedOn(String firstBad) => _state(
   firstBad: firstBad,
 );
 
+/// A bad mark with no good one yet: git has no range to halve, so no run
+/// can be offered.
+BisectState _needsBad() =>
+    _state(marks: const [BisectMark('aaa1111', BisectKind.bad)]);
+
+/// A hunt that has already landed on its answer.
+BisectState _finished() => _finishedOn('aaa1111');
+
 /// Never runs: the bar's log tests script the answer at the actions layer,
 /// so the writer underneath it only has to exist.
 class _IdleGit implements GitService {
@@ -86,12 +94,26 @@ class _LogActions extends RepoActions {
   }
 }
 
+/// Actions whose bisect run outcome is decided by the test rather than by a
+/// repository: [outcome] is handed back for whatever command the dialog
+/// collects, since no command is really executed here.
+class _RunActions extends RepoActions {
+  final BisectRunOutcome outcome;
+
+  _RunActions(super.ref, super.path, super.writer, {required this.outcome});
+
+  @override
+  Future<BisectRunOutcome> runBisect(String command) async => outcome;
+}
+
 Future<void> _pump(
   WidgetTester tester,
   BisectState? state, {
   void Function(String sha)? onJumpToCommit,
   List<Commit> commits = const [],
   ({String? text})? log,
+  String? runningCommand,
+  BisectRunOutcome? lastOutcome,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
@@ -102,6 +124,10 @@ Future<void> _pump(
         // the filesystem would never resolve under a widget test.
         repoDataProvider('/r')
             .overrideWith((ref) => RepoData(commits: commits)),
+        // A command in flight: the same provider the real running row
+        // watches to hide its verdict buttons.
+        if (runningCommand != null)
+          bisectRunProvider.overrideWith((ref) => runningCommand),
         // Only the tests that open the log panel script it; the rest keep the
         // real actions object the rest of the bar is wired to.
         if (log != null)
@@ -111,6 +137,15 @@ Future<void> _pump(
               '/r',
               GitWriter(_IdleGit(), '/r'),
               log: log.text,
+            ),
+          ),
+        if (lastOutcome != null)
+          repoActionsProvider('/r').overrideWith(
+            (ref) => _RunActions(
+              ref,
+              '/r',
+              GitWriter(_IdleGit(), '/r'),
+              outcome: lastOutcome,
             ),
           ),
       ],
@@ -128,6 +163,17 @@ Future<void> _pump(
     ),
   );
   await tester.pumpAndSettle();
+  if (lastOutcome != null) {
+    // Drives a real run through the dialog rather than injecting the
+    // outcome directly, so this exercises the same path a person does:
+    // open the dialog, type a command, submit it.
+    await tester.tap(find.text('Run a command…'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'x');
+    await tester.pump();
+    await tester.tap(find.text('Run'));
+    await tester.pumpAndSettle();
+  }
 }
 
 /// The bisect state a test can move under a bar that stays mounted, so a hunt
@@ -708,5 +754,40 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Run is offered only once the range has both ends', (
+    tester,
+  ) async {
+    // running state: a bad mark and a good mark
+    await _pump(tester, _running());
+    expect(find.text('Run a command…'), findsOneWidget);
+  });
+
+  testWidgets('Run is not offered before a range exists', (tester) async {
+    await _pump(tester, _needsBad());
+    expect(find.text('Run a command…'), findsNothing);
+  });
+
+  testWidgets('Run is not offered once the hunt has landed', (tester) async {
+    await _pump(tester, _finished());
+    expect(find.text('Run a command…'), findsNothing);
+  });
+
+  testWidgets('the verdict buttons go away while a run is executing', (
+    tester,
+  ) async {
+    // A click on Good mid-run would race git's own marking.
+    await _pump(tester, _running(), runningCommand: './t.sh');
+    expect(find.text('Good'), findsNothing);
+    expect(find.text('Bad'), findsNothing);
+    expect(find.textContaining('./t.sh'), findsOneWidget);
+  });
+
+  testWidgets('a failed run explains itself rather than relaying git', (
+    tester,
+  ) async {
+    await _pump(tester, _running(), lastOutcome: BisectRunOutcome.treeDirtied);
+    expect(find.textContaining('modified tracked files'), findsOneWidget);
   });
 }

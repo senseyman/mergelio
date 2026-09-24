@@ -14,6 +14,7 @@ import '../../state/repo_data.dart';
 import '../../state/unsaved_guard.dart';
 import '../common/dialogs.dart';
 import '../shell/repo_op_dialogs.dart';
+import 'bisect_run_dialog.dart';
 import 'graph_rail.dart';
 
 /// Persistent strip above the commit list while a bisect is running: how
@@ -129,6 +130,44 @@ class _BisectBarState extends ConsumerState<BisectBar> {
   /// disabled button rather than an empty box that fills in later.
   bool _logOpen = false;
   bool _logBusy = false;
+
+  /// How the most recently completed `git bisect run` ended, so the running
+  /// row can explain a failure in its own words instead of leaving git's raw
+  /// message unaccounted for. Null before any run, and cleared the moment a
+  /// fresh one starts so a stale explanation cannot outlive it.
+  BisectRunOutcome? _lastRunOutcome;
+
+  /// Opens the run dialog and, if a command comes back, hands it to git.
+  ///
+  /// Cancelling or dismissing the dialog leaves everything as it was: no
+  /// outcome to show, nothing running. [bisectRunProvider] is what drives the
+  /// running row while the command is in flight; this only has to keep the
+  /// outcome once it lands.
+  Future<void> _run(RepoActions actions) async {
+    final command = await showBisectRunDialog(context);
+    if (command == null || !mounted) return;
+    setState(() => _lastRunOutcome = null);
+    final outcome = await actions.runBisect(command);
+    if (!mounted) return;
+    setState(() => _lastRunOutcome = outcome);
+  }
+
+  /// Explains an outcome the running row cannot leave to git's own message.
+  ///
+  /// [BisectRunOutcome.finished] needs nothing here: the state itself moves
+  /// to the finished card, which is its own explanation. A failed run has
+  /// already been toasted by the action layer, so it stays silent here too
+  /// rather than saying the same thing twice in two different places.
+  String? _outcomeMessage(AppLocalizations l, BisectRunOutcome? outcome) =>
+      switch (outcome) {
+        null => null,
+        BisectRunOutcome.finished => null,
+        BisectRunOutcome.failed => null,
+        BisectRunOutcome.exhausted => l.bisectRunExhausted,
+        BisectRunOutcome.commandUnrunnable => l.bisectRunUnrunnable,
+        BisectRunOutcome.treeDirtied => l.bisectRunTreeDirtied,
+        BisectRunOutcome.cancelled => l.bisectRunCancelled,
+      };
 
   Future<void> _toggleLog(RepoActions actions) async {
     if (_logOpen) {
@@ -309,25 +348,45 @@ class _BisectBarState extends ConsumerState<BisectBar> {
     AppLocalizations l,
     BisectState state,
     RepoActions actions,
-  ) => [
-    // revisionsLeft/steps are -1 until git has both ends of the range; -1
-    // is a sentinel for "not computed", never a count to show.
-    if (state.revisionsLeft >= 0)
-      Text(l.bisectRevisionsLeft(state.revisionsLeft)),
-    if (state.steps >= 0) Text(l.bisectStepsLeft(state.steps)),
-    Text(l.bisectTesting(_short(state.currentSha))),
-    ElevatedButton(
-      onPressed: () => actions.markBisect(state.currentSha, BisectKind.good),
-      child: Text(l.bisectGood),
-    ),
-    ElevatedButton(
-      onPressed: () => actions.markBisect(state.currentSha, BisectKind.bad),
-      child: Text(l.bisectBad),
-    ),
-    TextButton(onPressed: actions.skipBisect, child: Text(l.bisectSkip)),
-    _logToggle(l, actions),
-    TextButton(onPressed: actions.resetBisect, child: Text(l.bisectReset)),
-  ];
+  ) {
+    // Held so a click on Good cannot race git's own marking while a run
+    // command is walking the range on its own.
+    final runningCommand = ref.watch(bisectRunProvider);
+    // Only meaningful once nothing is running: while one is, the row is
+    // busy saying so, and a leftover explanation from an earlier attempt
+    // would talk over it.
+    final outcomeMessage = runningCommand == null
+        ? _outcomeMessage(l, _lastRunOutcome)
+        : null;
+    return [
+      // revisionsLeft/steps are -1 until git has both ends of the range; -1
+      // is a sentinel for "not computed", never a count to show.
+      if (state.revisionsLeft >= 0)
+        Text(l.bisectRevisionsLeft(state.revisionsLeft)),
+      if (state.steps >= 0) Text(l.bisectStepsLeft(state.steps)),
+      Text(l.bisectTesting(_short(state.currentSha))),
+      if (runningCommand != null)
+        Text(l.bisectRunning(runningCommand))
+      else ...[
+        ElevatedButton(
+          onPressed: () =>
+              actions.markBisect(state.currentSha, BisectKind.good),
+          child: Text(l.bisectGood),
+        ),
+        ElevatedButton(
+          onPressed: () => actions.markBisect(state.currentSha, BisectKind.bad),
+          child: Text(l.bisectBad),
+        ),
+        TextButton(onPressed: actions.skipBisect, child: Text(l.bisectSkip)),
+        // Only offered here: this is the one state where git has both ends
+        // of a range to hand a command, so only here can it iterate at all.
+        TextButton(onPressed: () => _run(actions), child: Text(l.bisectRun)),
+      ],
+      _logToggle(l, actions),
+      TextButton(onPressed: actions.resetBisect, child: Text(l.bisectReset)),
+      if (outcomeMessage != null) Text(outcomeMessage),
+    ];
+  }
 
   /// Shows and hides the verdict trail. Disabled only while a fetch is in
   /// flight, so a second press cannot stack a second read on the first.
