@@ -220,3 +220,42 @@ class BisectState {
     for (final m in marks) m.sha: m.kind,
   };
 }
+
+/// How a `git bisect run` ended.
+///
+/// [cancelled] is never produced by [classifyBisectRun] — stopping a run
+/// throws before any result exists, so the caller sets it from its own catch.
+/// It lives here because the UI has to render it.
+enum BisectRunOutcome {
+  finished,
+  exhausted,
+  commandUnrunnable,
+  treeDirtied,
+  cancelled,
+  failed,
+}
+
+/// Reads git's exit code and stderr, plus whether the command left the working
+/// tree dirty, into one named outcome.
+///
+/// Keys on git's message rather than its exit code: git uses 1 and 2 for
+/// unrelated errors too, so the code alone would mislabel them. Anything not
+/// recognised is reported as a plain failure with git's own words rather than
+/// guessed at.
+BisectRunOutcome classifyBisectRun(
+  int exitCode,
+  String stderr, {
+  required bool treeDirty,
+}) {
+  if (exitCode == 0) return BisectRunOutcome.finished;
+  // Checked first: git reports this one by blaming its own `bisect good`,
+  // naming neither the command nor the tree it dirtied.
+  if (treeDirty) return BisectRunOutcome.treeDirtied;
+  if (stderr.contains('bogus exit code')) {
+    return BisectRunOutcome.commandUnrunnable;
+  }
+  if (stderr.contains('We cannot bisect more')) {
+    return BisectRunOutcome.exhausted;
+  }
+  return BisectRunOutcome.failed;
+}
