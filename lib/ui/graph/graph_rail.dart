@@ -1,10 +1,27 @@
 import 'package:flutter/material.dart';
 
+import '../../core/tokens.dart';
+import '../../domain/git/bisect.dart';
 import '../../domain/git/models.dart';
 import 'rail_metrics.dart';
 
 /// Colour for stash nodes and their pill — distinct from branch lane colours.
 const stashNodeColor = Color(0xFF8B5CF6);
+
+/// The colour a bisect verdict is drawn in, wherever it is drawn.
+///
+/// The rail node's tint and the commit row's text pill are two layers of one
+/// design: a hue that reads at a glance, and the word that carries the same
+/// verdict for anyone who cannot rely on hue. Two layers of one design have
+/// to agree, so both resolve the verdict here rather than each keeping a copy
+/// to drift apart the next time the theme moves. Resolved from tokens rather
+/// than fixed like [stashNodeColor] because these three already have tokens,
+/// tuned for contrast in each theme; a stash node has none.
+Color bisectVerdictColor(BisectKind kind, AppTokens t) => switch (kind) {
+  BisectKind.good => t.success,
+  BisectKind.bad => t.danger,
+  BisectKind.skip => t.textFaint,
+};
 
 /// Paints one row of the commit graph rail: pass-through lane strands, the
 /// commit node (ring + filled centre, larger for merges), a bezier dropping to
@@ -18,16 +35,26 @@ class GraphRailPainter extends CustomPainter {
   final Color nodeFill;
   final bool stash;
 
+  /// This commit's bisect verdict as a colour, or null when it has none.
+  /// Tints the node's ring and centre in place of the lane colour — a
+  /// glanceable layer only; the row's text pill is what carries the verdict
+  /// for anyone who cannot read it from colour alone. Resolved by the caller
+  /// through [bisectVerdictColor] so the pill beside it cannot disagree.
+  final Color? bisectTint;
+
   const GraphRailPainter({
     required this.c,
     required this.m,
     required this.palette,
     required this.nodeFill,
     this.stash = false,
+    this.bisectTint,
   });
 
   Color _laneColor(int lane) => palette[lane % palette.length];
   Color get _ciColor => palette[c.ci % palette.length];
+
+  Color get _nodeColor => bisectTint ?? _ciColor;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -112,12 +139,12 @@ class GraphRailPainter extends CustomPainter {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 3
-        ..color = _ciColor,
+        ..color = _nodeColor,
     );
     canvas.drawCircle(
       Offset(x, y),
       m.centerRadius(merge: c.merge),
-      Paint()..color = _ciColor,
+      Paint()..color = _nodeColor,
     );
   }
 
@@ -127,5 +154,6 @@ class GraphRailPainter extends CustomPainter {
       old.m.compact != m.compact ||
       old.palette != palette ||
       old.nodeFill != nodeFill ||
-      old.stash != stash;
+      old.stash != stash ||
+      old.bisectTint != bisectTint;
 }

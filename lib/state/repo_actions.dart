@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/concurrency.dart';
 import '../core/logging.dart';
 import '../domain/file_edit.dart';
+import '../domain/git/bisect.dart';
 import '../domain/git/commit_message.dart';
 import '../domain/git/conflict.dart';
 import '../domain/git/git_providers.dart';
@@ -612,15 +613,25 @@ class RepoActions {
     return name == 'HEAD' ? await _headSha() : name;
   }
 
-  void _toastErr(String label, GitException e) {
-    final err = e.result?.err ?? '';
+  /// Reports a failed op to the user.
+  ///
+  /// Takes any error rather than only a [GitException]: git is not the only
+  /// thing an op touches, and an error that reaches here has nowhere else to
+  /// land — most of these run from a button nobody awaits, where anything
+  /// not reported is never seen at all.
+  void _toastErr(String label, Object e) {
+    final String description;
+    if (e is GitException) {
+      // Stderr first: it is what git itself said, where the exception's own
+      // message is only the wrapper this code put around it.
+      final err = e.result?.err ?? '';
+      description = err.isNotEmpty ? err : e.message;
+    } else {
+      description = '$e';
+    }
     _ref
         .read(toastProvider.notifier)
-        .show(
-          '$label failed',
-          description: err.isNotEmpty ? err : e.message,
-          kind: ToastKind.error,
-        );
+        .show('$label failed', description: description, kind: ToastKind.error);
   }
 
   /// Runs an undoable op: executes [run], records its inverse, refreshes. The
@@ -1947,6 +1958,191 @@ class RepoActions {
       );
     }
     return null;
+  }
+
+  /// The bisect this repository is in the middle of, or null when it is in
+  /// none. Read from git's own state rather than from anything the app
+  /// remembers, so a bisect started in a terminal — or one left running by an
+  /// earlier session — reads exactly the same.
+  ///
+  /// Nothing here parses command output. Git translates its progress messages,
+  /// so a regex over "revisions left" would find nothing under a non-English
+  /// locale; `for-each-ref` and `--bisect-vars` are stable in every locale.
+  /// Throws what it hits. A git call that cannot run raises a
+  /// [GitException], but the state files are read straight off disk, so a
+  /// file that vanishes between the existence test and the read — or one
+  /// that will not decode — raises a [FileSystemException] instead. Every
+  /// caller that runs from a button has to be ready for both.
+  Future<BisectState?> bisectState() async {
+    // BISECT_START is only asked whether it is there: its contents are the
+    // branch a reset returns to, which is git's business to remember and
+    // nothing here has to know.
+    if (!await _stateFileExists('BISECT_START')) return null;
+
+    final termsPath = await _stateFilePath('BISECT_TERMS');
+    final terms = parseBisectTerms(
+      termsPath != null && File(termsPath).existsSync()
+          ? File(termsPath).readAsStringSync()
+          : null,
+    );
+
+    // Read against the repository's own terms: git names these refs after
+    // them, so a repository that renamed its ends holds no ref called good or
+    // bad and every mark in it would otherwise read as nothing at all.
+    final marks = parseBisectRefs(
+      await _out([
+        'for-each-ref',
+        '--format=%(objectname) %(refname)',
+        'refs/bisect',
+      ]),
+      terms,
+    );
+
+    // Only ask for counts once both ends of the range exist; with one end git
+    // would walk the whole history to answer.
+    final args = bisectVarsArgs(marks);
+    final vars = args.isEmpty
+        ? const BisectVars()
+        : parseBisectVars(await _out(['rev-list', '--bisect-vars', ...args]));
+
+    return BisectState(
+      marks: marks,
+      terms: terms,
+      currentSha: await _headSha(),
+      revisionsLeft: vars.nr,
+      steps: vars.steps,
+      firstBad: firstBadFrom(marks, vars.nr),
+    );
+  }
+
+  /// True when anything is staged, modified or untracked — a bisect checks
+  /// commits out, so it needs a tree it will not clobber.
+  Future<bool> _treeIsDirty() async =>
+      (await _out(['status', '--porcelain'])).isNotEmpty;
+
+  /// Opens a bisect with [sha] as the first bad commit.
+  ///
+  /// Refuses on a dirty tree rather than stashing: a stash popped several
+  /// steps later, possibly in a later session, is not something to do to
+  /// someone's work without being asked.
+  Future<void> startBisect(String sha) async {
+    final id = await _journalBegin('Bisect: start');
+    try {
+      // Inside the try because it is a git call like any other: one that
+      // cannot run has to be reported, not thrown out of a button callback
+      // nobody awaits, where it disappears without a toast or a journal entry.
+      if (await _treeIsDirty()) {
+        throw GitException(
+          'Commit or stash your changes before starting a bisect.',
+        );
+      }
+      await _timed('Bisect start', () async {
+        await _writer.bisectStart();
+        await _writer.bisectMark(const BisectTerms().bad, sha);
+      });
+      await _journalDone(id);
+    } catch (e) {
+      await _journalFail(id);
+      _toastErr('Bisect', e);
+    }
+    _refresh();
+  }
+
+  /// Records [kind] against [sha], opening a bisect first when none is running.
+  Future<void> markBisect(String sha, BisectKind kind) async {
+    // Reported here rather than allowed to escape: this runs from a button
+    // nobody awaits, and a state read that failed is not a repository known
+    // to have no bisect — opening one over a hunt already in progress would
+    // throw its refs away.
+    final BisectState? current;
+    try {
+      current = await bisectState();
+    } catch (e) {
+      _toastErr('Bisect', e);
+      return;
+    }
+    if (current == null) {
+      if (kind != BisectKind.bad) {
+        _ref
+            .read(toastProvider.notifier)
+            .show(
+              'Bisect',
+              description: 'Mark a bad commit to start a bisect.',
+              kind: ToastKind.error,
+            );
+        return;
+      }
+      return startBisect(sha);
+    }
+    // Read out here rather than inside the closure below: a local assigned
+    // somewhere other than its declaration keeps its promotion in straight
+    // line code but loses it inside a closure.
+    final terms = current.terms;
+    final id = await _journalBegin('Bisect: mark ${kind.name}');
+    try {
+      await _timed('Bisect ${kind.name}', () async {
+        if (kind == BisectKind.skip) {
+          await _writer.bisectSkip(rev: sha);
+        } else {
+          await _writer.bisectMark(bisectCommandFor(kind, terms), sha);
+        }
+      });
+      await _journalDone(id);
+    } catch (e) {
+      await _journalFail(id);
+      _toastErr('Bisect', e);
+    }
+    _refresh();
+  }
+
+  /// Sets the commit under test aside as untestable.
+  Future<void> skipBisect() async {
+    final String? sha;
+    try {
+      sha = (await bisectState())?.currentSha;
+    } catch (e) {
+      _toastErr('Bisect', e);
+      return;
+    }
+    if (sha == null) return;
+    await markBisect(sha, BisectKind.skip);
+  }
+
+  /// Ends the bisect and returns to the branch it started from.
+  Future<void> resetBisect() async {
+    final id = await _journalBegin('Bisect: reset');
+    try {
+      await _timed('Bisect reset', () => _writer.bisectReset());
+      await _journalDone(id);
+    } catch (e) {
+      await _journalFail(id);
+      _toastErr('Bisect', e);
+    }
+    _refresh();
+  }
+
+  /// The verdict trail git recorded for the session in progress, or null when
+  /// it could not be read.
+  ///
+  /// Reported here and handed back as null rather than thrown, the way every
+  /// other bisect action reports: this runs from a button nobody awaits, so
+  /// an escaping failure would be seen by no one. Null is what tells the
+  /// caller apart "git had nothing to say" from "git could not be asked" —
+  /// an empty string for both would render a failure as a blank panel.
+  ///
+  /// Reads nothing about the repository's own state, so there is nothing for
+  /// the graph to catch up with and no refresh to schedule.
+  Future<String?> bisectLog() async {
+    final id = await _journalBegin('Bisect: log');
+    try {
+      final log = await _timed('Bisect log', () => _writer.bisectLog());
+      await _journalDone(id);
+      return log;
+    } catch (e) {
+      await _journalFail(id);
+      _toastErr('Bisect', e);
+      return null;
+    }
   }
 
   /// The message git prepared for the merge in progress, for the commit

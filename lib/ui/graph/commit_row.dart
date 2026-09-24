@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme.dart';
 import '../../core/tokens.dart';
+import '../../domain/git/bisect.dart';
 import '../../domain/git/models.dart';
 import '../../l10n/gen/app_localizations.dart';
 import 'commit_columns.dart';
@@ -42,6 +43,12 @@ class CommitRow extends StatelessWidget {
   /// the distinct rail node and the pill next to the commit message.
   final String? stashLabel;
 
+  /// Bisect verdict for this commit, or null when it has none. Drives both
+  /// the rail node's colour tint and the text pill next to the commit
+  /// message — the pill is what actually carries the verdict for anyone
+  /// who cannot distinguish it by colour.
+  final BisectKind? bisectKind;
+
   /// Search state: a matched row highlights, a non-match dims. Both null when
   /// no search is active.
   final bool? searchMatch;
@@ -63,6 +70,7 @@ class CommitRow extends StatelessWidget {
     required this.selected,
     this.dateFormat = 'medium',
     this.stashLabel,
+    this.bisectKind,
     this.searchMatch,
     required this.onTap,
     this.onBranchActivated,
@@ -73,6 +81,7 @@ class CommitRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
+    final l = AppLocalizations.of(context);
     final c = commit;
     final compact = metrics.compact;
     final dim = searchMatch == false;
@@ -83,8 +92,7 @@ class CommitRow extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
-      label: AppLocalizations.of(context)
-          .a11yCommitRow(c.shortSha, c.author, firstLine),
+      label: l.a11yCommitRow(c.shortSha, c.author, firstLine),
       child: InkWell(
         onTap: onTap,
         hoverColor: t.hover,
@@ -117,6 +125,9 @@ class CommitRow extends StatelessWidget {
                         palette: t.branchPalette,
                         nodeFill: t.bgApp,
                         stash: stashLabel != null,
+                        bisectTint: bisectKind == null
+                            ? null
+                            : bisectVerdictColor(bisectKind!, t),
                       ),
                     ),
                   ),
@@ -124,7 +135,9 @@ class CommitRow extends StatelessWidget {
                 const SizedBox(width: 12),
                 _Avatar(commit: c, size: compact ? 18 : 24),
                 const SizedBox(width: 10),
-                Expanded(child: compact ? _singleLine(t, c) : _twoLines(t, c)),
+                Expanded(
+                  child: compact ? _singleLine(t, l, c) : _twoLines(t, l, c),
+                ),
                 const SizedBox(width: 12),
               ],
             ),
@@ -134,13 +147,17 @@ class CommitRow extends StatelessWidget {
     );
   }
 
-  Widget _twoLines(AppTokens t, Commit c) => Column(
+  Widget _twoLines(AppTokens t, AppLocalizations l, Commit c) => Column(
     mainAxisAlignment: MainAxisAlignment.center,
     crossAxisAlignment: CrossAxisAlignment.start,
-    children: [_titleLine(t, c), const SizedBox(height: 3), _metaLine(t, c)],
+    children: [_titleLine(t, l, c), const SizedBox(height: 3), _metaLine(t, c)],
   );
 
-  Widget _singleLine(AppTokens t, Commit c) => LayoutBuilder(
+  Widget _singleLine(
+    AppTokens t,
+    AppLocalizations l,
+    Commit c,
+  ) => LayoutBuilder(
     builder: (context, constraints) {
       // An even flex split caps the meta line at half the row no matter what
       // it actually needs, so the message ellipsizes early on a wide row
@@ -154,7 +171,7 @@ class CommitRow extends StatelessWidget {
           : double.infinity;
       return Row(
         children: [
-          Expanded(child: _titleLine(t, c)),
+          Expanded(child: _titleLine(t, l, c)),
           const SizedBox(width: 10),
           ConstrainedBox(
             constraints: BoxConstraints(maxWidth: metaCap),
@@ -254,7 +271,7 @@ class CommitRow extends StatelessWidget {
     ],
   );
 
-  Widget _titleLine(AppTokens t, Commit c) => Row(
+  Widget _titleLine(AppTokens t, AppLocalizations l, Commit c) => Row(
     mainAxisSize: MainAxisSize.min,
     children: [
       Flexible(
@@ -292,12 +309,43 @@ class CommitRow extends StatelessWidget {
             ],
           ),
         ),
+      if (bisectKind != null) _bisectPill(t, l, bisectKind!),
       // Branch heads and the HEAD marker live in the left column now; only tags
       // stay inline since they mark a specific commit, not a whole strand.
       for (final r in c.refs)
         if (r.kind == RefKind.tag) RefPill(gitRef: r),
     ],
   );
+
+  /// Text pill carrying the bisect verdict in words, next to the message.
+  /// This is the authoritative layer: the rail node's colour tint is only a
+  /// glanceable echo of what this pill says, since a red/green verdict pair
+  /// read by colour alone is invisible to the commonest form of colour
+  /// vision deficiency.
+  Widget _bisectPill(AppTokens t, AppLocalizations l, BisectKind kind) {
+    final label = switch (kind) {
+      BisectKind.bad => l.bisectPillBad,
+      BisectKind.good => l.bisectPillGood,
+      BisectKind.skip => l.bisectPillSkip,
+    };
+    final color = bisectVerdictColor(kind, t);
+    return Container(
+      margin: const EdgeInsets.only(left: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+      decoration: BoxDecoration(
+        border: Border.all(color: color.withValues(alpha: 0.6)),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 10.5,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
 
   Widget _metaLine(AppTokens t, Commit c) {
     final style = TextStyle(color: t.textFaint, fontSize: 11);

@@ -7,6 +7,7 @@ import 'package:mergelio/core/tokens.dart';
 import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/domain/git/models.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
+import 'package:mergelio/state/bisect.dart';
 import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
@@ -40,6 +41,7 @@ void main() {
       ProviderScope(
         overrides: [
           workspaceProvider.overrideWith((ref) => workspace),
+          bisectStateProvider('/r').overrideWith((ref) => null),
           settingsProvider.overrideWith(
             (ref) => SettingsController(
               InMemorySettingsRepository(),
@@ -101,6 +103,7 @@ void main() {
       ProviderScope(
         overrides: [
           workspaceProvider.overrideWith((ref) => workspace),
+          bisectStateProvider('/r').overrideWith((ref) => null),
           commitLimitProvider('/r').overrideWith((_) => commitPageSize * 2),
           settingsProvider.overrideWith(
             (ref) => SettingsController(
@@ -175,6 +178,8 @@ void main() {
       ProviderScope(
         overrides: [
           workspaceProvider.overrideWith((ref) => workspace),
+          bisectStateProvider('/r').overrideWith((ref) => null),
+          bisectStateProvider('/s').overrideWith((ref) => null),
           settingsProvider.overrideWith(
             (ref) => SettingsController(
               InMemorySettingsRepository(),

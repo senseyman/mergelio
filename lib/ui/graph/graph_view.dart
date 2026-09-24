@@ -6,9 +6,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
+import '../../domain/git/bisect.dart';
 import '../../domain/git/commit_message.dart';
 import '../../domain/git/models.dart';
 import '../../domain/search.dart';
+import '../../state/bisect.dart';
 import '../../state/content_search.dart';
 import '../../state/feedback.dart';
 import '../../state/compare_target.dart';
@@ -28,6 +30,7 @@ import '../shell/resize_handle.dart';
 import '../workspace/branch_switch.dart';
 import '../workspace/edit_commit_message.dart';
 import '../../l10n/gen/app_localizations.dart';
+import 'bisect_bar.dart';
 import 'commit_columns.dart';
 import 'graph_derived.dart';
 import 'commit_row.dart';
@@ -485,6 +488,17 @@ class _GraphListState extends ConsumerState<GraphList> {
     // Only the loaded value counts: while the read is in flight the filter has
     // no shas yet and the graph shows no matches.
     final repo = ref.watch(workspaceProvider.select((w) => w.activeTab?.path));
+    // Read once for the whole list rather than per row, so no two rows can
+    // draw their pills from different snapshots. The context menu reads the
+    // provider again when it opens, by which time a verdict may have landed;
+    // that is the point — the menu offers what is true now, not what the
+    // list was painted with.
+    //
+    // A read that failed leaves the pills off: a verdict shown against a
+    // commit nobody could confirm is worse than no verdict shown at all.
+    final bisectState = repo == null
+        ? null
+        : ref.watch(bisectStateProvider(repo)).bisect;
     final pathShas = (query == null || query.path.isEmpty || repo == null)
         ? null
         : ref.watch(pathHistoryProvider(PathKey(repo, query.path))).valueOrNull;
@@ -503,6 +517,18 @@ class _GraphListState extends ConsumerState<GraphList> {
     final graph = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // Mounted above the search/header row rather than inside either
+        // branch of it, so a bisect in progress stays visible even while the
+        // user is searching — the bar renders nothing itself when no bisect
+        // is running.
+        if (repo != null)
+          BisectBar(
+            repoPath: repo,
+            onJumpToCommit: (sha) {
+              _focus.requestFocus();
+              _select(sha, metrics.rowHeight);
+            },
+          ),
         if (query != null)
           _SearchBar(
             query: query,
@@ -589,6 +615,7 @@ class _GraphListState extends ConsumerState<GraphList> {
                           searchMatch: query == null || query.isEmpty
                               ? null
                               : matchShas.contains(c.sha),
+                          bisectKind: bisectState?.kindOf(c.sha),
                           onTap: () {
                             _focus.requestFocus();
                             _select(c.sha, metrics.rowHeight);
@@ -1285,6 +1312,7 @@ class _CommitContextMenu extends ConsumerWidget {
     final sha = commit.sha;
     final mark = ref.read(compareMarkProvider);
     final marked = mark != null && mark.repoPath == path && mark.sha == sha;
+    final bisect = ref.read(bisectStateProvider(path));
     final l = AppLocalizations.of(context);
 
     PopupMenuItem<void> item(
@@ -1440,6 +1468,32 @@ class _CommitContextMenu extends ConsumerWidget {
           ),
         ],
         item(l.menuCopySha, () => Clipboard.setData(ClipboardData(text: sha))),
+        // Nothing bisect-related is offered while the state is unknown, so
+        // the divider that heads the group goes with it. `git bisect start`
+        // on a hunt already running throws its refs away and exits 0, which
+        // is one click between a failed read and a search that is gone.
+        if (!bisect.unknown) ...[
+          const PopupMenuDivider(),
+          // Starting only makes sense with no bisect already in progress, and
+          // recording a verdict only makes sense with one running — the two
+          // groups are mutually exclusive, never shown together.
+          if (bisect.bisect == null)
+            item(l.bisectMenuStart, () => actions.startBisect(sha))
+          else ...[
+            item(
+              l.bisectMenuGood,
+              () => actions.markBisect(sha, BisectKind.good),
+            ),
+            item(
+              l.bisectMenuBad,
+              () => actions.markBisect(sha, BisectKind.bad),
+            ),
+            item(
+              l.bisectMenuSkip,
+              () => actions.markBisect(sha, BisectKind.skip),
+            ),
+          ],
+        ],
       ],
     );
   }

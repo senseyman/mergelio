@@ -28,21 +28,24 @@ class FileEditorPaneState extends ConsumerState<FileEditorPane> {
   String get repoPath => widget.repoPath;
 
   /// Held rather than read through `ref`, which is off limits by the time
-  /// this pane is being torn down.
-  late final UnsavedGuards _guards;
+  /// this pane is being torn down. Dropping this pane's own registration
+  /// leaves any other guard on the same repository standing — the bisect
+  /// bar's, when the two swap places on a switch between Files and the graph.
+  late final DropGuard _dropGuard;
   late final OpenFilesNotifier _files;
 
   @override
   void initState() {
     super.initState();
-    _guards = ref.read(unsavedGuardsProvider)
-      ..register(repoPath, confirmClosingAll);
+    _dropGuard = ref
+        .read(unsavedGuardsProvider)
+        .register(repoPath, confirmClosingAll);
     _files = ref.read(openFilesProvider(repoPath).notifier);
   }
 
   @override
   void dispose() {
-    _guards.unregister(repoPath);
+    _dropGuard();
     // The editors are going with this pane, and their unsaved text with them,
     // so nothing may still claim to be unsaved once they are gone. Left until
     // the teardown is over: notifying while this element is being unmounted

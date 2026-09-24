@@ -1597,5 +1597,55 @@
         "type": "int"
       }
     }
-  }
+  },
+  "bisectAwaitingGood": "Bisecting. Mark a commit you know is good.",
+  "bisectRevisionsLeft": "{count, plural, one{{count} revision left} other{{count} revisions left}}",
+  "@bisectRevisionsLeft": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bisectStepsLeft": "{count, plural, one{about {count} step} other{about {count} steps}}",
+  "@bisectStepsLeft": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bisectTesting": "Testing {sha}",
+  "@bisectTesting": {
+    "placeholders": {
+      "sha": {
+        "type": "String"
+      }
+    }
+  },
+  "bisectGood": "Good",
+  "bisectBad": "Bad",
+  "bisectSkip": "Skip",
+  "bisectReset": "Reset bisect",
+  "bisectLog": "Log",
+  "bisectLogFailed": "The bisect log could not be read.",
+  "bisectLogEmpty": "No verdicts recorded yet.",
+  "bisectFirstBadTitle": "First bad commit",
+  "bisectJumpToCommit": "Jump to commit",
+  "bisectCopySha": "Copy SHA",
+  "bisectCopyFixup": "Copy fixup!",
+  "bisectRevertCommit": "Revert this commit",
+  "bisectRevertNotLoaded": "This commit is outside the loaded history. Scroll the graph to load it, then revert it from its row.",
+  "bisectPillGood": "good",
+  "bisectPillBad": "bad",
+  "bisectPillSkip": "skip",
+  "bisectMenuStart": "Start bisect from here",
+  "bisectMenuGood": "Mark as good",
+  "bisectMenuBad": "Mark as bad",
+  "bisectMenuSkip": "Skip this commit",
+  "bisectQuitTitle": "Bisect in progress",
+  "bisectQuitBody": "Quitting, or closing this repository, leaves it on a detached HEAD. Reset the bisect first?",
+  "bisectQuitAnyway": "Continue anyway",
+  "bisectNoMarks": "Bisecting. Mark a bad commit to begin.",
+  "bisectUnreadable": "Bisect state could not be read"
 }

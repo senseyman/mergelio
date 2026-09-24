@@ -2439,4 +2439,117 @@ class AppLocalizationsUk extends AppLocalizations {
   String forgeAgoDays(int n) {
     return '$nд';
   }
+
+  @override
+  String get bisectAwaitingGood =>
+      'Бісекція триває. Позначте коміт, який точно робочий.';
+
+  @override
+  String bisectRevisionsLeft(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'залишилося $count коміта',
+      many: 'залишилося $count комітів',
+      few: 'залишилося $count коміти',
+      one: 'залишився $count коміт',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String bisectStepsLeft(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'приблизно $count кроку',
+      many: 'приблизно $count кроків',
+      few: 'приблизно $count кроки',
+      one: 'приблизно $count крок',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String bisectTesting(String sha) {
+    return 'Перевіряємо $sha';
+  }
+
+  @override
+  String get bisectGood => 'Робочий';
+
+  @override
+  String get bisectBad => 'Зламаний';
+
+  @override
+  String get bisectSkip => 'Пропустити';
+
+  @override
+  String get bisectReset => 'Скинути бісекцію';
+
+  @override
+  String get bisectLog => 'Журнал';
+
+  @override
+  String get bisectLogFailed => 'Не вдалося прочитати журнал бісекції.';
+
+  @override
+  String get bisectLogEmpty => 'Рішень ще не записано.';
+
+  @override
+  String get bisectFirstBadTitle => 'Перший зламаний коміт';
+
+  @override
+  String get bisectJumpToCommit => 'Перейти до коміта';
+
+  @override
+  String get bisectCopySha => 'Копіювати SHA';
+
+  @override
+  String get bisectCopyFixup => 'Копіювати fixup!';
+
+  @override
+  String get bisectRevertCommit => 'Відкотити цей коміт';
+
+  @override
+  String get bisectRevertNotLoaded =>
+      'Цей коміт поза завантаженою історією. Прогорніть граф, щоб завантажити його, і відкотіть із його рядка.';
+
+  @override
+  String get bisectPillGood => 'робочий';
+
+  @override
+  String get bisectPillBad => 'зламаний';
+
+  @override
+  String get bisectPillSkip => 'пропущено';
+
+  @override
+  String get bisectMenuStart => 'Почати бісекцію звідси';
+
+  @override
+  String get bisectMenuGood => 'Позначити як робочий';
+
+  @override
+  String get bisectMenuBad => 'Позначити як зламаний';
+
+  @override
+  String get bisectMenuSkip => 'Пропустити цей коміт';
+
+  @override
+  String get bisectQuitTitle => 'Бісекція триває';
+
+  @override
+  String get bisectQuitBody =>
+      'Вихід або закриття репозиторію залишить його у стані detached HEAD. Спочатку скинути бісекцію?';
+
+  @override
+  String get bisectQuitAnyway => 'Все одно продовжити';
+
+  @override
+  String get bisectNoMarks =>
+      'Бісекція триває. Позначте зламаний коміт, щоб почати.';
+
+  @override
+  String get bisectUnreadable => 'Не вдалося прочитати стан бісекції';
 }
