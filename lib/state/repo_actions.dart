@@ -341,6 +341,24 @@ class RepoActions {
     return true;
   }
 
+  /// True (and toasts) when a `git bisect run` is walking the range, so no
+  /// other bisect command may touch the state it is walking.
+  ///
+  /// A run is a second git process writing `.git/BISECT_*` and moving HEAD on
+  /// its own schedule. A mark landing in the middle of it records a verdict
+  /// against whichever commit the run happened to have checked out, and a
+  /// reset throws away refs the run is still adding to. The bar takes its own
+  /// buttons away while a run is going, but the graph's per-commit menu offers
+  /// the same verdicts on every row and the quit dialog offers the same reset,
+  /// so the refusal has to live here where all of them arrive.
+  bool get _blockedByBisectRun {
+    if (_ref.read(bisectRunProvider(path)) == null) return false;
+    _ref
+        .read(toastProvider.notifier)
+        .show('A bisect run is in progress', kind: ToastKind.warning);
+    return true;
+  }
+
   /// Whether a file write has to wait. Only an operation that rewrites the
   /// working tree conflicts with one; a fetch or a push can run for minutes,
   /// and turning a save away for that long would lose the user's typing.
@@ -2038,6 +2056,7 @@ class RepoActions {
   /// steps later, possibly in a later session, is not something to do to
   /// someone's work without being asked.
   Future<void> startBisect(String sha) async {
+    if (_blockedByBisectRun) return;
     final id = await _journalBegin('Bisect: start');
     try {
       // Inside the try because it is a git call like any other: one that
@@ -2062,6 +2081,9 @@ class RepoActions {
 
   /// Records [kind] against [sha], opening a bisect first when none is running.
   Future<void> markBisect(String sha, BisectKind kind) async {
+    // Ahead of the state read below, which is a git call of its own and has
+    // nothing useful to say about a hunt another process is moving.
+    if (_blockedByBisectRun) return;
     // Reported here rather than allowed to escape: this runs from a button
     // nobody awaits, and a state read that failed is not a repository known
     // to have no bisect — opening one over a hunt already in progress would
@@ -2109,6 +2131,7 @@ class RepoActions {
 
   /// Sets the commit under test aside as untestable.
   Future<void> skipBisect() async {
+    if (_blockedByBisectRun) return;
     final String? sha;
     try {
       sha = (await bisectState())?.currentSha;
@@ -2121,7 +2144,14 @@ class RepoActions {
   }
 
   /// Ends the bisect and returns to the branch it started from.
+  ///
+  /// Refused while a run is in flight, the quit dialog's Reset included. A
+  /// reset racing the run leaves the repository half-returned — refs gone from
+  /// under a process still writing them, HEAD moved out from under a checkout
+  /// — while refusing leaves the hunt exactly where it stands, which the next
+  /// launch can still read and reset cleanly.
   Future<void> resetBisect() async {
+    if (_blockedByBisectRun) return;
     final id = await _journalBegin('Bisect: reset');
     try {
       await _timed('Bisect reset', () => _writer.bisectReset());

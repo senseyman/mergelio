@@ -818,5 +818,105 @@ void main() {
         },
       );
     });
+
+    // A run is a second git process walking .git/BISECT_* on its own. Every
+    // verdict button, the graph's own per-commit menu and the quit dialog's
+    // Reset all reach the same state, and the bar disabling one of them is
+    // not a boundary — the actions are.
+    group('bisect changes are refused while a run is in flight', () {
+      /// How many git calls had been made by the time the run was parked, so
+      /// what a refused action adds on top can be counted exactly. The run's
+      /// own calls — its tracked-file check and the `bisect run` it is sitting
+      /// in — are all before this mark.
+      late int callsBeforeTheAttempt;
+
+      /// Leaves a run hanging inside git. The run is let go on tear-down, so
+      /// a test only has to say what it tried to do meanwhile.
+      Future<void> aRunInFlight() async {
+        final gate = Completer<void>();
+        git.bisectRunGate = gate;
+        final future = actions.runBisect('./slow.sh');
+        // Lets the synchronous prologue and the journal write finish, so the
+        // run is genuinely parked inside the git call.
+        await Future<void>.delayed(Duration.zero);
+        expect(container.read(bisectRunProvider('/r')), './slow.sh');
+        callsBeforeTheAttempt = git.calls.length;
+        addTearDown(() async {
+          if (!gate.isCompleted) gate.complete();
+          await future;
+        });
+      }
+
+      /// The warning a refusal owes the user, and nothing new asked of git.
+      void expectRefused() {
+        expect(
+          git.calls.skip(callsBeforeTheAttempt),
+          isEmpty,
+          reason:
+              'a second git process on the same .git/BISECT_* state races the '
+              'run for the refs and for HEAD',
+        );
+        expect(container.read(toastProvider).last.kind, ToastKind.warning);
+      }
+
+      test('markBisect good is refused', () async {
+        await aRunInFlight();
+        await actions.markBisect('sha1', BisectKind.good);
+        expectRefused();
+      });
+
+      test('markBisect bad is refused', () async {
+        await aRunInFlight();
+        await actions.markBisect('sha2', BisectKind.bad);
+        expectRefused();
+      });
+
+      test('markBisect skip is refused', () async {
+        await aRunInFlight();
+        await actions.markBisect('sha3', BisectKind.skip);
+        expectRefused();
+      });
+
+      test('skipBisect is refused', () async {
+        await aRunInFlight();
+        await actions.skipBisect();
+        // Refused before the state read too: that read is a git call of its
+        // own and there is nothing it could usefully tell anyone here.
+        expectRefused();
+      });
+
+      test('startBisect is refused', () async {
+        await aRunInFlight();
+        await actions.startBisect('sha4');
+        expectRefused();
+      });
+
+      test('resetBisect is refused', () async {
+        await aRunInFlight();
+        await actions.resetBisect();
+        // The one the quit dialog offers. Throwing the refs away under a run
+        // still adding to them is the worst of these, and leaving the hunt
+        // standing is recoverable — it is still there on the next launch.
+        expectRefused();
+      });
+
+      test('the same changes go through once the run has landed', () async {
+        final gate = Completer<void>();
+        git.bisectRunGate = gate;
+        final future = actions.runBisect('./slow.sh');
+        await Future<void>.delayed(Duration.zero);
+        gate.complete();
+        await future;
+
+        // Guard against a refusal that never lifts: the provider is cleared
+        // in the run's `finally`, and a guard reading anything else would
+        // leave the hunt frozen for the rest of the session.
+        await actions.resetBisect();
+        expect(
+          git.calls.where((c) => c.join(' ') == 'bisect reset'),
+          isNotEmpty,
+        );
+      });
+    });
   });
 }
