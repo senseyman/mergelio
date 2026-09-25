@@ -7,6 +7,12 @@ class _RecordingGit implements GitService {
   GitResult result = const GitResult(0, '', '');
   GitCancel? lastCancel;
 
+  /// The timeout the writer asked for. Null means it asked for nothing, which
+  /// is not the same as asking for no limit: the service then applies its own
+  /// default, and that is the distinction a long-running command lives or
+  /// dies by.
+  Duration? lastTimeout;
+
   @override
   Future<GitResult> run(
     List<String> args, {
@@ -18,6 +24,7 @@ class _RecordingGit implements GitService {
   }) async {
     calls.add(args);
     lastCancel = cancel;
+    lastTimeout = timeout;
     return result;
   }
 
@@ -138,5 +145,34 @@ void main() {
     final cancel = GitCancel();
     await writer.bisectRun('true', cancel: cancel);
     expect(git.lastCancel, same(cancel));
+  });
+
+  test('bisectRun asks for far more time than the ordinary default', () async {
+    await writer.bisectRun('npm test');
+
+    // Asking for nothing is NOT asking for no limit: `run` falls back to
+    // `defaultTimeout`, so a null here means a real `npm test` is SIGKILLed
+    // 30 seconds into a hunt that legitimately takes hours, and the user is
+    // told the command "failed".
+    expect(
+      git.lastTimeout,
+      isNotNull,
+      reason: 'no timeout means the 30s default, not an unlimited run',
+    );
+    expect(
+      git.lastTimeout,
+      greaterThan(const SystemGitService().defaultTimeout),
+    );
+    // A run is the command multiplied by the number of steps; anything short
+    // of hours is a limit real suites hit.
+    expect(git.lastTimeout, greaterThanOrEqualTo(const Duration(hours: 1)));
+  });
+
+  test('a write that is not a run keeps the ordinary default', () async {
+    // The generous limit belongs to `bisect run` alone. Handing it to every
+    // bisect command would leave a wedged `bisect good` holding its lane for
+    // hours instead of failing in seconds.
+    await writer.bisectMark('bad', 'aaa1111');
+    expect(git.lastTimeout, isNull);
   });
 }

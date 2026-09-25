@@ -36,6 +36,18 @@ class GitWriter {
   // well beyond the default read timeout so they are not killed mid-transfer.
   static const _netTimeout = Duration(minutes: 5);
 
+  /// Ceiling for `git bisect run`, whose duration is the user's own command
+  /// multiplied by the number of steps left — a test suite over a deep history
+  /// legitimately takes hours.
+  ///
+  /// Explicit rather than omitted: leaving it off does not mean "no limit", it
+  /// means the service's ordinary default, which would kill a real run within
+  /// the first commit or two. There is no way to ask for no limit at all, and a
+  /// figure this far out is one nothing reaches on purpose while still stopping
+  /// an abandoned run from holding its lane until the app is quit. Cancelling
+  /// remains the way a run is actually stopped.
+  static const _bisectRunTimeout = Duration(hours: 12);
+
   /// Resolved once per repository: the ssh command git would use anyway, plus
   /// what a command that hits an authentication prompt needs.
   Map<String, String>? _netEnvCache;
@@ -341,11 +353,11 @@ class GitWriter {
   ///
   /// Returns the result instead of throwing: the exit code and stderr together
   /// say which of several outcomes happened, and an exception would discard
-  /// that. Carries no timeout — a run is the command multiplied by the number
-  /// of steps and can legitimately last an hour — so [cancel] is the only way
-  /// to stop it.
+  /// that. Runs under [_bisectRunTimeout] rather than the ordinary default,
+  /// which a real command would blow through in the first step; [cancel] is
+  /// how a run is meant to be stopped.
   Future<GitResult> bisectRun(String command, {GitCancel? cancel}) =>
-      _run(bisectRunArgs(command), cancel: cancel);
+      _run(bisectRunArgs(command), timeout: _bisectRunTimeout, cancel: cancel);
 
   // --- Branch ops -----------------------------------------------------------
 
