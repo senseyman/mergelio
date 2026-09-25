@@ -664,5 +664,47 @@ void main() {
 
       expect(container.read(busyProvider), isNull);
     });
+
+    test('a run refuses to start while another operation holds the lane', () {
+      container.read(busyProvider.notifier).state = const BusyState('Merge');
+
+      return expectLater(actions.runBisect('./t.sh'), completion(isNull)).then((
+        _,
+      ) {
+        // Git was never asked: a run alongside a merge races on the same
+        // index and ref locks.
+        expect(
+          git.calls.where((c) => c.length >= 2 && c[1] == 'run'),
+          isEmpty,
+          reason: 'bisect run must not be started while the lane is taken',
+        );
+        // The operation that does hold the lane still holds it. Overwriting
+        // it is the actual damage: this run's `finally` would then clear the
+        // merge's busy state while the merge is still going.
+        expect(container.read(busyProvider)?.label, 'Merge');
+        expect(
+          container.read(toastProvider).last.kind,
+          ToastKind.warning,
+          reason: 'a refused run has to say why it did nothing',
+        );
+      });
+    });
+
+    test('a second run cannot start on top of the first', () async {
+      final gate = Completer<void>();
+      git.bisectRunGate = gate;
+
+      final first = actions.runBisect('./slow.sh');
+      await Future<void>.delayed(Duration.zero);
+
+      // The first run holds the lane, so the second is turned away rather
+      // than left to clear the first one's busy state out from under it.
+      expect(await actions.runBisect('./other.sh'), isNull);
+      expect(container.read(bisectRunProvider), './slow.sh');
+
+      gate.complete();
+      await first;
+      expect(container.read(busyProvider), isNull);
+    });
   });
 }

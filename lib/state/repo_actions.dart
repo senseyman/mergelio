@@ -2148,7 +2148,16 @@ class RepoActions {
   ///
   /// Returns the outcome rather than toasting a generic success: a run ends in
   /// several materially different ways and the caller decides what to say.
-  Future<BisectRunOutcome> runBisect(String command) async {
+  /// Null means no run was started at all, so there is nothing to report —
+  /// the refusal has already said why.
+  ///
+  /// Claims the repository's operation lane like every other write here. It
+  /// held [busyProvider] without checking it before, which let a second
+  /// operation start alongside the run and then clear the run's busy state on
+  /// its own way out, leaving the status bar idle over a command still going
+  /// and no Cancel left to stop it with.
+  Future<BisectRunOutcome?> runBisect(String command) async {
+    if (_blockedByRepoOp) return null;
     final cancel = GitCancel();
     _ref.read(bisectRunProvider.notifier).state = command;
     // The status bar renders Cancel from this, so a stalled command can be

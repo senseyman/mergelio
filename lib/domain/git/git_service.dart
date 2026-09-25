@@ -54,6 +54,22 @@ class GitCancel {
 
   bool get isCancelled => _cancelled;
 
+  /// Kills git itself, and only git.
+  ///
+  /// Known limitation, and it bites `bisect run` hardest: anything git had
+  /// spawned in turn — the shell, and the test command under it — outlives
+  /// this, so a cancelled run's suite keeps going and can keep writing into
+  /// the repository. Measured: the grandchild survives.
+  ///
+  /// Signalling the whole process group would catch them, and is not
+  /// available here. A child started this way shares the app's own process
+  /// group (measured: identical pgid), so a group signal would take Mergelio
+  /// down with it. Dart offers no way to put the child in a group of its own
+  /// while keeping both piped stdio and an exit code, which every caller of
+  /// [GitService.run] is built on, and there is no `setsid` binary to borrow
+  /// on macOS. Left as it is deliberately: this handle is shared with fetch,
+  /// pull and clone, and a group kill that reaches the app is far worse than
+  /// a stray test process.
   void cancel() {
     _cancelled = true;
     _proc?.kill(ProcessSignal.sigkill);

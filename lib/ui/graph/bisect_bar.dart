@@ -385,7 +385,14 @@ class _BisectBarState extends ConsumerState<BisectBar> {
         TextButton(onPressed: () => _run(actions), child: Text(l.bisectRun)),
       ],
       _logToggle(l, actions),
-      TextButton(onPressed: actions.resetBisect, child: Text(l.bisectReset)),
+      // Out of reach while a run is going: `git bisect reset` would put a
+      // second git process on the same .git/BISECT_* state and throw away the
+      // hunt the run is still adding to. Stopping a run is the status bar's
+      // Cancel, and the "Running …" line beside this button says as much.
+      TextButton(
+        onPressed: runningCommand == null ? actions.resetBisect : null,
+        child: Text(l.bisectReset),
+      ),
       if (outcomeMessage != null) Text(outcomeMessage),
     ];
   }

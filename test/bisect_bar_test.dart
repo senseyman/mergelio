@@ -103,7 +103,7 @@ class _RunActions extends RepoActions {
   _RunActions(super.ref, super.path, super.writer, {required this.outcome});
 
   @override
-  Future<BisectRunOutcome> runBisect(String command) async => outcome;
+  Future<BisectRunOutcome?> runBisect(String command) async => outcome;
 }
 
 Future<void> _pump(
@@ -782,6 +782,27 @@ void main() {
     expect(find.text('Good'), findsNothing);
     expect(find.text('Bad'), findsNothing);
     expect(find.textContaining('./t.sh'), findsOneWidget);
+  });
+
+  testWidgets('Reset is not clickable while a run is executing', (
+    tester,
+  ) async {
+    // `git bisect reset` mid-run puts two git processes on the same
+    // .git/BISECT_* state and throws away the hunt the run is still adding
+    // to. The "Running …" line right beside it says why the button is out.
+    await _pump(tester, _running(), runningCommand: './t.sh');
+    final reset = tester.widget<TextButton>(
+      find.widgetWithText(TextButton, 'Reset bisect'),
+    );
+    expect(reset.onPressed, isNull);
+  });
+
+  testWidgets('Reset is clickable again once the run is over', (tester) async {
+    await _pump(tester, _running());
+    final reset = tester.widget<TextButton>(
+      find.widgetWithText(TextButton, 'Reset bisect'),
+    );
+    expect(reset.onPressed, isNotNull);
   });
 
   testWidgets('a failed run explains itself rather than relaying git', (
