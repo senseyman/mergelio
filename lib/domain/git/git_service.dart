@@ -83,6 +83,38 @@ class GitCancel {
   }
 }
 
+/// Stands in for a `git bisect run` command wherever one would otherwise be
+/// written down.
+const _redactedCommand = '<command redacted>';
+
+/// The flags a shell takes a command string after. Only these two mark the
+/// argument behind them as the command rather than as part of the invocation.
+const _shellCommandFlags = {'-c', '/c'};
+
+/// [args] rendered for a log line or an error message, with a `git bisect run`
+/// command left out of it.
+///
+/// A run's command is the user's own shell line — `TOKEN=… ./deploy-test.sh`
+/// is an ordinary thing to bisect with — and the app log is a file that
+/// outlives the session. The user types the command and sees it before it
+/// runs; nothing about that leads them to expect it copied to disk, so it is
+/// not copied there.
+///
+/// Everything else is left whole: which command ran is how a failure gets
+/// diagnosed, and redacting more would cost the log its purpose. What stays
+/// for a run is that a run happened and which shell carried it, both of which
+/// a failed run is read against; how long it took comes from the line around
+/// this. The shell and its flag are kept only when they are recognisably
+/// that, so an invocation shaped some other way has everything past `run`
+/// treated as the command.
+String redactedGitArgs(List<String> args) {
+  if (args.length < 3 || args[0] != 'bisect' || args[1] != 'run') {
+    return args.join(' ');
+  }
+  final keep = args.length > 3 && _shellCommandFlags.contains(args[3]) ? 4 : 2;
+  return [...args.take(keep), _redactedCommand].join(' ');
+}
+
 /// SSH options appended to every command that talks to a remote. A host that
 /// accepts the TCP connection and then goes quiet otherwise stalls until the
 /// operation's own timeout, minutes later; these give up in seconds.
@@ -265,7 +297,7 @@ class SystemGitService implements GitService {
       // gone is the repository's problem and git is blameless, so only the
       // other case earns the install hint.
       final cwdIsGone = repoPath != null && !Directory(repoPath).existsSync();
-      final detail = 'failed to run git ${args.join(' ')}: ${e.message}';
+      final detail = 'failed to run git ${redactedGitArgs(args)}: ${e.message}';
       if (cwdIsGone) throw GitException(detail);
       throw GitUnavailableException(
         '${missingGitMessage(Platform.operatingSystem)} '
@@ -320,7 +352,7 @@ class SystemGitService implements GitService {
       // A killed child exits non-zero with nothing useful to say; report the
       // abandonment rather than a failure the user did not cause.
       if (cancel?.isCancelled ?? false) {
-        throw GitCancelledException('git ${args.join(' ')} cancelled');
+        throw GitCancelledException('git ${redactedGitArgs(args)} cancelled');
       }
       final result = GitResult(exitCode, output[0], output[1]);
       // Deliberately carries no result: handlers show `result.err` in
@@ -340,7 +372,7 @@ class SystemGitService implements GitService {
       final limit = timeout ?? defaultTimeout;
       _record(args, repoPath, started, inFlight, timedOut: true);
       throw GitException(
-        'git ${args.join(' ')} timed out after ${limit.inSeconds}s',
+        'git ${redactedGitArgs(args)} timed out after ${limit.inSeconds}s',
       );
     }
   }
@@ -359,7 +391,7 @@ class SystemGitService implements GitService {
     final where = repoPath == null ? '' : ' in $repoPath';
     final size = bytes == null ? '' : ', ${bytes}B';
     final message =
-        '${_binary.split('/').last} ${args.join(' ')}$where — '
+        '${_binary.split('/').last} ${redactedGitArgs(args)}$where — '
         '${elapsed.inMilliseconds}ms, $inFlight in flight$size'
         '${timedOut ? ', TIMED OUT' : ''}';
     final log = logger ?? appLog;
