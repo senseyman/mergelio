@@ -20,6 +20,30 @@ String shellCommandFlag(String shell) {
   return base == 'cmd' ? '/c' : '-c';
 }
 
+/// Environment for a `git bisect run`, pinning the language git reports its
+/// own endings in.
+///
+/// git translates those endings — measured, git 2.55.0: `error: bisect run
+/// cannot continue any more` comes back as `помилка: неможливо продовжити
+/// бісекцію` under uk_UA and `erreur : la bissection ne peut plus continuer`
+/// under fr_FR — and it ships translations for twenty languages including
+/// this app's own Ukrainian. Reading those endings out of English prose
+/// therefore fails for real users, not hypothetical ones.
+///
+/// Only the message category is pinned. The user's own command inherits this
+/// environment, and forcing the whole locale to C would change how it handles
+/// characters, not just which language it complains in — enough to make a
+/// suite that reads UTF-8 filenames start failing. `LC_CTYPE` and `LANG` are
+/// left exactly as the user has them, so the only thing that changes for the
+/// command is the language of any diagnostics it prints, which nothing here
+/// reads anyway.
+///
+/// All three keys are needed. gettext takes `LANGUAGE` ahead of every `LC_*`,
+/// and an `LC_ALL` in the environment overrides `LC_MESSAGES`, so pinning
+/// `LC_MESSAGES` alone is defeated by either of them. An empty value reads as
+/// unset, which is why these clear rather than set.
+const bisectRunMessageEnv = {'LC_ALL': '', 'LC_MESSAGES': 'C', 'LANGUAGE': ''};
+
 /// Arguments for `git bisect run`, with [command] handed to a shell as a
 /// single string.
 ///
@@ -370,8 +394,14 @@ class GitWriter {
   /// that. Runs under [_bisectRunTimeout] rather than the ordinary default,
   /// which a real command would blow through in the first step; [cancel] is
   /// how a run is meant to be stopped.
-  Future<GitResult> bisectRun(String command, {GitCancel? cancel}) =>
-      _run(bisectRunArgs(command), timeout: _bisectRunTimeout, cancel: cancel);
+  Future<GitResult> bisectRun(String command, {GitCancel? cancel}) => _run(
+    bisectRunArgs(command),
+    timeout: _bisectRunTimeout,
+    // Pinned so the outcome can be read back at all: git translates the
+    // sentences that say how a run ended, and this app ships Ukrainian.
+    environment: bisectRunMessageEnv,
+    cancel: cancel,
+  );
 
   // --- Branch ops -----------------------------------------------------------
 

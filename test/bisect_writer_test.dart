@@ -13,6 +13,10 @@ class _RecordingGit implements GitService {
   /// dies by.
   Duration? lastTimeout;
 
+  /// The environment overrides the writer asked for. Null means it asked for
+  /// none, so the command inherits the user's locale whole.
+  Map<String, String>? lastEnvironment;
+
   @override
   Future<GitResult> run(
     List<String> args, {
@@ -25,6 +29,7 @@ class _RecordingGit implements GitService {
     calls.add(args);
     lastCancel = cancel;
     lastTimeout = timeout;
+    lastEnvironment = environment;
     return result;
   }
 
@@ -191,6 +196,49 @@ void main() {
     // A run is the command multiplied by the number of steps; anything short
     // of hours is a limit real suites hit.
     expect(git.lastTimeout, greaterThanOrEqualTo(const Duration(hours: 1)));
+  });
+
+  group('a run asks git for its own diagnostics in English', () {
+    test(
+      'the message locale is pinned, whatever the user runs under',
+      () async {
+        await writer.bisectRun('npm test');
+
+        final env = git.lastEnvironment;
+        expect(
+          env,
+          isNotNull,
+          reason:
+              'inheriting the locale whole leaves git translating its own '
+              'endings, which nothing downstream can then read',
+        );
+        // LANGUAGE wins over every LC_* for gettext, and an LC_ALL in the
+        // environment wins over LC_MESSAGES, so pinning LC_MESSAGES alone is
+        // defeated by either of them. An empty value reads as unset.
+        expect(env!['LC_MESSAGES'], 'C');
+        expect(env['LC_ALL'], isEmpty);
+        expect(env['LANGUAGE'], isEmpty);
+      },
+    );
+
+    test('nothing but the message locale is touched', () async {
+      await writer.bisectRun('npm test');
+
+      // The user's own command runs under this environment too. Forcing the
+      // whole locale to C would change its character encoding — a Python
+      // suite drops to ASCII filesystem handling and starts raising on
+      // filenames it read fine yesterday. LC_CTYPE and LANG are left alone,
+      // so only the language of diagnostics changes.
+      final env = git.lastEnvironment!;
+      expect(env.containsKey('LC_CTYPE'), isFalse);
+      expect(env.containsKey('LANG'), isFalse);
+      expect(env.keys.toSet(), {'LC_ALL', 'LC_MESSAGES', 'LANGUAGE'});
+    });
+
+    test('a write that is not a run leaves the environment alone', () async {
+      await writer.bisectMark('bad', 'aaa1111');
+      expect(git.lastEnvironment, isNull);
+    });
   });
 
   test('a write that is not a run keeps the ordinary default', () async {

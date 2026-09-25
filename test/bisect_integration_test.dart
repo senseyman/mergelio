@@ -533,6 +533,7 @@ void main() {
       final skipped = await svc.run(
         bisectRunArgs('exit 125'),
         repoPath: repo.path,
+        environment: bisectRunMessageEnv,
       );
       expect(skipped.ok, isFalse);
       expect(skipped.err, contains('bisect run cannot continue any more'));
@@ -547,6 +548,7 @@ void main() {
       final missing = await svc.run(
         bisectRunArgs('./no-such-script.sh'),
         repoPath: repo.path,
+        environment: bisectRunMessageEnv,
       );
       expect(missing.ok, isFalse);
       expect(missing.err, contains('bogus exit code'));
@@ -558,4 +560,157 @@ void main() {
     },
     timeout: const Timeout(Duration(seconds: 120)),
   );
+
+  // git translates the endings a run reports. The app ships Ukrainian, so a
+  // classifier that only recognises the English wording mislabels a real
+  // user's run. Measured here against the system git rather than argued
+  // about: the same two runs go through twice, once with the user's locale
+  // left in charge and once with what production sends.
+  test('a run classifies the same under a non-English locale', () async {
+    const ukrainian = {'LC_ALL': 'uk_UA.UTF-8', 'LANGUAGE': 'uk'};
+
+    final repo = await makeRepo(commits: 8, breakAt: 5);
+    addTearDown(() => repo.delete(recursive: true));
+    final shas = await shasOldestFirst(repo.path);
+
+    Future<void> open() async {
+      await g(repo.path, ['bisect', 'start']);
+      await g(repo.path, ['bisect', 'bad', shas.last]);
+      await g(repo.path, ['bisect', 'good', shas.first]);
+    }
+
+    Future<GitResult> runUnder(
+      String command,
+      Map<String, String> environment,
+    ) async {
+      await open();
+      final r = await svc.run(
+        bisectRunArgs(command),
+        repoPath: repo.path,
+        environment: environment,
+      );
+      await g(repo.path, ['bisect', 'reset']);
+      return r;
+    }
+
+    // First: prove this machine really does have git's Ukrainian
+    // translation. Without that check the assertions below would pass on an
+    // English-only runner while proving nothing at all.
+    final translated = await runUnder('./no-such-script.sh', ukrainian);
+    if (translated.err.contains('bogus exit code')) {
+      markTestSkipped(
+        'git here has no Ukrainian translation, so a locale-dependent '
+        'classifier cannot be caught out on this machine',
+      );
+      return;
+    }
+    expect(
+      classifyBisectRun(translated.exitCode, translated.err, treeDirty: false),
+      BisectRunOutcome.failed,
+      reason:
+          'the untranslated reading really is wrong under uk_UA — this '
+          'is the defect the override below exists to close',
+    );
+
+    // Now with what production sends: the user's locale is still uk_UA, and
+    // git answers in English anyway.
+    final pinned = await runUnder('./no-such-script.sh', {
+      ...ukrainian,
+      ...bisectRunMessageEnv,
+    });
+    expect(pinned.err, contains('bogus exit code'));
+    expect(
+      classifyBisectRun(pinned.exitCode, pinned.err, treeDirty: false),
+      BisectRunOutcome.commandUnrunnable,
+    );
+
+    // Exhaustion is read off the exit code, so it survives the Ukrainian
+    // locale with no override at all.
+    final skipped = await runUnder('exit 125', ukrainian);
+    expect(
+      skipped.err,
+      isNot(contains('bisect run cannot continue any more')),
+      reason: 'the Ukrainian locale must really be in force here',
+    );
+    expect(
+      classifyBisectRun(skipped.exitCode, skipped.err, treeDirty: false),
+      BisectRunOutcome.exhausted,
+    );
+  }, timeout: const Timeout(Duration(seconds: 180)));
+
+  // End to end through the production path, for a user whose whole
+  // environment is Ukrainian. Every git command the actions run gets the
+  // Ukrainian locale underneath it; only what `bisectRun` sends of its own
+  // sits on top, so this fails unless those overrides really do win.
+  test('a run through the actions survives a Ukrainian environment', () async {
+    final repo = await makeRepo(commits: 6, breakAt: 4);
+    addTearDown(() => repo.delete(recursive: true));
+
+    final ukrainian = _LocalisedGit(svc, const {
+      'LC_ALL': 'uk_UA.UTF-8',
+      'LANGUAGE': 'uk',
+    });
+    final container = ProviderContainer(
+      overrides: [gitServiceProvider.overrideWithValue(ukrainian)],
+    );
+    addTearDown(container.dispose);
+
+    // `git bisect bad` outside a bisect is git's shortest translated
+    // complaint. No Cyrillic in it means this machine has no Ukrainian
+    // messages, so nothing here could catch out a classifier that needs
+    // English — say so rather than pass on a vacuous assertion.
+    final probe = await ukrainian.run(['bisect', 'bad'], repoPath: repo.path);
+    if (!_cyrillic.hasMatch(probe.err)) {
+      markTestSkipped('git here has no Ukrainian translation');
+      return;
+    }
+
+    final actions = container.read(repoActionsProvider(repo.path));
+    final shas = await shasOldestFirst(repo.path);
+    await actions.startBisect(shas.last);
+    await actions.markBisect(shas.first, BisectKind.good);
+
+    final outcome = await actions.runBisect('./no-such-script.sh');
+
+    expect(outcome, BisectRunOutcome.commandUnrunnable);
+    await actions.resetBisect();
+  }, timeout: const Timeout(Duration(seconds: 180)));
+}
+
+final _cyrillic = RegExp(r'[\u0400-\u04FF]');
+
+/// Every command this wraps runs under [locale], unless the caller asked for
+/// an override of its own — which then wins, key by key, exactly as
+/// `Process.start` merges over the inherited environment.
+///
+/// Stands in for a user whose shell is not English. No test can change its own
+/// process's environment, and that is the only other place the locale could
+/// come from.
+class _LocalisedGit implements GitService {
+  final GitService inner;
+  final Map<String, String> locale;
+  _LocalisedGit(this.inner, this.locale);
+
+  @override
+  Future<GitResult> run(
+    List<String> args, {
+    String? repoPath,
+    Duration? timeout,
+    Map<String, String>? environment,
+    GitCancel? cancel,
+    String? stdin,
+  }) => inner.run(
+    args,
+    repoPath: repoPath,
+    timeout: timeout,
+    environment: {...locale, ...?environment},
+    cancel: cancel,
+    stdin: stdin,
+  );
+
+  @override
+  Future<String> version() => inner.version();
+
+  @override
+  Future<bool> isRepository(String path) => inner.isRepository(path);
 }
