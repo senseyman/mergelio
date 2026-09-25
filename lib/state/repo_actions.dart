@@ -2158,6 +2158,38 @@ class RepoActions {
   /// and no Cancel left to stop it with.
   Future<BisectRunOutcome?> runBisect(String command) async {
     if (_blockedByRepoOp) return null;
+    // Re-asked here rather than trusted from whenever the hunt was opened: a
+    // tracked file edited since then makes the run report a false verdict, not
+    // merely an awkward message. The command tests the working tree, which
+    // carries the edit; git records the answer against the commit it checked
+    // out, which does not. The hunt then narrows on evidence about code that
+    // is in no commit at all and convicts whichever commit that lands on.
+    //
+    // Tracked files only, like the failure reading further down: a command's
+    // own scratch files never stop git checking the next commit out, so
+    // counting them would refuse ordinary work.
+    final bool dirty;
+    try {
+      dirty = await _trackedFilesDirty();
+    } catch (e) {
+      // Unknown is not clean, and there is no lane or journal entry to unwind
+      // because nothing has been claimed yet.
+      _toastErr('Bisect run', e);
+      return null;
+    }
+    if (dirty) {
+      _ref
+          .read(toastProvider.notifier)
+          .show(
+            'Bisect run',
+            description:
+                'Commit or stash your changes before handing the hunt to a '
+                'command: it would test your uncommitted edits and record the '
+                'verdict against the commit git checked out.',
+            kind: ToastKind.error,
+          );
+      return null;
+    }
     final cancel = GitCancel();
     _ref.read(bisectRunProvider(path).notifier).state = command;
     // The status bar renders Cancel from this, so a stalled command can be

@@ -39,6 +39,11 @@ class _ScriptedGit implements GitService {
   /// flight and then let it finish on its own schedule.
   Completer<void>? bisectRunGate;
 
+  /// Runs when the `bisect run` invocation arrives, before its result is
+  /// handed back. Lets a test dirty the tree the way the user's own command
+  /// does — during the run — rather than before it, which is a refusal.
+  void Function()? onBisectRun;
+
   bool _isBisectRun(List<String> args) =>
       args.length >= 2 && args[0] == 'bisect' && args[1] == 'run';
 
@@ -56,6 +61,7 @@ class _ScriptedGit implements GitService {
       throw GitUnavailableException('git could not be found');
     }
     if (_isBisectRun(args)) {
+      onBisectRun?.call();
       final gate = bisectRunGate;
       if (gate != null) await gate.future;
       if (bisectRunCancelled) {
@@ -539,10 +545,16 @@ void main() {
       expect(runStatus(), OpStatus.failed);
     });
 
-    test('a run that dirtied the tree is journaled as failed', () async {
-      git.bisectRunResult = const GitResult(1, '', 'some failure');
+    /// Makes the tracked-file check answer dirty from the moment the run
+    /// starts, which is when the user's own command does the dirtying.
+    void dirtyTheTreeDuringTheRun() => git.onBisectRun = () {
       git.responses['status --porcelain --untracked-files=no'] =
           const GitResult(0, ' M file.txt\n', '');
+    };
+
+    test('a run that dirtied the tree is journaled as failed', () async {
+      git.bisectRunResult = const GitResult(1, '', 'some failure');
+      dirtyTheTreeDuringTheRun();
 
       final outcome = await actions.runBisect('./t.sh');
 
@@ -588,8 +600,7 @@ void main() {
       // The run asks about tracked files only: a command's own scratch files
       // do not stop git checking the next commit out, so they are no
       // explanation for a failure.
-      git.responses['status --porcelain --untracked-files=no'] =
-          const GitResult(0, ' M file.txt\n', '');
+      dirtyTheTreeDuringTheRun();
 
       final outcome = await actions.runBisect('./t.sh');
 
@@ -722,6 +733,90 @@ void main() {
       gate.complete();
       await first;
       expect(container.read(busyProvider), isNull);
+    });
+
+    /// Every `bisect run` invocation git was actually asked to make.
+    Iterable<List<String>> runCalls() => git.calls.where(
+      (c) => c.length >= 2 && c[0] == 'bisect' && c[1] == 'run',
+    );
+
+    group('a dirty tree is refused before the run, not explained after', () {
+      test('modified tracked files stop the run reaching git', () async {
+        git.responses['status --porcelain --untracked-files=no'] =
+            const GitResult(0, ' M lib/main.dart\n', '');
+
+        final outcome = await actions.runBisect('./t.sh');
+
+        // Null, not an outcome: nothing ran, so there is nothing to report
+        // beyond the refusal itself.
+        expect(outcome, isNull);
+        // The damage a run over a modified tree does is not a confusing
+        // message, it is a false verdict: the command tests the user's
+        // uncommitted edits, git records the answer against the commit it
+        // checked out, and the hunt then convicts a commit on the strength of
+        // code that commit does not contain.
+        expect(
+          runCalls(),
+          isEmpty,
+          reason:
+              'a run over modified tracked files records a verdict about '
+              'code the commit under test does not contain',
+        );
+        final last = container.read(toastProvider).last;
+        expect(last.kind, ToastKind.error);
+        expect(
+          last.description,
+          contains('Commit or stash'),
+          reason: 'a refusal has to say what to do about it',
+        );
+        // The lane is left exactly as it was found: nothing started, so
+        // nothing may be holding the status bar or the run indicator.
+        expect(container.read(busyProvider), isNull);
+        expect(container.read(bisectRunProvider('/r')), isNull);
+      });
+
+      test('an untracked scratch file does not stop a run', () async {
+        // What `status --porcelain` would say; the guard must not be reading
+        // that. A command's own scratch files never stop git checking the
+        // next commit out, so blocking on them would refuse ordinary work.
+        git.responses['status --porcelain'] = const GitResult(
+          0,
+          '?? scratch.log\n',
+          '',
+        );
+
+        final outcome = await actions.runBisect('./t.sh');
+
+        expect(outcome, BisectRunOutcome.finished);
+        expect(runCalls(), hasLength(1));
+      });
+
+      test('a tracked-file check that cannot run refuses the run', () async {
+        git.unrunnable.add('status --porcelain --untracked-files=no');
+
+        final outcome = await actions.runBisect('./t.sh');
+
+        // Unknown is not clean. Starting anyway would be the false-verdict
+        // case again, on a tree nobody could vouch for.
+        expect(outcome, isNull);
+        expect(runCalls(), isEmpty);
+        expect(errors(), hasLength(1));
+        expect(container.read(busyProvider), isNull);
+      });
+
+      test(
+        'the refusal is not written to the journal as a failed run',
+        () async {
+          git.responses['status --porcelain --untracked-files=no'] =
+              const GitResult(0, ' M lib/main.dart\n', '');
+
+          await actions.runBisect('./t.sh');
+
+          // No run happened, so the journal must not carry one. A pending or
+          // failed marker here reads on the next launch as a run that died.
+          expect(runStatus(), isNull);
+        },
+      );
     });
   });
 }
