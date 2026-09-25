@@ -347,13 +347,23 @@ class SystemGitService implements GitService {
 
     try {
       final exitCode = await proc.exitCode.timeout(timeout ?? defaultTimeout);
-      final output = await Future.wait([stdoutFuture, stderrFuture]);
-      _record(args, repoPath, started, inFlight, bytes: output[0].length);
-      // A killed child exits non-zero with nothing useful to say; report the
-      // abandonment rather than a failure the user did not cause.
+      // Checked before the output is waited for, not after. A killed child
+      // exits non-zero with nothing useful to say, and anything it had spawned
+      // in turn survives the kill still holding the write end of these pipes —
+      // so a join on the output can outlast the process by as long as that
+      // survivor lives. Measured: a cancelled `bisect run` whose command slept
+      // on left the caller waiting indefinitely with git already dead, and
+      // Cancel looked like it had done nothing at all. Abandoning the futures
+      // here is safe for the same reason the timeout path below abandons them:
+      // a listener is attached above, so nothing surfaces later as an
+      // unhandled error. The abandonment is reported rather than a failure the
+      // user did not cause.
       if (cancel?.isCancelled ?? false) {
+        _record(args, repoPath, started, inFlight);
         throw GitCancelledException('git ${redactedGitArgs(args)} cancelled');
       }
+      final output = await Future.wait([stdoutFuture, stderrFuture]);
+      _record(args, repoPath, started, inFlight, bytes: output[0].length);
       final result = GitResult(exitCode, output[0], output[1]);
       // Deliberately carries no result: handlers show `result.err` in
       // preference to the message, and for a broken toolchain the shim's own

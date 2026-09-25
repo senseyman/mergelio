@@ -6,6 +6,7 @@ import 'package:mergelio/domain/git/bisect.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/domain/git/git_writer.dart';
+import 'package:mergelio/state/feedback.dart';
 import 'package:mergelio/state/repo_actions.dart';
 
 /// Integration tests: drive a real temporary repository through the system
@@ -675,6 +676,78 @@ void main() {
     expect(outcome, BisectRunOutcome.commandUnrunnable);
     await actions.resetBisect();
   }, timeout: const Timeout(Duration(seconds: 180)));
+  // Cancelling kills git and only git: anything git spawned in turn survives
+  // it, which is documented on GitCancel and left as it is on purpose. What
+  // was never tested is what those survivors do to the wait: they hold the
+  // write end of git's stdout and stderr, so a join on that output never
+  // completes and the cancel appears to do nothing at all.
+  //
+  // Measured before the fix: `runBisect` had not returned twelve seconds after
+  // the user pressed Cancel, with git already dead and its command still
+  // running.
+  test(
+    'cancelling a run whose command outlives git still returns',
+    () async {
+      // Distinctive enough to find in the process table, and killed on
+      // tear-down so nothing is left behind.
+      const command = 'sleep 137';
+      Future<int> survivors() async {
+        final r = await Process.run('sh', [
+          '-c',
+          'ps -ax -o command | grep -c "^$command\$" || true',
+        ]);
+        return int.tryParse('${r.stdout}'.trim()) ?? 0;
+      }
+
+      addTearDown(() => Process.run('pkill', ['-f', command]));
+
+      final repo = await makeRepo(commits: 8, breakAt: 5);
+      addTearDown(() => repo.delete(recursive: true));
+      final container = containerForTest();
+      final actions = await openHunt(container, repo);
+
+      final run = actions.runBisect(command);
+
+      // Waits for git to have actually spawned the command, rather than
+      // guessing at a delay: cancelling before the child exists would kill
+      // git while nothing held its pipes, which is not the case under test.
+      for (var i = 0; i < 100 && await survivors() == 0; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      }
+      expect(
+        await survivors(),
+        greaterThan(0),
+        reason: 'git never got as far as running the command',
+      );
+
+      // The app's own Cancel, reached the way the status bar reaches it.
+      container.read(busyProvider)!.onCancel!();
+
+      final outcome = await run.timeout(
+        const Duration(seconds: 10),
+        onTimeout: () => fail(
+          'runBisect never returned after the cancel: the command git left '
+          'behind still holds the output pipes open',
+        ),
+      );
+
+      expect(outcome, BisectRunOutcome.cancelled);
+      // The premise: the survivor really did outlive git, so the wait this
+      // returned from was a wait that could never have ended on its own.
+      expect(
+        await survivors(),
+        greaterThan(0),
+        reason:
+            'without a survivor holding the pipes there was nothing to '
+            'stop waiting for',
+      );
+      // Marks already recorded stay: abandoning the automation is not
+      // abandoning the hunt.
+      expect(await actions.bisectState(), isNotNull);
+    },
+    timeout: const Timeout(Duration(seconds: 120)),
+    skip: Platform.isWindows ? 'no `sleep`/`ps` on Windows' : false,
+  );
 }
 
 final _cyrillic = RegExp(r'[\u0400-\u04FF]');

@@ -133,9 +133,32 @@ class _BisectBarState extends ConsumerState<BisectBar> {
 
   /// How the most recently completed `git bisect run` ended, so the running
   /// row can explain a failure in its own words instead of leaving git's raw
-  /// message unaccounted for. Null before any run, and cleared the moment a
-  /// fresh one starts so a stale explanation cannot outlive it.
+  /// message unaccounted for. Null before any run.
+  ///
+  /// It explains the step the hunt was standing on when the run stopped, and
+  /// it is dropped as soon as that stops being where the hunt is: when a fresh
+  /// run starts, when the user takes the next step by hand, and when there is
+  /// no bisect left at all.
   BisectRunOutcome? _lastRunOutcome;
+
+  /// Forgets how the last run ended, for the cases that are on screen.
+  ///
+  /// Guarded so a verdict pressed with nothing to forget does not schedule a
+  /// rebuild of its own.
+  void _forgetRunOutcome() {
+    if (_lastRunOutcome == null) return;
+    setState(() => _lastRunOutcome = null);
+  }
+
+  /// Records a verdict, and forgets how the last run ended.
+  ///
+  /// The explanation described the commit the hunt was sitting on; this moves
+  /// it off, so leaving the line up would have it answer for a step that is
+  /// already behind the user.
+  void _markAndMoveOn(RepoActions actions, String sha, BisectKind kind) {
+    _forgetRunOutcome();
+    actions.markBisect(sha, kind);
+  }
 
   /// Opens the run dialog and, if a command comes back, hands it to git.
   ///
@@ -235,7 +258,15 @@ class _BisectBarState extends ConsumerState<BisectBar> {
           ? _wrap(t, (_) => [Text(l.bisectUnreadable)])
           : _hidden;
     }
-    if (state == null) return _hidden;
+    if (state == null) {
+      // Nothing to explain and nothing to explain it to. This widget is not
+      // rebuilt from scratch by a reset — it stays mounted and merely renders
+      // nothing — so an outcome kept past one would come back on the next
+      // hunt, which never had a run. Assigned rather than set through
+      // setState: this is a build, and nothing of it is on screen to update.
+      _lastRunOutcome = null;
+      return _hidden;
+    }
 
     final actions = ref.read(repoActionsProvider(widget.repoPath));
     final hasBad = state.marks.any((m) => m.kind == BisectKind.bad);
@@ -372,14 +403,21 @@ class _BisectBarState extends ConsumerState<BisectBar> {
       else ...[
         ElevatedButton(
           onPressed: () =>
-              actions.markBisect(state.currentSha, BisectKind.good),
+              _markAndMoveOn(actions, state.currentSha, BisectKind.good),
           child: Text(l.bisectGood),
         ),
         ElevatedButton(
-          onPressed: () => actions.markBisect(state.currentSha, BisectKind.bad),
+          onPressed: () =>
+              _markAndMoveOn(actions, state.currentSha, BisectKind.bad),
           child: Text(l.bisectBad),
         ),
-        TextButton(onPressed: actions.skipBisect, child: Text(l.bisectSkip)),
+        TextButton(
+          onPressed: () {
+            _forgetRunOutcome();
+            actions.skipBisect();
+          },
+          child: Text(l.bisectSkip),
+        ),
         // Only offered here: this is the one state where git has both ends
         // of a range to hand a command, so only here can it iterate at all.
         TextButton(onPressed: () => _run(actions), child: Text(l.bisectRun)),
