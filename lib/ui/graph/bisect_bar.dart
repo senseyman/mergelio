@@ -353,7 +353,7 @@ class _BisectBarState extends ConsumerState<BisectBar> {
   ) {
     // Held so a click on Good cannot race git's own marking while a run
     // command is walking the range on its own.
-    final runningCommand = ref.watch(bisectRunProvider);
+    final runningCommand = ref.watch(bisectRunProvider(widget.repoPath));
     // Only meaningful once nothing is running: while one is, the row is
     // busy saying so, and a leftover explanation from an earlier attempt
     // would talk over it.

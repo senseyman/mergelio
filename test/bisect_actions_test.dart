@@ -625,20 +625,37 @@ void main() {
         final gate = Completer<void>();
         git.bisectRunGate = gate;
 
-        expect(container.read(bisectRunProvider), isNull);
+        expect(container.read(bisectRunProvider('/r')), isNull);
         final future = actions.runBisect('./slow.sh');
         // Lets the journal write (itself async, but no real timer) run to
         // completion, landing squarely inside the gated git call — still
         // "while it runs" rather than testing only the synchronous prologue.
         await Future<void>.delayed(Duration.zero);
-        expect(container.read(bisectRunProvider), './slow.sh');
+        expect(container.read(bisectRunProvider('/r')), './slow.sh');
 
         gate.complete();
         await future;
 
-        expect(container.read(bisectRunProvider), isNull);
+        expect(container.read(bisectRunProvider('/r')), isNull);
       },
     );
+
+    test('a run belongs to its own repository only', () async {
+      final gate = Completer<void>();
+      git.bisectRunGate = gate;
+
+      final future = actions.runBisect('./slow.sh');
+      await Future<void>.delayed(Duration.zero);
+
+      // Bisect state is per repository, so this has to be too. Shared, a run
+      // in one tab renders as "Running …" in another repository's bar and
+      // takes that repository's verdict buttons away with it.
+      expect(container.read(bisectRunProvider('/r')), './slow.sh');
+      expect(container.read(bisectRunProvider('/other')), isNull);
+
+      gate.complete();
+      await future;
+    });
 
     test('cancelling a run reports cancelled and keeps the bisect', () async {
       git.bisectRunCancelled = true;
@@ -648,7 +665,7 @@ void main() {
       expect(outcome, BisectRunOutcome.cancelled);
       // The marks already recorded survive: abandoning automation is not
       // abandoning the hunt.
-      expect(container.read(bisectRunProvider), isNull);
+      expect(container.read(bisectRunProvider('/r')), isNull);
     });
 
     test('a run offers a cancel through the shared busy state', () async {
@@ -700,7 +717,7 @@ void main() {
       // The first run holds the lane, so the second is turned away rather
       // than left to clear the first one's busy state out from under it.
       expect(await actions.runBisect('./other.sh'), isNull);
-      expect(container.read(bisectRunProvider), './slow.sh');
+      expect(container.read(bisectRunProvider('/r')), './slow.sh');
 
       gate.complete();
       await first;

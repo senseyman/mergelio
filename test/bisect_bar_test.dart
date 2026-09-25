@@ -113,6 +113,10 @@ Future<void> _pump(
   List<Commit> commits = const [],
   ({String? text})? log,
   String? runningCommand,
+
+  /// A run in flight in a *different* repository, so a bar can be shown that
+  /// nothing of its own is running in.
+  String? otherRepoRunningCommand,
   BisectRunOutcome? lastOutcome,
 }) async {
   await tester.pumpWidget(
@@ -127,7 +131,10 @@ Future<void> _pump(
         // A command in flight: the same provider the real running row
         // watches to hide its verdict buttons.
         if (runningCommand != null)
-          bisectRunProvider.overrideWith((ref) => runningCommand),
+          bisectRunProvider('/r').overrideWith((ref) => runningCommand),
+        if (otherRepoRunningCommand != null)
+          bisectRunProvider('/other')
+              .overrideWith((ref) => otherRepoRunningCommand),
         // Only the tests that open the log panel script it; the rest keep the
         // real actions object the rest of the bar is wired to.
         if (log != null)
@@ -795,6 +802,19 @@ void main() {
       find.widgetWithText(TextButton, 'Reset bisect'),
     );
     expect(reset.onPressed, isNull);
+  });
+
+  testWidgets('a run in another repository does not take over this bar', (
+    tester,
+  ) async {
+    // Bisect state is per repository; the run has to be too. Shared, the
+    // second tab's bar names a command that repository is not running and
+    // loses the verdict buttons it does need.
+    await _pump(tester, _running(), otherRepoRunningCommand: './elsewhere.sh');
+
+    expect(find.textContaining('./elsewhere.sh'), findsNothing);
+    expect(find.text('Good'), findsOneWidget);
+    expect(find.text('Bad'), findsOneWidget);
   });
 
   testWidgets('Reset is clickable again once the run is over', (tester) async {

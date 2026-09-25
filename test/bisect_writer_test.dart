@@ -130,6 +130,31 @@ void main() {
     expect(args.last, 'make 2>&1 | grep -q FAIL');
   });
 
+  group('the command flag follows the shell, not the platform', () {
+    test('a POSIX shell takes -c whatever the platform is', () {
+      // The Windows case that matters: $SHELL is set, by Git Bash or MSYS, so
+      // the shell picked is a POSIX one. Keying the flag off the platform
+      // handed it `/c`, which bash reads as a path to run.
+      expect(shellCommandFlag('/bin/sh'), '-c');
+      expect(shellCommandFlag('/bin/zsh'), '-c');
+      expect(shellCommandFlag(r'C:\Program Files\Git\usr\bin\bash.exe'), '-c');
+      expect(shellCommandFlag('C:/Program Files/Git/bin/bash.exe'), '-c');
+    });
+
+    test('cmd takes /c, by whichever spelling it arrives', () {
+      expect(shellCommandFlag('cmd.exe'), '/c');
+      expect(shellCommandFlag(r'C:\Windows\System32\CMD.EXE'), '/c');
+      expect(shellCommandFlag('cmd'), '/c');
+    });
+
+    test('the args always agree with the shell they name', () {
+      // Holds on every platform: whatever shell got chosen here, the flag
+      // beside it is the one that shell understands.
+      final args = bisectRunArgs('true');
+      expect(args[3], shellCommandFlag(args[2]));
+    });
+  });
+
   test(
     'bisectRun returns the result rather than throwing on failure',
     () async {

@@ -2563,7 +2563,7 @@ class AppLocalizationsUk extends AppLocalizations {
   String get bisectRunHint => 'Команда для тестування кожного коміта';
 
   @override
-  String get bisectRunWillExecute => 'Запустить:';
+  String get bisectRunWillExecute => 'Буде виконано:';
 
   @override
   String get bisectRunTreeWarning =>
@@ -2579,17 +2579,17 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get bisectRunExhausted =>
-      'Всі залишилися комміти були пропущені, тому git не може звузити пошук.';
+      'Усі коміти, що залишилися, пропущено, тому git не може звузити пошук.';
 
   @override
   String get bisectRunUnrunnable =>
-      'Вашу команду не можна запустити. Переконайтеся, що вона існує та є виконавчою.';
+      'Вашу команду не можна запустити. Переконайтеся, що вона існує та є виконуваною.';
 
   @override
   String get bisectRunTreeDirtied =>
-      'Ваша команда змінила відслідковувані файли, тому наступний коміт не вдалося переключити.';
+      'Ваша команда змінила відслідковувані файли, тому git не зміг переключитися на наступний коміт.';
 
   @override
   String get bisectRunCancelled =>
-      'Запуск скасовано. Записані рішення збереженi.';
+      'Запуск скасовано. Записані рішення збережені.';
 }

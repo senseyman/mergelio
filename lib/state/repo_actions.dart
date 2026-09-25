@@ -2159,7 +2159,7 @@ class RepoActions {
   Future<BisectRunOutcome?> runBisect(String command) async {
     if (_blockedByRepoOp) return null;
     final cancel = GitCancel();
-    _ref.read(bisectRunProvider.notifier).state = command;
+    _ref.read(bisectRunProvider(path).notifier).state = command;
     // The status bar renders Cancel from this, so a stalled command can be
     // given up on without a second affordance of our own.
     _ref.read(busyProvider.notifier).state = BusyState(
@@ -2206,7 +2206,7 @@ class RepoActions {
       _toastErr('Bisect run', e);
       return BisectRunOutcome.failed;
     } finally {
-      _ref.read(bisectRunProvider.notifier).state = null;
+      _ref.read(bisectRunProvider(path).notifier).state = null;
       _ref.read(busyProvider.notifier).state = null;
       _refresh();
     }

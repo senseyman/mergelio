@@ -5,6 +5,21 @@ import 'askpass.dart';
 import 'commit_message.dart';
 import 'git_service.dart';
 
+/// The flag [shell] wants in front of a command string.
+///
+/// Read off the shell itself, never off the platform: on Windows `$SHELL` is
+/// commonly set, by Git Bash or MSYS, and that shell is a POSIX one. Handing
+/// it `/c` makes it treat the flag as a path to run and the command as an
+/// argument, so the run fails on every commit for a reason nothing reports.
+/// Only `cmd` takes `/c`, whichever way its path is spelled.
+String shellCommandFlag(String shell) {
+  final name = shell.split(RegExp(r'[/\\]')).last.toLowerCase();
+  final base = name.endsWith('.exe')
+      ? name.substring(0, name.length - 4)
+      : name;
+  return base == 'cmd' ? '/c' : '-c';
+}
+
 /// Arguments for `git bisect run`, with [command] handed to a shell as a
 /// single string.
 ///
@@ -15,8 +30,7 @@ List<String> bisectRunArgs(String command) {
   final shell =
       Platform.environment['SHELL'] ??
       (Platform.isWindows ? 'cmd.exe' : '/bin/sh');
-  final flag = Platform.isWindows ? '/c' : '-c';
-  return ['bisect', 'run', shell, flag, command];
+  return ['bisect', 'run', shell, shellCommandFlag(shell), command];
 }
 
 /// Which side wins a hunk both branches changed (`-X ours` / `-X theirs`).
