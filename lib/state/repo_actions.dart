@@ -2133,6 +2133,16 @@ class RepoActions {
     _refresh();
   }
 
+  /// Whether an outcome counts as the run having done its job, for the
+  /// journal's purposes.
+  ///
+  /// Landing on the first bad commit is the obvious one. Exhaustion joins it:
+  /// every remaining candidate was skipped, so git stopped because the marks
+  /// ran out rather than because anything went wrong.
+  static bool _bisectRunSucceeded(BisectRunOutcome outcome) =>
+      outcome == BisectRunOutcome.finished ||
+      outcome == BisectRunOutcome.exhausted;
+
   /// Hands the rest of the hunt to [command], which git runs over each
   /// remaining candidate until it lands or gives up.
   ///
@@ -2160,7 +2170,24 @@ class RepoActions {
         // costs a subprocess.
         treeDirty: r.ok ? false : await _trackedFilesDirty(),
       );
-      await _journalDone(id);
+      // A run git could not carry to an answer left the bisect standing
+      // wherever it had reached, which is not an operation that completed.
+      // Exhaustion is the one non-zero ending that is no fault: git narrowed
+      // as far as the recorded marks allow and said so.
+      if (_bisectRunSucceeded(outcome)) {
+        await _journalDone(id);
+      } else {
+        await _journalFail(id);
+      }
+      // Only the failure nobody could name is reported here. Every other
+      // outcome is explained in the bar's own words, and the same complaint
+      // in two places at once reads as two separate problems.
+      if (outcome == BisectRunOutcome.failed) {
+        // Wrapped so the shared handler applies the usual preference for
+        // git's own stderr over any message of ours — for an unrecognised
+        // failure git's wording is all there is to go on.
+        _toastErr('Bisect run', GitException('git bisect run', r));
+      }
       return outcome;
     } on GitCancelledException {
       await _journalFail(id);

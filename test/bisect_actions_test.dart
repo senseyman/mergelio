@@ -9,6 +9,7 @@ import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/domain/git/git_writer.dart';
 import 'package:mergelio/state/bisect.dart';
 import 'package:mergelio/state/feedback.dart';
+import 'package:mergelio/state/operation_journal.dart';
 import 'package:mergelio/state/repo_actions.dart';
 
 /// Answers every git invocation with a scripted result keyed on the exact
@@ -481,10 +482,105 @@ void main() {
       });
     });
 
+    /// Error toasts raised so far, newest last.
+    Iterable<Toast> errors() =>
+        container.read(toastProvider).where((t) => t.kind == ToastKind.error);
+
+    /// The status the journal ended up recording for the run, or null when it
+    /// recorded no run at all.
+    OpStatus? runStatus() => container
+        .read(operationJournalProvider('/r'))
+        .records
+        .where((r) => r.label == 'Bisect: run')
+        .lastOrNull
+        ?.status;
+
+    /// What git says when the command exits with a code it refuses to read as
+    /// a verdict — measured: `sh -c 'exit 200'` makes git exit 56 saying this.
+    /// The classifier recognises none of it, which is the whole point: it is
+    /// the case where nothing else in the app has anything to say.
+    const unrecognised = GitResult(
+      56,
+      '',
+      "error: bisect run failed: exit code 200 from '/bin/sh' '-c' 'exit 200' "
+          'is < 0 or >= 128',
+    );
+
     test('a clean run reports a finished hunt', () async {
       // Default scripted response for `bisect run` is exit code 0.
       final outcome = await actions.runBisect('./t.sh');
       expect(outcome, BisectRunOutcome.finished);
+      expect(errors(), isEmpty);
+      expect(runStatus(), OpStatus.done);
+    });
+
+    test('an unrecognised failure reaches the user in git own words', () async {
+      git.bisectRunResult = unrecognised;
+
+      final outcome = await actions.runBisect('exit 200');
+
+      expect(outcome, BisectRunOutcome.failed);
+      // Without this the command exits 200, git exits 56, and the user is
+      // shown nothing whatsoever: no toast, and a bar that stays silent on
+      // `failed` because it believes this layer already spoke.
+      expect(errors(), hasLength(1));
+      // Git's own stderr, not a wrapper of our own around it — the same
+      // preference every other failing op here honours.
+      expect(errors().single.description, contains('exit code 200'));
+    });
+
+    test('a failed run is journaled as failed, not as done', () async {
+      git.bisectRunResult = unrecognised;
+
+      await actions.runBisect('exit 200');
+
+      // Recording it as done makes the journal claim a hunt completed that
+      // in fact stopped wherever git happened to be standing.
+      expect(runStatus(), OpStatus.failed);
+    });
+
+    test('a run that dirtied the tree is journaled as failed', () async {
+      git.bisectRunResult = const GitResult(1, '', 'some failure');
+      git.responses['status --porcelain --untracked-files=no'] =
+          const GitResult(0, ' M file.txt\n', '');
+
+      final outcome = await actions.runBisect('./t.sh');
+
+      expect(outcome, BisectRunOutcome.treeDirtied);
+      expect(runStatus(), OpStatus.failed);
+      // No toast: the bar names this outcome in its own words, and the same
+      // complaint in two places at once is worse than one.
+      expect(errors(), isEmpty);
+    });
+
+    test('a command git could not run at all is journaled as failed', () async {
+      git.bisectRunResult = const GitResult(
+        1,
+        '',
+        'error: bogus exit code 127 (only 0-127 are valid)',
+      );
+
+      final outcome = await actions.runBisect('./missing.sh');
+
+      expect(outcome, BisectRunOutcome.commandUnrunnable);
+      expect(runStatus(), OpStatus.failed);
+      expect(errors(), isEmpty);
+    });
+
+    test('exhaustion is an ending, not a failure', () async {
+      git.bisectRunResult = const GitResult(
+        2,
+        '',
+        'error: bisect run cannot continue any more',
+      );
+
+      final outcome = await actions.runBisect('./t.sh');
+
+      // Git narrowed as far as the marks allow and said so. Nothing went
+      // wrong, so nothing is reported as having gone wrong.
+      expect(outcome, BisectRunOutcome.exhausted);
+      expect(runStatus(), OpStatus.done);
+      expect(errors(), isEmpty);
     });
 
     test('a run that dirties the tree is named for the real cause', () async {

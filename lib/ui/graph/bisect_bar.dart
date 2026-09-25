@@ -155,9 +155,11 @@ class _BisectBarState extends ConsumerState<BisectBar> {
   /// Explains an outcome the running row cannot leave to git's own message.
   ///
   /// [BisectRunOutcome.finished] needs nothing here: the state itself moves
-  /// to the finished card, which is its own explanation. A failed run has
-  /// already been toasted by the action layer, so it stays silent here too
-  /// rather than saying the same thing twice in two different places.
+  /// to the finished card, which is its own explanation.
+  ///
+  /// [BisectRunOutcome.failed] is the failure nobody could name, so it is the
+  /// one the action layer toasts — in git's own words, which is all there is
+  /// to go on. Repeating it here would read as two separate problems.
   String? _outcomeMessage(AppLocalizations l, BisectRunOutcome? outcome) =>
       switch (outcome) {
         null => null,
