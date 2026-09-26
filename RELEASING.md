@@ -11,7 +11,7 @@ built on a host of the matching platform.
 
 ## Checklist
 
-1. **Match the pinned toolchain** — Flutter 3.47.4 (`.fvmrc`). The build
+1. **Match the pinned toolchain** — Flutter 3.47.5 (`.fvmrc`). The build
    scripts warn when the running SDK differs; a newer one breaks code
    generation. `make doctor` covers the rest of the environment.
 2. **Green tree** — `make check` (formatting, `flutter analyze`, full test

@@ -9,7 +9,7 @@
 
 [![License: BSD-3-Clause](https://img.shields.io/badge/license-BSD--3--Clause-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey.svg)](#installation)
-[![Flutter](https://img.shields.io/badge/Flutter-3.47.4-02569B.svg?logo=flutter)](https://flutter.dev)
+[![Flutter](https://img.shields.io/badge/Flutter-3.47.5-02569B.svg?logo=flutter)](https://flutter.dev)
 [![Dart SDK](https://img.shields.io/badge/Dart%20SDK-3.13.x-0175C2.svg?logo=dart)](https://dart.dev)
 [![Tests](https://img.shields.io/badge/tests-1229%20passing-brightgreen.svg)](#testing)
 
@@ -347,7 +347,7 @@ checksum file above is the verification.
 
 ### Prerequisites
 
-- **Flutter 3.47.4** on the `stable` channel (Dart SDK 3.13.3) — see
+- **Flutter 3.47.5** on the `stable` channel (Dart SDK 3.13.4) — see
   [Toolchain version](#toolchain-version) below; this one is pinned, not a floor
 - **Desktop toolchain** for your host: Xcode (macOS), Visual Studio with the
   *Desktop development with C++* workload (Windows), or
@@ -359,7 +359,7 @@ Check your setup with `make doctor`.
 ### Toolchain version
 
 The Flutter release is pinned in [`.fvmrc`](.fvmrc) and `pubspec.yaml` declares
-`sdk: '>=3.13.3 <3.14.0'`. Both bounds are intentional.
+`sdk: '>=3.13.4 <3.14.0'`. Both bounds are intentional.
 
 The codegen chain and the SDK move together: `analyzer` has to understand the
 language version the SDK emits. An `analyzer` older than the SDK is handed
@@ -386,7 +386,7 @@ fvm flutter --version
 Without fvm, match it by hand:
 
 ```bash
-flutter --version          # expect 3.47.4 / Dart 3.13.3
+flutter --version          # expect 3.47.5 / Dart 3.13.4
 ```
 
 The build scripts print a warning when the running Flutter differs from the pin.
