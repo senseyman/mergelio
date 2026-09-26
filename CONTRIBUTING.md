@@ -34,7 +34,7 @@ Taking part in this project means following its
 
 ### Prerequisites
 
-- **Flutter 3.47.4**, `stable` channel (Dart SDK 3.13.3). The version is
+- **Flutter 3.47.5**, `stable` channel (Dart SDK 3.13.4). The version is
   pinned, not a floor — see [Toolchain version](README.md#toolchain-version) in
   the README for why a newer SDK breaks code generation.
 - **Desktop toolchain** for your host: Xcode (macOS), Visual Studio with the
