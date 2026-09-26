@@ -46,6 +46,5 @@ void main() {
     final g = computeGraphDerived(const RepoData());
     expect(g.maxLane, 0);
     expect(g.rowIndex, isEmpty);
-    expect(g.segments, isEmpty);
   });
 }

@@ -23,8 +23,6 @@ abstract class RepoData with _$RepoData {
     @Default([]) List<Stash> stashes,
     @Default([]) List<WorkingFile> working,
     @Default([]) List<Submodule> submodules,
-    // Inferred squash-merge connectors (no git parent edge exists).
-    @Default([]) List<SquashLink> squashLinks,
     // The walk filled the page it asked for, so older commits exist beyond
     // [commits]. Raise [commitLimitProvider] to bring them in.
     @Default(false) bool hasMoreCommits,
@@ -136,38 +134,50 @@ final repoDataProvider = FutureProvider.family<RepoData, String>(
       _cacheCommits(path, (sig: commitSig, commits: commits, more: hasMore));
     }
     final walkDone = DateTime.now();
-    final branches = assignBranchColors(results[0] as List<Branch>, commits);
-    // Squash-link inference spawns ~5 git subprocesses per branch, so it is by
-    // far the most expensive phase on a repository with many branches. The
-    // cache narrows each refresh to the branches whose tips moved.
-    final squash = await squashLinkCache.resolve(
-      path: path,
-      branches: branches,
-      compute: (subset, into) => reader.squashLinks(subset, into: into),
-    );
-    // Phase breakdown so a slow open points at its cause: ref reads, the
-    // history walk plus lane layout (both scale with commit count) or
-    // squash-link inference. A refresh that hits either cache says so.
-    final squashDone = DateTime.now();
+    // Phase breakdown so a slow open points at its cause: ref reads or the
+    // history walk plus lane layout (both scale with commit count). A refresh
+    // that skipped the walk says so.
     int ms(DateTime from, DateTime to) => to.difference(from).inMilliseconds;
     appLog.info(
       'Load repo phases: ${commits.length} commits — '
       'ref reads ${ms(started, refsDone)}ms, '
-      'history ${ms(refsDone, walkDone)}ms${walked ? '' : ' (cached)'}, '
-      'squash links ${ms(walkDone, squashDone)}ms',
+      'history ${ms(refsDone, walkDone)}ms${walked ? '' : ' (cached)'}',
       scope: path,
     );
     return RepoData(
       commits: commits,
-      branches: branches,
+      branches: assignBranchColors(results[0] as List<Branch>, commits),
       remotes: results[1] as List<String>,
       tags: results[2] as List<String>,
       stashes: stashes,
       working: results[4] as List<WorkingFile>,
       remoteBranches: results[5] as List<RemoteBranch>,
       submodules: results[6] as List<Submodule>,
-      squashLinks: squash,
       hasMoreCommits: hasMore,
     );
   }, scope: path),
+);
+
+/// Squash-merge connectors for the repository at `path`, inferred from the
+/// branches of the latest [repoDataProvider] load.
+///
+/// Kept out of [repoDataProvider] on purpose: inference runs git once more per
+/// unmerged branch, which on a repository with many branches is seconds, and
+/// the graph, branch list and working tree must not wait for a decoration. The
+/// graph draws without connectors and gains them when this resolves.
+final squashLinksProvider = FutureProvider.family<List<SquashLink>, String>(
+  name: 'squashLinks',
+  (ref, path) async {
+    final data = await ref.watch(repoDataProvider(path).future);
+    final reader = GitReader(ref.watch(gitServiceProvider), path);
+    final started = DateTime.now();
+    final links = await squashLinkCache.resolve(
+      path: path,
+      branches: data.branches,
+      compute: (subset, into) => reader.squashLinks(subset, into: into),
+    );
+    final took = DateTime.now().difference(started).inMilliseconds;
+    appLog.info('Squash links: ${links.length} in ${took}ms', scope: path);
+    return links;
+  },
 );

@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/domain/git/models.dart';
 import 'package:mergelio/state/repo_data.dart';
@@ -85,13 +87,43 @@ void main() {
 
     final container = ProviderContainer();
     addTearDown(container.dispose);
-    final data = await container.read(repoDataProvider(dir.path).future);
+    final links = await container.read(squashLinksProvider(dir.path).future);
 
     final squashTip = (await svc.run([
       'rev-parse',
       'squashme',
     ], repoPath: dir.path)).out;
-    expect(data.squashLinks.map((l) => l.fromSha), contains(squashTip));
+    expect(links.map((l) => l.fromSha), contains(squashTip));
+  });
+
+  test('repo data arrives without waiting for squash-link inference', () async {
+    // Inference costs a few git subprocesses per unmerged branch; on a busy
+    // repository that is seconds, and the graph must not sit on it.
+    await g(['checkout', '-q', '-b', 'open', 'main']);
+    await write('o.txt', 'o\n');
+    await g(['add', '.']);
+    await g(['commit', '-q', '-m', 'open work']);
+    await g(['checkout', '-q', 'main']);
+
+    final git = _GatedMergeBase(svc);
+    final container = ProviderContainer(
+      overrides: [gitServiceProvider.overrideWithValue(git)],
+    );
+    addTearDown(container.dispose);
+    container.listen(squashLinksProvider(dir.path), (_, _) {});
+
+    final data = await container
+        .read(repoDataProvider(dir.path).future)
+        .timeout(const Duration(seconds: 5));
+    expect(data.branches.map((b) => b.name), contains('open'));
+    // Inference does start once the data is in; it is just not waited on.
+    for (var i = 0; i < 100 && !git.held; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
+    expect(git.held, isTrue);
+
+    git.release.complete();
+    await container.read(squashLinksProvider(dir.path).future);
   });
 
   test('commitFilesProvider lists a commit\'s changed files', () async {
@@ -116,4 +148,43 @@ void main() {
       throwsA(isA<GitException>()),
     );
   });
+}
+
+/// Holds every `git merge-base` until [release] completes — the one command
+/// only squash-link inference sends.
+class _GatedMergeBase implements GitService {
+  final GitService _inner;
+  final release = Completer<void>();
+  var held = false;
+
+  _GatedMergeBase(this._inner);
+
+  @override
+  Future<GitResult> run(
+    List<String> args, {
+    String? repoPath,
+    Duration? timeout,
+    Map<String, String>? environment,
+    GitCancel? cancel,
+    String? stdin,
+  }) async {
+    if (args.isNotEmpty && args.first == 'merge-base') {
+      held = true;
+      await release.future;
+    }
+    return _inner.run(
+      args,
+      repoPath: repoPath,
+      timeout: timeout,
+      environment: environment,
+      cancel: cancel,
+      stdin: stdin,
+    );
+  }
+
+  @override
+  Future<String> version() => _inner.version();
+
+  @override
+  Future<bool> isRepository(String path) => _inner.isRepository(path);
 }

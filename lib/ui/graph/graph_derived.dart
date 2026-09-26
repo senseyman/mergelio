@@ -1,7 +1,6 @@
 import '../../domain/git/models.dart';
 import '../../state/repo_data.dart';
 import 'commit_columns.dart';
-import 'squash_overlay.dart';
 
 /// The O(n) graph derivations that depend only on the commit list, not on
 /// transient UI state (selection, hover, search, settings). Computing these
@@ -12,7 +11,6 @@ class GraphDerived {
   final Map<String, List<String>> labels;
   final Map<String, int> rowIndex;
   final Map<String, ({int lane, int ci})> laneOf;
-  final List<SquashSegment> segments;
   // Sha → the name of a local branch ref sitting on that commit (drop target
   // for branch-onto-commit DnD). Precomputed so the row builder does an O(1)
   // lookup instead of scanning refs per row per frame.
@@ -23,7 +21,6 @@ class GraphDerived {
     required this.labels,
     required this.rowIndex,
     required this.laneOf,
-    required this.segments,
     required this.localRefBySha,
   });
 }
@@ -53,7 +50,6 @@ GraphDerived computeGraphDerived(RepoData d) {
     labels: deriveBranchLabels(d.commits),
     rowIndex: rowIndex,
     laneOf: laneOf,
-    segments: resolveSquashSegments(d.squashLinks, rowIndex, laneOf: laneOf),
     localRefBySha: localRefBySha,
   );
 }
