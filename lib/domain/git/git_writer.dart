@@ -5,6 +5,58 @@ import 'askpass.dart';
 import 'commit_message.dart';
 import 'git_service.dart';
 
+/// The flag [shell] wants in front of a command string.
+///
+/// Read off the shell itself, never off the platform: on Windows `$SHELL` is
+/// commonly set, by Git Bash or MSYS, and that shell is a POSIX one. Handing
+/// it `/c` makes it treat the flag as a path to run and the command as an
+/// argument, so the run fails on every commit for a reason nothing reports.
+/// Only `cmd` takes `/c`, whichever way its path is spelled.
+String shellCommandFlag(String shell) {
+  final name = shell.split(RegExp(r'[/\\]')).last.toLowerCase();
+  final base = name.endsWith('.exe')
+      ? name.substring(0, name.length - 4)
+      : name;
+  return base == 'cmd' ? '/c' : '-c';
+}
+
+/// Environment for a `git bisect run`, pinning the language git reports its
+/// own endings in.
+///
+/// git translates those endings — measured, git 2.55.0: `error: bisect run
+/// cannot continue any more` comes back as `помилка: неможливо продовжити
+/// бісекцію` under uk_UA and `erreur : la bissection ne peut plus continuer`
+/// under fr_FR — and it ships translations for twenty languages including
+/// this app's own Ukrainian. Reading those endings out of English prose
+/// therefore fails for real users, not hypothetical ones.
+///
+/// Only the message category is pinned. The user's own command inherits this
+/// environment, and forcing the whole locale to C would change how it handles
+/// characters, not just which language it complains in — enough to make a
+/// suite that reads UTF-8 filenames start failing. `LC_CTYPE` and `LANG` are
+/// left exactly as the user has them, so the only thing that changes for the
+/// command is the language of any diagnostics it prints, which nothing here
+/// reads anyway.
+///
+/// All three keys are needed. gettext takes `LANGUAGE` ahead of every `LC_*`,
+/// and an `LC_ALL` in the environment overrides `LC_MESSAGES`, so pinning
+/// `LC_MESSAGES` alone is defeated by either of them. An empty value reads as
+/// unset, which is why these clear rather than set.
+const bisectRunMessageEnv = {'LC_ALL': '', 'LC_MESSAGES': 'C', 'LANGUAGE': ''};
+
+/// Arguments for `git bisect run`, with [command] handed to a shell as a
+/// single string.
+///
+/// Splitting on whitespace would break quoting, pipes and shell builtins, so
+/// the user's line goes through verbatim. The shell matches the one the
+/// terminal uses, so a command behaves the same in both places.
+List<String> bisectRunArgs(String command) {
+  final shell =
+      Platform.environment['SHELL'] ??
+      (Platform.isWindows ? 'cmd.exe' : '/bin/sh');
+  return ['bisect', 'run', shell, shellCommandFlag(shell), command];
+}
+
 /// Which side wins a hunk both branches changed (`-X ours` / `-X theirs`).
 /// Only overlapping hunks are decided this way; work the two sides did in
 /// different places is still combined.
@@ -21,6 +73,18 @@ class GitWriter {
   // Network ops can be slow (large transfers, slow links); give them room
   // well beyond the default read timeout so they are not killed mid-transfer.
   static const _netTimeout = Duration(minutes: 5);
+
+  /// Ceiling for `git bisect run`, whose duration is the user's own command
+  /// multiplied by the number of steps left — a test suite over a deep history
+  /// legitimately takes hours.
+  ///
+  /// Explicit rather than omitted: leaving it off does not mean "no limit", it
+  /// means the service's ordinary default, which would kill a real run within
+  /// the first commit or two. There is no way to ask for no limit at all, and a
+  /// figure this far out is one nothing reaches on purpose while still stopping
+  /// an abandoned run from holding its lane until the app is quit. Cancelling
+  /// remains the way a run is actually stopped.
+  static const _bisectRunTimeout = Duration(hours: 12);
 
   /// Resolved once per repository: the ssh command git would use anyway, plus
   /// what a command that hits an authentication prompt needs.
@@ -321,6 +385,23 @@ class GitWriter {
     if (!r.ok) throw GitException('git bisect log', r);
     return r.stdout;
   }
+
+  /// Runs [command] over the remaining candidates until git lands on the first
+  /// bad commit or gives up.
+  ///
+  /// Returns the result instead of throwing: the exit code and stderr together
+  /// say which of several outcomes happened, and an exception would discard
+  /// that. Runs under [_bisectRunTimeout] rather than the ordinary default,
+  /// which a real command would blow through in the first step; [cancel] is
+  /// how a run is meant to be stopped.
+  Future<GitResult> bisectRun(String command, {GitCancel? cancel}) => _run(
+    bisectRunArgs(command),
+    timeout: _bisectRunTimeout,
+    // Pinned so the outcome can be read back at all: git translates the
+    // sentences that say how a run ended, and this app ships Ukrainian.
+    environment: bisectRunMessageEnv,
+    cancel: cancel,
+  );
 
   // --- Branch ops -----------------------------------------------------------
 

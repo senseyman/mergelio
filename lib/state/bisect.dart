@@ -18,6 +18,19 @@ final bisectStateProvider = FutureProvider.family<BisectState?, String>((
   return ref.read(repoActionsProvider(path)).bisectState();
 });
 
+/// The `git bisect run` command executing in [path] right now, or null when
+/// none is.
+///
+/// Held so the bar can name what is running and hide the verdict buttons
+/// while it does: a click on Good mid-run would race git's own marking.
+///
+/// Keyed by repository like the bisect itself. One shared value would put a
+/// run started in one tab into every other tab's bar, naming a command that
+/// repository is not running and taking its verdict buttons away with it.
+final bisectRunProvider = StateProvider.family<String?, String>(
+  (ref, path) => null,
+);
+
 /// Telling "git says there is no bisect" apart from "nobody could ask git".
 ///
 /// `valueOrNull` collapses those two into the same null, and acting on that

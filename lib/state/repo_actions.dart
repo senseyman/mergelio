@@ -15,6 +15,7 @@ import '../domain/git/git_service.dart';
 import '../domain/git/git_writer.dart';
 import '../domain/git/models.dart';
 import '../domain/git/rebase_plan.dart';
+import 'bisect.dart';
 import 'feedback.dart';
 import 'forge_refresh.dart';
 import 'merge_session.dart';
@@ -337,6 +338,24 @@ class RepoActions {
     _ref
         .read(toastProvider.notifier)
         .show('An operation is already running', kind: ToastKind.warning);
+    return true;
+  }
+
+  /// True (and toasts) when a `git bisect run` is walking the range, so no
+  /// other bisect command may touch the state it is walking.
+  ///
+  /// A run is a second git process writing `.git/BISECT_*` and moving HEAD on
+  /// its own schedule. A mark landing in the middle of it records a verdict
+  /// against whichever commit the run happened to have checked out, and a
+  /// reset throws away refs the run is still adding to. The bar takes its own
+  /// buttons away while a run is going, but the graph's per-commit menu offers
+  /// the same verdicts on every row and the quit dialog offers the same reset,
+  /// so the refusal has to live here where all of them arrive.
+  bool get _blockedByBisectRun {
+    if (_ref.read(bisectRunProvider(path)) == null) return false;
+    _ref
+        .read(toastProvider.notifier)
+        .show('A bisect run is in progress', kind: ToastKind.warning);
     return true;
   }
 
@@ -2020,12 +2039,24 @@ class RepoActions {
   Future<bool> _treeIsDirty() async =>
       (await _out(['status', '--porcelain'])).isNotEmpty;
 
+  /// True when tracked files have been changed, ignoring untracked ones.
+  ///
+  /// This is the question a failed run asks: a command that writes scratch
+  /// files of its own leaves git free to check the next commit out, while a
+  /// change to a tracked file stops the hunt dead. Counting scratch files here
+  /// would tell the user their command modified tracked files when it did not,
+  /// and bury the real ending git reported.
+  Future<bool> _trackedFilesDirty() async =>
+      (await _out(['status', '--porcelain', '--untracked-files=no']))
+          .isNotEmpty;
+
   /// Opens a bisect with [sha] as the first bad commit.
   ///
   /// Refuses on a dirty tree rather than stashing: a stash popped several
   /// steps later, possibly in a later session, is not something to do to
   /// someone's work without being asked.
   Future<void> startBisect(String sha) async {
+    if (_blockedByBisectRun) return;
     final id = await _journalBegin('Bisect: start');
     try {
       // Inside the try because it is a git call like any other: one that
@@ -2050,6 +2081,9 @@ class RepoActions {
 
   /// Records [kind] against [sha], opening a bisect first when none is running.
   Future<void> markBisect(String sha, BisectKind kind) async {
+    // Ahead of the state read below, which is a git call of its own and has
+    // nothing useful to say about a hunt another process is moving.
+    if (_blockedByBisectRun) return;
     // Reported here rather than allowed to escape: this runs from a button
     // nobody awaits, and a state read that failed is not a repository known
     // to have no bisect — opening one over a hunt already in progress would
@@ -2097,6 +2131,7 @@ class RepoActions {
 
   /// Sets the commit under test aside as untestable.
   Future<void> skipBisect() async {
+    if (_blockedByBisectRun) return;
     final String? sha;
     try {
       sha = (await bisectState())?.currentSha;
@@ -2109,7 +2144,14 @@ class RepoActions {
   }
 
   /// Ends the bisect and returns to the branch it started from.
+  ///
+  /// Refused while a run is in flight, the quit dialog's Reset included. A
+  /// reset racing the run leaves the repository half-returned — refs gone from
+  /// under a process still writing them, HEAD moved out from under a checkout
+  /// — while refusing leaves the hunt exactly where it stands, which the next
+  /// launch can still read and reset cleanly.
   Future<void> resetBisect() async {
+    if (_blockedByBisectRun) return;
     final id = await _journalBegin('Bisect: reset');
     try {
       await _timed('Bisect reset', () => _writer.bisectReset());
@@ -2119,6 +2161,117 @@ class RepoActions {
       _toastErr('Bisect', e);
     }
     _refresh();
+  }
+
+  /// Whether an outcome counts as the run having done its job, for the
+  /// journal's purposes.
+  ///
+  /// Landing on the first bad commit is the obvious one. Exhaustion joins it:
+  /// every remaining candidate was skipped, so git stopped because the marks
+  /// ran out rather than because anything went wrong.
+  static bool _bisectRunSucceeded(BisectRunOutcome outcome) =>
+      outcome == BisectRunOutcome.finished ||
+      outcome == BisectRunOutcome.exhausted;
+
+  /// Hands the rest of the hunt to [command], which git runs over each
+  /// remaining candidate until it lands or gives up.
+  ///
+  /// Returns the outcome rather than toasting a generic success: a run ends in
+  /// several materially different ways and the caller decides what to say.
+  /// Null means no run was started at all, so there is nothing to report —
+  /// the refusal has already said why.
+  ///
+  /// Claims the repository's operation lane like every other write here. It
+  /// held [busyProvider] without checking it before, which let a second
+  /// operation start alongside the run and then clear the run's busy state on
+  /// its own way out, leaving the status bar idle over a command still going
+  /// and no Cancel left to stop it with.
+  Future<BisectRunOutcome?> runBisect(String command) async {
+    if (_blockedByRepoOp) return null;
+    // Re-asked here rather than trusted from whenever the hunt was opened: a
+    // tracked file edited since then makes the run report a false verdict, not
+    // merely an awkward message. The command tests the working tree, which
+    // carries the edit; git records the answer against the commit it checked
+    // out, which does not. The hunt then narrows on evidence about code that
+    // is in no commit at all and convicts whichever commit that lands on.
+    //
+    // Tracked files only, like the failure reading further down: a command's
+    // own scratch files never stop git checking the next commit out, so
+    // counting them would refuse ordinary work.
+    final bool dirty;
+    try {
+      dirty = await _trackedFilesDirty();
+    } catch (e) {
+      // Unknown is not clean, and there is no lane or journal entry to unwind
+      // because nothing has been claimed yet.
+      _toastErr('Bisect run', e);
+      return null;
+    }
+    if (dirty) {
+      _ref
+          .read(toastProvider.notifier)
+          .show(
+            'Bisect run',
+            description:
+                'Commit or stash your changes before handing the hunt to a '
+                'command: it would test your uncommitted edits and record the '
+                'verdict against the commit git checked out.',
+            kind: ToastKind.error,
+          );
+      return null;
+    }
+    final cancel = GitCancel();
+    _ref.read(bisectRunProvider(path).notifier).state = command;
+    // The status bar renders Cancel from this, so a stalled command can be
+    // given up on without a second affordance of our own.
+    _ref.read(busyProvider.notifier).state = BusyState(
+      'Bisect run',
+      onCancel: cancel.cancel,
+    );
+    final id = await _journalBegin('Bisect: run');
+    try {
+      final r = await _timed(
+        'Bisect run',
+        () => _writer.bisectRun(command, cancel: cancel),
+      );
+      final outcome = classifyBisectRun(
+        r.exitCode,
+        r.err,
+        // Only asked on failure: a clean run has nothing to explain, and this
+        // costs a subprocess.
+        treeDirty: r.ok ? false : await _trackedFilesDirty(),
+      );
+      // A run git could not carry to an answer left the bisect standing
+      // wherever it had reached, which is not an operation that completed.
+      // Exhaustion is the one non-zero ending that is no fault: git narrowed
+      // as far as the recorded marks allow and said so.
+      if (_bisectRunSucceeded(outcome)) {
+        await _journalDone(id);
+      } else {
+        await _journalFail(id);
+      }
+      // Only the failure nobody could name is reported here. Every other
+      // outcome is explained in the bar's own words, and the same complaint
+      // in two places at once reads as two separate problems.
+      if (outcome == BisectRunOutcome.failed) {
+        // Wrapped so the shared handler applies the usual preference for
+        // git's own stderr over any message of ours — for an unrecognised
+        // failure git's wording is all there is to go on.
+        _toastErr('Bisect run', GitException('git bisect run', r));
+      }
+      return outcome;
+    } on GitCancelledException {
+      await _journalFail(id);
+      return BisectRunOutcome.cancelled;
+    } catch (e) {
+      await _journalFail(id);
+      _toastErr('Bisect run', e);
+      return BisectRunOutcome.failed;
+    } finally {
+      _ref.read(bisectRunProvider(path).notifier).state = null;
+      _ref.read(busyProvider.notifier).state = null;
+      _refresh();
+    }
   }
 
   /// The verdict trail git recorded for the session in progress, or null when

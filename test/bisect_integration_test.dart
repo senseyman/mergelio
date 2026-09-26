@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/domain/git/bisect.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
+import 'package:mergelio/domain/git/git_writer.dart';
+import 'package:mergelio/state/feedback.dart';
 import 'package:mergelio/state/repo_actions.dart';
 
 /// Integration tests: drive a real temporary repository through the system
@@ -347,4 +349,441 @@ void main() {
 
     await g(repo.path, ['bisect', 'reset']);
   });
+
+  // --- bisect run ------------------------------------------------------------
+
+  // A run hands the rest of the hunt to a command, and how it ended has to be
+  // read back out of git's exit code and stderr. Every wording the classifier
+  // keys on is pinned below against a real run: a message git prints on stdout,
+  // or stops printing, is invisible to a classifier reading stderr.
+
+  /// A hunt opened on [repo] with the newest commit bad and the oldest good,
+  /// ready for a run to finish. Returns the actions it was opened through.
+  Future<RepoActions> openHunt(
+    ProviderContainer container,
+    Directory repo,
+  ) async {
+    final actions = actionsFor(container, repo.path);
+    final shas = await shasOldestFirst(repo.path);
+    await actions.startBisect(shas.last);
+    await actions.markBisect(shas.first, BisectKind.good);
+    return actions;
+  }
+
+  ProviderContainer containerForTest() {
+    final container = ProviderContainer(
+      overrides: [gitServiceProvider.overrideWithValue(svc)],
+    );
+    // Disposing the container disposes RepoActions with it, which cancels the
+    // refresh timer a run leaves behind. Without that the timer outlives the
+    // test and fires against a disposed container.
+    addTearDown(container.dispose);
+    return container;
+  }
+
+  test('a run over a known break lands on the first bad commit', () async {
+    final repo = await makeRepo(commits: 8, breakAt: 5);
+    addTearDown(() => repo.delete(recursive: true));
+    final actions = await openHunt(containerForTest(), repo);
+
+    // Exit 0 says good and exit 1 says bad, decided by reading the tree git
+    // has just checked out — the signal a person bisecting by hand uses.
+    final outcome = await actions.runBisect('test ! -f broken.marker');
+
+    expect(outcome, BisectRunOutcome.finished);
+    final state = await actions.bisectState();
+    expect(state, isNotNull);
+    expect(state!.finished, isTrue);
+    // Commit 5 (1-based) is the one that introduced broken.marker, so index
+    // 4 of the oldest-first list is the true first bad commit.
+    expect(state.firstBad, (await shasOldestFirst(repo.path))[4]);
+
+    await actions.resetBisect();
+  }, timeout: const Timeout(Duration(seconds: 120)));
+
+  test('a command git cannot run is not mistaken for a verdict', () async {
+    final repo = await makeRepo(commits: 6, breakAt: 4);
+    addTearDown(() => repo.delete(recursive: true));
+    final actions = await openHunt(containerForTest(), repo);
+
+    final outcome = await actions.runBisect('./no-such-script.sh');
+
+    expect(outcome, BisectRunOutcome.commandUnrunnable);
+    // The shell exits 127 for a command it cannot find, which sits inside
+    // the range git otherwise reads as a verdict. Taken as one it would
+    // convict a commit the command never actually tested, so nothing at all
+    // must have been decided here.
+    final state = await actions.bisectState();
+    expect(state, isNotNull);
+    expect(state!.firstBad, isNull);
+
+    await actions.resetBisect();
+  }, timeout: const Timeout(Duration(seconds: 120)));
+
+  test(
+    'a command that modifies a tracked file reports the dirtied tree',
+    () async {
+      final repo = await makeRepo(commits: 8, breakAt: 5);
+      addTearDown(() => repo.delete(recursive: true));
+      final actions = await openHunt(containerForTest(), repo);
+
+      final outcome = await actions.runBisect(
+        'echo dirt >> f.txt; test ! -f broken.marker',
+      );
+
+      // git closes this with `bisect run failed: 'git bisect good' exited with
+      // error code -1`, which names neither the command nor the change that
+      // stopped the checkout — which is why the tree is asked about separately
+      // instead of being read out of git's words.
+      expect(outcome, BisectRunOutcome.treeDirtied);
+      expect(
+        await out(repo.path, ['status', '--porcelain', '--untracked-files=no']),
+        isNotEmpty,
+      );
+      final state = await actions.bisectState();
+      expect(state, isNotNull);
+      expect(state!.firstBad, isNull);
+
+      await g(repo.path, ['checkout', '--', '.']);
+      await actions.resetBisect();
+    },
+    timeout: const Timeout(Duration(seconds: 120)),
+  );
+
+  test('a run that can test nothing reports an exhausted hunt', () async {
+    final repo = await makeRepo(commits: 8, breakAt: 5);
+    addTearDown(() => repo.delete(recursive: true));
+    final actions = await openHunt(containerForTest(), repo);
+
+    // 125 is git's "cannot tell" code, so every candidate is skipped in turn
+    // until the hunt has nothing left to try.
+    final outcome = await actions.runBisect('exit 125');
+
+    expect(outcome, BisectRunOutcome.exhausted);
+    final state = await actions.bisectState();
+    expect(state, isNotNull);
+    expect(state!.firstBad, isNull);
+
+    await actions.resetBisect();
+  }, timeout: const Timeout(Duration(seconds: 120)));
+
+  test('a command that writes only untracked files still finishes', () async {
+    final repo = await makeRepo(commits: 8, breakAt: 5);
+    addTearDown(() => repo.delete(recursive: true));
+    final actions = await openHunt(containerForTest(), repo);
+
+    // A scratch file of its own is the normal way a test command works. git
+    // checks the next commit out straight through it, so the hunt lands.
+    final outcome = await actions.runBisect(
+      'echo x >> scratch.log; test ! -f broken.marker',
+    );
+
+    expect(outcome, BisectRunOutcome.finished);
+    expect(
+      (await actions.bisectState())!.firstBad,
+      (await shasOldestFirst(repo.path))[4],
+    );
+    expect(
+      await out(repo.path, ['status', '--porcelain']),
+      contains('scratch.log'),
+    );
+
+    await actions.resetBisect();
+  }, timeout: const Timeout(Duration(seconds: 120)));
+
+  test('a scratch file left behind does not hide how the run ended', () async {
+    final repo = await makeRepo(commits: 8, breakAt: 5);
+    addTearDown(() => repo.delete(recursive: true));
+    final actions = await openHunt(containerForTest(), repo);
+
+    final outcome = await actions.runBisect('echo x >> scratch.log; exit 125');
+
+    // The run really did leave the tree untidy, but with a file git never
+    // had to check out over. Reported as a dirtied tree it would tell the
+    // user their command modified tracked files, which it did not, and hide
+    // the only thing they can act on: every candidate was skipped.
+    expect(outcome, BisectRunOutcome.exhausted);
+    expect(
+      await out(repo.path, ['status', '--porcelain']),
+      contains('scratch.log'),
+    );
+    expect(
+      await out(repo.path, ['status', '--porcelain', '--untracked-files=no']),
+      isEmpty,
+    );
+
+    await actions.resetBisect();
+  }, timeout: const Timeout(Duration(seconds: 120)));
+
+  test(
+    'the words the classifier keys on are the words git puts on stderr',
+    () async {
+      final repo = await makeRepo(commits: 8, breakAt: 5);
+      addTearDown(() => repo.delete(recursive: true));
+      final shas = await shasOldestFirst(repo.path);
+
+      Future<void> open() async {
+        await g(repo.path, ['bisect', 'start']);
+        await g(repo.path, ['bisect', 'bad', shas.last]);
+        await g(repo.path, ['bisect', 'good', shas.first]);
+      }
+
+      // Exhaustion. git announces "We cannot bisect more!" on stdout, where a
+      // classifier reading stderr never sees it; this is the line it does get.
+      await open();
+      final skipped = await svc.run(
+        bisectRunArgs('exit 125'),
+        repoPath: repo.path,
+        environment: bisectRunMessageEnv,
+      );
+      expect(skipped.ok, isFalse);
+      expect(skipped.err, contains('bisect run cannot continue any more'));
+      expect(
+        classifyBisectRun(skipped.exitCode, skipped.err, treeDirty: false),
+        BisectRunOutcome.exhausted,
+      );
+      await g(repo.path, ['bisect', 'reset']);
+
+      // A command that cannot be executed at all.
+      await open();
+      final missing = await svc.run(
+        bisectRunArgs('./no-such-script.sh'),
+        repoPath: repo.path,
+        environment: bisectRunMessageEnv,
+      );
+      expect(missing.ok, isFalse);
+      expect(missing.err, contains('bogus exit code'));
+      expect(
+        classifyBisectRun(missing.exitCode, missing.err, treeDirty: false),
+        BisectRunOutcome.commandUnrunnable,
+      );
+      await g(repo.path, ['bisect', 'reset']);
+    },
+    timeout: const Timeout(Duration(seconds: 120)),
+  );
+
+  // git translates the endings a run reports. The app ships Ukrainian, so a
+  // classifier that only recognises the English wording mislabels a real
+  // user's run. Measured here against the system git rather than argued
+  // about: the same two runs go through twice, once with the user's locale
+  // left in charge and once with what production sends.
+  test('a run classifies the same under a non-English locale', () async {
+    const ukrainian = {'LC_ALL': 'uk_UA.UTF-8', 'LANGUAGE': 'uk'};
+
+    final repo = await makeRepo(commits: 8, breakAt: 5);
+    addTearDown(() => repo.delete(recursive: true));
+    final shas = await shasOldestFirst(repo.path);
+
+    Future<void> open() async {
+      await g(repo.path, ['bisect', 'start']);
+      await g(repo.path, ['bisect', 'bad', shas.last]);
+      await g(repo.path, ['bisect', 'good', shas.first]);
+    }
+
+    Future<GitResult> runUnder(
+      String command,
+      Map<String, String> environment,
+    ) async {
+      await open();
+      final r = await svc.run(
+        bisectRunArgs(command),
+        repoPath: repo.path,
+        environment: environment,
+      );
+      await g(repo.path, ['bisect', 'reset']);
+      return r;
+    }
+
+    // First: prove this machine really does have git's Ukrainian
+    // translation. Without that check the assertions below would pass on an
+    // English-only runner while proving nothing at all.
+    final translated = await runUnder('./no-such-script.sh', ukrainian);
+    if (translated.err.contains('bogus exit code')) {
+      markTestSkipped(
+        'git here has no Ukrainian translation, so a locale-dependent '
+        'classifier cannot be caught out on this machine',
+      );
+      return;
+    }
+    expect(
+      classifyBisectRun(translated.exitCode, translated.err, treeDirty: false),
+      BisectRunOutcome.failed,
+      reason:
+          'the untranslated reading really is wrong under uk_UA — this '
+          'is the defect the override below exists to close',
+    );
+
+    // Now with what production sends: the user's locale is still uk_UA, and
+    // git answers in English anyway.
+    final pinned = await runUnder('./no-such-script.sh', {
+      ...ukrainian,
+      ...bisectRunMessageEnv,
+    });
+    expect(pinned.err, contains('bogus exit code'));
+    expect(
+      classifyBisectRun(pinned.exitCode, pinned.err, treeDirty: false),
+      BisectRunOutcome.commandUnrunnable,
+    );
+
+    // Exhaustion is read off the exit code, so it survives the Ukrainian
+    // locale with no override at all.
+    final skipped = await runUnder('exit 125', ukrainian);
+    expect(
+      skipped.err,
+      isNot(contains('bisect run cannot continue any more')),
+      reason: 'the Ukrainian locale must really be in force here',
+    );
+    expect(
+      classifyBisectRun(skipped.exitCode, skipped.err, treeDirty: false),
+      BisectRunOutcome.exhausted,
+    );
+  }, timeout: const Timeout(Duration(seconds: 180)));
+
+  // End to end through the production path, for a user whose whole
+  // environment is Ukrainian. Every git command the actions run gets the
+  // Ukrainian locale underneath it; only what `bisectRun` sends of its own
+  // sits on top, so this fails unless those overrides really do win.
+  test('a run through the actions survives a Ukrainian environment', () async {
+    final repo = await makeRepo(commits: 6, breakAt: 4);
+    addTearDown(() => repo.delete(recursive: true));
+
+    final ukrainian = _LocalisedGit(svc, const {
+      'LC_ALL': 'uk_UA.UTF-8',
+      'LANGUAGE': 'uk',
+    });
+    final container = ProviderContainer(
+      overrides: [gitServiceProvider.overrideWithValue(ukrainian)],
+    );
+    addTearDown(container.dispose);
+
+    // `git bisect bad` outside a bisect is git's shortest translated
+    // complaint. No Cyrillic in it means this machine has no Ukrainian
+    // messages, so nothing here could catch out a classifier that needs
+    // English — say so rather than pass on a vacuous assertion.
+    final probe = await ukrainian.run(['bisect', 'bad'], repoPath: repo.path);
+    if (!_cyrillic.hasMatch(probe.err)) {
+      markTestSkipped('git here has no Ukrainian translation');
+      return;
+    }
+
+    final actions = container.read(repoActionsProvider(repo.path));
+    final shas = await shasOldestFirst(repo.path);
+    await actions.startBisect(shas.last);
+    await actions.markBisect(shas.first, BisectKind.good);
+
+    final outcome = await actions.runBisect('./no-such-script.sh');
+
+    expect(outcome, BisectRunOutcome.commandUnrunnable);
+    await actions.resetBisect();
+  }, timeout: const Timeout(Duration(seconds: 180)));
+  // Cancelling kills git and only git: anything git spawned in turn survives
+  // it, which is documented on GitCancel and left as it is on purpose. What
+  // was never tested is what those survivors do to the wait: they hold the
+  // write end of git's stdout and stderr, so a join on that output never
+  // completes and the cancel appears to do nothing at all.
+  //
+  // Measured before the fix: `runBisect` had not returned twelve seconds after
+  // the user pressed Cancel, with git already dead and its command still
+  // running.
+  test(
+    'cancelling a run whose command outlives git still returns',
+    () async {
+      // Distinctive enough to find in the process table, and killed on
+      // tear-down so nothing is left behind.
+      const command = 'sleep 137';
+      Future<int> survivors() async {
+        final r = await Process.run('sh', [
+          '-c',
+          'ps -ax -o command | grep -c "^$command\$" || true',
+        ]);
+        return int.tryParse('${r.stdout}'.trim()) ?? 0;
+      }
+
+      addTearDown(() => Process.run('pkill', ['-f', command]));
+
+      final repo = await makeRepo(commits: 8, breakAt: 5);
+      addTearDown(() => repo.delete(recursive: true));
+      final container = containerForTest();
+      final actions = await openHunt(container, repo);
+
+      final run = actions.runBisect(command);
+
+      // Waits for git to have actually spawned the command, rather than
+      // guessing at a delay: cancelling before the child exists would kill
+      // git while nothing held its pipes, which is not the case under test.
+      for (var i = 0; i < 100 && await survivors() == 0; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      }
+      expect(
+        await survivors(),
+        greaterThan(0),
+        reason: 'git never got as far as running the command',
+      );
+
+      // The app's own Cancel, reached the way the status bar reaches it.
+      container.read(busyProvider)!.onCancel!();
+
+      final outcome = await run.timeout(
+        const Duration(seconds: 10),
+        onTimeout: () => fail(
+          'runBisect never returned after the cancel: the command git left '
+          'behind still holds the output pipes open',
+        ),
+      );
+
+      expect(outcome, BisectRunOutcome.cancelled);
+      // The premise: the survivor really did outlive git, so the wait this
+      // returned from was a wait that could never have ended on its own.
+      expect(
+        await survivors(),
+        greaterThan(0),
+        reason:
+            'without a survivor holding the pipes there was nothing to '
+            'stop waiting for',
+      );
+      // Marks already recorded stay: abandoning the automation is not
+      // abandoning the hunt.
+      expect(await actions.bisectState(), isNotNull);
+    },
+    timeout: const Timeout(Duration(seconds: 120)),
+    skip: Platform.isWindows ? 'no `sleep`/`ps` on Windows' : false,
+  );
+}
+
+final _cyrillic = RegExp(r'[\u0400-\u04FF]');
+
+/// Every command this wraps runs under [locale], unless the caller asked for
+/// an override of its own — which then wins, key by key, exactly as
+/// `Process.start` merges over the inherited environment.
+///
+/// Stands in for a user whose shell is not English. No test can change its own
+/// process's environment, and that is the only other place the locale could
+/// come from.
+class _LocalisedGit implements GitService {
+  final GitService inner;
+  final Map<String, String> locale;
+  _LocalisedGit(this.inner, this.locale);
+
+  @override
+  Future<GitResult> run(
+    List<String> args, {
+    String? repoPath,
+    Duration? timeout,
+    Map<String, String>? environment,
+    GitCancel? cancel,
+    String? stdin,
+  }) => inner.run(
+    args,
+    repoPath: repoPath,
+    timeout: timeout,
+    environment: {...locale, ...?environment},
+    cancel: cancel,
+    stdin: stdin,
+  );
+
+  @override
+  Future<String> version() => inner.version();
+
+  @override
+  Future<bool> isRepository(String path) => inner.isRepository(path);
 }

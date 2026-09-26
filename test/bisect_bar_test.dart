@@ -50,6 +50,14 @@ BisectState _finishedOn(String firstBad) => _state(
   firstBad: firstBad,
 );
 
+/// A bad mark with no good one yet: git has no range to halve, so no run
+/// can be offered.
+BisectState _needsBad() =>
+    _state(marks: const [BisectMark('aaa1111', BisectKind.bad)]);
+
+/// A hunt that has already landed on its answer.
+BisectState _finished() => _finishedOn('aaa1111');
+
 /// Never runs: the bar's log tests script the answer at the actions layer,
 /// so the writer underneath it only has to exist.
 class _IdleGit implements GitService {
@@ -86,12 +94,44 @@ class _LogActions extends RepoActions {
   }
 }
 
+/// Actions whose bisect run outcome is decided by the test rather than by a
+/// repository: [outcome] is handed back for whatever command the dialog
+/// collects, since no command is really executed here.
+class _RunActions extends RepoActions {
+  final BisectRunOutcome outcome;
+
+  /// Every verdict the bar handed down, so a test can check the button did its
+  /// own job as well as clearing the explanation beside it.
+  final verdicts = <String>[];
+
+  _RunActions(super.ref, super.path, super.writer, {required this.outcome});
+
+  @override
+  Future<BisectRunOutcome?> runBisect(String command) async => outcome;
+
+  // Recorded rather than carried out: the real ones read state off disk and
+  // toast what they find, and a toast's own dismissal timer outlives
+  // `pumpAndSettle`.
+  @override
+  Future<void> markBisect(String sha, BisectKind kind) async =>
+      verdicts.add('${kind.name}:$sha');
+
+  @override
+  Future<void> skipBisect() async => verdicts.add('skip');
+}
+
 Future<void> _pump(
   WidgetTester tester,
   BisectState? state, {
   void Function(String sha)? onJumpToCommit,
   List<Commit> commits = const [],
   ({String? text})? log,
+  String? runningCommand,
+
+  /// A run in flight in a *different* repository, so a bar can be shown that
+  /// nothing of its own is running in.
+  String? otherRepoRunningCommand,
+  BisectRunOutcome? lastOutcome,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
@@ -102,6 +142,13 @@ Future<void> _pump(
         // the filesystem would never resolve under a widget test.
         repoDataProvider('/r')
             .overrideWith((ref) => RepoData(commits: commits)),
+        // A command in flight: the same provider the real running row
+        // watches to hide its verdict buttons.
+        if (runningCommand != null)
+          bisectRunProvider('/r').overrideWith((ref) => runningCommand),
+        if (otherRepoRunningCommand != null)
+          bisectRunProvider('/other')
+              .overrideWith((ref) => otherRepoRunningCommand),
         // Only the tests that open the log panel script it; the rest keep the
         // real actions object the rest of the bar is wired to.
         if (log != null)
@@ -111,6 +158,15 @@ Future<void> _pump(
               '/r',
               GitWriter(_IdleGit(), '/r'),
               log: log.text,
+            ),
+          ),
+        if (lastOutcome != null)
+          repoActionsProvider('/r').overrideWith(
+            (ref) => _RunActions(
+              ref,
+              '/r',
+              GitWriter(_IdleGit(), '/r'),
+              outcome: lastOutcome,
             ),
           ),
       ],
@@ -128,6 +184,17 @@ Future<void> _pump(
     ),
   );
   await tester.pumpAndSettle();
+  if (lastOutcome != null) {
+    // Drives a real run through the dialog rather than injecting the
+    // outcome directly, so this exercises the same path a person does:
+    // open the dialog, type a command, submit it.
+    await tester.tap(find.text('Run a command…'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'x');
+    await tester.pump();
+    await tester.tap(find.text('Run'));
+    await tester.pumpAndSettle();
+  }
 }
 
 /// The bisect state a test can move under a bar that stays mounted, so a hunt
@@ -139,11 +206,24 @@ Future<ProviderContainer> _pumpLive(
   WidgetTester tester, {
   required BisectState? initial,
   List<Commit> commits = const [],
+
+  /// Scripts what a run started from this bar comes back with, so a hunt can
+  /// be moved underneath a bar that has already reported one.
+  BisectRunOutcome? outcome,
 }) async {
   final container = ProviderContainer(
     overrides: [
       bisectStateProvider('/r').overrideWith((ref) => ref.watch(_driver)),
       repoDataProvider('/r').overrideWith((ref) => RepoData(commits: commits)),
+      if (outcome != null)
+        repoActionsProvider('/r').overrideWith(
+          (ref) => _RunActions(
+            ref,
+            '/r',
+            GitWriter(_IdleGit(), '/r'),
+            outcome: outcome,
+          ),
+        ),
     ],
   );
   addTearDown(container.dispose);
@@ -708,5 +788,174 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Run is offered only once the range has both ends', (
+    tester,
+  ) async {
+    // running state: a bad mark and a good mark
+    await _pump(tester, _running());
+    expect(find.text('Run a command…'), findsOneWidget);
+  });
+
+  testWidgets('Run is not offered before a range exists', (tester) async {
+    await _pump(tester, _needsBad());
+    expect(find.text('Run a command…'), findsNothing);
+  });
+
+  testWidgets('Run is not offered once the hunt has landed', (tester) async {
+    await _pump(tester, _finished());
+    expect(find.text('Run a command…'), findsNothing);
+  });
+
+  testWidgets('the verdict buttons go away while a run is executing', (
+    tester,
+  ) async {
+    // A click on Good mid-run would race git's own marking.
+    await _pump(tester, _running(), runningCommand: './t.sh');
+    expect(find.text('Good'), findsNothing);
+    expect(find.text('Bad'), findsNothing);
+    expect(find.textContaining('./t.sh'), findsOneWidget);
+  });
+
+  testWidgets('Reset is not clickable while a run is executing', (
+    tester,
+  ) async {
+    // `git bisect reset` mid-run puts two git processes on the same
+    // .git/BISECT_* state and throws away the hunt the run is still adding
+    // to. The "Running …" line right beside it says why the button is out.
+    await _pump(tester, _running(), runningCommand: './t.sh');
+    final reset = tester.widget<TextButton>(
+      find.widgetWithText(TextButton, 'Reset bisect'),
+    );
+    expect(reset.onPressed, isNull);
+  });
+
+  testWidgets('a run in another repository does not take over this bar', (
+    tester,
+  ) async {
+    // Bisect state is per repository; the run has to be too. Shared, the
+    // second tab's bar names a command that repository is not running and
+    // loses the verdict buttons it does need.
+    await _pump(tester, _running(), otherRepoRunningCommand: './elsewhere.sh');
+
+    expect(find.textContaining('./elsewhere.sh'), findsNothing);
+    expect(find.text('Good'), findsOneWidget);
+    expect(find.text('Bad'), findsOneWidget);
+  });
+
+  testWidgets('Reset is clickable again once the run is over', (tester) async {
+    await _pump(tester, _running());
+    final reset = tester.widget<TextButton>(
+      find.widgetWithText(TextButton, 'Reset bisect'),
+    );
+    expect(reset.onPressed, isNotNull);
+  });
+
+  testWidgets('a failed run explains itself rather than relaying git', (
+    tester,
+  ) async {
+    await _pump(tester, _running(), lastOutcome: BisectRunOutcome.treeDirtied);
+    expect(find.textContaining('modified tracked files'), findsOneWidget);
+  });
+
+  // How a run ended explains the step the hunt is standing on. Remembered with
+  // no lifetime it outlives that step, and the bar is not rebuilt from scratch
+  // by a reset — the widget stays mounted and merely renders nothing — so an
+  // explanation kept past one comes back on a hunt it never happened in.
+  group('a run explanation does not outlive what it explains', () {
+    const exhausted =
+        'Every remaining commit was skipped, so git cannot narrow this '
+        'further.';
+    const cancelled = 'Run cancelled. The marks recorded so far are kept.';
+
+    /// Opens the run dialog, submits a command and lets the scripted outcome
+    /// come back — the same path a person takes.
+    Future<void> runACommand(WidgetTester tester) async {
+      await tester.tap(find.text('Run a command…'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'x');
+      await tester.pump();
+      await tester.tap(find.text('Run'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('it is gone from the next hunt', (tester) async {
+      final c = await _pumpLive(
+        tester,
+        initial: _running(),
+        outcome: BisectRunOutcome.cancelled,
+      );
+      await runACommand(tester);
+      expect(find.text(cancelled), findsOneWidget);
+
+      // Reset: git has no bisect any more and the bar renders nothing, but
+      // the widget is still mounted.
+      c.read(_driver.notifier).state = null;
+      await tester.pumpAndSettle();
+      // A fresh hunt over the same repository, from the same bar.
+      c.read(_driver.notifier).state = _running();
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(cancelled),
+        findsNothing,
+        reason: 'the new hunt has had no run, so it has nothing to explain',
+      );
+    });
+
+    testWidgets('it is gone once the user marks a verdict', (tester) async {
+      final c = await _pumpLive(
+        tester,
+        initial: _running(),
+        outcome: BisectRunOutcome.exhausted,
+      );
+      await runACommand(tester);
+      expect(find.text(exhausted), findsOneWidget);
+
+      await tester.tap(find.text('Good'));
+      await tester.pumpAndSettle();
+
+      expect(find.text(exhausted), findsNothing);
+      // Still recorded: forgetting the explanation must not cost the verdict.
+      final actions = c.read(repoActionsProvider('/r')) as _RunActions;
+      expect(actions.verdicts, ['good:head1111']);
+    });
+
+    testWidgets('it is gone once the user skips', (tester) async {
+      final c = await _pumpLive(
+        tester,
+        initial: _running(),
+        outcome: BisectRunOutcome.exhausted,
+      );
+      await runACommand(tester);
+
+      await tester.tap(find.text('Skip'));
+      await tester.pumpAndSettle();
+
+      expect(find.text(exhausted), findsNothing);
+      final actions = c.read(repoActionsProvider('/r')) as _RunActions;
+      expect(actions.verdicts, ['skip']);
+    });
+
+    testWidgets('a plain refresh of the same hunt leaves it alone', (
+      tester,
+    ) async {
+      final c = await _pumpLive(
+        tester,
+        initial: _running(),
+        outcome: BisectRunOutcome.exhausted,
+      );
+      await runACommand(tester);
+      expect(find.text(exhausted), findsOneWidget);
+
+      // The bar rebuilds on every repository refresh, with a fresh state
+      // object carrying the same hunt. Dropping the explanation on that would
+      // make it flicker away for no reason the user can see.
+      c.read(_driver.notifier).state = _running();
+      await tester.pumpAndSettle();
+
+      expect(find.text(exhausted), findsOneWidget);
+    });
   });
 }

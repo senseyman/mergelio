@@ -54,6 +54,22 @@ class GitCancel {
 
   bool get isCancelled => _cancelled;
 
+  /// Kills git itself, and only git.
+  ///
+  /// Known limitation, and it bites `bisect run` hardest: anything git had
+  /// spawned in turn — the shell, and the test command under it — outlives
+  /// this, so a cancelled run's suite keeps going and can keep writing into
+  /// the repository. Measured: the grandchild survives.
+  ///
+  /// Signalling the whole process group would catch them, and is not
+  /// available here. A child started this way shares the app's own process
+  /// group (measured: identical pgid), so a group signal would take Mergelio
+  /// down with it. Dart offers no way to put the child in a group of its own
+  /// while keeping both piped stdio and an exit code, which every caller of
+  /// [GitService.run] is built on, and there is no `setsid` binary to borrow
+  /// on macOS. Left as it is deliberately: this handle is shared with fetch,
+  /// pull and clone, and a group kill that reaches the app is far worse than
+  /// a stray test process.
   void cancel() {
     _cancelled = true;
     _proc?.kill(ProcessSignal.sigkill);
@@ -65,6 +81,38 @@ class GitCancel {
     _proc = proc;
     if (_cancelled) proc.kill(ProcessSignal.sigkill);
   }
+}
+
+/// Stands in for a `git bisect run` command wherever one would otherwise be
+/// written down.
+const _redactedCommand = '<command redacted>';
+
+/// The flags a shell takes a command string after. Only these two mark the
+/// argument behind them as the command rather than as part of the invocation.
+const _shellCommandFlags = {'-c', '/c'};
+
+/// [args] rendered for a log line or an error message, with a `git bisect run`
+/// command left out of it.
+///
+/// A run's command is the user's own shell line — `TOKEN=… ./deploy-test.sh`
+/// is an ordinary thing to bisect with — and the app log is a file that
+/// outlives the session. The user types the command and sees it before it
+/// runs; nothing about that leads them to expect it copied to disk, so it is
+/// not copied there.
+///
+/// Everything else is left whole: which command ran is how a failure gets
+/// diagnosed, and redacting more would cost the log its purpose. What stays
+/// for a run is that a run happened and which shell carried it, both of which
+/// a failed run is read against; how long it took comes from the line around
+/// this. The shell and its flag are kept only when they are recognisably
+/// that, so an invocation shaped some other way has everything past `run`
+/// treated as the command.
+String redactedGitArgs(List<String> args) {
+  if (args.length < 3 || args[0] != 'bisect' || args[1] != 'run') {
+    return args.join(' ');
+  }
+  final keep = args.length > 3 && _shellCommandFlags.contains(args[3]) ? 4 : 2;
+  return [...args.take(keep), _redactedCommand].join(' ');
 }
 
 /// SSH options appended to every command that talks to a remote. A host that
@@ -249,7 +297,7 @@ class SystemGitService implements GitService {
       // gone is the repository's problem and git is blameless, so only the
       // other case earns the install hint.
       final cwdIsGone = repoPath != null && !Directory(repoPath).existsSync();
-      final detail = 'failed to run git ${args.join(' ')}: ${e.message}';
+      final detail = 'failed to run git ${redactedGitArgs(args)}: ${e.message}';
       if (cwdIsGone) throw GitException(detail);
       throw GitUnavailableException(
         '${missingGitMessage(Platform.operatingSystem)} '
@@ -299,13 +347,23 @@ class SystemGitService implements GitService {
 
     try {
       final exitCode = await proc.exitCode.timeout(timeout ?? defaultTimeout);
+      // Checked before the output is waited for, not after. A killed child
+      // exits non-zero with nothing useful to say, and anything it had spawned
+      // in turn survives the kill still holding the write end of these pipes —
+      // so a join on the output can outlast the process by as long as that
+      // survivor lives. Measured: a cancelled `bisect run` whose command slept
+      // on left the caller waiting indefinitely with git already dead, and
+      // Cancel looked like it had done nothing at all. Abandoning the futures
+      // here is safe for the same reason the timeout path below abandons them:
+      // a listener is attached above, so nothing surfaces later as an
+      // unhandled error. The abandonment is reported rather than a failure the
+      // user did not cause.
+      if (cancel?.isCancelled ?? false) {
+        _record(args, repoPath, started, inFlight);
+        throw GitCancelledException('git ${redactedGitArgs(args)} cancelled');
+      }
       final output = await Future.wait([stdoutFuture, stderrFuture]);
       _record(args, repoPath, started, inFlight, bytes: output[0].length);
-      // A killed child exits non-zero with nothing useful to say; report the
-      // abandonment rather than a failure the user did not cause.
-      if (cancel?.isCancelled ?? false) {
-        throw GitCancelledException('git ${args.join(' ')} cancelled');
-      }
       final result = GitResult(exitCode, output[0], output[1]);
       // Deliberately carries no result: handlers show `result.err` in
       // preference to the message, and for a broken toolchain the shim's own
@@ -324,7 +382,7 @@ class SystemGitService implements GitService {
       final limit = timeout ?? defaultTimeout;
       _record(args, repoPath, started, inFlight, timedOut: true);
       throw GitException(
-        'git ${args.join(' ')} timed out after ${limit.inSeconds}s',
+        'git ${redactedGitArgs(args)} timed out after ${limit.inSeconds}s',
       );
     }
   }
@@ -343,7 +401,7 @@ class SystemGitService implements GitService {
     final where = repoPath == null ? '' : ' in $repoPath';
     final size = bytes == null ? '' : ', ${bytes}B';
     final message =
-        '${_binary.split('/').last} ${args.join(' ')}$where — '
+        '${_binary.split('/').last} ${redactedGitArgs(args)}$where — '
         '${elapsed.inMilliseconds}ms, $inFlight in flight$size'
         '${timedOut ? ', TIMED OUT' : ''}';
     final log = logger ?? appLog;

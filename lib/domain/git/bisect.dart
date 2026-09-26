@@ -220,3 +220,67 @@ class BisectState {
     for (final m in marks) m.sha: m.kind,
   };
 }
+
+/// How a `git bisect run` ended.
+///
+/// [cancelled] is never produced by [classifyBisectRun] — stopping a run
+/// throws before any result exists, so the caller sets it from its own catch.
+/// It lives here because the UI has to render it.
+enum BisectRunOutcome {
+  finished,
+  exhausted,
+  commandUnrunnable,
+  treeDirtied,
+  cancelled,
+  failed,
+}
+
+/// The exit code `git bisect run` gives when it stopped because every commit
+/// still in the range is skip-marked.
+///
+/// git's own `BISECT_ONLY_SKIPPED_LEFT`, reported as its absolute value.
+/// Measured against git 2.55.0 over every failure the run can produce: an
+/// unrunnable command, a dirtied tree, a missing hunt and a missing command
+/// all came back 1, a command exiting out of range came back 128 or 56, and
+/// nothing but exhaustion came back 2. Reading it is what keeps this outcome
+/// independent of the language git is speaking.
+const _bisectOnlySkippedLeft = 2;
+
+/// Reads git's exit code and stderr, plus whether the command left the working
+/// tree dirty, into one named outcome.
+///
+/// Never depends on git's language for an ending it can tell from a signal
+/// that has no language: git translates its diagnostics, and this app ships
+/// Ukrainian, so a reading built on English sentences would silently mislabel
+/// every run a non-English user starts. Success, a dirtied tree and exhaustion
+/// are all decided without reading a word.
+///
+/// Only "the command could not be executed" has no such signal — git says so
+/// in prose and nowhere else — which is why the caller pins git's message
+/// language for the invocation (`bisectRunMessageEnv`) before that match is
+/// reached. Anything still unrecognised is reported as a plain failure in
+/// git's own words rather than guessed at.
+BisectRunOutcome classifyBisectRun(
+  int exitCode,
+  String stderr, {
+  required bool treeDirty,
+}) {
+  if (exitCode == 0) return BisectRunOutcome.finished;
+  // Checked first: git closes this one by blaming its own `bisect good` for an
+  // error code of -1. A refused checkout above it may name the file, but
+  // nothing git says connects either to the command that ran.
+  if (treeDirty) return BisectRunOutcome.treeDirtied;
+  // git announces the exhaustion itself ("We cannot bisect more!") on stdout,
+  // where a reading of stderr never sees it, and what it does put on stderr is
+  // translated. The exit code says the same thing in every locale; the
+  // sentence is kept beside it so a git that changed the code would still be
+  // understood.
+  if (exitCode == _bisectOnlySkippedLeft ||
+      stderr.contains('bisect run cannot continue any more')) {
+    return BisectRunOutcome.exhausted;
+  }
+  if (stderr.contains('bogus exit code')) {
+    return BisectRunOutcome.commandUnrunnable;
+  }
+  return BisectRunOutcome.failed;
+}

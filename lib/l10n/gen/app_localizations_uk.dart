@@ -2552,4 +2552,44 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get bisectUnreadable => 'Не вдалося прочитати стан бісекції';
+
+  @override
+  String get bisectRun => 'Запустити команду…';
+
+  @override
+  String get bisectRunTitle => 'Запустити команду для бісекції';
+
+  @override
+  String get bisectRunHint => 'Команда для тестування кожного коміта';
+
+  @override
+  String get bisectRunWillExecute => 'Буде виконано:';
+
+  @override
+  String get bisectRunTreeWarning =>
+      'Команда, яка змінює відслідковувані файли, зламає запуск.';
+
+  @override
+  String get bisectRunStart => 'Запустити';
+
+  @override
+  String bisectRunning(String command) {
+    return 'Виконання $command';
+  }
+
+  @override
+  String get bisectRunExhausted =>
+      'Усі коміти, що залишилися, пропущено, тому git не може звузити пошук.';
+
+  @override
+  String get bisectRunUnrunnable =>
+      'Вашу команду не можна запустити. Переконайтеся, що вона існує та є виконуваною.';
+
+  @override
+  String get bisectRunTreeDirtied =>
+      'Ваша команда змінила відслідковувані файли, тому git не зміг переключитися на наступний коміт.';
+
+  @override
+  String get bisectRunCancelled =>
+      'Запуск скасовано. Записані рішення збережені.';
 }
