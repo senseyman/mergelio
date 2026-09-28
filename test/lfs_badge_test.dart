@@ -128,4 +128,24 @@ void main() {
     ]);
     expect(seen.single.source.rev, isNull);
   });
+
+  testWidgets('working tree panel carries the banner', (tester) async {
+    await tester.pumpWidget(
+      _app(
+        const WorkingTreePanel(
+          repoPath: '/r',
+          data: RepoData(
+            working: [WorkingFile(path: 'a.psd', worktree: GitChange.modified)],
+          ),
+        ),
+        overrides: [
+          lfsRepoProvider.overrideWith((ref, s) async => true),
+          lfsToolProvider.overrideWith((ref) async => null),
+          lfsPathsProvider.overrideWith((ref, q) async => const <String>{}),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.textContaining('stores files with Git LFS'), findsOneWidget);
+  });
 }
