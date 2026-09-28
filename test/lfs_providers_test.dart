@@ -99,10 +99,22 @@ void main() {
         '-F',
         '-e',
         'filter=lfs',
+        '--end-of-options',
         'abc',
         '--',
         ':(glob)**/.gitattributes',
       ]);
+    });
+    test('a revision shaped like an option stays a revision', () async {
+      // A branch may be named `-Osh`; left bare, grep reads it as its
+      // open-files-in-pager option and runs `sh` on every match.
+      final git = _Git({'grep': const GitResult(1, '', '')});
+      final src = const LfsSource(repoPath: '/r', rev: '-Osh');
+      await _c(git).read(lfsRepoProvider(src).future);
+      final args = git.calls.single;
+      final at = args.indexOf('-Osh');
+      expect(at, greaterThan(0));
+      expect(args[at - 1], '--end-of-options');
     });
     test('false on no match (exit 1)', () async {
       final git = _Git({'grep': const GitResult(1, '', '')});

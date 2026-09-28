@@ -102,7 +102,10 @@ final lfsRepoProvider = FutureProvider.autoDispose.family<bool, LfsSource>((
             '-F',
             '-e',
             'filter=lfs',
-            if (source.rev != null) source.rev!,
+            // A revision is caller-supplied and may be a branch named like an
+            // option (`-Osh` would make grep run `sh`). `--end-of-options`
+            // (git 2.24+) keeps it a revision.
+            if (source.rev != null) ...['--end-of-options', source.rev!],
             '--',
             ':(glob)**/.gitattributes',
           ],
@@ -240,7 +243,19 @@ Future<Set<String>> _pointerScan(
 
   Future<Set<String>> grep(String at) async {
     final r = await git.run(
-      ['grep', '-l', '-z', '-F', '-e', lfsPointerVersion, at],
+      // `--end-of-options` keeps an option-shaped revision from being read as
+      // a grep flag; the trailing `--` keeps it from being read as a path.
+      [
+        'grep',
+        '-l',
+        '-z',
+        '-F',
+        '-e',
+        lfsPointerVersion,
+        '--end-of-options',
+        at,
+        '--',
+      ],
       repoPath: source.repoPath,
       timeout: lfsReadTimeout,
     );

@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/core/logging.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
+import 'package:mergelio/domain/git/lfs.dart' show lfsPointerVersion;
 import 'package:mergelio/state/lfs.dart';
 
 const _v = 'version https://git-lfs.github.com/spec/v1';
@@ -38,7 +39,7 @@ class _Git implements GitService {
     timeouts.add(timeout);
     final key = switch (args) {
       ['grep', ..., '--', _] when args.contains('filter=lfs') => 'attrs',
-      ['grep', ...] => 'grep ${args[args.length - 1]}',
+      ['grep', ...] => 'grep ${args.lastWhere((a) => a != '--')}',
       ['cat-file', final mode, ...] => 'cat-file $mode',
       _ => args.first,
     };
@@ -168,6 +169,33 @@ void main() {
     // Only the pointer-sized blob is read in full.
     expect(git.stdins.last, '$blob\n');
     expect(git.calls.any((c) => c.first == 'check-attr'), isFalse);
+  });
+
+  test('fallback grep keeps an option-shaped revision a revision', () async {
+    // A branch may be named `-Osh`; left bare, grep reads it as its
+    // open-files-in-pager option and runs `sh` on every match.
+    final git = _Git({
+      'attrs': _lfsRepo,
+      'grep -Osh': const GitResult(1, '', ''),
+    }, gitVersion: 'git version 2.39.5');
+    await _read(
+      git,
+      LfsQuery(const LfsSource(repoPath: '/r', rev: '-Osh'), const ['a.psd']),
+    );
+    final scan = git.calls.where(
+      (c) => c.first == 'grep' && !c.contains('filter=lfs'),
+    );
+    expect(scan.single, [
+      'grep',
+      '-l',
+      '-z',
+      '-F',
+      '-e',
+      lfsPointerVersion,
+      '--end-of-options',
+      '-Osh',
+      '--',
+    ]);
   });
 
   test('fallback skips paths with a newline', () async {
