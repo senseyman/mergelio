@@ -99,5 +99,9 @@ void main() {
     await tester.pump();
     await tester.pump();
     expect(find.textContaining('stores files with Git LFS'), findsNothing);
+    // Once probe settles on "not installed", banner shows.
+    completer.complete(null);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('stores files with Git LFS'), findsOneWidget);
   });
 }
