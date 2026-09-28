@@ -143,6 +143,12 @@ class LfsMismatchNote extends ConsumerWidget {
         ? ref.watch(repoDataProvider(target.repoPath)).valueOrNull?.working ??
               const <WorkingFile>[]
         : const <WorkingFile>[];
+    // An untracked file is diffed against nothing, outside git's filters, so
+    // its content always shows plain: that says nothing about how it would
+    // be stored once added.
+    if (working.any((f) => f.path == target.path && f.isUntracked)) {
+      return const SizedBox.shrink();
+    }
     final tracked =
         ref
             .watch(

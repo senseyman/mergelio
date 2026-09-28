@@ -13,6 +13,7 @@ import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/state/diff_document.dart';
 import 'package:mergelio/state/diff_target.dart';
 import 'package:mergelio/state/lfs.dart';
+import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
 import 'package:mergelio/ui/diff/diff_sheet.dart';
@@ -261,6 +262,34 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpWidget(
       note({'art.psd'}, [_file(after: const LfsPointer(oid: _a, size: 1))]),
+    );
+    await tester.pumpAndSettle();
+    expect(find.textContaining('regular blob'), findsNothing);
+  });
+
+  testWidgets('mismatch note: an untracked file never has one', (tester) async {
+    // An untracked file is diffed against nothing, outside git's filters, so
+    // its plain diff says nothing about how it would be stored.
+    const target = DiffTarget(repoPath: '/r', path: 'art.psd');
+    const plain = FileDiff(path: 'art.psd', status: GitChange.added);
+    await tester.pumpWidget(
+      _app(
+        const LfsMismatchNote(target: target),
+        extra: [
+          diffDocumentProvider.overrideWith(
+            (ref, t) async =>
+                const DiffDoc(files: [plain], editable: true, staged: false),
+          ),
+          repoDataProvider.overrideWith(
+            (ref, path) async => const RepoData(
+              working: [
+                WorkingFile(path: 'art.psd', worktree: GitChange.untracked),
+              ],
+            ),
+          ),
+          lfsPathsProvider.overrideWith((ref, q) async => {'art.psd'}),
+        ],
+      ),
     );
     await tester.pumpAndSettle();
     expect(find.textContaining('regular blob'), findsNothing);
