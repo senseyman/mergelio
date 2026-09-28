@@ -268,6 +268,21 @@ class SystemGitService implements GitService {
     );
   }
 
+  /// [environment] with PATH extended so git finds the helpers installed
+  /// beside it. Only the entries given here are passed; the rest of the
+  /// app's environment is inherited as before. Null when nothing needs
+  /// changing.
+  Map<String, String>? _childEnvironment(Map<String, String>? environment) {
+    final current = environment?['PATH'] ?? Platform.environment['PATH'];
+    final path = pathWithGitDir(
+      _binary,
+      current,
+      Platform.isWindows ? ';' : ':',
+    );
+    if (path == (current ?? '')) return environment;
+    return {...?environment, 'PATH': path};
+  }
+
   Future<GitResult> _spawn(
     List<String> args,
     String? repoPath,
@@ -288,7 +303,7 @@ class SystemGitService implements GitService {
         _binary,
         args,
         workingDirectory: repoPath,
-        environment: environment,
+        environment: _childEnvironment(environment),
         runInShell: false,
       );
     } on ProcessException catch (e) {
