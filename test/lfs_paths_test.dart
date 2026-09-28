@@ -84,6 +84,10 @@ void main() {
     );
     expect(got, isEmpty);
     expect(git.calls, hasLength(1));
+    expect(git.calls.single.first, 'grep');
+    expect(git.calls.single, contains('filter=lfs'));
+    expect(git.calls.any((c) => c.first == 'check-attr'), isFalse);
+    expect(git.calls.any((c) => c.first == 'cat-file'), isFalse);
   });
 
   test('no paths, no git', () async {
