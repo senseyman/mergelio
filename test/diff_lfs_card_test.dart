@@ -87,6 +87,34 @@ diff --git a/lfs.psd b/lfs.psd
   Future<bool> isRepository(String path) async => true;
 }
 
+/// Serves a canned working-tree diff per path; any other path gets an empty
+/// diff. `git diff -- <path>` ends with the path, so that picks the entry.
+class _MultiFileGit implements GitService {
+  final Map<String, String> diffs;
+  _MultiFileGit(this.diffs);
+
+  @override
+  Future<GitResult> run(
+    List<String> args, {
+    String? repoPath,
+    Duration? timeout,
+    Map<String, String>? environment,
+    GitCancel? cancel,
+    String? stdin,
+  }) async {
+    if (args.first == 'diff' && !args.contains('--cached')) {
+      final body = diffs[args.last];
+      if (body != null) return GitResult(0, body, '');
+    }
+    return const GitResult(0, '', '');
+  }
+
+  @override
+  Future<String> version() async => 'git version 2.45.0';
+  @override
+  Future<bool> isRepository(String path) async => true;
+}
+
 void main() {
   testWidgets('modified: title, both sizes, short oids, presence', (
     tester,
@@ -179,22 +207,25 @@ void main() {
     tester,
   ) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
-    await tester.pumpWidget(
-      _app(
-        LfsCard(
-          repoPath: '/r',
-          file: _file(
-            before: const LfsPointer(oid: _a, size: 1),
-            after: const LfsPointer(oid: _b, size: 2),
+    try {
+      await tester.pumpWidget(
+        _app(
+          LfsCard(
+            repoPath: '/r',
+            file: _file(
+              before: const LfsPointer(oid: _a, size: 1),
+              after: const LfsPointer(oid: _b, size: 2),
+            ),
           ),
+          tool: null,
         ),
-        tool: null,
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(find.textContaining("git-lfs isn't installed"), findsOneWidget);
-    expect(find.textContaining('git lfs install'), findsOneWidget);
-    debugDefaultTargetPlatformOverride = null;
+      );
+      await tester.pumpAndSettle();
+      expect(find.textContaining("git-lfs isn't installed"), findsOneWidget);
+      expect(find.textContaining('git lfs install'), findsOneWidget);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
   });
 
   testWidgets('mismatch note: tracked path, no pointer', (tester) async {
@@ -271,5 +302,149 @@ void main() {
     expect(find.textContaining('oid sha256:'), findsNothing);
     // A pointer diff is not a mismatch.
     expect(find.textContaining('regular blob'), findsNothing);
+  });
+
+  testWidgets('narrow header keeps the mismatch note from overflowing the '
+      'Row', (tester) async {
+    const path = 'tracked.psd';
+    // 600px: narrow enough that the unwrapped note (~230px of English text,
+    // longer in Ukrainian) overflows the Row once the Edit/Stage/Split/close
+    // controls are also present, but wide enough that the header fits when
+    // the note itself is absent — isolating this bug from the header's
+    // separate, pre-existing overflow below ~530px.
+    tester.view.physicalSize = const Size(600, 600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gitServiceProvider.overrideWithValue(
+            _MultiFileGit({
+              path:
+                  '''
+diff --git a/$path b/$path
+--- a/$path
++++ b/$path
+@@ -1,2 +1,2 @@
+-old binary-ish content that is not a git-lfs pointer at all
++new binary-ish content that is not a git-lfs pointer at all
+''',
+            }),
+          ),
+          settingsProvider.overrideWith(
+            (ref) => SettingsController(
+              InMemorySettingsRepository(),
+              const AppSettings(),
+            ),
+          ),
+          lfsToolProvider.overrideWith((ref) async => '3.5.1'),
+          lfsObjectPresentProvider.overrideWith((ref, k) async => false),
+          lfsPathsProvider.overrideWith((ref, q) async => {path}),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          theme: ThemeData(extensions: [AppTokens.dark()]),
+          home: const Scaffold(
+            body: SizedBox(height: 400, child: DiffSheet(availableHeight: 400)),
+          ),
+        ),
+      ),
+    );
+    final c = ProviderScope.containerOf(tester.element(find.byType(DiffSheet)));
+    c.read(diffTargetProvider.notifier).state = const DiffTarget(
+      repoPath: '/r',
+      path: path,
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Tracked by LFS but stored as a regular blob'),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('switching away from and back to a moved-into-LFS file resets '
+      'the text-diff flag', (tester) async {
+    const mCsv = 'm.csv';
+    const pPsd = 'p.psd';
+    final git = _MultiFileGit({
+      mCsv:
+          '''
+diff --git a/$mCsv b/$mCsv
+--- a/$mCsv
++++ b/$mCsv
+@@ -1,3 +1,3 @@
+-name,value
+-a,1
+-b,2
++$_v
++oid sha256:$_a
++size 9
+''',
+      pPsd:
+          '''
+diff --git a/$pPsd b/$pPsd
+--- a/$pPsd
++++ b/$pPsd
+@@ -1,3 +1,3 @@
+ $_v
+-oid sha256:$_a
+-size 4404019
++oid sha256:$_b
++size 5347738
+''',
+    });
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gitServiceProvider.overrideWithValue(git),
+          settingsProvider.overrideWith(
+            (ref) => SettingsController(
+              InMemorySettingsRepository(),
+              const AppSettings(),
+            ),
+          ),
+          lfsToolProvider.overrideWith((ref) async => '3.5.1'),
+          lfsObjectPresentProvider.overrideWith((ref, k) async => false),
+          lfsPathsProvider.overrideWith((ref, q) async => {mCsv, pPsd}),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          theme: ThemeData(extensions: [AppTokens.dark()]),
+          home: const Scaffold(
+            body: SizedBox(height: 400, child: DiffSheet(availableHeight: 400)),
+          ),
+        ),
+      ),
+    );
+    final c = ProviderScope.containerOf(tester.element(find.byType(DiffSheet)));
+
+    c.read(diffTargetProvider.notifier).state = const DiffTarget(
+      repoPath: '/r',
+      path: mCsv,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Moved into LFS'), findsOneWidget);
+
+    await tester.tap(find.text('Show text diff'));
+    await tester.pumpAndSettle();
+    expect(find.text('Moved into LFS'), findsNothing);
+    expect(find.textContaining('@@'), findsOneWidget);
+
+    c.read(diffTargetProvider.notifier).state = const DiffTarget(
+      repoPath: '/r',
+      path: pPsd,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('LFS object'), findsOneWidget);
+
+    c.read(diffTargetProvider.notifier).state = const DiffTarget(
+      repoPath: '/r',
+      path: mCsv,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Moved into LFS'), findsOneWidget);
   });
 }

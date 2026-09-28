@@ -206,7 +206,7 @@ class _DiffHeader extends ConsumerWidget {
               style: TextStyle(color: t.textFaint, fontSize: 11),
             ),
           ),
-          LfsMismatchNote(target: target),
+          Flexible(child: LfsMismatchNote(target: target)),
           const Spacer(),
           if (partial) ...[
             _SideToggle(
