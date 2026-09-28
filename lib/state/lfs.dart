@@ -145,12 +145,19 @@ final lfsObjectsDirProvider = FutureProvider.autoDispose
     });
 
 /// Whether the object with this oid has been downloaded. Reads the
-/// filesystem, so widget tests override it.
+/// filesystem, so widget tests override it. Never downloaded and unreadable
+/// both mean "not present": a malformed oid or a filesystem error yields
+/// false rather than failing the diff sheet.
 final lfsObjectPresentProvider = FutureProvider.autoDispose
     .family<bool, ({String repoPath, String oid})>((ref, key) async {
-      final dir = await ref.watch(lfsObjectsDirProvider(key.repoPath).future);
-      if (dir == null) return false;
-      return File(lfsObjectPath(dir, key.oid)).exists();
+      try {
+        final dir = await ref.watch(lfsObjectsDirProvider(key.repoPath).future);
+        if (dir == null) return false;
+        return await File(lfsObjectPath(dir, key.oid)).exists();
+      } on Object catch (e) {
+        appLog.warn('LFS object lookup failed: $e', scope: key.repoPath);
+        return false;
+      }
     });
 
 /// Repositories whose "git-lfs isn't installed" banner was dismissed in this

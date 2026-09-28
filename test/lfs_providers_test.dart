@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mergelio/core/logging.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/domain/git/models.dart';
@@ -175,4 +178,95 @@ void main() {
     expect(const LfsSource(repoPath: '/r', rev: 'main').isImmutable, isFalse);
     expect(LfsSource(repoPath: '/r', rev: 'a' * 40).isImmutable, isTrue);
   });
+
+  group('lfsObjectPresentProvider', () {
+    late Directory objectsDir;
+
+    setUp(() {
+      objectsDir = Directory.systemTemp.createTempSync('lfs_objects_test_');
+      addTearDown(() {
+        if (objectsDir.existsSync()) objectsDir.deleteSync(recursive: true);
+      });
+    });
+
+    ProviderContainer containerFor(String dir) {
+      final c = ProviderContainer(
+        overrides: [
+          lfsObjectsDirProvider.overrideWith((ref, repoPath) async => dir),
+        ],
+      );
+      addTearDown(c.dispose);
+      return c;
+    }
+
+    test('true when the object file is on disk', () async {
+      final oid = 'a' * 64;
+      final shard = Directory(
+        p.join(objectsDir.path, oid.substring(0, 2), oid.substring(2, 4)),
+      )..createSync(recursive: true);
+      File(p.join(shard.path, oid)).writeAsStringSync('blob');
+
+      final c = containerFor(objectsDir.path);
+      expect(
+        await c.read(
+          lfsObjectPresentProvider((repoPath: '/r', oid: oid)).future,
+        ),
+        isTrue,
+      );
+    });
+
+    test('false when the object file is missing', () async {
+      final oid = 'b' * 64;
+      final c = containerFor(objectsDir.path);
+      expect(
+        await c.read(
+          lfsObjectPresentProvider((repoPath: '/r', oid: oid)).future,
+        ),
+        isFalse,
+      );
+    });
+
+    test(
+      'false, not an AsyncError, when the oid is too short to shard',
+      () async {
+        final sink = _RecordingSink();
+        final previous = appLog;
+        appLog = AppLogger(sink: sink);
+        addTearDown(() => appLog = previous);
+
+        final c = containerFor(objectsDir.path);
+        expect(
+          await c.read(
+            lfsObjectPresentProvider((repoPath: '/r', oid: 'ab')).future,
+          ),
+          isFalse,
+        );
+        expect(sink.lines, isNotEmpty);
+        expect(sink.lines.single, contains('[/r]'));
+      },
+    );
+
+    test('false, not an AsyncError, on an empty oid', () async {
+      final sink = _RecordingSink();
+      final previous = appLog;
+      appLog = AppLogger(sink: sink);
+      addTearDown(() => appLog = previous);
+
+      final c = containerFor(objectsDir.path);
+      expect(
+        await c.read(
+          lfsObjectPresentProvider((repoPath: '/r', oid: '')).future,
+        ),
+        isFalse,
+      );
+      expect(sink.lines, isNotEmpty);
+    });
+  });
+}
+
+class _RecordingSink implements LogSink {
+  final lines = <String>[];
+
+  @override
+  void write(String line) => lines.add(line);
 }
