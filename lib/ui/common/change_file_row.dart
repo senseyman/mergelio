@@ -5,6 +5,7 @@ import '../../domain/git/models.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../insight/file_insight_dialog.dart';
 import 'dialogs.dart';
+import 'lfs_chip.dart';
 
 /// One row of a changed-file list: status badge, path, and the history/blame
 /// context menu. Shared by every read-only file list — a commit's changes and
@@ -15,6 +16,7 @@ class ChangeFileRow extends StatelessWidget {
   final VoidCallback onTap;
   final double indent;
   final bool inTree;
+  final bool lfs;
   const ChangeFileRow({
     super.key,
     required this.file,
@@ -22,6 +24,7 @@ class ChangeFileRow extends StatelessWidget {
     required this.onTap,
     this.indent = 0,
     this.inTree = false,
+    this.lfs = false,
   });
 
   String get _label {
@@ -104,6 +107,7 @@ class ChangeFileRow extends StatelessWidget {
                   style: TextStyle(color: t.textMuted, fontSize: 12),
                 ),
               ),
+              if (lfs) const LfsChip(),
             ],
           ),
         ),

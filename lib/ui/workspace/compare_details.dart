@@ -6,6 +6,7 @@ import '../../domain/git/models.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/compare_target.dart';
 import '../../state/diff_target.dart';
+import '../../state/lfs.dart';
 import '../../state/settings_controller.dart';
 import '../common/change_file_row.dart';
 import '../common/file_tree_view.dart';
@@ -114,6 +115,22 @@ class CompareDetails extends ConsumerWidget {
                       settingsProvider.select((s) => s.filesAsTree),
                     );
                     final byPath = {for (final f in list) f.path: f};
+                    final lfs =
+                        ref
+                            .watch(
+                              lfsPathsProvider(
+                                LfsQuery(
+                                  LfsSource(
+                                    repoPath: target.repoPath,
+                                    rev: target.to,
+                                    parentRev: target.from,
+                                  ),
+                                  [for (final f in list) f.path],
+                                ),
+                              ),
+                            )
+                            .valueOrNull ??
+                        const <String>{};
                     return FileTreeView(
                       paths: [for (final f in list) f.path],
                       tree: tree,
@@ -127,6 +144,7 @@ class CompareDetails extends ConsumerWidget {
                         repoPath: target.repoPath,
                         indent: FileTreeView.indent(depth),
                         inTree: tree,
+                        lfs: lfs.contains(path),
                         onTap: () =>
                             ref.read(diffTargetProvider.notifier).state = target
                                 .fileTarget(path),
