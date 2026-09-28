@@ -7,6 +7,7 @@ import 'package:mergelio/domain/git/models.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/state/compare_target.dart';
 import 'package:mergelio/state/diff_target.dart';
+import 'package:mergelio/state/lfs.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
 import 'package:mergelio/ui/workspace/compare_details.dart';
@@ -20,10 +21,14 @@ Future<ProviderContainer> _pump(
   WidgetTester tester, {
   List<CommitFileChange> files = _files,
   CompareTarget? target,
+  Future<Set<String>> Function(Ref ref, LfsQuery q)? lfsPaths,
 }) async {
   final container = ProviderContainer(
     overrides: [
       compareFilesProvider.overrideWith((ref, key) async => files),
+      lfsPathsProvider.overrideWith(
+        lfsPaths ?? (ref, q) async => const <String>{},
+      ),
       settingsProvider.overrideWith(
         (ref) => SettingsController(
           InMemorySettingsRepository(),
@@ -125,5 +130,23 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(c.read(compareTargetProvider), isNull);
+  });
+
+  testWidgets('asks LFS about the diff between the two sides', (tester) async {
+    final seen = <LfsQuery>[];
+    await _pump(
+      tester,
+      lfsPaths: (ref, q) async {
+        seen.add(q);
+        return const <String>{};
+      },
+    );
+
+    expect(seen, isNotEmpty);
+    final q = seen.first;
+    expect(q.source.repoPath, '/repo');
+    expect(q.source.rev, 'feature');
+    expect(q.source.parentRev, 'main');
+    expect(q.paths, ['lib/a.dart', 'lib/b.dart']);
   });
 }
