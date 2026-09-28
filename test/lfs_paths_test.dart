@@ -53,8 +53,13 @@ class _Git implements GitService {
     return const GitResult(1, '', 'unscripted');
   }
 
+  var versionCalls = 0;
   @override
-  Future<String> version() async => gitVersion;
+  Future<String> version() async {
+    versionCalls++;
+    return gitVersion;
+  }
+
   @override
   Future<bool> isRepository(String path) async => true;
 }
@@ -196,6 +201,25 @@ void main() {
       '-Osh',
       '--',
     ]);
+  });
+
+  test('asks git its version once, not once per lookup', () async {
+    final git = _Git({
+      'attrs': _lfsRepo,
+      'check-attr': const GitResult(0, 'a.psd\x00filter\x00lfs\x00', ''),
+    });
+    final c = ProviderContainer(
+      overrides: [gitServiceProvider.overrideWithValue(git)],
+    );
+    addTearDown(c.dispose);
+    for (final rev in const ['abc', 'def', 'abc..def']) {
+      await c.read(
+        lfsPathsProvider(
+          LfsQuery(LfsSource(repoPath: '/r', rev: rev), const ['a.psd']),
+        ).future,
+      );
+    }
+    expect(git.versionCalls, 1);
   });
 
   test('fallback skips paths with a newline', () async {

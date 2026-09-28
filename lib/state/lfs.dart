@@ -198,7 +198,9 @@ final lfsPathsProvider = FutureProvider.autoDispose
       try {
         final rev = source.rev;
         if (rev == null) return await _checkAttr(git, source, query.paths);
-        if (supportsCheckAttrSource(await git.version())) {
+        if (supportsCheckAttrSource(
+          await ref.watch(gitVersionProvider.future),
+        )) {
           return await _checkAttr(git, source, query.paths, rev: rev);
         }
         return await _pointerScan(git, source, rev, query.paths);
