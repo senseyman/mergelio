@@ -23,6 +23,7 @@ import '../insight/line_history_dialog.dart';
 import 'diff_editor.dart';
 import 'diff_metrics.dart';
 import 'diff_selection.dart';
+import 'lfs_card.dart';
 import 'line_selection.dart';
 import 'linked_scroll.dart';
 import 'syntax_style.dart';
@@ -205,6 +206,7 @@ class _DiffHeader extends ConsumerWidget {
               style: TextStyle(color: t.textFaint, fontSize: 11),
             ),
           ),
+          LfsMismatchNote(target: target),
           const Spacer(),
           if (partial) ...[
             _SideToggle(
@@ -416,6 +418,10 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
   final _hRight = ScrollController();
   final _vSplit = LinkedScrollController();
 
+  // A moved-into/out-of-LFS file can still be read as text; the choice resets
+  // with the file.
+  bool _lfsText = false;
+
   @override
   void dispose() {
     _hInline.dispose();
@@ -441,6 +447,7 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
     // other staging side, so a run picked out there must not survive.
     ref.listen(diffTargetProvider, (_, _) {
       ref.read(lineSelectionProvider.notifier).state = null;
+      if (_lfsText && mounted) setState(() => _lfsText = false);
     });
     return ref
         .watch(diffDocumentProvider(target))
@@ -459,6 +466,20 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
             ),
           ),
           data: (doc) {
+            final lfsFile = doc.files.where((f) => f.lfs != null).firstOrNull;
+            if (lfsFile != null && !_lfsText) {
+              final kind = lfsChangeKind(lfsFile);
+              final hasText =
+                  kind == LfsChangeKind.movedIn ||
+                  kind == LfsChangeKind.movedOut;
+              return LfsCard(
+                repoPath: target.repoPath,
+                file: lfsFile,
+                onShowText: hasText
+                    ? () => setState(() => _lfsText = true)
+                    : null,
+              );
+            }
             if (doc.isBinary) {
               return Center(
                 child: Text(

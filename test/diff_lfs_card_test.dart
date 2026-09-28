@@ -1,0 +1,275 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mergelio/core/tokens.dart';
+import 'package:mergelio/data/settings_repository.dart';
+import 'package:mergelio/domain/git/diff.dart';
+import 'package:mergelio/domain/git/git_providers.dart';
+import 'package:mergelio/domain/git/git_service.dart';
+import 'package:mergelio/domain/git/lfs.dart';
+import 'package:mergelio/domain/git/models.dart';
+import 'package:mergelio/l10n/gen/app_localizations.dart';
+import 'package:mergelio/state/diff_document.dart';
+import 'package:mergelio/state/diff_target.dart';
+import 'package:mergelio/state/lfs.dart';
+import 'package:mergelio/state/settings.dart';
+import 'package:mergelio/state/settings_controller.dart';
+import 'package:mergelio/ui/diff/diff_sheet.dart';
+import 'package:mergelio/ui/diff/lfs_card.dart';
+
+const _a = '4d7a214614ab2935c943f9e0ff69d22eadbb8f32b1258daaa5e2ca24d17e2393';
+const _b = 'b7e2c1f0e9d8c7b6a5f4e3d2c1b0a9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2';
+
+FileDiff _file({
+  LfsPointer? before,
+  LfsPointer? after,
+  GitChange status = GitChange.modified,
+}) => FileDiff(
+  path: 'art.psd',
+  status: status,
+  lfs: LfsDiff(before: before, after: after),
+);
+
+Widget _app(
+  Widget child, {
+  String? tool = '3.5.1',
+  Set<String> present = const {},
+  List<Override> extra = const [],
+}) => ProviderScope(
+  overrides: [
+    lfsToolProvider.overrideWith((ref) async => tool),
+    lfsObjectPresentProvider.overrideWith(
+      (ref, key) async => present.contains(key.oid),
+    ),
+    ...extra,
+  ],
+  child: MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+    theme: ThemeData(extensions: [AppTokens.dark()]),
+    home: Scaffold(body: child),
+  ),
+);
+
+const _v = 'version https://git-lfs.github.com/spec/v1';
+
+/// Serves a modified-pointer diff for lfs.psd; everything else is empty.
+class _SheetGit implements GitService {
+  @override
+  Future<GitResult> run(
+    List<String> args, {
+    String? repoPath,
+    Duration? timeout,
+    Map<String, String>? environment,
+    GitCancel? cancel,
+    String? stdin,
+  }) async {
+    if (args.first == 'diff' && !args.contains('--cached')) {
+      return const GitResult(0, '''
+diff --git a/lfs.psd b/lfs.psd
+--- a/lfs.psd
++++ b/lfs.psd
+@@ -1,3 +1,3 @@
+ $_v
+-oid sha256:$_a
+-size 4404019
++oid sha256:$_b
++size 5347738
+''', '');
+    }
+    return const GitResult(0, '', '');
+  }
+
+  @override
+  Future<String> version() async => 'git version 2.45.0';
+  @override
+  Future<bool> isRepository(String path) async => true;
+}
+
+void main() {
+  testWidgets('modified: title, both sizes, short oids, presence', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(
+        LfsCard(
+          repoPath: '/r',
+          file: _file(
+            before: const LfsPointer(oid: _a, size: 4404019),
+            after: const LfsPointer(oid: _b, size: 5347738),
+          ),
+        ),
+        present: {_b},
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('LFS object'), findsOneWidget);
+    expect(find.text('4.2 MB → 5.1 MB'), findsOneWidget);
+    expect(find.textContaining(_a.substring(0, 12)), findsOneWidget);
+    expect(find.textContaining(_b.substring(0, 12)), findsOneWidget);
+    expect(find.text('Not downloaded'), findsOneWidget);
+    expect(find.text('Downloaded'), findsOneWidget);
+    expect(find.textContaining("git-lfs isn't installed"), findsNothing);
+  });
+
+  testWidgets('added and deleted show one size', (tester) async {
+    await tester.pumpWidget(
+      _app(
+        LfsCard(
+          repoPath: '/r',
+          file: _file(
+            after: const LfsPointer(oid: _a, size: 2048),
+            status: GitChange.added,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Added LFS object'), findsOneWidget);
+    expect(find.text('2.0 KB'), findsOneWidget);
+
+    await tester.pumpWidget(
+      _app(
+        LfsCard(
+          repoPath: '/r',
+          file: _file(
+            before: const LfsPointer(oid: _a, size: 2048),
+            status: GitChange.deleted,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Deleted LFS object'), findsOneWidget);
+  });
+
+  testWidgets('moved in offers the text diff', (tester) async {
+    var shown = false;
+    await tester.pumpWidget(
+      _app(
+        LfsCard(
+          repoPath: '/r',
+          file: _file(after: const LfsPointer(oid: _a, size: 9)),
+          onShowText: () => shown = true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Moved into LFS'), findsOneWidget);
+    await tester.tap(find.text('Show text diff'));
+    expect(shown, isTrue);
+  });
+
+  testWidgets('moved out is labelled', (tester) async {
+    await tester.pumpWidget(
+      _app(
+        LfsCard(
+          repoPath: '/r',
+          file: _file(before: const LfsPointer(oid: _a, size: 9)),
+          onShowText: () {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Moved out of LFS'), findsOneWidget);
+  });
+
+  testWidgets('tool missing adds the explanation and the OS hint', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    await tester.pumpWidget(
+      _app(
+        LfsCard(
+          repoPath: '/r',
+          file: _file(
+            before: const LfsPointer(oid: _a, size: 1),
+            after: const LfsPointer(oid: _b, size: 2),
+          ),
+        ),
+        tool: null,
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.textContaining("git-lfs isn't installed"), findsOneWidget);
+    expect(find.textContaining('git lfs install'), findsOneWidget);
+    debugDefaultTargetPlatformOverride = null;
+  });
+
+  testWidgets('mismatch note: tracked path, no pointer', (tester) async {
+    const target = DiffTarget(repoPath: '/r', path: 'art.psd', commitSha: 'c');
+    Widget note(Set<String> tracked, List<FileDiff> files) => _app(
+      const LfsMismatchNote(target: target),
+      extra: [
+        diffDocumentProvider.overrideWith(
+          (ref, t) async =>
+              DiffDoc(files: files, editable: false, staged: false),
+        ),
+        lfsPathsProvider.overrideWith((ref, q) async => tracked),
+      ],
+    );
+    const plain = FileDiff(path: 'art.psd', status: GitChange.modified);
+    await tester.pumpWidget(note({'art.psd'}, const [plain]));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Tracked by LFS but stored as a regular blob'),
+      findsOneWidget,
+    );
+
+    // Each provider family key below repeats across cases (same target),
+    // so a family override only takes effect on a provider instance that
+    // has not been read yet. Tearing down to an empty tree first disposes
+    // the autoDispose family entries, so the next pump starts clean and
+    // actually observes the new override.
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpWidget(note(const {}, const [plain]));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('regular blob'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpWidget(
+      note({'art.psd'}, [_file(after: const LfsPointer(oid: _a, size: 1))]),
+    );
+    await tester.pumpAndSettle();
+    expect(find.textContaining('regular blob'), findsNothing);
+  });
+
+  testWidgets('diff sheet renders the card, not pointer lines', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gitServiceProvider.overrideWithValue(_SheetGit()),
+          settingsProvider.overrideWith(
+            (ref) => SettingsController(
+              InMemorySettingsRepository(),
+              const AppSettings(),
+            ),
+          ),
+          lfsToolProvider.overrideWith((ref) async => '3.5.1'),
+          lfsObjectPresentProvider.overrideWith((ref, k) async => false),
+          lfsPathsProvider.overrideWith((ref, q) async => {'lfs.psd'}),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          theme: ThemeData(extensions: [AppTokens.dark()]),
+          home: const Scaffold(
+            body: SizedBox(height: 400, child: DiffSheet(availableHeight: 400)),
+          ),
+        ),
+      ),
+    );
+    final c = ProviderScope.containerOf(tester.element(find.byType(DiffSheet)));
+    c.read(diffTargetProvider.notifier).state = const DiffTarget(
+      repoPath: '/r',
+      path: 'lfs.psd',
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('LFS object'), findsOneWidget);
+    expect(find.text('4.2 MB → 5.1 MB'), findsOneWidget);
+    expect(find.textContaining('oid sha256:'), findsNothing);
+    // A pointer diff is not a mismatch.
+    expect(find.textContaining('regular blob'), findsNothing);
+  });
+}
