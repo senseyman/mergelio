@@ -1,3 +1,4 @@
+import 'lfs.dart';
 import 'models.dart';
 
 enum DiffLineType { context, add, del }
@@ -65,6 +66,54 @@ class DiffHunk {
   });
 }
 
+/// The LFS pointers on the two sides of a file's diff. Either side is null
+/// where that side is not a pointer (absent, or ordinary content).
+class LfsDiff {
+  final LfsPointer? before;
+  final LfsPointer? after;
+  const LfsDiff({this.before, this.after});
+}
+
+/// What a pointer diff means to the person reading it.
+enum LfsChangeKind { modified, added, deleted, movedIn, movedOut }
+
+/// Only meaningful when [file] has [FileDiff.lfs].
+LfsChangeKind lfsChangeKind(FileDiff file) {
+  final lfs = file.lfs!;
+  if (lfs.before != null && lfs.after != null) return LfsChangeKind.modified;
+  if (lfs.after != null) {
+    return file.status == GitChange.added
+        ? LfsChangeKind.added
+        : LfsChangeKind.movedIn;
+  }
+  return file.status == GitChange.deleted
+      ? LfsChangeKind.deleted
+      : LfsChangeKind.movedOut;
+}
+
+/// The pointers in a file's hunks, or null when neither side is one.
+///
+/// A side only counts when the diff is a single hunk that starts at that
+/// side's first line — otherwise the hunk shows a fragment of a longer file,
+/// and a fragment that quotes a pointer is still just text. A pointer is a
+/// handful of lines, so git never splits a real one across hunks.
+LfsDiff? lfsDiffOf(List<DiffHunk> hunks) {
+  if (hunks.length != 1) return null;
+  final hunk = hunks.single;
+  String side(DiffLineType other) => [
+    for (final l in hunk.lines)
+      if (l.type != other) l.text,
+  ].join('\n');
+  final before = hunk.oldStart <= 1
+      ? parseLfsPointer(side(DiffLineType.add))
+      : null;
+  final after = hunk.newStart <= 1
+      ? parseLfsPointer(side(DiffLineType.del))
+      : null;
+  if (before == null && after == null) return null;
+  return LfsDiff(before: before, after: after);
+}
+
 class FileDiff {
   final String path;
   final String? oldPath;
@@ -76,6 +125,9 @@ class FileDiff {
   /// permissions it had rather than a plain 100644.
   final String? mode;
   final List<DiffHunk> hunks;
+
+  /// Set when either side of the diff is an LFS pointer rather than content.
+  final LfsDiff? lfs;
   const FileDiff({
     required this.path,
     this.oldPath,
@@ -83,6 +135,7 @@ class FileDiff {
     this.binary = false,
     this.mode,
     this.hunks = const [],
+    this.lfs,
   });
 }
 
@@ -410,6 +463,7 @@ List<FileDiff> parseUnifiedDiff(String raw) {
           binary: binary,
           mode: mode,
           hunks: hunks,
+          lfs: binary ? null : lfsDiffOf(hunks),
         ),
       );
     }
