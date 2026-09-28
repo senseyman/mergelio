@@ -55,7 +55,7 @@ LfsPointer? parseLfsPointer(String text) {
     if (space <= 0) return null;
     final key = line.substring(0, space);
     final value = line.substring(space + 1);
-    if (!_keyName.hasMatch(key)) return null;
+    if (!_keyName.hasMatch(key) || key == 'version') return null;
     // Keys must be in sorted order.
     if (previousKey != null && key.compareTo(previousKey) <= 0) return null;
     previousKey = key;

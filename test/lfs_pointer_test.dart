@@ -45,6 +45,8 @@ void main() {
           'version https://git-lfs.github.com/spec/v1\n'
           'size 1\noid sha256:$_oid\n',
       'duplicate key': '${_valid}size 2\n',
+      'repeated version key':
+          '${_valid}version https://git-lfs.github.com/spec/v1\n',
       'line without value': '${_valid}zz\n',
       'blank line inside': _valid.replaceFirst('\noid', '\n\noid'),
       'empty': '',
