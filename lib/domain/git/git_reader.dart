@@ -753,44 +753,54 @@ class GitReader {
     List<Branch> branches, {
     required String into,
   }) async {
+    // A branch already on `into`'s history has no squash link, and most
+    // branches in a long-lived repository are exactly that. One listing
+    // settles all of them; each probe below costs three subprocesses.
+    final merged = await _run([
+      'for-each-ref',
+      '--merged=$into',
+      '--format=%(refname:short)',
+      'refs/heads',
+    ]);
+    final settled = merged.ok
+        ? const LineSplitter().convert(merged.stdout).toSet()
+        : const <String>{};
     final results = await Future.wait([
       for (final b in branches)
-        if (b.name != into) _squashLinkFor(b.name, into),
+        if (b.name != into && !settled.contains(b.name))
+          _squashLinkFor(b.name, into),
     ]);
     return results.whereType<SquashLink>().toList();
   }
 
-  Future<String?> _revParse(String rev) async {
-    final r = await _run(['rev-parse', '--verify', '--quiet', rev]);
-    return r.ok && r.out.isNotEmpty ? r.out : null;
-  }
-
   Future<SquashLink?> _squashLinkFor(String branch, String into) async {
-    final tip = await _revParse(branch);
-    if (tip == null) return null;
+    final tipTree = await _run(['rev-parse', branch, '$branch^{tree}']);
+    final tipLines = const LineSplitter().convert(tipTree.stdout);
+    if (!tipTree.ok || tipLines.length != 2) return null;
+    final [tip, tree] = tipLines;
 
     final baseRes = await _run(['merge-base', into, branch]);
     if (!baseRes.ok || baseRes.out.isEmpty) return null;
     final base = baseRes.out;
     if (base == tip) return null; // already an ancestor of `into`
 
+    // The landing commit's tree comes back with it, which saves resolving it
+    // separately.
     final pathRes = await _run([
-      'rev-list',
+      'log',
       '--reverse',
       '--ancestry-path',
+      '--format=%H %T',
       '$base..$into',
     ]);
     if (!pathRes.ok) return null;
     final landing = const LineSplitter()
         .convert(pathRes.stdout)
-        .firstWhere((l) => l.isNotEmpty, orElse: () => '');
-    if (landing.isEmpty) return null;
+        .firstWhere((l) => l.isNotEmpty, orElse: () => '')
+        .split(' ');
+    if (landing.length != 2 || landing[1] != tree) return null;
 
-    final tipTree = await _revParse('$tip^{tree}');
-    final landingTree = await _revParse('$landing^{tree}');
-    if (tipTree == null || tipTree != landingTree) return null;
-
-    return SquashLink(fromSha: tip, toSha: landing);
+    return SquashLink(fromSha: tip, toSha: landing[0]);
   }
 
   static int _trackNum(String track, String key) {

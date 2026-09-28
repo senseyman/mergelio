@@ -73,6 +73,14 @@ void main() {
     await commit('c.txt', 'C');
     await g(['checkout', '-q', 'main']);
     await commit('d.txt', 'D');
+
+    // A commit off main that no branch points at yet, for a new branch to
+    // land on. Branches on main's own history are settled without a probe.
+    await g(['checkout', '-q', '-b', 'scratch', 'one']);
+    await commit('e.txt', 'E');
+    await g(['tag', 'spare']);
+    await g(['checkout', '-q', 'main']);
+    await g(['branch', '-q', '-D', 'scratch']);
   });
 
   tearDown(() async {
@@ -86,9 +94,9 @@ void main() {
       overrides: [gitServiceProvider.overrideWithValue(git)],
     );
     addTearDown(c.dispose);
-    c.listen(repoDataProvider(dir.path), (_, _) {}, fireImmediately: true);
+    c.listen(squashLinksProvider(dir.path), (_, _) {}, fireImmediately: true);
 
-    await c.read(repoDataProvider(dir.path).future);
+    await c.read(squashLinksProvider(dir.path).future);
     expect(
       git.mergeBases,
       2,
@@ -96,14 +104,15 @@ void main() {
           'the first load examines both branches other than the current one',
     );
 
-    // `main~1` is the root commit, which no branch points at, so the new branch
-    // is a question nothing already answered.
+    // `spare` is off main and no branch points at it, so the new branch is a
+    // question nothing already answered.
     git.mergeBases = 0;
     await c
         .read(repoActionsProvider(dir.path))
-        .createBranch('three', at: 'main~1');
+        .createBranch('three', at: 'spare');
     await Future<void>.delayed(actionSettle * 6);
     final data = await c.read(repoDataProvider(dir.path).future);
+    await c.read(squashLinksProvider(dir.path).future);
 
     expect(
       git.mergeBases,
@@ -122,9 +131,9 @@ void main() {
       overrides: [gitServiceProvider.overrideWithValue(git)],
     );
     addTearDown(c.dispose);
-    c.listen(repoDataProvider(dir.path), (_, _) {}, fireImmediately: true);
+    c.listen(squashLinksProvider(dir.path), (_, _) {}, fireImmediately: true);
 
-    await c.read(repoDataProvider(dir.path).future);
+    await c.read(squashLinksProvider(dir.path).future);
     git.mergeBases = 0;
 
     final actions = c.read(repoActionsProvider(dir.path));
@@ -132,6 +141,7 @@ void main() {
     await actions.checkout('side');
     await Future<void>.delayed(actionSettle * 6);
     final data = await c.read(repoDataProvider(dir.path).future);
+    await c.read(squashLinksProvider(dir.path).future);
 
     expect(git.mergeBases, 0);
     expect(data.branches.firstWhere((b) => b.current).name, 'side');
@@ -143,13 +153,13 @@ void main() {
       overrides: [gitServiceProvider.overrideWithValue(git)],
     );
     addTearDown(c.dispose);
-    c.listen(repoDataProvider(dir.path), (_, _) {}, fireImmediately: true);
+    c.listen(squashLinksProvider(dir.path), (_, _) {}, fireImmediately: true);
 
-    await c.read(repoDataProvider(dir.path).future);
+    await c.read(squashLinksProvider(dir.path).future);
     git.mergeBases = 0;
 
     c.invalidate(repoDataProvider(dir.path));
-    await c.read(repoDataProvider(dir.path).future);
+    await c.read(squashLinksProvider(dir.path).future);
 
     expect(git.mergeBases, 0);
   });

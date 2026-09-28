@@ -67,7 +67,13 @@ class GraphView extends ConsumerWidget {
                 style: TextStyle(color: t.textMuted, fontSize: 12),
               ),
             ),
-            data: (d) => GraphList(data: d),
+            data: (d) => GraphList(
+              data: d,
+              // Arrives after the graph does; until then the previous answer,
+              // if any, stands in rather than the connectors blinking out.
+              squashLinks:
+                  ref.watch(squashLinksProvider(path)).valueOrNull ?? const [],
+            ),
           ),
     );
   }
@@ -106,7 +112,12 @@ class _LoadingOlderRow extends StatelessWidget {
 /// followed by the commits. Arrow keys move the selection and keep it visible.
 class GraphList extends ConsumerStatefulWidget {
   final RepoData data;
-  const GraphList({super.key, required this.data});
+
+  /// Squash-merge connectors drawn over the rail. Inferred separately from
+  /// [data], so they can arrive later than the commits they join.
+  final List<SquashLink> squashLinks;
+
+  const GraphList({super.key, required this.data, this.squashLinks = const []});
 
   @override
   ConsumerState<GraphList> createState() => _GraphListState();
@@ -132,6 +143,19 @@ class _GraphListState extends ConsumerState<GraphList> {
       _derivedFor = d;
     }
     return _derived!;
+  }
+
+  GraphDerived? _segmentsFor;
+  List<SquashLink>? _segmentLinksFor;
+  List<SquashSegment> _segments = const [];
+
+  List<SquashSegment> _segmentsOf(GraphDerived g, List<SquashLink> links) {
+    if (!identical(_segmentsFor, g) || !identical(_segmentLinksFor, links)) {
+      _segments = resolveSquashSegments(links, g.rowIndex, laneOf: g.laneOf);
+      _segmentsFor = g;
+      _segmentLinksFor = links;
+    }
+    return _segments;
   }
 
   int _matchGen = 0;
@@ -477,7 +501,7 @@ class _GraphListState extends ConsumerState<GraphList> {
     final derived = _deriveFor(d);
     final maxLane = derived.maxLane;
     final labels = derived.labels;
-    final segments = derived.segments;
+    final segments = _segmentsOf(derived, widget.squashLinks);
     final stashBySha = {for (final s in d.stashes) s.sha: s.ref};
 
     final wipRows = _hasWip ? 1 : 0;

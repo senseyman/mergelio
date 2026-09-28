@@ -317,5 +317,62 @@ void main() {
       ], repoPath: sdir.path)).out;
       expect(links.map((l) => l.fromSha), isNot(contains(openTip)));
     });
+
+    test('answers branches already merged into the target without probing '
+        'each one', () async {
+      // Branches sitting on the target's history can never be squash-merged
+      // onto it, and a repository accumulates plenty of them. One listing
+      // settles them all, so only the unmerged branches cost a merge-base.
+      await sg(['branch', 'old', 'main~1']);
+      await sg(['branch', 'same', 'main']);
+      final counting = _CountingGit(svc);
+      final r = GitReader(counting, sdir.path);
+      final branches = await r.branches();
+      counting.calls.clear();
+
+      final links = await r.squashLinks(branches, into: 'main');
+
+      expect(links, hasLength(1));
+      expect(
+        counting.calls.where((a) => a.first == 'merge-base'),
+        hasLength(2),
+        reason: 'only feature and open are off main',
+      );
+    });
   });
+}
+
+/// Records every command a reader sends, so a test can assert on how many
+/// subprocesses a read costs.
+class _CountingGit implements GitService {
+  final GitService _inner;
+  final calls = <List<String>>[];
+
+  _CountingGit(this._inner);
+
+  @override
+  Future<GitResult> run(
+    List<String> args, {
+    String? repoPath,
+    Duration? timeout,
+    Map<String, String>? environment,
+    GitCancel? cancel,
+    String? stdin,
+  }) {
+    calls.add(args);
+    return _inner.run(
+      args,
+      repoPath: repoPath,
+      timeout: timeout,
+      environment: environment,
+      cancel: cancel,
+      stdin: stdin,
+    );
+  }
+
+  @override
+  Future<String> version() => _inner.version();
+
+  @override
+  Future<bool> isRepository(String path) => _inner.isRepository(path);
 }

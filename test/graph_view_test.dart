@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,10 +9,12 @@ import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/domain/git/lane_layout.dart';
 import 'package:mergelio/domain/git/models.dart';
+import 'package:mergelio/state/bisect.dart';
 import 'package:mergelio/state/graph_selection.dart';
 import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
+import 'package:mergelio/state/workspace.dart';
 import 'package:mergelio/ui/graph/commit_row.dart';
 import 'package:mergelio/ui/graph/graph_view.dart';
 import 'package:mergelio/ui/graph/squash_overlay.dart';
@@ -50,20 +54,25 @@ RepoData _data({List<WorkingFile> working = const []}) => RepoData(
   working: working,
 );
 
-Widget _harness(RepoData data) => ProviderScope(
-  overrides: [
-    settingsProvider.overrideWith(
-      (ref) =>
-          SettingsController(InMemorySettingsRepository(), const AppSettings()),
-    ),
-  ],
-  child: MaterialApp(
-    theme: ThemeData(extensions: [AppTokens.dark()]),
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-    home: Scaffold(body: GraphList(data: data)),
-  ),
-);
+Widget _harness(RepoData data, {List<SquashLink> squashLinks = const []}) =>
+    ProviderScope(
+      overrides: [
+        settingsProvider.overrideWith(
+          (ref) => SettingsController(
+            InMemorySettingsRepository(),
+            const AppSettings(),
+          ),
+        ),
+      ],
+      child: MaterialApp(
+        theme: ThemeData(extensions: [AppTokens.dark()]),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: GraphList(data: data, squashLinks: squashLinks),
+        ),
+      ),
+    );
 
 void main() {
   testWidgets('renders a row per commit with message and short sha', (
@@ -152,13 +161,73 @@ void main() {
         ),
       ]),
       branches: const [Branch(name: 'main', current: true)],
-      squashLinks: const [SquashLink(fromSha: 'tip', toSha: 'landing')],
     );
-    await tester.pumpWidget(_harness(data));
+    await tester.pumpWidget(
+      _harness(
+        data,
+        squashLinks: const [SquashLink(fromSha: 'tip', toSha: 'landing')],
+      ),
+    );
 
     final overlay = find.byWidgetPredicate(
       (w) => w is CustomPaint && w.painter is SquashDashPainter,
     );
+    expect(overlay, findsOneWidget);
+  });
+
+  testWidgets('the graph shows before squash links are inferred, and the '
+      'overlay joins it when they are', (tester) async {
+    final data = RepoData(
+      commits: assignLanes([
+        _c(
+          'landing',
+          ['base'],
+          refs: const [GitRef(kind: RefKind.local, name: 'main')],
+        ),
+        _c('base', const []),
+        _c(
+          'tip',
+          ['base'],
+          refs: const [GitRef(kind: RefKind.local, name: 'feature')],
+        ),
+      ]),
+      branches: const [Branch(name: 'main', current: true)],
+    );
+    final links = Completer<List<SquashLink>>();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          workspaceProvider.overrideWith(
+            (ref) => WorkspaceController()..openRepo('/r'),
+          ),
+          bisectStateProvider('/r').overrideWith((ref) => null),
+          repoDataProvider('/r').overrideWith((ref) async => data),
+          squashLinksProvider('/r').overrideWith((ref) => links.future),
+          settingsProvider.overrideWith(
+            (ref) => SettingsController(
+              InMemorySettingsRepository(),
+              const AppSettings(),
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          theme: ThemeData(extensions: [AppTokens.dark()]),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const Scaffold(body: GraphView()),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final overlay = find.byWidgetPredicate(
+      (w) => w is CustomPaint && w.painter is SquashDashPainter,
+    );
+    expect(find.text('msg landing'), findsOneWidget);
+    expect(overlay, findsNothing);
+
+    links.complete(const [SquashLink(fromSha: 'tip', toSha: 'landing')]);
+    await tester.pump();
     expect(overlay, findsOneWidget);
   });
 
