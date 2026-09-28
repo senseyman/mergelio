@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -27,11 +29,18 @@ void main() {
     tester,
   ) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.windows;
-    await tester.pumpWidget(_app(repo: true, tool: null));
-    await tester.pumpAndSettle();
-    expect(find.textContaining('stores files with Git LFS'), findsOneWidget);
-    expect(find.textContaining('Git for Windows includes it'), findsOneWidget);
-    debugDefaultTargetPlatformOverride = null;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    try {
+      await tester.pumpWidget(_app(repo: true, tool: null));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('stores files with Git LFS'), findsOneWidget);
+      expect(
+        find.textContaining('Git for Windows includes it'),
+        findsOneWidget,
+      );
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
   });
 
   testWidgets('dismiss hides it for this repo', (tester) async {
@@ -61,5 +70,34 @@ void main() {
     // no settle: providers have not resolved yet
     expect(find.textContaining('stores files with Git LFS'), findsNothing);
     await tester.pumpAndSettle();
+  });
+
+  testWidgets('absent while git-lfs probe still running', (tester) async {
+    final completer = Completer<String?>();
+    addTearDown(() {
+      if (!completer.isCompleted) completer.complete(null);
+    });
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          lfsRepoProvider.overrideWith((ref, s) async => true),
+          lfsToolProvider.overrideWith((ref) => completer.future),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          theme: ThemeData(extensions: [AppTokens.dark()]),
+          home: const Scaffold(
+            body: LfsBanner(repoPath: '/r', working: []),
+          ),
+        ),
+      ),
+    );
+    // lfsRepoProvider resolves (its future completes on a microtask), but
+    // lfsToolProvider's probe is still pending: the banner must stay silent
+    // rather than treat "not yet known" as "not installed".
+    await tester.pump();
+    await tester.pump();
+    expect(find.textContaining('stores files with Git LFS'), findsNothing);
   });
 }
