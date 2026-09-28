@@ -131,16 +131,44 @@ void main() {
     ]);
   });
 
-  test('parseCatFileBatch splits records by byte size', () {
+  test('parseCatFileBatch splits records by header, not byte size', () {
     const body1 = 'hello\n';
     const body2 = 'wörld'; // 6 bytes in UTF-8
     const raw =
         'aaaa blob 6\n$body1\n'
         'bbbb blob 6\n$body2\n';
-    expect(parseCatFileBatch(raw), {'aaaa': body1, 'bbbb': body2});
+    expect(parseCatFileBatch(raw, ['aaaa', 'bbbb']), {
+      'aaaa': body1,
+      'bbbb': body2,
+    });
   });
 
-  test('parseCatFileBatch stops at a malformed header', () {
-    expect(parseCatFileBatch('aaaa blob 3\nabc\nnonsense\n'), {'aaaa': 'abc'});
+  test('parseCatFileBatch is not misled by a byte count a malformed byte '
+      'changed the length of', () {
+    // GitService decodes stdout with allowMalformed: true, so a byte that
+    // is not valid UTF-8 becomes U+FFFD — a different number of code units
+    // than the byte it replaced. A header's declared size can no longer
+    // line up with the decoded string, so it must not be used to find
+    // where a record ends.
+    const pointer =
+        'version https://git-lfs.github.com/spec/v1\n'
+        'oid sha256:'
+        '4d7a214614ab2935c943f9e0ff69d22eadbb8f32b1258daaa5e2ca24d17e2393\n'
+        'size 9\n';
+    final raw = 'aaaa blob 6\n�bc\nbbbb blob ${pointer.length}\n$pointer\n';
+    expect(parseCatFileBatch(raw, ['aaaa', 'bbbb']), {
+      'aaaa': '�bc',
+      'bbbb': pointer,
+    });
   });
+
+  test(
+    'parseCatFileBatch stops once the next expected header is not found',
+    () {
+      const raw = 'aaaa blob 3\nabc\nbbbb blob 4\nabcd\n';
+      // 'cccc' was requested too, but the answer was truncated before it, so
+      // 'bbbb' cannot be bounded and is dropped along with anything after.
+      expect(parseCatFileBatch(raw, ['aaaa', 'bbbb', 'cccc']), {'aaaa': 'abc'});
+    },
+  );
 }

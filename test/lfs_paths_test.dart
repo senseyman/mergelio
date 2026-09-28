@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mergelio/core/logging.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/state/lfs.dart';
@@ -9,13 +10,18 @@ const _oid = '4d7a214614ab2935c943f9e0ff69d22eadbb8f32b1258daaa5e2ca24d17e2393';
 const _pointer = '$_v\noid sha256:$_oid\nsize 9\n';
 
 /// Scripted answers keyed by the first argument (and by `--batch-check` vs
-/// `--batch` for cat-file and by rev for grep).
+/// `--batch` for cat-file and by rev for grep). A value can be a single
+/// [GitResult], answered every time that key is asked for, or a
+/// `List<GitResult>` answered in order — needed where the same key (e.g.
+/// `cat-file --batch-check`) is asked more than once with a different stdin
+/// each time.
 class _Git implements GitService {
   final String gitVersion;
-  final Map<String, GitResult> answers;
+  final Map<String, Object> answers;
   final calls = <List<String>>[];
   final stdins = <String?>[];
   final timeouts = <Duration?>[];
+  final _nextInQueue = <String, int>{};
   _Git(this.answers, {this.gitVersion = 'git version 2.45.0'});
 
   @override
@@ -36,13 +42,27 @@ class _Git implements GitService {
       ['cat-file', final mode, ...] => 'cat-file $mode',
       _ => args.first,
     };
-    return answers[key] ?? const GitResult(1, '', 'unscripted');
+    final answer = answers[key];
+    if (answer is List<GitResult>) {
+      final i = _nextInQueue[key] ?? 0;
+      _nextInQueue[key] = i + 1;
+      return i < answer.length ? answer[i] : answer.last;
+    }
+    if (answer is GitResult) return answer;
+    return const GitResult(1, '', 'unscripted');
   }
 
   @override
   Future<String> version() async => gitVersion;
   @override
   Future<bool> isRepository(String path) async => true;
+}
+
+class _RecordingSink implements LogSink {
+  final lines = <String>[];
+
+  @override
+  void write(String line) => lines.add(line);
 }
 
 Future<Set<String>> _read(_Git git, LfsQuery q) async {
@@ -167,11 +187,12 @@ void main() {
       'attrs': _lfsRepo,
       'grep abc': const GitResult(1, '', ''),
       'grep abc^': const GitResult(0, 'abc^:gone.psd\x00', ''),
-      'cat-file --batch-check': GitResult(
-        0,
-        '$blob blob ${_pointer.length}\n',
-        '',
-      ),
+      'cat-file --batch-check': [
+        // First: does gone.psd still exist at rev? It does not.
+        const GitResult(0, 'abc:gone.psd missing\n', ''),
+        // Second: size of the copy found in the parent.
+        GitResult(0, '$blob blob ${_pointer.length}\n', ''),
+      ],
       'cat-file --batch': GitResult(
         0,
         '$blob blob ${_pointer.length}\n$_pointer\n',
@@ -186,13 +207,72 @@ void main() {
       ),
     );
     expect(got, {'gone.psd'});
-    expect(
-      git.stdins[git.calls.indexWhere(
-        (c) => c.length > 1 && c[1] == '--batch-check',
-      )],
-      'abc^:gone.psd\n',
-    );
+    final batchCheckStdins = [
+      for (var i = 0; i < git.calls.length; i++)
+        if (git.calls[i].length > 1 && git.calls[i][1] == '--batch-check')
+          git.stdins[i],
+    ];
+    expect(batchCheckStdins, ['abc:gone.psd\n', 'abc^:gone.psd\n']);
   });
+
+  test('parent fallback does not badge a path that still exists at rev as a '
+      'plain blob', () async {
+    const blob = '1111111111111111111111111111111111111111';
+    final git = _Git({
+      'attrs': _lfsRepo,
+      // Neither path is a pointer at rev: a.psd was moved out of LFS
+      // there, gone.psd was removed entirely.
+      'grep abc': const GitResult(1, '', ''),
+      'grep abc^': const GitResult(0, 'abc^:a.psd\x00abc^:gone.psd\x00', ''),
+      'cat-file --batch-check': [
+        // Existence check at rev: a.psd is still a real 17-byte blob,
+        // gone.psd is gone.
+        const GitResult(
+          0,
+          '3333333333333333333333333333333333333333 blob 17\n'
+              'abc:gone.psd missing\n',
+          '',
+        ),
+        // Size check, only reached for the path actually deleted at rev.
+        GitResult(0, '$blob blob ${_pointer.length}\n', ''),
+      ],
+      'cat-file --batch': GitResult(
+        0,
+        '$blob blob ${_pointer.length}\n$_pointer\n',
+        '',
+      ),
+    }, gitVersion: 'git version 2.39.5');
+    final got = await _read(
+      git,
+      LfsQuery(
+        const LfsSource(repoPath: '/r', rev: 'abc', parentRev: 'abc^'),
+        const ['a.psd', 'gone.psd'],
+      ),
+    );
+    expect(got, {'gone.psd'});
+  });
+
+  test(
+    'rev grep failure other than no-match is logged and yields no badges',
+    () async {
+      final sink = _RecordingSink();
+      final previous = appLog;
+      appLog = AppLogger(sink: sink);
+      addTearDown(() => appLog = previous);
+
+      final git = _Git({
+        'attrs': _lfsRepo,
+        'grep abc': const GitResult(128, '', 'fatal: bad object abc'),
+      }, gitVersion: 'git version 2.39.5');
+      final got = await _read(
+        git,
+        LfsQuery(const LfsSource(repoPath: '/r', rev: 'abc'), const ['a.psd']),
+      );
+      expect(got, isEmpty);
+      expect(sink.lines, isNotEmpty);
+      expect(sink.lines.single, contains('[/r]'));
+    },
+  );
 
   test('check-attr failure yields no badges', () async {
     final git = _Git({

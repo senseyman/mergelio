@@ -178,28 +178,34 @@ List<(String, int)?> parseBatchCheck(String raw) {
   ];
 }
 
-final _batchHeader = RegExp(r'^(\S+) \S+ (\d+)$');
-
-/// `git cat-file --batch` output → content by object id. Record sizes are in
-/// bytes, so the walk happens over UTF-8 bytes. A header that does not parse
-/// ends the walk: everything after it would be misaligned.
-Map<String, String> parseCatFileBatch(String raw) {
-  final bytes = utf8.encode(raw);
+/// `git cat-file --batch` output → content by object id, matched against
+/// [order] — the oids requested, in the order git answers them.
+///
+/// A record's declared byte count cannot be used to slice the raw string:
+/// the caller already decoded stdout with malformed bytes replaced, and a
+/// replaced byte does not take up the same number of code units as the byte
+/// it stood in for, so a count-based walk desyncs the moment one appears.
+/// Each record's end is found instead by locating where the next expected
+/// oid's header begins.
+Map<String, String> parseCatFileBatch(String raw, List<String> order) {
   final out = <String, String>{};
-  var at = 0;
-  while (at < bytes.length) {
-    final eol = bytes.indexOf(0x0a, at);
-    if (eol < 0) break;
-    final m = _batchHeader.firstMatch(utf8.decode(bytes.sublist(at, eol)));
-    if (m == null) break;
-    final size = int.parse(m.group(2)!);
-    final start = eol + 1;
-    if (start + size > bytes.length) break;
-    out[m.group(1)!] = utf8.decode(
-      bytes.sublist(start, start + size),
-      allowMalformed: true,
-    );
-    at = start + size + 1; // content is followed by a newline
+  var pos = 0;
+  for (var i = 0; i < order.length; i++) {
+    final oid = order[i];
+    if (!raw.startsWith('$oid ', pos)) break;
+    final headerEnd = raw.indexOf('\n', pos);
+    if (headerEnd < 0) break;
+    final contentStart = headerEnd + 1;
+    final int contentEnd;
+    if (i + 1 < order.length) {
+      final next = raw.indexOf('\n${order[i + 1]} ', contentStart);
+      if (next < 0) break;
+      contentEnd = next;
+    } else {
+      contentEnd = raw.endsWith('\n') ? raw.length - 1 : raw.length;
+    }
+    out[oid] = raw.substring(contentStart, contentEnd);
+    pos = contentEnd + 1;
   }
   return out;
 }

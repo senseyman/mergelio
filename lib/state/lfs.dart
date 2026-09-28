@@ -244,7 +244,12 @@ Future<Set<String>> _pointerScan(
       repoPath: source.repoPath,
       timeout: lfsReadTimeout,
     );
-    return r.ok ? parseGrepRevPaths(r.stdout, at) : const {};
+    if (r.ok) return parseGrepRevPaths(r.stdout, at);
+    // Exit 1 means "no match", a normal outcome for a grep. Anything else
+    // (bad rev, corrupt object) is a real failure and must not be read as
+    // "nothing here".
+    if (r.exitCode == 1) return const {};
+    throw GitException('grep failed', r);
   }
 
   // Each candidate is looked up where it exists: at the revision, or for a
@@ -254,10 +259,34 @@ Future<Set<String>> _pointerScan(
   for (final p in atRev) {
     specs[p] = '$rev:$p';
   }
+
+  // A path not found as a pointer at rev is either gone from rev (so the
+  // parent has to answer for it) or still there but as a plain blob now —
+  // moved out of LFS. Only the first case may fall back to the parent:
+  // asking the parent about a path that still exists at rev would badge it
+  // from stale history instead of the content actually at rev.
+  final remaining = wanted.difference(atRev);
   final parent = source.parentRev;
-  if (parent != null && specs.length < wanted.length) {
-    for (final p in (await grep(parent)).intersection(wanted)) {
-      specs.putIfAbsent(p, () => '$parent:$p');
+  if (parent != null && remaining.isNotEmpty) {
+    final remainingOrder = remaining.toList();
+    final exists = await git.run(
+      ['cat-file', '--batch-check'],
+      repoPath: source.repoPath,
+      stdin: '${[for (final p in remainingOrder) '$rev:$p'].join('\n')}\n',
+      timeout: lfsReadTimeout,
+    );
+    if (!exists.ok) {
+      throw GitException('cat-file --batch-check failed', exists);
+    }
+    final existing = parseBatchCheck(exists.stdout);
+    final deletedAtRev = <String>{
+      for (var i = 0; i < remainingOrder.length && i < existing.length; i++)
+        if (existing[i] == null) remainingOrder[i],
+    };
+    if (deletedAtRev.isNotEmpty) {
+      for (final p in (await grep(parent)).intersection(deletedAtRev)) {
+        specs.putIfAbsent(p, () => '$parent:$p');
+      }
     }
   }
   if (specs.isEmpty) return const {};
@@ -279,16 +308,18 @@ Future<Set<String>> _pointerScan(
   }
   if (oidToPaths.isEmpty) return const {};
 
+  final oids = oidToPaths.keys.toList();
   final batch = await git.run(
     ['cat-file', '--batch'],
     repoPath: source.repoPath,
-    stdin: '${oidToPaths.keys.join('\n')}\n',
+    stdin: '${oids.join('\n')}\n',
     timeout: lfsReadTimeout,
   );
   if (!batch.ok) throw GitException('cat-file --batch failed', batch);
   return {
     for (final MapEntry(key: oid, value: text) in parseCatFileBatch(
       batch.stdout,
+      oids,
     ).entries)
       if (parseLfsPointer(text) != null) ...?oidToPaths[oid],
   };
