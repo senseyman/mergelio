@@ -2229,6 +2229,63 @@ class AppLocalizationsUk extends AppLocalizations {
   String get diffBinaryFile => 'Двійковий файл — зміни не показано';
 
   @override
+  String get lfsBadge => 'LFS';
+
+  @override
+  String get lfsBadgeTooltip => 'Зберігається через Git LFS';
+
+  @override
+  String get lfsCardModified => 'Об\'єкт LFS';
+
+  @override
+  String get lfsCardAdded => 'Додано об\'єкт LFS';
+
+  @override
+  String get lfsCardDeleted => 'Видалено об\'єкт LFS';
+
+  @override
+  String get lfsCardMovedIn => 'Перенесено в LFS';
+
+  @override
+  String get lfsCardMovedOut => 'Винесено з LFS';
+
+  @override
+  String get lfsDownloaded => 'Завантажено';
+
+  @override
+  String get lfsNotDownloaded => 'Не завантажено';
+
+  @override
+  String get lfsToolMissing =>
+      'git-lfs не встановлено — файли показано як вказівники';
+
+  @override
+  String get lfsMismatch =>
+      'Відстежується LFS, але збережено як звичайний blob';
+
+  @override
+  String get lfsShowTextDiff => 'Показати текстові зміни';
+
+  @override
+  String get lfsBannerText =>
+      'Цей репозиторій зберігає файли через Git LFS, але git-lfs не встановлено. Доки ви його не встановите, файли показано як вказівники.';
+
+  @override
+  String get lfsBannerDismiss => 'Закрити';
+
+  @override
+  String get lfsInstallHomebrew =>
+      'Встановіть командою `brew install git-lfs`, потім виконайте `git lfs install`.';
+
+  @override
+  String get lfsInstallGitForWindows =>
+      'Він входить до Git for Windows — перевстановіть його з позначкою Git LFS, потім виконайте `git lfs install`.';
+
+  @override
+  String get lfsInstallPackageManager =>
+      'Встановіть git-lfs через менеджер пакетів, потім виконайте `git lfs install`.';
+
+  @override
   String get diffCouldNotStage => 'Не вдалося проіндексувати';
 
   @override
