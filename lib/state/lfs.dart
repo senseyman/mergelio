@@ -1,9 +1,11 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/logging.dart';
 import '../domain/git/git_providers.dart';
+import '../domain/git/git_service.dart';
 import '../domain/git/lfs.dart';
 import '../domain/git/models.dart';
 import 'diff_target.dart';
@@ -163,3 +165,131 @@ final lfsObjectPresentProvider = FutureProvider.autoDispose
 /// Repositories whose "git-lfs isn't installed" banner was dismissed in this
 /// session.
 final lfsBannerDismissedProvider = StateProvider<Set<String>>((ref) => {});
+
+/// Which of [paths] LFS manages at [source].
+class LfsQuery {
+  final LfsSource source;
+  final List<String> paths;
+  const LfsQuery(this.source, this.paths);
+
+  @override
+  bool operator ==(Object other) =>
+      other is LfsQuery &&
+      other.source == source &&
+      listEquals(other.paths, paths);
+
+  @override
+  int get hashCode => Object.hash(source, Object.hashAll(paths));
+}
+
+/// The subset of the query's paths that LFS manages, empty when that cannot
+/// be told. A failure here only costs badges, so it is logged and swallowed
+/// rather than shown.
+final lfsPathsProvider = FutureProvider.autoDispose
+    .family<Set<String>, LfsQuery>((ref, query) async {
+      final source = query.source;
+      if (source.isImmutable) ref.keepAlive();
+      if (query.paths.isEmpty) return const {};
+      if (!await ref.watch(lfsRepoProvider(source).future)) return const {};
+      final git = ref.watch(gitServiceProvider);
+      try {
+        final rev = source.rev;
+        if (rev == null) return await _checkAttr(git, source, query.paths);
+        if (supportsCheckAttrSource(await git.version())) {
+          return await _checkAttr(git, source, query.paths, rev: rev);
+        }
+        return await _pointerScan(git, source, rev, query.paths);
+      } on Object catch (e) {
+        appLog.warn('LFS path lookup failed: $e', scope: source.repoPath);
+        return const {};
+      }
+    });
+
+Future<Set<String>> _checkAttr(
+  GitService git,
+  LfsSource source,
+  List<String> paths, {
+  String? rev,
+}) async {
+  final r = await git.run(
+    ['check-attr', if (rev != null) '--source=$rev', '-z', '--stdin', 'filter'],
+    repoPath: source.repoPath,
+    stdin: '${paths.join('\x00')}\x00',
+    timeout: lfsReadTimeout,
+  );
+  if (!r.ok) throw GitException('check-attr failed', r);
+  return parseCheckAttrLfs(r.stdout);
+}
+
+/// For a git too old to read a revision's own attributes: find the blobs that
+/// are pointers. The grep narrows the candidates to files quoting the pointer
+/// spec, the size check drops anything too big to be one, and only those few
+/// are read and parsed.
+Future<Set<String>> _pointerScan(
+  GitService git,
+  LfsSource source,
+  String rev,
+  List<String> paths,
+) async {
+  // One path per stdin line below, so a path with a newline cannot be asked
+  // about; it goes unbadged.
+  final wanted = {
+    for (final p in paths)
+      if (!p.contains('\n')) p,
+  };
+
+  Future<Set<String>> grep(String at) async {
+    final r = await git.run(
+      ['grep', '-l', '-z', '-F', '-e', lfsPointerVersion, at],
+      repoPath: source.repoPath,
+      timeout: lfsReadTimeout,
+    );
+    return r.ok ? parseGrepRevPaths(r.stdout, at) : const {};
+  }
+
+  // Each candidate is looked up where it exists: at the revision, or for a
+  // path deleted there, in the parent.
+  final specs = <String, String>{}; // path → rev:path
+  final atRev = (await grep(rev)).intersection(wanted);
+  for (final p in atRev) {
+    specs[p] = '$rev:$p';
+  }
+  final parent = source.parentRev;
+  if (parent != null && specs.length < wanted.length) {
+    for (final p in (await grep(parent)).intersection(wanted)) {
+      specs.putIfAbsent(p, () => '$parent:$p');
+    }
+  }
+  if (specs.isEmpty) return const {};
+
+  final order = specs.keys.toList();
+  final check = await git.run(
+    ['cat-file', '--batch-check'],
+    repoPath: source.repoPath,
+    stdin: '${[for (final p in order) specs[p]!].join('\n')}\n',
+    timeout: lfsReadTimeout,
+  );
+  if (!check.ok) throw GitException('cat-file --batch-check failed', check);
+  final sizes = parseBatchCheck(check.stdout);
+  final oidToPaths = <String, List<String>>{};
+  for (var i = 0; i < order.length && i < sizes.length; i++) {
+    final entry = sizes[i];
+    if (entry == null || entry.$2 > lfsPointerMaxBytes) continue;
+    oidToPaths.putIfAbsent(entry.$1, () => []).add(order[i]);
+  }
+  if (oidToPaths.isEmpty) return const {};
+
+  final batch = await git.run(
+    ['cat-file', '--batch'],
+    repoPath: source.repoPath,
+    stdin: '${oidToPaths.keys.join('\n')}\n',
+    timeout: lfsReadTimeout,
+  );
+  if (!batch.ok) throw GitException('cat-file --batch failed', batch);
+  return {
+    for (final MapEntry(key: oid, value: text) in parseCatFileBatch(
+      batch.stdout,
+    ).entries)
+      if (parseLfsPointer(text) != null) ...?oidToPaths[oid],
+  };
+}
