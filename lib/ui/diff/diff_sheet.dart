@@ -198,7 +198,10 @@ class _DiffHeader extends ConsumerWidget {
     void toggleWholeFile() => ref.read(diffTargetProvider.notifier).state =
         target.withWholeFile(!target.wholeFile);
 
-    final canEdit = target.isWorkingTree && !editing;
+    // An LFS file shows its card, not its text. Editing it would mean
+    // hand-editing pointer text, which staging would then commit as is.
+    final isLfs = doc?.files.any((f) => f.lfs != null) ?? false;
+    final canEdit = target.isWorkingTree && !editing && !isLfs;
     final canStage = doc != null && doc.editable && !editing;
     final stageLabel = (doc?.staged ?? false)
         ? l.diffUnstageFile

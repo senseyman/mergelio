@@ -354,6 +354,9 @@ void main() {
   });
 
   testWidgets('diff sheet renders the card, not pointer lines', (tester) async {
+    tester.view.physicalSize = const Size(1600, 600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -389,6 +392,10 @@ void main() {
     expect(find.textContaining('oid sha256:'), findsNothing);
     // A pointer diff is not a mismatch.
     expect(find.textContaining('regular blob'), findsNothing);
+    // Editing would put hand-written pointer text in the working tree, one
+    // Stage away from being committed; the card offers no way to do that.
+    expect(find.text('Edit'), findsNothing);
+    expect(find.text('Stage file').hitTestable(), findsOneWidget);
   });
 
   testWidgets('narrow header keeps the mismatch note from overflowing the '
