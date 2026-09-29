@@ -3,6 +3,7 @@
 library;
 
 import 'dart:convert';
+import 'dart:math' show max;
 
 import 'package:path/path.dart' as p;
 
@@ -256,27 +257,13 @@ class LfsLsEntry {
 final _lsFilesLine = RegExp(r'^([0-9a-f]{64}) ([*-]) (.+)$');
 
 /// `git lfs ls-files -l` output → entries. Anything else on the stream
-/// (warnings, blank lines) is skipped.
+/// (warnings, blank lines) is skipped. CRLF endings are accepted, since
+/// git-lfs writes the line endings of the platform it runs on.
 List<LfsLsEntry> parseLfsLsFiles(String raw) => [
-  for (final line in raw.split('\n'))
+  for (final line in _lines(raw))
     if (_lsFilesLine.firstMatch(line) case final m?)
       LfsLsEntry(oid: m[1]!, path: m[3]!, checkedOut: m[2] == '*'),
 ];
-
-final _humanSize = RegExp(r'^(\d+(?:\.\d+)?) (B|KB|MB|GB|TB)$');
-
-/// git-lfs's own human sizes (`3.0 KB`) back to bytes, 1024-based. The result
-/// is approximate by nature: git-lfs rounded it to one decimal.
-int? parseLfsHumanSize(String s) {
-  final m = _humanSize.firstMatch(s.trim());
-  if (m == null) return null;
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  var bytes = double.parse(m[1]!);
-  for (var i = 0; i < units.indexOf(m[2]!); i++) {
-    bytes *= 1024;
-  }
-  return bytes.round();
-}
 
 /// What `git lfs prune --dry-run --verbose` would remove: how many objects.
 /// There is no byte total — git-lfs prints at most one ` * <oid> (<size>)`
@@ -300,25 +287,23 @@ final _pruneSummary = RegExp(r'^(\d+) local objects?, (\d+) retained');
 /// "nothing to prune" are different answers: only the second may be shown as
 /// such, and neither may lead to a prune.
 ///
-/// The count is the summary line's `local − retained` difference. Detail
-/// lines cannot be counted instead: git-lfs shows at most one of them no
-/// matter how many objects it prunes.
-LfsPrunePreview? parsePruneDryRunLines(Iterable<String> lines) {
-  for (final line in lines) {
+/// The count is the summary line's `local − retained` difference, never
+/// below zero. Detail lines cannot be counted instead: git-lfs shows at most
+/// one of them no matter how many objects it prunes.
+LfsPrunePreview? parseLfsPruneDryRun(String raw) {
+  for (final line in _lines(raw)) {
     final m = _pruneSummary.firstMatch(line.trim());
     if (m == null) continue;
     final local = int.parse(m[1]!);
     final retained = int.parse(m[2]!);
-    return LfsPrunePreview(count: local - retained);
+    return LfsPrunePreview(count: max(0, local - retained));
   }
   return null;
 }
 
-/// Normalizes CRLF line endings before splitting: git-lfs's own line
-/// endings follow the platform it ran on, not the platform reading its
-/// output.
-LfsPrunePreview? parseLfsPruneDryRun(String raw) =>
-    parsePruneDryRunLines(raw.replaceAll('\r\n', '\n').split('\n'));
+/// Splits git-lfs output into lines, dropping CRLF's `\r`: git-lfs's line
+/// endings follow the platform it ran on, not the platform reading them.
+List<String> _lines(String raw) => raw.replaceAll('\r\n', '\n').split('\n');
 
 /// A pattern `git lfs track` lists, and the `.gitattributes` it lives in.
 class LfsTrackedPattern {
@@ -343,7 +328,7 @@ final _trackLine = RegExp(r'^\s+(.+) \(([^()]+)\)$');
 List<LfsTrackedPattern> parseLfsTrackList(String raw) {
   final out = <LfsTrackedPattern>[];
   var inTracked = false;
-  for (final line in raw.split('\n')) {
+  for (final line in _lines(raw)) {
     if (line.startsWith('Listing tracked patterns')) {
       inTracked = true;
     } else if (line.startsWith('Listing ')) {

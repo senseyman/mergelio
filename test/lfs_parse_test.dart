@@ -223,20 +223,11 @@ void main() {
         isEmpty,
       );
     });
-  });
-
-  group('parseLfsHumanSize', () {
-    final cases = {
-      '512 B': 512,
-      '3.0 KB': 3072,
-      '1.5 MB': 1572864,
-      '2 GB': 2147483648,
-      '1.1 TB': 1209462790554,
-      'nonsense': null,
-      '': null,
-    };
-    cases.forEach((s, want) {
-      test('"$s"', () => expect(parseLfsHumanSize(s), want));
+    test('tolerates CRLF line endings', () {
+      expect(parseLfsLsFiles('$a * a.bin\r\n$b - c.bin\r\n'), const [
+        LfsLsEntry(oid: a, path: 'a.bin', checkedOut: true),
+        LfsLsEntry(oid: b, path: 'c.bin', checkedOut: false),
+      ]);
     });
   });
 
@@ -293,6 +284,12 @@ void main() {
         const LfsPrunePreview(count: 4),
       );
     });
+    test('more retained than local never goes below zero', () {
+      expect(
+        parseLfsPruneDryRun('2 local objects, 5 retained, done.\n'),
+        const LfsPrunePreview(count: 0),
+      );
+    });
     test('unrecognisable output is null, not zero', () {
       expect(parseLfsPruneDryRun(''), isNull);
       expect(parseLfsPruneDryRun('fatal: not a git repository\n'), isNull);
@@ -316,6 +313,16 @@ void main() {
             source: 'sub/.gitattributes',
           ),
         ],
+      );
+    });
+    test('tolerates CRLF line endings', () {
+      expect(
+        parseLfsTrackList(
+          'Listing tracked patterns\r\n'
+          '    *.psd (.gitattributes)\r\n'
+          'Listing excluded patterns\r\n',
+        ),
+        const [LfsTrackedPattern(pattern: '*.psd', source: '.gitattributes')],
       );
     });
     test('none', () {
@@ -355,6 +362,8 @@ void main() {
     test('by extension', () {
       expect(lfsExtensionPattern('art/cover.PSD'), '*.PSD');
       expect(lfsExtensionPattern('a.tar.gz'), '*.gz');
+      // A dotfile with a further dot has a real extension after it.
+      expect(lfsExtensionPattern('.env.local'), '*.local');
     });
     test('none when there is no usable extension', () {
       expect(lfsExtensionPattern('Makefile'), isNull);
@@ -362,6 +371,7 @@ void main() {
       expect(lfsExtensionPattern('dir.d/file'), isNull);
       expect(lfsExtensionPattern('a.b[1]'), isNull);
       expect(lfsExtensionPattern('a.b c'), isNull);
+      expect(lfsExtensionPattern('archive.'), isNull);
     });
   });
 }
