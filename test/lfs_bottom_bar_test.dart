@@ -38,6 +38,7 @@ class _FakeGit implements GitService {
 
 const _pull = 'Pull LFS files';
 const _fetchAll = 'Fetch all LFS objects';
+const _prune = 'Prune LFS objects…';
 
 Future<ProviderContainer> _pump(
   WidgetTester tester,
@@ -89,6 +90,7 @@ void main() {
     await tester.tap(find.text('Fetch'));
     await tester.pumpAndSettle();
     expect(find.text(_fetchAll), findsOneWidget);
+    expect(find.text(_prune), findsOneWidget);
   });
 
   testWidgets('not ready: neither menu offers an LFS entry', (tester) async {
@@ -101,6 +103,7 @@ void main() {
     await tester.tap(find.text('Fetch'));
     await tester.pumpAndSettle();
     expect(find.text(_fetchAll), findsNothing);
+    expect(find.text(_prune), findsNothing);
   });
 
   testWidgets('Pull LFS files runs git lfs pull', (tester) async {
@@ -143,6 +146,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text(_pull), ready ? findsOneWidget : findsNothing);
       expect(find.text(_fetchAll), ready ? findsOneWidget : findsNothing);
+      expect(find.text(_prune), ready ? findsOneWidget : findsNothing);
     });
   }
 }

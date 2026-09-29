@@ -14,6 +14,7 @@ import '../../state/undo_stack.dart';
 import '../../state/workspace.dart';
 import '../common/confirm.dart';
 import '../common/dialogs.dart';
+import 'lfs_prune_flow.dart';
 import 'repo_op_dialogs.dart';
 import 'shell_widgets.dart';
 
@@ -124,6 +125,11 @@ class AppBottomBar extends ConsumerWidget {
                               _Op(
                                 l.lfsOpFetchAll,
                                 () => actions!.lfsFetchAll(),
+                              ),
+                            if (lfsReady)
+                              _Op(
+                                l.lfsOpPrune,
+                                () => showLfsPruneFlow(context, ref, path),
                               ),
                           ],
                         ),

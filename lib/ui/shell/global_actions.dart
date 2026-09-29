@@ -14,6 +14,7 @@ import '../../state/workspace.dart';
 import '../palette/command_palette.dart';
 import '../workspace/branch_switch.dart';
 import '../workspace/remote_dialog.dart';
+import 'lfs_prune_flow.dart';
 import 'repo_op_dialogs.dart';
 
 /// App-wide actions shared by the keyboard dispatcher and toolbar buttons, so
@@ -53,6 +54,11 @@ void openGlobalPalette(BuildContext context, WidgetRef ref) {
         l.lfsOpFetchAll,
         Icons.download_outlined,
         () => actions.lfsFetchAll(),
+      ),
+      PaletteCommand(
+        l.lfsOpPrune,
+        Icons.cleaning_services_outlined,
+        () => showLfsPruneFlow(context, ref, path),
       ),
     ],
     PaletteCommand('Push', Icons.north_east, () => actions.push()),
