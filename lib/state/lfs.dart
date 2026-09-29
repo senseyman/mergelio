@@ -411,7 +411,18 @@ final lfsPointerFilesProvider = FutureProvider.autoDispose
 /// Whether pushing from here would upload LFS objects along with commits.
 enum LfsPushReadiness { ready, toolMissing, hookMissing }
 
-/// The text of the repository's `pre-push` hook, or null when there is none.
+/// Whether git would actually run a hook file with the given [mode]. On
+/// POSIX, git silently skips a hook that lacks an execute bit for owner,
+/// group, or other; on Windows git runs hooks regardless of the execute
+/// bit, so [windows] skips the mode check entirely.
+bool lfsHookRuns({
+  required bool exists,
+  required int mode,
+  required bool windows,
+}) => exists && (windows || mode & 0x49 != 0);
+
+/// The text of the repository's `pre-push` hook, or null when there is none
+/// or when git would not run it (the file lacks an execute bit on POSIX).
 /// Reads the filesystem, so widget tests override it.
 final lfsHookTextProvider = FutureProvider.autoDispose.family<String?, String>((
   ref,
@@ -429,13 +440,20 @@ final lfsHookTextProvider = FutureProvider.autoDispose.family<String?, String>((
     if (!r.ok) return null;
     final path = p.isAbsolute(r.out) ? r.out : p.join(repoPath, r.out);
     final file = File(path);
-    return await file.exists() ? await file.readAsString() : null;
+    final exists = await file.exists();
+    final mode = exists ? (await file.stat()).mode : 0;
+    if (!lfsHookRuns(exists: exists, mode: mode, windows: Platform.isWindows)) {
+      return null;
+    }
+    return await file.readAsString();
   } on Object catch (e) {
     appLog.warn('Reading the pre-push hook failed: $e', scope: repoPath);
     return null;
   }
 });
 
+/// A `pre-push` hook git would skip — missing, or present but not marked
+/// executable on POSIX — counts the same as no hook at all: [hookMissing].
 final lfsPushReadinessProvider = FutureProvider.autoDispose
     .family<LfsPushReadiness, LfsSource>((ref, source) async {
       if (!await ref.watch(lfsRepoProvider(source).future)) {

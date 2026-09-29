@@ -122,6 +122,30 @@ void main() {
     });
   });
 
+  group('lfsHookRuns', () {
+    test('true when the owner execute bit is set (0755)', () {
+      expect(lfsHookRuns(exists: true, mode: 0x1ed, windows: false), isTrue);
+    });
+    test('false when no execute bit is set (0644)', () {
+      expect(lfsHookRuns(exists: true, mode: 0x1a4, windows: false), isFalse);
+    });
+    test('true when only the group execute bit is set', () {
+      expect(lfsHookRuns(exists: true, mode: 0x1a8, windows: false), isTrue);
+    });
+    test('true when only the other execute bit is set', () {
+      expect(lfsHookRuns(exists: true, mode: 0x1a5, windows: false), isTrue);
+    });
+    test('false when the file does not exist, regardless of mode', () {
+      expect(lfsHookRuns(exists: false, mode: 0x1ed, windows: false), isFalse);
+    });
+    test('true on Windows even without any execute bit', () {
+      expect(lfsHookRuns(exists: true, mode: 0x1a4, windows: true), isTrue);
+    });
+    test('false on Windows when the file does not exist', () {
+      expect(lfsHookRuns(exists: false, mode: 0x1ed, windows: true), isFalse);
+    });
+  });
+
   group('lfsPushReadinessProvider', () {
     test('ready when the repo does not use LFS', () async {
       final git = _Git({'grep': const GitResult(1, '', '')});
