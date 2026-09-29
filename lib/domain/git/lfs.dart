@@ -278,44 +278,47 @@ int? parseLfsHumanSize(String s) {
   return bytes.round();
 }
 
-/// What `git lfs prune --dry-run --verbose` would remove.
+/// What `git lfs prune --dry-run --verbose` would remove: how many objects.
+/// There is no byte total — git-lfs prints at most one ` * <oid> (<size>)`
+/// detail line regardless of how many objects it actually prunes, so no
+/// per-object size is available to sum.
 class LfsPrunePreview {
   final int count;
-  final int bytes;
-  const LfsPrunePreview({required this.count, required this.bytes});
+  const LfsPrunePreview({required this.count});
 
   @override
   bool operator ==(Object other) =>
-      other is LfsPrunePreview && other.count == count && other.bytes == bytes;
+      other is LfsPrunePreview && other.count == count;
 
   @override
-  int get hashCode => Object.hash(count, bytes);
+  int get hashCode => count.hashCode;
 }
 
-final _pruneSummary = RegExp(r'^\d+ local objects?, \d+ retained');
-final _pruneObject = RegExp(r'^\s*\*\s+[0-9a-f]{64}\s+\(([^)]+)\)');
+final _pruneSummary = RegExp(r'^(\d+) local objects?, (\d+) retained');
 
 /// The dry run's report, or null when it does not look like one. Null and
 /// "nothing to prune" are different answers: only the second may be shown as
 /// such, and neither may lead to a prune.
+///
+/// The count is the summary line's `local − retained` difference. Detail
+/// lines cannot be counted instead: git-lfs shows at most one of them no
+/// matter how many objects it prunes.
 LfsPrunePreview? parsePruneDryRunLines(Iterable<String> lines) {
-  var sawSummary = false;
-  var count = 0;
-  var bytes = 0;
   for (final line in lines) {
-    if (_pruneSummary.hasMatch(line.trim())) sawSummary = true;
-    final m = _pruneObject.firstMatch(line);
-    if (m != null) {
-      count++;
-      bytes += parseLfsHumanSize(m[1]!) ?? 0;
-    }
+    final m = _pruneSummary.firstMatch(line.trim());
+    if (m == null) continue;
+    final local = int.parse(m[1]!);
+    final retained = int.parse(m[2]!);
+    return LfsPrunePreview(count: local - retained);
   }
-  if (!sawSummary) return null;
-  return LfsPrunePreview(count: count, bytes: bytes);
+  return null;
 }
 
+/// Normalizes CRLF line endings before splitting: git-lfs's own line
+/// endings follow the platform it ran on, not the platform reading its
+/// output.
 LfsPrunePreview? parseLfsPruneDryRun(String raw) =>
-    parsePruneDryRunLines(raw.split('\n'));
+    parsePruneDryRunLines(raw.replaceAll('\r\n', '\n').split('\n'));
 
 /// A pattern `git lfs track` lists, and the `.gitattributes` it lives in.
 class LfsTrackedPattern {

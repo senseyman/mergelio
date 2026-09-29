@@ -244,24 +244,25 @@ void main() {
     test('nothing to prune', () {
       expect(
         parseLfsPruneDryRun('2 local objects, 2 retained, done.\n'),
-        const LfsPrunePreview(count: 0, bytes: 0),
+        const LfsPrunePreview(count: 0),
       );
     });
-    test('counts objects and sums their sizes', () {
-      const o1 =
+    test('counts from the summary numbers, not the detail lines', () {
+      // git-lfs prints at most one ` * <oid> (<size>)` detail line no matter
+      // how many objects it actually prunes, so the count must come from the
+      // summary's `local − retained` difference, not from counting these
+      // lines: here that would undercount 2 as 1.
+      const oid =
           '482b8673d879f129dbcc30eb80fcf939481fd963bba4e0a7ebcc2df0e9f50c7b';
-      const o2 =
-          'c37454b5337b1482c5a42b733bf5fff3f9a28714f9f1547512d8db046112bd92';
       expect(
         parseLfsPruneDryRun(
           '3 local objects, 1 retained, done.\n'
-          ' * $o1 (3.0 KB)\n'
-          ' * $o2 (1.0 MB)\n',
+          ' * $oid (3.0 KB), done.\n',
         ),
-        const LfsPrunePreview(count: 2, bytes: 3072 + 1048576),
+        const LfsPrunePreview(count: 2),
       );
     });
-    test('the captured real output parses', () {
+    test('the captured single-object real output parses', () {
       // Captured from git-lfs 3.8.0 on darwin arm64: one file pushed then
       // removed in a follow-up commit, then `git lfs prune --dry-run
       // --verbose` after pushing both commits to origin.
@@ -270,7 +271,27 @@ void main() {
           '\n'
           ' * f4b619328582b9679ce61f8cb487e47daf46583327771dc85e5931f504b95231 '
           '(4.0 KB), done.\n';
-      expect(parseLfsPruneDryRun(pruneSome)?.count, 1);
+      expect(parseLfsPruneDryRun(pruneSome), const LfsPrunePreview(count: 1));
+    });
+    test('the captured four-object real output parses', () {
+      // Also reproduced on git-lfs 3.8: pruning 4 objects of different
+      // sizes still prints only a single detail line, so the summary is the
+      // only reliable source for the count.
+      const pruneFour =
+          '4 local objects, 0 retained, done.\n'
+          ' * 1fb01e2582b7379118128c319fd04b565e6eff947b8dda317bceda9363e7385a '
+          '(20 KB), done.\n';
+      expect(parseLfsPruneDryRun(pruneFour), const LfsPrunePreview(count: 4));
+    });
+    test('tolerates CRLF line endings', () {
+      const pruneFourCrlf =
+          '4 local objects, 0 retained, done.\r\n'
+          ' * 1fb01e2582b7379118128c319fd04b565e6eff947b8dda317bceda9363e7385a '
+          '(20 KB), done.\r\n';
+      expect(
+        parseLfsPruneDryRun(pruneFourCrlf),
+        const LfsPrunePreview(count: 4),
+      );
     });
     test('unrecognisable output is null, not zero', () {
       expect(parseLfsPruneDryRun(''), isNull);
