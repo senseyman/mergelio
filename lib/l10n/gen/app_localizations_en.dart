@@ -2209,6 +2209,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get diffShowWholeFile => 'Show whole file';
 
   @override
+  String get diffMoreActions => 'More actions';
+
+  @override
   String get diffCouldNotLoad => 'Could not load diff';
 
   @override

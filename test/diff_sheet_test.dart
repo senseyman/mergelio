@@ -142,8 +142,13 @@ void main() {
   testWidgets('partial file shows the side toggle and flips the target', (
     tester,
   ) async {
-    // Default test surface width: the header must fit the toggle plus all the
-    // other controls without overflowing.
+    // Wide enough for the header to show the toggle as buttons: the test font
+    // draws every glyph a full em wide, so labels take far more room here than
+    // in the app. Narrower sheets fold these controls into a menu; that path is
+    // covered in diff_header_width_test.dart.
+    tester.view.physicalSize = const Size(1000, 600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
     await tester.pumpWidget(_harnessPartial('/pr'));
     final container = ProviderScope.containerOf(
       tester.element(find.byType(DiffSheet)),
@@ -154,8 +159,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Staged'), findsWidgets);
-    await tester.tap(find.text('Staged').first);
+    expect(find.text('Staged').hitTestable(), findsOneWidget);
+    await tester.tap(find.text('Staged').hitTestable());
     await tester.pump();
     expect(container.read(diffTargetProvider)?.staged, isTrue);
   });

@@ -3896,6 +3896,12 @@ abstract class AppLocalizations {
   /// **'Show whole file'**
   String get diffShowWholeFile;
 
+  /// No description provided for @diffMoreActions.
+  ///
+  /// In en, this message translates to:
+  /// **'More actions'**
+  String get diffMoreActions;
+
   /// No description provided for @diffCouldNotLoad.
   ///
   /// In en, this message translates to:

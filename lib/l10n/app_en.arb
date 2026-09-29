@@ -1483,6 +1483,7 @@
   "diffUnstageFile": "Unstage file",
   "diffShowChangesOnly": "Show changes only",
   "diffShowWholeFile": "Show whole file",
+  "diffMoreActions": "More actions",
   "diffCouldNotLoad": "Could not load diff",
   "diffBinaryFile": "Binary file — diff not shown",
   "lfsBadge": "LFS",

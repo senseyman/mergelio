@@ -808,6 +808,7 @@
   "diffUnstageFile": "Зняти індексацію з файлу",
   "diffShowChangesOnly": "Показати лише зміни",
   "diffShowWholeFile": "Показати весь файл",
+  "diffMoreActions": "Інші дії",
   "diffCouldNotLoad": "Не вдалося завантажити зміни",
   "diffBinaryFile": "Двійковий файл — зміни не показано",
   "lfsBadge": "LFS",

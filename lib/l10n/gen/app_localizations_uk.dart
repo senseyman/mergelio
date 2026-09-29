@@ -2223,6 +2223,9 @@ class AppLocalizationsUk extends AppLocalizations {
   String get diffShowWholeFile => 'Показати весь файл';
 
   @override
+  String get diffMoreActions => 'Інші дії';
+
+  @override
   String get diffCouldNotLoad => 'Не вдалося завантажити зміни';
 
   @override
