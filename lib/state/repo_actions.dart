@@ -13,6 +13,7 @@ import '../domain/git/git_providers.dart';
 import '../domain/git/git_reader.dart';
 import '../domain/git/git_service.dart';
 import '../domain/git/git_writer.dart';
+import '../domain/git/lfs.dart';
 import '../domain/git/models.dart';
 import '../domain/git/rebase_plan.dart';
 import 'bisect.dart';
@@ -22,6 +23,7 @@ import 'merge_session.dart';
 import 'operation_journal.dart';
 import 'profiles.dart';
 import 'graph_selection.dart';
+import 'lfs.dart';
 import 'repo_data.dart';
 import 'undo_stack.dart';
 import 'workspace.dart';
@@ -124,6 +126,9 @@ class RepoActions {
     // a cancellation, both of which return true above without anything
     // having happened.
     void Function()? onSuccess,
+    // An op whose result the caller shows itself (a preview) wants failures
+    // toasted but not its own success.
+    bool toastSuccess = true,
   }) async {
     final toasts = _ref.read(toastProvider.notifier);
     final slot = lane == _Lane.fetch ? fetchBusyProvider : busyProvider;
@@ -147,7 +152,9 @@ class RepoActions {
       await _timed(label, () => op(cancel));
       await _journalDone(opId);
       onSuccess?.call();
-      if (!silent) toasts.show('$label complete', kind: ToastKind.success);
+      if (!silent && toastSuccess) {
+        toasts.show('$label complete', kind: ToastKind.success);
+      }
       return true;
     } on GitCancelledException {
       await _journalFail(opId);
@@ -208,6 +215,142 @@ class RepoActions {
     writesWorkingTree: false,
     lane: _Lane.fetch,
   );
+
+  // — Git LFS —
+
+  /// LFS state git status cannot see changes after every LFS operation; the
+  /// providers that show it follow this counter.
+  void _bumpLfs() => _ref.read(lfsGenerationProvider(path).notifier).state++;
+
+  Future<bool> _lfsNetwork(
+    String label,
+    Future<void> Function(GitCancel cancel) op, {
+    _Lane lane = _Lane.repo,
+    bool writesWorkingTree = true,
+    bool toastSuccess = true,
+  }) async {
+    try {
+      return await _network(
+        label,
+        op,
+        lane: lane,
+        writesWorkingTree: writesWorkingTree,
+        toastSuccess: toastSuccess,
+      );
+    } finally {
+      _bumpLfs();
+    }
+  }
+
+  Future<bool> _lfsLocal(String label, Future<void> Function() op) async {
+    if (_blockedByRepoOp) return false;
+    try {
+      return await _local(label, op);
+    } finally {
+      _bumpLfs();
+    }
+  }
+
+  /// Downloads LFS content and replaces working-tree pointers with it.
+  Future<void> lfsPull() =>
+      _lfsNetwork('Pull LFS files', (c) => _writer.lfsPull(cancel: c));
+
+  /// Downloads every LFS object any ref needs, for working offline.
+  Future<void> lfsFetchAll() => _lfsNetwork(
+    'Fetch all LFS objects',
+    (c) => _writer.lfsFetchAll(cancel: c),
+    lane: _Lane.fetch,
+    writesWorkingTree: false,
+  );
+
+  /// Downloads one working-tree file's content and checks it out.
+  Future<void> lfsDownloadFile(String file) => _lfsNetwork(
+    'Download $file',
+    (c) => _writer.lfsPull(include: file, cancel: c),
+  );
+
+  /// Downloads the object [file] has at [rev], leaving the working tree alone.
+  Future<void> lfsFetchObject(String remote, String rev, String file) =>
+      _lfsNetwork(
+        'Download $file',
+        (c) => _writer.lfsFetchObject(remote, rev, file, cancel: c),
+        lane: _Lane.fetch,
+        writesWorkingTree: false,
+      );
+
+  /// What a prune would remove. [ran] is false when the dry run itself failed
+  /// (already toasted); a null [preview] means its report was unreadable.
+  Future<({bool ran, LfsPrunePreview? preview})> lfsPrunePreview() async {
+    LfsPrunePreview? preview;
+    final ran = await _lfsNetwork(
+      'Preview LFS prune',
+      (c) async {
+        final r = await _writer.lfsPruneDryRun(cancel: c);
+        if (!r.ok) throw GitException('git lfs prune --dry-run', r);
+        preview = parseLfsPruneDryRun('${r.stdout}\n${r.stderr}');
+      },
+      writesWorkingTree: false,
+      toastSuccess: false,
+    );
+    return (ran: ran, preview: preview);
+  }
+
+  Future<void> lfsPrune() => _lfsNetwork(
+    'Prune LFS objects',
+    (c) => _writer.lfsPrune(cancel: c),
+    writesWorkingTree: false,
+  );
+
+  Future<bool> lfsTrack(String pattern) =>
+      _lfsLocal('Track $pattern', () => _writer.lfsTrack(pattern));
+
+  Future<bool> lfsTrackFile(String file) =>
+      _lfsLocal('Track $file', () => _writer.lfsTrackFile(file));
+
+  Future<bool> lfsUntrack(String pattern) =>
+      _lfsLocal('Stop tracking $pattern', () => _writer.lfsUntrack(pattern));
+
+  Future<List<LfsTrackedPattern>> lfsTrackedPatterns() async =>
+      parseLfsTrackList(await _writer.lfsTrackList());
+
+  /// Committed files [pattern] now routes through LFS that are still stored
+  /// as regular blobs. [literal] treats [pattern] as one exact path.
+  Future<List<String>> lfsConvertCandidates(
+    String pattern, {
+    bool literal = false,
+  }) async {
+    final spec = literal ? ':(literal)$pattern' : ':(glob)**/$pattern';
+    final listed = await _git.run(
+      ['ls-files', '-z', '--', spec],
+      repoPath: path,
+      timeout: lfsReadTimeout,
+    );
+    if (!listed.ok) throw GitException('git ls-files', listed);
+    final lfs = await _git.run(
+      ['lfs', 'ls-files', '-l'],
+      repoPath: path,
+      timeout: lfsReadTimeout,
+    );
+    final already = lfs.ok
+        ? {for (final e in parseLfsLsFiles(lfs.stdout)) e.path}
+        : const <String>{};
+    return [
+      for (final f in listed.stdout.split('\x00'))
+        if (f.isNotEmpty && !already.contains(f)) f,
+    ];
+  }
+
+  /// Stages [files] again through the current attributes, as LFS pointers.
+  /// Stops at staged, as every Mergelio flow does.
+  Future<bool> lfsConvert(List<String> files) => _lfsLocal(
+    'Convert ${files.length} files to LFS',
+    () => _writer.renormalize(files),
+  );
+
+  /// Writes the LFS filters and hooks into this repository. Only ever run on
+  /// the user's explicit choice.
+  Future<bool> lfsInstallHooks() =>
+      _lfsLocal('Install LFS hooks', _writer.lfsInstallLocal);
 
   // — Submodules —
 
