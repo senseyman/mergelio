@@ -554,6 +554,7 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
               return LfsCard(
                 repoPath: target.repoPath,
                 file: lfsFile,
+                target: target,
                 onShowText: hasText
                     ? () => setState(() => _lfsText = true)
                     : null,
