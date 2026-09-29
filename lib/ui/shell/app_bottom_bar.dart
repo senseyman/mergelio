@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
 import '../../l10n/gen/app_localizations.dart';
+import '../../domain/git/models.dart';
 import '../../state/feedback.dart';
+import '../../state/lfs.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
 import '../../state/settings.dart';
@@ -31,6 +33,16 @@ class AppBottomBar extends ConsumerWidget {
         : (ref.watch(repoDataProvider(path)).valueOrNull?.remotes ??
               const <String>[]);
     final hasRemote = path != null && remotes.isNotEmpty;
+    final working = path == null
+        ? const <WorkingFile>[]
+        : (ref.watch(repoDataProvider(path)).valueOrNull?.working ??
+              const <WorkingFile>[]);
+    final lfsReady =
+        path != null &&
+        (ref
+                .watch(lfsReadyProvider(workingTreeLfsSource(path, working)))
+                .valueOrNull ??
+            false);
     final busy = ref.watch(busyProvider) != null;
     // Fetching has its own lane, so only another fetch stands in its way.
     final fetching = ref.watch(fetchBusyProvider) != null;
@@ -108,6 +120,11 @@ class AppBottomBar extends ConsumerWidget {
                               () => actions!.fetch(remote: 'origin'),
                             ),
                             _Op(l.bbFetchAllRemotes, () => actions!.fetch()),
+                            if (lfsReady)
+                              _Op(
+                                l.lfsOpFetchAll,
+                                () => actions!.lfsFetchAll(),
+                              ),
                           ],
                         ),
                         _OpButton(
@@ -150,6 +167,8 @@ class AppBottomBar extends ConsumerWidget {
                                 autostash: autostash,
                               );
                             }),
+                            if (lfsReady)
+                              _Op(l.lfsOpPull, () => actions!.lfsPull()),
                           ],
                         ),
                         _OpButton(

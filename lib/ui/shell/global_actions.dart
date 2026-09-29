@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/search.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/graph_selection.dart';
+import '../../state/lfs.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
 import '../../state/settings.dart';
@@ -31,12 +32,29 @@ void openGlobalPalette(BuildContext context, WidgetRef ref) {
   if (path == null) return;
   final actions = ref.read(repoActionsProvider(path));
   final data = ref.read(repoDataProvider(path)).valueOrNull;
+  final lfsReady =
+      ref
+          .read(
+            lfsReadyProvider(
+              workingTreeLfsSource(path, data?.working ?? const []),
+            ),
+          )
+          .valueOrNull ??
+      false;
   final cmds = <PaletteCommand>[
     PaletteCommand('Fetch', Icons.download_outlined, () => actions.fetch()),
     PaletteCommand('Pull', Icons.south_west, () {
       final pull = pullDefaults(ref.read(settingsProvider));
       return actions.pull(rebase: pull.rebase, autostash: pull.autostash);
     }),
+    if (lfsReady) ...[
+      PaletteCommand(l.lfsOpPull, Icons.south_west, () => actions.lfsPull()),
+      PaletteCommand(
+        l.lfsOpFetchAll,
+        Icons.download_outlined,
+        () => actions.lfsFetchAll(),
+      ),
+    ],
     PaletteCommand('Push', Icons.north_east, () => actions.push()),
     PaletteCommand(l.opPushOptions, Icons.north_east, () async {
       if (!context.mounted) return;
