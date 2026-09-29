@@ -4028,6 +4028,174 @@ abstract class AppLocalizations {
   /// **'Install git-lfs with your package manager, then run `git lfs install`.'**
   String get lfsInstallPackageManager;
 
+  /// No description provided for @lfsOpPull.
+  ///
+  /// In en, this message translates to:
+  /// **'Pull LFS files'**
+  String get lfsOpPull;
+
+  /// No description provided for @lfsOpFetchAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetch all LFS objects'**
+  String get lfsOpFetchAll;
+
+  /// No description provided for @lfsOpPrune.
+  ///
+  /// In en, this message translates to:
+  /// **'Prune LFS objects…'**
+  String get lfsOpPrune;
+
+  /// No description provided for @lfsPointerStrip.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{1 LFS file is not downloaded} other{{count} LFS files are not downloaded}}'**
+  String lfsPointerStrip(int count);
+
+  /// No description provided for @lfsDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Download'**
+  String get lfsDownload;
+
+  /// No description provided for @lfsDownloadUnsafePath.
+  ///
+  /// In en, this message translates to:
+  /// **'This file\'s name cannot be downloaded on its own — use Pull LFS files.'**
+  String get lfsDownloadUnsafePath;
+
+  /// No description provided for @lfsPruneNothing.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to prune'**
+  String get lfsPruneNothing;
+
+  /// No description provided for @lfsPruneUnreadable.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not preview the prune'**
+  String get lfsPruneUnreadable;
+
+  /// No description provided for @lfsPruneTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Prune LFS objects'**
+  String get lfsPruneTitle;
+
+  /// No description provided for @lfsPruneBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{Remove 1 downloaded LFS object?} other{Remove {count} downloaded LFS objects?}} They are not needed by recent commits and can be downloaded again.'**
+  String lfsPruneBody(int count);
+
+  /// No description provided for @lfsPruneConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Prune'**
+  String get lfsPruneConfirm;
+
+  /// No description provided for @lfsTrackExtension.
+  ///
+  /// In en, this message translates to:
+  /// **'Track {pattern} with LFS'**
+  String lfsTrackExtension(String pattern);
+
+  /// No description provided for @lfsTrackFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Track this file with LFS'**
+  String get lfsTrackFile;
+
+  /// No description provided for @lfsUntrack.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop tracking with LFS…'**
+  String get lfsUntrack;
+
+  /// No description provided for @lfsUntrackTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop tracking with LFS'**
+  String get lfsUntrackTitle;
+
+  /// No description provided for @lfsUntrackBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick the pattern to remove from .gitattributes. Files already stored in LFS stay there.'**
+  String get lfsUntrackBody;
+
+  /// No description provided for @lfsConvertOffer.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{1 committed file matches but is not in LFS} other{{count} committed files match but are not in LFS}}'**
+  String lfsConvertOffer(int count);
+
+  /// No description provided for @lfsConvertAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Convert…'**
+  String get lfsConvertAction;
+
+  /// No description provided for @lfsConvertTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Convert files to LFS'**
+  String get lfsConvertTitle;
+
+  /// No description provided for @lfsConvertBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This stages these files as LFS pointers, including any edits you have in them. Nothing is committed.'**
+  String get lfsConvertBody;
+
+  /// No description provided for @lfsConvertMore.
+  ///
+  /// In en, this message translates to:
+  /// **'and {count} more'**
+  String lfsConvertMore(int count);
+
+  /// No description provided for @lfsConvertConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Stage as LFS'**
+  String get lfsConvertConfirm;
+
+  /// No description provided for @lfsPushHookTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'LFS hooks are not installed'**
+  String get lfsPushHookTitle;
+
+  /// No description provided for @lfsPushHookBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This repository stores files with Git LFS, but pushing from here would upload only pointers — the LFS hooks are not installed.'**
+  String get lfsPushHookBody;
+
+  /// No description provided for @lfsPushInstallAndPush.
+  ///
+  /// In en, this message translates to:
+  /// **'Install LFS hooks and push'**
+  String get lfsPushInstallAndPush;
+
+  /// No description provided for @lfsPushAnyway.
+  ///
+  /// In en, this message translates to:
+  /// **'Push anyway'**
+  String get lfsPushAnyway;
+
+  /// No description provided for @lfsPushToolTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'git-lfs is not installed'**
+  String get lfsPushToolTitle;
+
+  /// No description provided for @lfsPushToolBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This repository stores files with Git LFS. Pushing without git-lfs uploads pointers without their content.'**
+  String get lfsPushToolBody;
+
   /// No description provided for @diffCouldNotStage.
   ///
   /// In en, this message translates to:
