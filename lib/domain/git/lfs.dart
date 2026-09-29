@@ -229,3 +229,148 @@ Map<String, String> parseCatFileBatch(String raw, List<String> order) {
   }
   return out;
 }
+
+/// One file `git lfs ls-files -l` reports: its object, its path, and whether
+/// the working-tree file holds the content (`*`) or is still a pointer (`-`).
+class LfsLsEntry {
+  final String oid;
+  final String path;
+  final bool checkedOut;
+  const LfsLsEntry({
+    required this.oid,
+    required this.path,
+    required this.checkedOut,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      other is LfsLsEntry &&
+      other.oid == oid &&
+      other.path == path &&
+      other.checkedOut == checkedOut;
+
+  @override
+  int get hashCode => Object.hash(oid, path, checkedOut);
+}
+
+final _lsFilesLine = RegExp(r'^([0-9a-f]{64}) ([*-]) (.+)$');
+
+/// `git lfs ls-files -l` output → entries. Anything else on the stream
+/// (warnings, blank lines) is skipped.
+List<LfsLsEntry> parseLfsLsFiles(String raw) => [
+  for (final line in raw.split('\n'))
+    if (_lsFilesLine.firstMatch(line) case final m?)
+      LfsLsEntry(oid: m[1]!, path: m[3]!, checkedOut: m[2] == '*'),
+];
+
+final _humanSize = RegExp(r'^(\d+(?:\.\d+)?) (B|KB|MB|GB|TB)$');
+
+/// git-lfs's own human sizes (`3.0 KB`) back to bytes, 1024-based. The result
+/// is approximate by nature: git-lfs rounded it to one decimal.
+int? parseLfsHumanSize(String s) {
+  final m = _humanSize.firstMatch(s.trim());
+  if (m == null) return null;
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  var bytes = double.parse(m[1]!);
+  for (var i = 0; i < units.indexOf(m[2]!); i++) {
+    bytes *= 1024;
+  }
+  return bytes.round();
+}
+
+/// What `git lfs prune --dry-run --verbose` would remove.
+class LfsPrunePreview {
+  final int count;
+  final int bytes;
+  const LfsPrunePreview({required this.count, required this.bytes});
+
+  @override
+  bool operator ==(Object other) =>
+      other is LfsPrunePreview && other.count == count && other.bytes == bytes;
+
+  @override
+  int get hashCode => Object.hash(count, bytes);
+}
+
+final _pruneSummary = RegExp(r'^\d+ local objects?, \d+ retained');
+final _pruneObject = RegExp(r'^\s*\*\s+[0-9a-f]{64}\s+\(([^)]+)\)');
+
+/// The dry run's report, or null when it does not look like one. Null and
+/// "nothing to prune" are different answers: only the second may be shown as
+/// such, and neither may lead to a prune.
+LfsPrunePreview? parsePruneDryRunLines(Iterable<String> lines) {
+  var sawSummary = false;
+  var count = 0;
+  var bytes = 0;
+  for (final line in lines) {
+    if (_pruneSummary.hasMatch(line.trim())) sawSummary = true;
+    final m = _pruneObject.firstMatch(line);
+    if (m != null) {
+      count++;
+      bytes += parseLfsHumanSize(m[1]!) ?? 0;
+    }
+  }
+  if (!sawSummary) return null;
+  return LfsPrunePreview(count: count, bytes: bytes);
+}
+
+LfsPrunePreview? parseLfsPruneDryRun(String raw) =>
+    parsePruneDryRunLines(raw.split('\n'));
+
+/// A pattern `git lfs track` lists, and the `.gitattributes` it lives in.
+class LfsTrackedPattern {
+  final String pattern;
+  final String source;
+  const LfsTrackedPattern({required this.pattern, required this.source});
+
+  @override
+  bool operator ==(Object other) =>
+      other is LfsTrackedPattern &&
+      other.pattern == pattern &&
+      other.source == source;
+
+  @override
+  int get hashCode => Object.hash(pattern, source);
+}
+
+final _trackLine = RegExp(r'^\s+(.+) \(([^()]+)\)$');
+
+/// `git lfs track` (no arguments) → the tracked patterns. Excluded patterns,
+/// listed after them, are not tracked and are left out.
+List<LfsTrackedPattern> parseLfsTrackList(String raw) {
+  final out = <LfsTrackedPattern>[];
+  var inTracked = false;
+  for (final line in raw.split('\n')) {
+    if (line.startsWith('Listing tracked patterns')) {
+      inTracked = true;
+    } else if (line.startsWith('Listing ')) {
+      inTracked = false;
+    } else if (inTracked) {
+      final m = _trackLine.firstMatch(line);
+      if (m != null) out.add(LfsTrackedPattern(pattern: m[1]!, source: m[2]!));
+    }
+  }
+  return out;
+}
+
+/// Whether a `pre-push` hook hands the push to git-lfs, which is what
+/// uploads the objects the pushed commits point at.
+bool isLfsPrePushHook(String hookText) =>
+    hookText.contains('git lfs pre-push') ||
+    hookText.contains('git-lfs pre-push');
+
+/// Whether [path] can be passed to `--include` as itself. The option takes
+/// comma-separated glob patterns, so these characters would change its
+/// meaning rather than be matched.
+bool lfsIncludeSafe(String path) => !RegExp(r'[,*?\[\]\\]').hasMatch(path);
+
+/// `*.<ext>` for [path]'s extension, or null when it has none that can be
+/// written as a pattern without escaping.
+String? lfsExtensionPattern(String path) {
+  final name = path.split('/').last;
+  final dot = name.lastIndexOf('.');
+  if (dot <= 0 || dot == name.length - 1) return null;
+  final ext = name.substring(dot + 1);
+  if (!RegExp(r'^[A-Za-z0-9_+-]+$').hasMatch(ext)) return null;
+  return '*.$ext';
+}

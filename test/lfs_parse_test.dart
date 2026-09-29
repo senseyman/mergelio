@@ -205,4 +205,142 @@ void main() {
       expect(parseCatFileBatch(raw, ['aaaa', 'bbbb', 'cccc']), {'aaaa': 'abc'});
     },
   );
+
+  group('parseLfsLsFiles', () {
+    const a =
+        '482b8673d879f129dbcc30eb80fcf939481fd963bba4e0a7ebcc2df0e9f50c7b';
+    const b =
+        'c37454b5337b1482c5a42b733bf5fff3f9a28714f9f1547512d8db046112bd92';
+    test('reads checked-out and pointer entries', () {
+      expect(parseLfsLsFiles('$a * a.bin\n$b - b c.bin\n'), const [
+        LfsLsEntry(oid: a, path: 'a.bin', checkedOut: true),
+        LfsLsEntry(oid: b, path: 'b c.bin', checkedOut: false),
+      ]);
+    });
+    test('skips lines it does not recognise', () {
+      expect(
+        parseLfsLsFiles('\nwarning: x\n$a ? a.bin\nshort - a.bin\n'),
+        isEmpty,
+      );
+    });
+  });
+
+  group('parseLfsHumanSize', () {
+    final cases = {
+      '512 B': 512,
+      '3.0 KB': 3072,
+      '1.5 MB': 1572864,
+      '2 GB': 2147483648,
+      '1.1 TB': 1209462790554,
+      'nonsense': null,
+      '': null,
+    };
+    cases.forEach((s, want) {
+      test('"$s"', () => expect(parseLfsHumanSize(s), want));
+    });
+  });
+
+  group('parseLfsPruneDryRun', () {
+    test('nothing to prune', () {
+      expect(
+        parseLfsPruneDryRun('2 local objects, 2 retained, done.\n'),
+        const LfsPrunePreview(count: 0, bytes: 0),
+      );
+    });
+    test('counts objects and sums their sizes', () {
+      const o1 =
+          '482b8673d879f129dbcc30eb80fcf939481fd963bba4e0a7ebcc2df0e9f50c7b';
+      const o2 =
+          'c37454b5337b1482c5a42b733bf5fff3f9a28714f9f1547512d8db046112bd92';
+      expect(
+        parseLfsPruneDryRun(
+          '3 local objects, 1 retained, done.\n'
+          ' * $o1 (3.0 KB)\n'
+          ' * $o2 (1.0 MB)\n',
+        ),
+        const LfsPrunePreview(count: 2, bytes: 3072 + 1048576),
+      );
+    });
+    test('the captured real output parses', () {
+      // Captured from git-lfs 3.8.0 on darwin arm64: one file pushed then
+      // removed in a follow-up commit, then `git lfs prune --dry-run
+      // --verbose` after pushing both commits to origin.
+      const pruneSome =
+          '1 local object, 0 retained, done.\n'
+          '\n'
+          ' * f4b619328582b9679ce61f8cb487e47daf46583327771dc85e5931f504b95231 '
+          '(4.0 KB), done.\n';
+      expect(parseLfsPruneDryRun(pruneSome)?.count, 1);
+    });
+    test('unrecognisable output is null, not zero', () {
+      expect(parseLfsPruneDryRun(''), isNull);
+      expect(parseLfsPruneDryRun('fatal: not a git repository\n'), isNull);
+    });
+  });
+
+  group('parseLfsTrackList', () {
+    test('tracked patterns with their source file', () {
+      expect(
+        parseLfsTrackList(
+          'Listing tracked patterns\n'
+          '    *.psd (.gitattributes)\n'
+          '    sub/odd[[:space:]]\\[1\\].bin (sub/.gitattributes)\n'
+          'Listing excluded patterns\n'
+          '    *.tmp (.gitattributes)\n',
+        ),
+        const [
+          LfsTrackedPattern(pattern: '*.psd', source: '.gitattributes'),
+          LfsTrackedPattern(
+            pattern: r'sub/odd[[:space:]]\[1\].bin',
+            source: 'sub/.gitattributes',
+          ),
+        ],
+      );
+    });
+    test('none', () {
+      expect(
+        parseLfsTrackList(
+          'Listing tracked patterns\nListing excluded patterns\n',
+        ),
+        isEmpty,
+      );
+    });
+  });
+
+  test('isLfsPrePushHook', () {
+    expect(isLfsPrePushHook('#!/bin/sh\ngit lfs pre-push "\$@"\n'), isTrue);
+    expect(isLfsPrePushHook('#!/bin/sh\ngit-lfs pre-push "\$@"\n'), isTrue);
+    expect(isLfsPrePushHook('#!/bin/sh\necho mine\n'), isFalse);
+    expect(isLfsPrePushHook(''), isFalse);
+  });
+
+  group('lfsIncludeSafe', () {
+    for (final ok in ['art.psd', 'dir/b c.bin', 'ünï.psd', '-dash.bin']) {
+      test('safe: $ok', () => expect(lfsIncludeSafe(ok), isTrue));
+    }
+    for (final bad in [
+      'a,b.psd',
+      'x*.psd',
+      'x?.psd',
+      'x[1].psd',
+      r'x\y',
+      'x]',
+    ]) {
+      test('unsafe: $bad', () => expect(lfsIncludeSafe(bad), isFalse));
+    }
+  });
+
+  group('lfsExtensionPattern', () {
+    test('by extension', () {
+      expect(lfsExtensionPattern('art/cover.PSD'), '*.PSD');
+      expect(lfsExtensionPattern('a.tar.gz'), '*.gz');
+    });
+    test('none when there is no usable extension', () {
+      expect(lfsExtensionPattern('Makefile'), isNull);
+      expect(lfsExtensionPattern('.gitignore'), isNull);
+      expect(lfsExtensionPattern('dir.d/file'), isNull);
+      expect(lfsExtensionPattern('a.b[1]'), isNull);
+      expect(lfsExtensionPattern('a.b c'), isNull);
+    });
+  });
 }
