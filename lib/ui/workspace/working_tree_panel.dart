@@ -22,6 +22,7 @@ import '../common/file_tree_view.dart';
 import '../common/lfs_chip.dart';
 import '../insight/file_insight_dialog.dart';
 import 'lfs_banner.dart';
+import 'lfs_pointer_strip.dart';
 
 /// Right panel shown when no commit is selected: STAGED / UNSTAGED file lists
 /// and the commit composer. A partially-staged file appears in both lists.
@@ -89,6 +90,7 @@ class WorkingTreePanel extends ConsumerWidget {
                     ),
             ),
             LfsBanner(repoPath: repoPath, working: data.working),
+            LfsPointerStrip(repoPath: repoPath, working: data.working),
             if (hasConflicts && !resolving)
               Padding(
                 padding: const EdgeInsets.fromLTRB(8, 6, 8, 2),

@@ -148,4 +148,24 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('stores files with Git LFS'), findsOneWidget);
   });
+
+  testWidgets('working tree panel carries the pointer strip', (tester) async {
+    await tester.pumpWidget(
+      _app(
+        const WorkingTreePanel(
+          repoPath: '/r',
+          data: RepoData(
+            working: [WorkingFile(path: 'a.bin', worktree: GitChange.modified)],
+          ),
+        ),
+        overrides: [
+          lfsRepoProvider.overrideWith((ref, s) async => false),
+          lfsPathsProvider.overrideWith((ref, q) async => const <String>{}),
+          lfsPointerFilesProvider.overrideWith((ref, s) async => {'a.bin'}),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('1 LFS file is not downloaded'), findsOneWidget);
+  });
 }
