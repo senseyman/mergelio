@@ -325,4 +325,26 @@ void main() {
     expect(t.kind, ToastKind.warning);
     expect(t.title, 'An operation is already running');
   });
+
+  test('lfsPull holds the repo lane while running and releases it', () async {
+    await actions.lfsPull();
+    final lanes = git.lanesAtCall['lfs pull']!;
+    expect(lanes.repo, isTrue);
+    expect(lanes.fetch, isFalse);
+    expect(container.read(busyProvider), isNull);
+  });
+
+  test('lfsConvert is journaled', () async {
+    await actions.lfsConvert(['dir/b.psd']);
+    final j = OperationJournal(kv, '/r');
+    await j.load();
+    expect(j.records.map((r) => r.label), contains('Convert files to LFS'));
+    expect(j.records.every((r) => r.status != OpStatus.pending), isTrue);
+  });
+
+  test('an empty file listing runs no check-attr', () async {
+    git.responses['ls-files -z'] = const GitResult(0, '', '');
+    expect(await actions.lfsConvertCandidates(), isEmpty);
+    expect(git.calls.any((c) => c.first == 'check-attr'), isFalse);
+  });
 }
