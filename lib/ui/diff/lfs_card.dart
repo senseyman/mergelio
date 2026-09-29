@@ -111,7 +111,9 @@ class LfsCard extends ConsumerWidget {
       if (target.isWorkingTree) {
         return () => actions.lfsDownloadFile(file.path);
       }
-      if (remote == null || rev == null) return null;
+      // git-lfs would read a revision starting with `-` as one of its own
+      // options, and its fetch has no marker that ends them.
+      if (remote == null || rev == null || rev.startsWith('-')) return null;
       return () => actions.lfsFetchObject(remote, rev, file.path);
     }
 

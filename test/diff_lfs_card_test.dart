@@ -659,6 +659,21 @@ diff --git a/$pPsd b/$pPsd
       ]);
     });
 
+    testWidgets('a revision shaped like an option gets no button', (
+      tester,
+    ) async {
+      // git-lfs reads a leading-dash revision as one of its own flags.
+      final t = DiffTarget(
+        repoPath: '/r',
+        path: 'art.psd',
+        commitSha: sha,
+        baseRev: '-x',
+      );
+      await tester.pumpWidget(card(t, before: p1, after: p2, present: {_b}));
+      await tester.pumpAndSettle();
+      expect(find.text('Download'), findsNothing);
+    });
+
     testWidgets('unsafe path shows a hint, no button', (tester) async {
       await tester.pumpWidget(card(_wt, after: p2, path: 'x[1].psd'));
       await tester.pumpAndSettle();
