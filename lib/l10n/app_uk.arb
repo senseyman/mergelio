@@ -809,6 +809,8 @@
   "diffShowChangesOnly": "Показати лише зміни",
   "diffShowWholeFile": "Показати весь файл",
   "diffMoreActions": "Інші дії",
+  "diffViewInline": "Суцільно",
+  "diffViewSplit": "Поруч",
   "diffCouldNotLoad": "Не вдалося завантажити зміни",
   "diffBinaryFile": "Двійковий файл — зміни не показано",
   "lfsBadge": "LFS",

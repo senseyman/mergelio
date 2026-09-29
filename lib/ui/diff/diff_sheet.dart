@@ -274,12 +274,12 @@ class _DiffHeader extends ConsumerWidget {
         CheckedPopupMenuItem(
           value: () => ctl.setDiffSplit(false),
           checked: !split,
-          child: const Text('Inline'),
+          child: Text(l.diffViewInline),
         ),
         CheckedPopupMenuItem(
           value: () => ctl.setDiffSplit(true),
           checked: split,
-          child: const Text('Split'),
+          child: Text(l.diffViewSplit),
         ),
         if (!editing)
           PopupMenuItem(value: toggleWholeFile, child: Text(wholeLabel)),
@@ -437,6 +437,7 @@ class _SegToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     Widget seg(String label, bool on, VoidCallback tap) => InkWell(
       onTap: tap,
@@ -463,8 +464,8 @@ class _SegToggle extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          seg('Inline', !split, onInline),
-          seg('Split', split, onSplit),
+          seg(l.diffViewInline, !split, onInline),
+          seg(l.diffViewSplit, split, onSplit),
         ],
       ),
     );

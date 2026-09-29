@@ -2212,6 +2212,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get diffMoreActions => 'More actions';
 
   @override
+  String get diffViewInline => 'Inline';
+
+  @override
+  String get diffViewSplit => 'Split';
+
+  @override
   String get diffCouldNotLoad => 'Could not load diff';
 
   @override

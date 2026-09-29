@@ -165,6 +165,15 @@ void main() {
     }
   });
 
+  testWidgets('the view toggle speaks the user\'s language', (tester) async {
+    // Wide enough for the Ukrainian labels under the test font.
+    await _pump(tester, width: 1600, locale: const Locale('uk'));
+    final l = _l(const Locale('uk'));
+    expect(find.text(l.diffViewInline).hitTestable(), findsOneWidget);
+    expect(find.text(l.diffViewSplit).hitTestable(), findsOneWidget);
+    expect(find.text('Inline'), findsNothing);
+  });
+
   testWidgets('a wide header keeps its buttons inline, with no menu', (
     tester,
   ) async {

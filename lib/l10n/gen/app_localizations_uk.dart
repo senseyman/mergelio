@@ -2226,6 +2226,12 @@ class AppLocalizationsUk extends AppLocalizations {
   String get diffMoreActions => 'Інші дії';
 
   @override
+  String get diffViewInline => 'Суцільно';
+
+  @override
+  String get diffViewSplit => 'Поруч';
+
+  @override
   String get diffCouldNotLoad => 'Не вдалося завантажити зміни';
 
   @override

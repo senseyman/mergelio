@@ -1484,6 +1484,8 @@
   "diffShowChangesOnly": "Show changes only",
   "diffShowWholeFile": "Show whole file",
   "diffMoreActions": "More actions",
+  "diffViewInline": "Inline",
+  "diffViewSplit": "Split",
   "diffCouldNotLoad": "Could not load diff",
   "diffBinaryFile": "Binary file — diff not shown",
   "lfsBadge": "LFS",

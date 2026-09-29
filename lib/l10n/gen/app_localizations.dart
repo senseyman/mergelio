@@ -3902,6 +3902,18 @@ abstract class AppLocalizations {
   /// **'More actions'**
   String get diffMoreActions;
 
+  /// No description provided for @diffViewInline.
+  ///
+  /// In en, this message translates to:
+  /// **'Inline'**
+  String get diffViewInline;
+
+  /// No description provided for @diffViewSplit.
+  ///
+  /// In en, this message translates to:
+  /// **'Split'**
+  String get diffViewSplit;
+
   /// No description provided for @diffCouldNotLoad.
   ///
   /// In en, this message translates to:
