@@ -14,6 +14,7 @@ import 'package:mergelio/ui/shell/lfs_prune_flow.dart';
 class _FakeGit implements GitService {
   _FakeGit(this.dryRun);
   final GitResult dryRun;
+  bool cancelDryRun = false;
   final List<List<String>> calls = [];
 
   @override
@@ -27,6 +28,9 @@ class _FakeGit implements GitService {
   }) async {
     calls.add(args);
     if (args.length >= 2 && args[0] == 'lfs' && args[1] == 'prune') {
+      if (args.contains('--dry-run') && cancelDryRun) {
+        throw GitCancelledException('git lfs prune');
+      }
       return args.contains('--dry-run') ? dryRun : GitResult(0, '', '');
     }
     return GitResult(0, '', '');
@@ -161,5 +165,19 @@ void main() {
     expect(_toasts(c), isNot(contains('Could not preview the prune')));
     expect(git.lfsCalls, 0);
     expect(find.text('Prune LFS objects'), findsNothing);
+  });
+
+  testWidgets('cancelled preview: no unreadable toast, no dialog, no prune', (
+    tester,
+  ) async {
+    final git = _FakeGit(
+      GitResult(0, '3 local objects, 1 retained, done.\n', ''),
+    )..cancelDryRun = true;
+    final c = await _pump(tester, git);
+    await tester.tap(find.text('go'));
+    await tester.pumpAndSettle();
+    expect(_toasts(c), isNot(contains('Could not preview the prune')));
+    expect(find.text('Prune LFS objects'), findsNothing);
+    expect(git.pruneCalls, 0);
   });
 }

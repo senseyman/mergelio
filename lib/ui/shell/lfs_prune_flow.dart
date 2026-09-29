@@ -16,11 +16,8 @@ Future<void> showLfsPruneFlow(
   final l = AppLocalizations.of(context);
   final actions = ref.read(repoActionsProvider(repoPath));
   final toasts = ref.read(toastProvider.notifier);
-  // A busy lane makes the preview skip with a warning and no result; that is
-  // not an unreadable report, so it must not be reported as one.
-  final wasBusy = ref.read(busyProvider) != null;
-  final (:ran, :preview) = await actions.lfsPrunePreview();
-  if (!ran || wasBusy) return; // the failure or skip was already shown
+  final (:completed, :preview) = await actions.lfsPrunePreview();
+  if (!completed) return; // the failure, skip or cancel was already shown
   if (preview == null) {
     toasts.show(l.lfsPruneUnreadable, kind: ToastKind.error);
     return;

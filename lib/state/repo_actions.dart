@@ -278,21 +278,25 @@ class RepoActions {
         writesWorkingTree: false,
       );
 
-  /// What a prune would remove. [ran] is false when the dry run itself failed
-  /// (already toasted); a null [preview] means its report was unreadable.
-  Future<({bool ran, LfsPrunePreview? preview})> lfsPrunePreview() async {
+  /// What a prune would remove. [completed] is true only when the dry run ran
+  /// to the end; a failure, a busy-lane skip or a cancel leaves it false (each
+  /// already toasted). With [completed] true, a null preview means the report
+  /// was unreadable.
+  Future<({bool completed, LfsPrunePreview? preview})> lfsPrunePreview() async {
     LfsPrunePreview? preview;
-    final ran = await _lfsNetwork(
+    var completed = false;
+    await _lfsNetwork(
       'Preview LFS prune',
       (c) async {
         final r = await _writer.lfsPruneDryRun(cancel: c);
         if (!r.ok) throw GitException('git lfs prune --dry-run', r);
         preview = parseLfsPruneDryRun('${r.stdout}\n${r.stderr}');
+        completed = true;
       },
       writesWorkingTree: false,
       toastSuccess: false,
     );
-    return (ran: ran, preview: preview);
+    return (completed: completed, preview: preview);
   }
 
   Future<void> lfsPrune() => _lfsNetwork(

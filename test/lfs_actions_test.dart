@@ -17,6 +17,7 @@ class _FakeGit implements GitService {
   final responses = <String, GitResult>{};
   final stdins = <String, String?>{};
   late ProviderContainer container;
+  Object? throwOnRun;
 
   @override
   Future<GitResult> run(
@@ -36,6 +37,7 @@ class _FakeGit implements GitService {
     );
     // The network environment probes config; nothing is configured.
     if (args.first == 'config') return const GitResult(1, '', '');
+    if (args.first == 'lfs' && throwOnRun != null) throw throwOnRun!;
     return responses[key] ?? const GitResult(0, '', '');
   }
 
@@ -144,7 +146,7 @@ void main() {
         '',
       );
       final r = await actions.lfsPrunePreview();
-      expect(r.ran, isTrue);
+      expect(r.completed, isTrue);
       expect(r.preview, const LfsPrunePreview(count: 2));
       expect(toastTitles(), isEmpty);
       expect(gen(), 1);
@@ -160,13 +162,28 @@ void main() {
         '',
       );
       final r = await actions.lfsPrunePreview();
-      expect(r.ran, isTrue);
+      expect(r.completed, isTrue);
       expect(r.preview, isNull);
     },
   );
 
+  test('lfsPrunePreview cancelled by the user is not completed', () async {
+    git.throwOnRun = GitCancelledException('git lfs prune');
+    final r = await actions.lfsPrunePreview();
+    expect(r.completed, isFalse);
+    expect(r.preview, isNull);
+  });
+
+  test('lfsPrunePreview skipped on a busy lane is not completed', () async {
+    container.read(busyProvider.notifier).state = const BusyState('Other');
+    final r = await actions.lfsPrunePreview();
+    expect(r.completed, isFalse);
+    expect(r.preview, isNull);
+    expect(git.calls.where((c) => c.first == 'lfs'), isEmpty);
+  });
+
   test(
-    'lfsPrunePreview failure reports ran false and an error toast',
+    'lfsPrunePreview failure reports completed false and an error toast',
     () async {
       git.responses['lfs prune --dry-run --verbose'] = const GitResult(
         2,
@@ -174,7 +191,7 @@ void main() {
         'boom',
       );
       final r = await actions.lfsPrunePreview();
-      expect(r.ran, isFalse);
+      expect(r.completed, isFalse);
       expect(r.preview, isNull);
       final t = container.read(toastProvider).single;
       expect(t.kind, ToastKind.error);
