@@ -295,9 +295,12 @@ class _DiffHeader extends ConsumerWidget {
       child: LayoutBuilder(
         builder: (context, box) {
           // Kept clear of the actions: the status badge and its gap, the
-          // close button, and enough of the file name to recognise it.
+          // close button, and enough of the file name to recognise it. The
+          // actions never get less than their menu button needs, so on a
+          // very narrow sheet the file name gives way instead.
           const reserved = 16 + 8 + 40 + 96;
-          final actionsWidth = math.max(0.0, box.maxWidth - reserved);
+          const menuWidth = 48.0;
+          final actionsWidth = math.max(menuWidth, box.maxWidth - reserved);
           return Row(
             children: [
               _StatusBadge(target: target),

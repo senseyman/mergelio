@@ -150,6 +150,21 @@ void main() {
     expect(c.read(diffTargetProvider)?.staged, isTrue);
   });
 
+  testWidgets('a very narrow sheet still has a usable actions menu', (
+    tester,
+  ) async {
+    // Both side panels can be dragged wide enough to squeeze the graph
+    // column far below its default share of a small window.
+    for (final w in const [160.0, 200.0]) {
+      await _pump(tester, width: w, locale: const Locale('uk'));
+      expect(tester.takeException(), isNull, reason: '$w');
+      // The sheet's own menu comes first; hunk headers may have one too.
+      final menu = find.byTooltip('Інші дії').first;
+      expect(tester.getSize(menu).width, greaterThan(24), reason: '$w');
+      expect(menu.hitTestable(), findsOneWidget, reason: '$w');
+    }
+  });
+
   testWidgets('a wide header keeps its buttons inline, with no menu', (
     tester,
   ) async {
