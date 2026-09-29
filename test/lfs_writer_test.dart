@@ -113,6 +113,7 @@ void main() {
     }
     final flattened = git.calls.expand((c) => c.skip(3)).toList();
     expect(flattened, paths);
+    expect(git.timeouts, everyElement(GitWriter.lfsTransferTimeout));
   });
 
   test('failure throws GitException', () async {

@@ -15,6 +15,7 @@ class _FakeGit implements GitService {
   final calls = <List<String>>[];
   final lanesAtCall = <String, ({bool repo, bool fetch})>{};
   final responses = <String, GitResult>{};
+  final stdins = <String, String?>{};
   late ProviderContainer container;
 
   @override
@@ -28,6 +29,7 @@ class _FakeGit implements GitService {
   }) async {
     calls.add(args);
     final key = args.join(' ');
+    stdins[key] = stdin;
     lanesAtCall[key] = (
       repo: container.read(busyProvider) != null,
       fetch: container.read(fetchBusyProvider) != null,
@@ -190,11 +192,18 @@ void main() {
   });
 
   test(
-    'lfsConvertCandidates lists tracked-pattern files not yet in LFS',
+    'lfsConvertCandidates keeps files whose filter attribute is lfs',
     () async {
-      git.responses['ls-files -z -- :(glob)**/*.psd'] = const GitResult(
+      git.responses['ls-files -z'] = const GitResult(
         0,
-        'a.psd\x00dir/b.psd\x00',
+        'a.psd\x00dir/b.psd\x00c.txt\x00',
+        '',
+      );
+      git.responses['check-attr -z --stdin filter'] = const GitResult(
+        0,
+        'a.psd\x00filter\x00lfs\x00'
+            'dir/b.psd\x00filter\x00lfs\x00'
+            'c.txt\x00filter\x00unspecified\x00',
         '',
       );
       git.responses['lfs ls-files -l'] = const GitResult(
@@ -205,25 +214,73 @@ void main() {
       final r = await actions.lfsConvertCandidates('*.psd');
       expect(r, ['dir/b.psd']);
       expect(ran(), [
-        ['ls-files', '-z', '--', ':(glob)**/*.psd'],
+        ['ls-files', '-z'],
+        ['check-attr', '-z', '--stdin', 'filter'],
         ['lfs', 'ls-files', '-l'],
       ]);
+      expect(
+        git.stdins['check-attr -z --stdin filter'],
+        'a.psd\x00dir/b.psd\x00c.txt\x00',
+      );
     },
   );
 
-  test('lfsConvertCandidates literal uses a literal pathspec', () async {
+  test('lfsConvertCandidates literal lists only that path', () async {
     await actions.lfsConvertCandidates('dir/x [1].psd', literal: true);
     expect(ran().first, ['ls-files', '-z', '--', ':(literal)dir/x [1].psd']);
   });
 
-  test('lfsConvert renormalizes and never commits', () async {
+  test('lfsConvert renormalizes on the repo lane, never commits', () async {
     final ok = await actions.lfsConvert(['dir/b.psd']);
     expect(ok, isTrue);
     expect(ran(), [
       ['add', '--renormalize', '--', 'dir/b.psd'],
     ]);
+    expect(git.lanesAtCall['add --renormalize -- dir/b.psd']!.repo, isTrue);
+    expect(container.read(busyProvider), isNull);
     expect(ran().any((c) => c.first == 'commit'), isFalse);
     expect(gen(), 1);
+  });
+
+  test('lfsUntrack runs lfs untrack', () async {
+    expect(await actions.lfsUntrack('*.psd'), isTrue);
+    expect(ran(), [
+      ['lfs', 'untrack', '*.psd'],
+    ]);
+  });
+
+  test('lfsTrackFile tracks one exact filename', () async {
+    expect(await actions.lfsTrackFile('dir/x [1].psd'), isTrue);
+    expect(ran(), [
+      ['lfs', 'track', '--filename', 'dir/x [1].psd'],
+    ]);
+  });
+
+  test('lfsTrackedPatterns parses the track listing', () async {
+    git.responses['lfs track'] = const GitResult(
+      0,
+      'Listing tracked patterns\n    *.psd (.gitattributes)\nListing excluded patterns\n',
+      '',
+    );
+    final r = await actions.lfsTrackedPatterns();
+    expect(r, hasLength(1));
+    expect(r.single.pattern, '*.psd');
+  });
+
+  test('lfsPrune runs prune on the repo lane', () async {
+    await actions.lfsPrune();
+    expect(ran(), [
+      ['lfs', 'prune'],
+    ]);
+    expect(git.lanesAtCall['lfs prune']!.repo, isTrue);
+  });
+
+  test('a running fetch-lane op does not stop lfsTrack', () async {
+    container.read(fetchBusyProvider.notifier).state = const BusyState('Fetch');
+    expect(await actions.lfsTrack('*.psd'), isTrue);
+    expect(ran(), [
+      ['lfs', 'track', '*.psd'],
+    ]);
   });
 
   test('lfsInstallHooks installs locally; failure toasts stderr', () async {
@@ -249,5 +306,8 @@ void main() {
     expect(await actions.lfsTrack('*.psd'), isFalse);
     expect(await actions.lfsConvert(['a']), isFalse);
     expect(ran(), isEmpty);
+    final t = container.read(toastProvider).last;
+    expect(t.kind, ToastKind.warning);
+    expect(t.title, 'An operation is already running');
   });
 }

@@ -319,13 +319,35 @@ class RepoActions {
     String pattern, {
     bool literal = false,
   }) async {
-    final spec = literal ? ':(literal)$pattern' : ':(glob)**/$pattern';
+    // Which files the pattern reaches is git's call, not a glob's: nested
+    // .gitattributes, negations and directory patterns all shape it. So list
+    // the candidates broadly and keep those whose filter attribute is lfs.
     final listed = await _git.run(
-      ['ls-files', '-z', '--', spec],
+      literal
+          ? ['ls-files', '-z', '--', ':(literal)$pattern']
+          : ['ls-files', '-z'],
       repoPath: path,
       timeout: lfsReadTimeout,
     );
     if (!listed.ok) throw GitException('git ls-files', listed);
+    final files = [
+      for (final f in listed.stdout.split('\x00'))
+        if (f.isNotEmpty) f,
+    ];
+    if (files.isEmpty) return const [];
+    final attrs = await _git.run(
+      ['check-attr', '-z', '--stdin', 'filter'],
+      repoPath: path,
+      timeout: lfsReadTimeout,
+      stdin: '${files.join('\x00')}\x00',
+    );
+    if (!attrs.ok) throw GitException('git check-attr', attrs);
+    // Output is repeated path, attribute, value triples.
+    final parts = attrs.stdout.split('\x00');
+    final routed = <String>{
+      for (var i = 0; i + 2 < parts.length; i += 3)
+        if (parts[i + 2] == 'lfs') parts[i],
+    };
     final lfs = await _git.run(
       ['lfs', 'ls-files', '-l'],
       repoPath: path,
@@ -335,17 +357,22 @@ class RepoActions {
         ? {for (final e in parseLfsLsFiles(lfs.stdout)) e.path}
         : const <String>{};
     return [
-      for (final f in listed.stdout.split('\x00'))
-        if (f.isNotEmpty && !already.contains(f)) f,
+      for (final f in files)
+        if (routed.contains(f) && !already.contains(f)) f,
     ];
   }
 
   /// Stages [files] again through the current attributes, as LFS pointers.
   /// Stops at staged, as every Mergelio flow does.
-  Future<bool> lfsConvert(List<String> files) => _lfsLocal(
-    'Convert ${files.length} files to LFS',
-    () => _writer.renormalize(files),
-  );
+  Future<bool> lfsConvert(List<String> files) async {
+    // A busy-lane skip inside _network reports true; the caller must not
+    // read that as "converted".
+    if (_blockedByRepoOp) return false;
+    return _lfsNetwork(
+      'Convert files to LFS',
+      (c) => _writer.renormalize(files, cancel: c),
+    );
+  }
 
   /// Writes the LFS filters and hooks into this repository. Only ever run on
   /// the user's explicit choice.

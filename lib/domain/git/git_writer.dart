@@ -264,15 +264,15 @@ class GitWriter {
   ///
   /// Batched at 200 paths per invocation to stay clear of platform argv
   /// limits on a repository with many newly-tracked files.
-  Future<void> renormalize(List<String> paths) async {
+  Future<void> renormalize(List<String> paths, {GitCancel? cancel}) async {
     for (var i = 0; i < paths.length; i += 200) {
       final batch = paths.sublist(i, (i + 200).clamp(0, paths.length));
-      await _ok([
-        'add',
-        '--renormalize',
-        '--',
-        ...batch,
-      ], 'git add --renormalize');
+      await _ok(
+        ['add', '--renormalize', '--', ...batch],
+        'git add --renormalize',
+        timeout: lfsTransferTimeout,
+        cancel: cancel,
+      );
     }
   }
 
