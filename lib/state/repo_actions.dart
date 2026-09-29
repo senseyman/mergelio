@@ -313,19 +313,15 @@ class RepoActions {
   Future<List<LfsTrackedPattern>> lfsTrackedPatterns() async =>
       parseLfsTrackList(await _writer.lfsTrackList());
 
-  /// Committed files [pattern] now routes through LFS that are still stored
-  /// as regular blobs. [literal] treats [pattern] as one exact path.
-  Future<List<String>> lfsConvertCandidates(
-    String pattern, {
-    bool literal = false,
-  }) async {
-    // Which files the pattern reaches is git's call, not a glob's: nested
+  /// Committed files whose current attributes route them through LFS but that
+  /// are still stored as regular blobs. Throws [GitException] when git fails,
+  /// so callers can report it.
+  Future<List<String>> lfsConvertCandidates() async {
+    // Which files the attributes reach is git's call, not a glob's: nested
     // .gitattributes, negations and directory patterns all shape it. So list
-    // the candidates broadly and keep those whose filter attribute is lfs.
+    // every tracked file and keep those whose filter attribute is lfs.
     final listed = await _git.run(
-      literal
-          ? ['ls-files', '-z', '--', ':(literal)$pattern']
-          : ['ls-files', '-z'],
+      ['ls-files', '-z'],
       repoPath: path,
       timeout: lfsReadTimeout,
     );

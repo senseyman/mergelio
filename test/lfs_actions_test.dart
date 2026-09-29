@@ -211,7 +211,7 @@ void main() {
         'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa * a.psd\n',
         '',
       );
-      final r = await actions.lfsConvertCandidates('*.psd');
+      final r = await actions.lfsConvertCandidates();
       expect(r, ['dir/b.psd']);
       expect(ran(), [
         ['ls-files', '-z'],
@@ -225,10 +225,25 @@ void main() {
     },
   );
 
-  test('lfsConvertCandidates literal lists only that path', () async {
-    await actions.lfsConvertCandidates('dir/x [1].psd', literal: true);
-    expect(ran().first, ['ls-files', '-z', '--', ':(literal)dir/x [1].psd']);
-  });
+  test(
+    'lfsConvertCandidates treats a bracketed filename as a plain file',
+    () async {
+      git.responses['ls-files -z'] = const GitResult(
+        0,
+        'dir/x [1].psd\x00b.txt\x00',
+        '',
+      );
+      git.responses['check-attr -z --stdin filter'] = const GitResult(
+        0,
+        'dir/x [1].psd\x00filter\x00lfs\x00b.txt\x00filter\x00unspecified\x00',
+        '',
+      );
+      git.responses['lfs ls-files -l'] = const GitResult(0, '', '');
+      final r = await actions.lfsConvertCandidates();
+      expect(r, ['dir/x [1].psd']);
+      expect(ran().first, ['ls-files', '-z']);
+    },
+  );
 
   test('lfsConvert renormalizes on the repo lane, never commits', () async {
     final ok = await actions.lfsConvert(['dir/b.psd']);
