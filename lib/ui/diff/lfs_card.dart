@@ -77,39 +77,57 @@ class LfsCard extends ConsumerWidget {
       );
     }
 
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              title,
-              style: TextStyle(
-                color: t.textPrimary,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
+    // Scrolls when the sheet is dragged short: with the install hint this is
+    // the tallest body the sheet can show.
+    return LayoutBuilder(
+      builder: (context, box) => SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: box.maxHeight),
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: t.textPrimary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    sizes,
+                    style: TextStyle(color: t.textPrimary, fontSize: 12),
+                  ),
+                  const SizedBox(height: 6),
+                  if (lfs.before != null) side(lfs.before!),
+                  if (lfs.after != null) side(lfs.after!),
+                  if (toolMissing) ...[
+                    const SizedBox(height: 8),
+                    Text(l.lfsToolMissing, style: muted),
+                    Text(
+                      lfsInstallHint(
+                        l,
+                        lfsInstallRoute(lfsOperatingSystem(context)),
+                      ),
+                      style: TextStyle(color: t.textFaint, fontSize: 11),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                  if (onShowText != null) ...[
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: onShowText,
+                      child: Text(l.lfsShowTextDiff),
+                    ),
+                  ],
+                ],
               ),
             ),
-            const SizedBox(height: 4),
-            Text(sizes, style: TextStyle(color: t.textPrimary, fontSize: 12)),
-            const SizedBox(height: 6),
-            if (lfs.before != null) side(lfs.before!),
-            if (lfs.after != null) side(lfs.after!),
-            if (toolMissing) ...[
-              const SizedBox(height: 8),
-              Text(l.lfsToolMissing, style: muted),
-              Text(
-                lfsInstallHint(l, lfsInstallRoute(lfsOperatingSystem(context))),
-                style: TextStyle(color: t.textFaint, fontSize: 11),
-                textAlign: TextAlign.center,
-              ),
-            ],
-            if (onShowText != null) ...[
-              const SizedBox(height: 8),
-              TextButton(onPressed: onShowText, child: Text(l.lfsShowTextDiff)),
-            ],
-          ],
+          ),
         ),
       ),
     );

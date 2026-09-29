@@ -37,6 +37,7 @@ Widget _app(
   String? tool = '3.5.1',
   Set<String> present = const {},
   List<Override> extra = const [],
+  Locale? locale,
 }) => ProviderScope(
   overrides: [
     lfsToolProvider.overrideWith((ref) async => tool),
@@ -46,6 +47,7 @@ Widget _app(
     ...extra,
   ],
   child: MaterialApp(
+    locale: locale,
     localizationsDelegates: AppLocalizations.localizationsDelegates,
     supportedLocales: AppLocalizations.supportedLocales,
     theme: ThemeData(extensions: [AppTokens.dark()]),
@@ -327,6 +329,28 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(seen.toSet(), {workingTreeLfsQuery('/r', working)});
+  });
+
+  testWidgets('card scrolls rather than overflowing a short sheet', (
+    tester,
+  ) async {
+    // Its tallest form, in the longer locale, in a sheet dragged low.
+    await tester.pumpWidget(
+      _app(
+        SizedBox(
+          height: 120,
+          child: LfsCard(
+            repoPath: '/r',
+            file: _file(after: const LfsPointer(oid: _a, size: 9)),
+            onShowText: () {},
+          ),
+        ),
+        tool: null,
+        locale: const Locale('uk'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('diff sheet renders the card, not pointer lines', (tester) async {
