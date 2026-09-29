@@ -22,6 +22,7 @@ import '../common/file_tree_view.dart';
 import '../common/lfs_chip.dart';
 import '../insight/file_insight_dialog.dart';
 import 'lfs_banner.dart';
+import 'lfs_track_menu.dart';
 import 'lfs_pointer_strip.dart';
 
 /// Right panel shown when no commit is selected: STAGED / UNSTAGED file lists
@@ -55,6 +56,16 @@ class WorkingTreePanel extends ConsumerWidget {
             )
             .valueOrNull ??
         const <String>{};
+    // Watched so the menu gains or loses its LFS entries once git-lfs is known.
+    ref.watch(lfsToolProvider);
+    List<PopupMenuEntry<void>> trackItems(WorkingFile f, bool isLfs) =>
+        lfsTrackMenuItems(
+          context: context,
+          ref: ref,
+          repoPath: repoPath,
+          file: f,
+          isLfs: isLfs,
+        );
 
     return Semantics(
       container: true,
@@ -124,6 +135,7 @@ class WorkingTreePanel extends ConsumerWidget {
                           onOpen: (f) => _open(ref, f.path, staged: false),
                           onDiscard: (f) =>
                               _confirmDiscardFile(ref, context, repoPath, f),
+                          trackItems: trackItems,
                         ),
                         _FileSection(
                           label: l.wtpStaged,
@@ -138,6 +150,7 @@ class WorkingTreePanel extends ConsumerWidget {
                           onOpen: (f) => _open(ref, f.path, staged: true),
                           onDiscard: (f) =>
                               _confirmDiscardFile(ref, context, repoPath, f),
+                          trackItems: trackItems,
                         ),
                       ],
                     ),
@@ -327,6 +340,7 @@ class _FileSection extends StatelessWidget {
   final void Function(WorkingFile) onToggle;
   final void Function(WorkingFile) onOpen;
   final void Function(WorkingFile) onDiscard;
+  final List<PopupMenuEntry<void>> Function(WorkingFile, bool) trackItems;
 
   const _FileSection({
     required this.label,
@@ -340,6 +354,7 @@ class _FileSection extends StatelessWidget {
     required this.onToggle,
     required this.onOpen,
     required this.onDiscard,
+    required this.trackItems,
   });
 
   @override
@@ -392,6 +407,7 @@ class _FileSection extends StatelessWidget {
             onToggle: onToggle,
             onOpen: onOpen,
             onDiscard: onDiscard,
+            trackItems: trackItems,
           ),
         ),
       ],
@@ -411,6 +427,7 @@ class _FileRow extends StatelessWidget {
   final void Function(WorkingFile) onToggle;
   final void Function(WorkingFile) onOpen;
   final void Function(WorkingFile) onDiscard;
+  final List<PopupMenuEntry<void>> Function(WorkingFile, bool) trackItems;
 
   const _FileRow({
     required this.file,
@@ -419,6 +436,7 @@ class _FileRow extends StatelessWidget {
     required this.onToggle,
     required this.onOpen,
     required this.onDiscard,
+    required this.trackItems,
     this.indent = 0,
     this.inTree = false,
     this.lfs = false,
@@ -468,6 +486,7 @@ class _FileRow extends StatelessWidget {
             ),
             child: Text(l.wtpBlame, style: TextStyle(fontSize: 13)),
           ),
+          ...trackItems(file, lfs),
           PopupMenuItem(
             height: 34,
             onTap: () => onDiscard(file),
