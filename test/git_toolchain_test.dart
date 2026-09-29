@@ -97,10 +97,10 @@ void main() {
   });
 
   group('pathWithGitDir', () {
-    test('prepends the directory of an absolute git', () {
+    test('appends the directory of an absolute git', () {
       expect(
         pathWithGitDir('/opt/homebrew/bin/git', '/usr/bin:/bin', ':'),
-        '/opt/homebrew/bin:/usr/bin:/bin',
+        '/usr/bin:/bin:/opt/homebrew/bin',
       );
     });
 
@@ -137,7 +137,7 @@ void main() {
     test('does not mistake a longer directory for the same one', () {
       expect(
         pathWithGitDir('/opt/homebrew/bin/git', '/opt/homebrew/bin2', ':'),
-        '/opt/homebrew/bin:/opt/homebrew/bin2',
+        '/opt/homebrew/bin2:/opt/homebrew/bin',
       );
     });
 
@@ -148,7 +148,7 @@ void main() {
           r'C:\Windows\system32',
           ';',
         ),
-        r'C:\Program Files\Git\cmd;C:\Windows\system32',
+        r'C:\Windows\system32;C:\Program Files\Git\cmd',
       );
       // Windows paths compare case-insensitively.
       expect(
@@ -340,7 +340,7 @@ void main() {
           ['-c', r'printf "%s|%s" "$PATH" "$KEEP"'],
           environment: {'PATH': '/usr/bin', 'KEEP': 'yes'},
         );
-        expect(res.out, '/bin:/usr/bin|yes');
+        expect(res.out, '/usr/bin:/bin|yes');
       },
       skip: Platform.isWindows ? 'no `/bin/sh` on Windows' : false,
     );

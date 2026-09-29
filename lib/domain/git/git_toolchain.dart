@@ -93,13 +93,17 @@ String? toolchainFailure(int exitCode, String stderr) {
 }
 
 /// The PATH a git child should see: [currentPath] with the directory holding
-/// [gitBinary] put first, unless it is already there.
+/// [gitBinary] added last, unless it is already there.
 ///
 /// git runs its helpers — `git-lfs` among them, as a subcommand and as a
 /// clean/smudge filter — by looking them up on PATH. An app started outside a
 /// shell has only the system directories on it, so a git found in a package
-/// manager's prefix could not reach the helpers installed beside it. A bare
-/// `git` was itself found through PATH, so PATH is returned untouched.
+/// manager's prefix could not reach the helpers installed beside it. The
+/// directory goes last rather than first so that whatever the system already
+/// resolves keeps winning: put first, a package manager's `ssh` would replace
+/// the system one for every fetch and push, and reject options such as
+/// macOS's `UseKeychain` that the user's ssh config relies on. A bare `git`
+/// was itself found through PATH, so PATH is returned untouched.
 /// [separator] is the platform's list separator: `;` on Windows, where entries
 /// are compared ignoring case, `:` elsewhere.
 String pathWithGitDir(String gitBinary, String? currentPath, String separator) {
@@ -121,5 +125,5 @@ String pathWithGitDir(String gitBinary, String? currentPath, String separator) {
 
   final want = norm(dir);
   if (current.split(separator).any((e) => norm(e) == want)) return current;
-  return '$dir$separator$current';
+  return '$current$separator$dir';
 }
