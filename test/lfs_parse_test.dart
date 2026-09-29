@@ -55,6 +55,40 @@ void main() {
     });
   });
 
+  group('lfsAttributePattern', () {
+    // Plain enough to mean the same to Dart and to git's extended regex.
+    final re = RegExp(lfsAttributePattern);
+    test('matches lines that route files through LFS', () {
+      expect(re.hasMatch('*.psd filter=lfs diff=lfs merge=lfs -text'), isTrue);
+      expect(re.hasMatch('  assets/** filter=lfs'), isTrue);
+    });
+    test('ignores the filter mentioned only in a comment', () {
+      expect(re.hasMatch('# remember to set filter=lfs later'), isFalse);
+      expect(re.hasMatch('*.txt text # not filter=lfs'), isFalse);
+    });
+  });
+
+  group('revisionArgs', () {
+    test('marks the end of options on git 2.24 and later', () {
+      expect(revisionArgs('abc', 'git version 2.24.0'), [
+        '--end-of-options',
+        'abc',
+      ]);
+      expect(revisionArgs('-Osh', 'git version 2.55.0'), [
+        '--end-of-options',
+        '-Osh',
+      ]);
+    });
+    test('passes a plain revision bare on older git', () {
+      expect(revisionArgs('abc', 'git version 2.23.4'), ['abc']);
+      expect(revisionArgs('abc^', 'garbage'), ['abc^']);
+    });
+    test('refuses an option-shaped revision it cannot guard', () {
+      expect(revisionArgs('-Osh', 'git version 2.23.4'), isNull);
+      expect(revisionArgs('--output=x', 'garbage'), isNull);
+    });
+  });
+
   group('lfsObjectsDir', () {
     test('defaults under the common dir, relative to the repo', () {
       expect(

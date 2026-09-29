@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/core/logging.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
+import 'package:mergelio/domain/git/lfs.dart' show lfsAttributePattern;
 import 'package:mergelio/domain/git/models.dart';
 import 'package:mergelio/state/diff_target.dart';
 import 'package:mergelio/state/lfs.dart';
@@ -78,9 +79,9 @@ void main() {
         'grep',
         '-l',
         '-z',
-        '-F',
+        '-E',
         '-e',
-        'filter=lfs',
+        lfsAttributePattern,
         '--',
         ':(glob)**/.gitattributes',
       ]);
@@ -96,9 +97,9 @@ void main() {
         'grep',
         '-l',
         '-z',
-        '-F',
+        '-E',
         '-e',
-        'filter=lfs',
+        lfsAttributePattern,
         '--end-of-options',
         'abc',
         '--',
@@ -115,6 +116,37 @@ void main() {
       final at = args.indexOf('-Osh');
       expect(at, greaterThan(0));
       expect(args[at - 1], '--end-of-options');
+    });
+    test('names a plain revision bare on git older than 2.24', () async {
+      final git = _Git({
+        'grep': const GitResult(0, 'abc:.gitattributes\x00', ''),
+      }, gitVersion: 'git version 2.23.4');
+      final src = const LfsSource(repoPath: '/r', rev: 'abc');
+      expect(await _c(git).read(lfsRepoProvider(src).future), isTrue);
+      expect(git.calls.single, isNot(contains('--end-of-options')));
+      expect(git.calls.single, containsAllInOrder(['abc', '--']));
+    });
+    test('refuses an option-shaped revision on git older than 2.24', () async {
+      final sink = _RecordingSink();
+      final previous = appLog;
+      appLog = AppLogger(sink: sink);
+      addTearDown(() => appLog = previous);
+      final git = _Git({
+        'grep': const GitResult(0, '-Osh:.gitattributes\x00', ''),
+      }, gitVersion: 'git version 2.23.4');
+      final src = const LfsSource(repoPath: '/r', rev: '-Osh');
+      expect(await _c(git).read(lfsRepoProvider(src).future), isFalse);
+      expect(git.calls.where((c) => c.first == 'grep'), isEmpty);
+      expect(sink.lines.join('\n'), contains('[/r]'));
+    });
+    test('logs a grep that fails rather than finding nothing', () async {
+      final sink = _RecordingSink();
+      final previous = appLog;
+      appLog = AppLogger(sink: sink);
+      addTearDown(() => appLog = previous);
+      final git = _Git({'grep': const GitResult(129, '', 'unknown option')});
+      expect(await _c(git).read(lfsRepoProvider(_wt).future), isFalse);
+      expect(sink.lines.single, contains('[/r]'));
     });
     test('false on no match (exit 1)', () async {
       final git = _Git({'grep': const GitResult(1, '', '')});

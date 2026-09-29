@@ -9,6 +9,11 @@ import 'package:path/path.dart' as p;
 /// The version line every LFS pointer opens with.
 const lfsPointerVersion = 'version https://git-lfs.github.com/spec/v1';
 
+/// Matches a `.gitattributes` line that routes files through LFS, as an
+/// extended regex for `git grep -E`. Text after `#` is a comment to git, so a
+/// line that only mentions the filter there does not count.
+const lfsAttributePattern = r'^[^#]*filter=lfs';
+
 /// Pointers are tiny by definition; anything bigger is real content that
 /// merely looks like one.
 const lfsPointerMaxBytes = 1024;
@@ -93,12 +98,27 @@ final _gitVersion = RegExp(r'git version (\d+)\.(\d+)');
 
 /// Whether `git check-attr --source` exists, which is what lets a commit's
 /// own attributes answer for it. Added in git 2.40.
-bool supportsCheckAttrSource(String gitVersion) {
+bool supportsCheckAttrSource(String gitVersion) => _atLeast(gitVersion, 2, 40);
+
+/// The arguments that name [rev] to a git command that also takes options,
+/// or null when that cannot be done safely.
+///
+/// A revision can be a branch named like an option (`-Osh` makes `git grep`
+/// run `sh` on every match). From git 2.24, `--end-of-options` keeps it a
+/// revision. Older git has no such marker, so a revision starting with `-`
+/// is refused there rather than passed where git would read it as a flag.
+List<String>? revisionArgs(String rev, String gitVersion) {
+  if (_atLeast(gitVersion, 2, 24)) return ['--end-of-options', rev];
+  if (rev.startsWith('-')) return null;
+  return [rev];
+}
+
+bool _atLeast(String gitVersion, int major, int minor) {
   final m = _gitVersion.firstMatch(gitVersion);
   if (m == null) return false;
-  final major = int.parse(m.group(1)!);
-  final minor = int.parse(m.group(2)!);
-  return major > 2 || (major == 2 && minor >= 40);
+  final gotMajor = int.parse(m.group(1)!);
+  final gotMinor = int.parse(m.group(2)!);
+  return gotMajor > major || (gotMajor == major && gotMinor >= minor);
 }
 
 /// Where downloaded LFS objects live. [commonDir] is `git rev-parse

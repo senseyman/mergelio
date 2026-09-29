@@ -91,29 +91,44 @@ final lfsRepoProvider = FutureProvider.autoDispose.family<bool, LfsSource>((
   source,
 ) async {
   if (source.isImmutable) ref.keepAlive();
+  final git = ref.watch(gitServiceProvider);
   try {
-    final r = await ref
-        .watch(gitServiceProvider)
-        .run(
-          [
-            'grep',
-            '-l',
-            '-z',
-            '-F',
-            '-e',
-            'filter=lfs',
-            // A revision is caller-supplied and may be a branch named like an
-            // option (`-Osh` would make grep run `sh`). `--end-of-options`
-            // (git 2.24+) keeps it a revision.
-            if (source.rev != null) ...['--end-of-options', source.rev!],
-            '--',
-            ':(glob)**/.gitattributes',
-          ],
-          repoPath: source.repoPath,
-          timeout: lfsReadTimeout,
-        );
-    // Exit 1 is "no match". An empty success is treated the same way: a
-    // match always names a file.
+    final rev = source.rev;
+    final revArgs = rev == null
+        ? const <String>[]
+        : revisionArgs(rev, await ref.watch(gitVersionProvider.future));
+    if (revArgs == null) {
+      appLog.warn(
+        'LFS attribute scan skipped: this git cannot safely name $rev',
+        scope: source.repoPath,
+      );
+      return false;
+    }
+    final r = await git.run(
+      [
+        'grep',
+        '-l',
+        '-z',
+        '-E',
+        '-e',
+        lfsAttributePattern,
+        ...revArgs,
+        '--',
+        ':(glob)**/.gitattributes',
+      ],
+      repoPath: source.repoPath,
+      timeout: lfsReadTimeout,
+    );
+    // Exit 1 is "no match". Anything else non-zero is git failing, which is
+    // worth a line in the log: otherwise LFS support silently switches off.
+    if (!r.ok && r.exitCode != 1) {
+      appLog.warn(
+        'LFS attribute scan failed: exit ${r.exitCode} ${r.err}',
+        scope: source.repoPath,
+      );
+    }
+    // An empty success is treated as no match too: a match always names a
+    // file.
     return r.ok && r.stdout.isNotEmpty;
   } on Object catch (e) {
     appLog.warn('LFS attribute scan failed: $e', scope: source.repoPath);
@@ -198,12 +213,11 @@ final lfsPathsProvider = FutureProvider.autoDispose
       try {
         final rev = source.rev;
         if (rev == null) return await _checkAttr(git, source, query.paths);
-        if (supportsCheckAttrSource(
-          await ref.watch(gitVersionProvider.future),
-        )) {
+        final gitVersion = await ref.watch(gitVersionProvider.future);
+        if (supportsCheckAttrSource(gitVersion)) {
           return await _checkAttr(git, source, query.paths, rev: rev);
         }
-        return await _pointerScan(git, source, rev, query.paths);
+        return await _pointerScan(git, source, rev, query.paths, gitVersion);
       } on Object catch (e) {
         appLog.warn('LFS path lookup failed: $e', scope: source.repoPath);
         return const {};
@@ -235,6 +249,7 @@ Future<Set<String>> _pointerScan(
   LfsSource source,
   String rev,
   List<String> paths,
+  String gitVersion,
 ) async {
   // One path per stdin line below, so a path with a newline cannot be asked
   // about; it goes unbadged.
@@ -244,20 +259,14 @@ Future<Set<String>> _pointerScan(
   };
 
   Future<Set<String>> grep(String at) async {
+    // An option-shaped revision git cannot guard is refused; the trailing
+    // `--` keeps the revision from being read as a path.
+    final revArgs = revisionArgs(at, gitVersion);
+    if (revArgs == null) {
+      throw ArgumentError.value(at, 'rev', 'cannot be named safely');
+    }
     final r = await git.run(
-      // `--end-of-options` keeps an option-shaped revision from being read as
-      // a grep flag; the trailing `--` keeps it from being read as a path.
-      [
-        'grep',
-        '-l',
-        '-z',
-        '-F',
-        '-e',
-        lfsPointerVersion,
-        '--end-of-options',
-        at,
-        '--',
-      ],
+      ['grep', '-l', '-z', '-F', '-e', lfsPointerVersion, ...revArgs, '--'],
       repoPath: source.repoPath,
       timeout: lfsReadTimeout,
     );

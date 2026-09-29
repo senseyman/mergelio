@@ -3,7 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/core/logging.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
-import 'package:mergelio/domain/git/lfs.dart' show lfsPointerVersion;
+import 'package:mergelio/domain/git/lfs.dart'
+    show lfsAttributePattern, lfsPointerVersion;
 import 'package:mergelio/state/lfs.dart';
 
 const _v = 'version https://git-lfs.github.com/spec/v1';
@@ -38,7 +39,7 @@ class _Git implements GitService {
     stdins.add(stdin);
     timeouts.add(timeout);
     final key = switch (args) {
-      ['grep', ..., '--', _] when args.contains('filter=lfs') => 'attrs',
+      ['grep', ..., '--', _] when args.contains(lfsAttributePattern) => 'attrs',
       ['grep', ...] => 'grep ${args.lastWhere((a) => a != '--')}',
       ['cat-file', final mode, ...] => 'cat-file $mode',
       _ => args.first,
@@ -91,7 +92,7 @@ void main() {
     expect(got, isEmpty);
     expect(git.calls, hasLength(1));
     expect(git.calls.single.first, 'grep');
-    expect(git.calls.single, contains('filter=lfs'));
+    expect(git.calls.single, contains(lfsAttributePattern));
     expect(git.calls.any((c) => c.first == 'check-attr'), isFalse);
     expect(git.calls.any((c) => c.first == 'cat-file'), isFalse);
   });
@@ -188,7 +189,7 @@ void main() {
       LfsQuery(const LfsSource(repoPath: '/r', rev: '-Osh'), const ['a.psd']),
     );
     final scan = git.calls.where(
-      (c) => c.first == 'grep' && !c.contains('filter=lfs'),
+      (c) => c.first == 'grep' && !c.contains(lfsAttributePattern),
     );
     expect(scan.single, [
       'grep',
@@ -201,6 +202,24 @@ void main() {
       '-Osh',
       '--',
     ]);
+  });
+
+  test('old git never passes an option-shaped parent to grep', () async {
+    // Below git 2.24 there is no end-of-options marker, so a compare base
+    // named like an option must be refused rather than handed to grep.
+    final git = _Git({
+      'attrs': _lfsRepo,
+      'grep main': const GitResult(1, '', ''),
+    }, gitVersion: 'git version 2.23.4');
+    final got = await _read(
+      git,
+      LfsQuery(
+        const LfsSource(repoPath: '/r', rev: 'main', parentRev: '-Osh'),
+        const ['a.psd'],
+      ),
+    );
+    expect(got, isEmpty);
+    expect(git.calls.any((c) => c.contains('-Osh')), isFalse);
   });
 
   test('asks git its version once, not once per lookup', () async {
