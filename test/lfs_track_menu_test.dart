@@ -24,6 +24,9 @@ class _FakeGit implements GitService {
   String lfsFiles = '';
   String trackList = '';
 
+  /// Command lines (args joined by a space) that fail with exit 2.
+  final failing = <String>{};
+
   @override
   Future<GitResult> run(
     List<String> args, {
@@ -34,6 +37,7 @@ class _FakeGit implements GitService {
     String? stdin,
   }) async {
     calls.add(args);
+    if (failing.contains(args.join(' '))) return const GitResult(2, '', 'boom');
     if (args.first == 'ls-files') return GitResult(0, listed, '');
     if (args.first == 'check-attr') {
       final files = [
@@ -282,5 +286,41 @@ void main() {
     await t.pumpAndSettle();
     expect(find.textContaining(RegExp(r'^f\d+\.psd$')), findsNWidgets(20));
     expect(find.text('and 5 more'), findsOneWidget);
+  });
+
+  testWidgets('untrack: failing pattern listing toasts, opens no dialog', (
+    t,
+  ) async {
+    final git = _FakeGit()..failing.add('lfs track');
+    final h = await _pump(t, file: _wf('art/cover.psd'), isLfs: true, git: git);
+    await _openMenu(t, 'art/cover.psd');
+    await t.tap(find.text('Stop tracking with LFS…'));
+    await t.pumpAndSettle();
+    final errors = h.container
+        .read(toastProvider)
+        .where((x) => x.kind == ToastKind.error);
+    expect(errors, hasLength(1));
+    expect(errors.single.description, contains('boom'));
+    expect(find.text('Stop tracking with LFS'), findsNothing);
+    expect(find.textContaining('(.gitattributes)'), findsNothing);
+    expect(t.takeException(), isNull);
+    expect(git.calls.where((c) => c.length > 1 && c[1] == 'untrack'), isEmpty);
+  });
+
+  testWidgets('track ok but ls-files fails: error toast, no offer', (t) async {
+    final git = _FakeGit()..failing.add('ls-files -z');
+    final h = await _pump(t, file: _wf('art/cover.psd'), git: git);
+    await _openMenu(t, 'art/cover.psd');
+    await t.tap(find.text('Track *.psd with LFS'));
+    await t.pumpAndSettle();
+    expect(git.ran(['lfs', 'track', '*.psd']), isTrue);
+    final toasts = h.container.read(toastProvider);
+    final errors = toasts.where((x) => x.kind == ToastKind.error);
+    expect(errors, hasLength(1));
+    expect(errors.single.description, contains('boom'));
+    expect(toasts.any((x) => x.action != null), isFalse);
+    expect(find.text('Convert files to LFS'), findsNothing);
+    expect(t.takeException(), isNull);
+    expect(git.calls.where((c) => c.first == 'add'), isEmpty);
   });
 }
