@@ -91,3 +91,39 @@ String? toolchainFailure(int exitCode, String stderr) {
   }
   return null;
 }
+
+/// The PATH a git child should see: [currentPath] with the directory holding
+/// [gitBinary] added last, unless it is already there.
+///
+/// git runs its helpers — `git-lfs` among them, as a subcommand and as a
+/// clean/smudge filter — by looking them up on PATH. An app started outside a
+/// shell has only the system directories on it, so a git found in a package
+/// manager's prefix could not reach the helpers installed beside it. The
+/// directory goes last rather than first so that whatever the system already
+/// resolves keeps winning: put first, a package manager's `ssh` would replace
+/// the system one for every fetch and push, and reject options such as
+/// macOS's `UseKeychain` that the user's ssh config relies on. A bare `git`
+/// was itself found through PATH, so PATH is returned untouched.
+/// [separator] is the platform's list separator: `;` on Windows, where entries
+/// are compared ignoring case, `:` elsewhere.
+String pathWithGitDir(String gitBinary, String? currentPath, String separator) {
+  final current = currentPath ?? '';
+  final cut = gitBinary.lastIndexOf(RegExp(r'[/\\]'));
+  if (cut < 0) return current;
+  final dir = cut == 0
+      ? gitBinary.substring(0, 1)
+      : gitBinary.substring(0, cut);
+  if (current.isEmpty) return dir;
+  final windows = separator == ';';
+  String norm(String entry) {
+    var e = entry;
+    while (e.length > 1 && (e.endsWith('/') || e.endsWith(r'\'))) {
+      e = e.substring(0, e.length - 1);
+    }
+    return windows ? e.toLowerCase() : e;
+  }
+
+  final want = norm(dir);
+  if (current.split(separator).any((e) => norm(e) == want)) return current;
+  return '$current$separator$dir';
+}

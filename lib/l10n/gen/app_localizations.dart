@@ -3896,6 +3896,24 @@ abstract class AppLocalizations {
   /// **'Show whole file'**
   String get diffShowWholeFile;
 
+  /// No description provided for @diffMoreActions.
+  ///
+  /// In en, this message translates to:
+  /// **'More actions'**
+  String get diffMoreActions;
+
+  /// No description provided for @diffViewInline.
+  ///
+  /// In en, this message translates to:
+  /// **'Inline'**
+  String get diffViewInline;
+
+  /// No description provided for @diffViewSplit.
+  ///
+  /// In en, this message translates to:
+  /// **'Split'**
+  String get diffViewSplit;
+
   /// No description provided for @diffCouldNotLoad.
   ///
   /// In en, this message translates to:
@@ -3907,6 +3925,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Binary file — diff not shown'**
   String get diffBinaryFile;
+
+  /// No description provided for @lfsBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'LFS'**
+  String get lfsBadge;
+
+  /// No description provided for @lfsBadgeTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Stored with Git LFS'**
+  String get lfsBadgeTooltip;
+
+  /// No description provided for @lfsCardModified.
+  ///
+  /// In en, this message translates to:
+  /// **'LFS object'**
+  String get lfsCardModified;
+
+  /// No description provided for @lfsCardAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Added LFS object'**
+  String get lfsCardAdded;
+
+  /// No description provided for @lfsCardDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted LFS object'**
+  String get lfsCardDeleted;
+
+  /// No description provided for @lfsCardMovedIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Moved into LFS'**
+  String get lfsCardMovedIn;
+
+  /// No description provided for @lfsCardMovedOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Moved out of LFS'**
+  String get lfsCardMovedOut;
+
+  /// No description provided for @lfsDownloaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloaded'**
+  String get lfsDownloaded;
+
+  /// No description provided for @lfsNotDownloaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Not downloaded'**
+  String get lfsNotDownloaded;
+
+  /// No description provided for @lfsToolMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'git-lfs isn\'t installed — files show as pointers'**
+  String get lfsToolMissing;
+
+  /// No description provided for @lfsMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Tracked by LFS but stored as a regular blob'**
+  String get lfsMismatch;
+
+  /// No description provided for @lfsShowTextDiff.
+  ///
+  /// In en, this message translates to:
+  /// **'Show text diff'**
+  String get lfsShowTextDiff;
+
+  /// No description provided for @lfsBannerText.
+  ///
+  /// In en, this message translates to:
+  /// **'This repository stores files with Git LFS, but git-lfs isn\'t installed. Files show as pointers until you install it.'**
+  String get lfsBannerText;
+
+  /// No description provided for @lfsBannerDismiss.
+  ///
+  /// In en, this message translates to:
+  /// **'Dismiss'**
+  String get lfsBannerDismiss;
+
+  /// No description provided for @lfsInstallHomebrew.
+  ///
+  /// In en, this message translates to:
+  /// **'Install it with `brew install git-lfs`, then run `git lfs install`.'**
+  String get lfsInstallHomebrew;
+
+  /// No description provided for @lfsInstallGitForWindows.
+  ///
+  /// In en, this message translates to:
+  /// **'Git for Windows includes it — reinstall with Git LFS selected, then run `git lfs install`.'**
+  String get lfsInstallGitForWindows;
+
+  /// No description provided for @lfsInstallPackageManager.
+  ///
+  /// In en, this message translates to:
+  /// **'Install git-lfs with your package manager, then run `git lfs install`.'**
+  String get lfsInstallPackageManager;
 
   /// No description provided for @diffCouldNotStage.
   ///

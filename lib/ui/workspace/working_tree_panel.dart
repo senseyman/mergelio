@@ -10,6 +10,7 @@ import '../../domain/git/models.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/diff_target.dart';
 import '../../state/feedback.dart';
+import '../../state/lfs.dart';
 import '../../state/merge_session.dart';
 import '../../state/profiles.dart';
 import '../../state/repo_actions.dart';
@@ -18,7 +19,9 @@ import '../../state/settings_controller.dart';
 import '../common/confirm.dart';
 import '../common/dialogs.dart';
 import '../common/file_tree_view.dart';
+import '../common/lfs_chip.dart';
 import '../insight/file_insight_dialog.dart';
+import 'lfs_banner.dart';
 
 /// Right panel shown when no commit is selected: STAGED / UNSTAGED file lists
 /// and the commit composer. A partially-staged file appears in both lists.
@@ -43,6 +46,14 @@ class WorkingTreePanel extends ConsumerWidget {
     final hasConflicts = data.working.any((f) => f.isConflicted);
     final resolving = ref.watch(mergeSessionProvider(repoPath)) != null;
     final pending = ref.watch(pendingOpProvider(repoPath)).valueOrNull;
+    // One lookup for every changed path; the sections pick from it.
+    final lfs =
+        ref
+            .watch(
+              lfsPathsProvider(workingTreeLfsQuery(repoPath, data.working)),
+            )
+            .valueOrNull ??
+        const <String>{};
 
     return Semantics(
       container: true,
@@ -77,6 +88,7 @@ class WorkingTreePanel extends ConsumerWidget {
                       ],
                     ),
             ),
+            LfsBanner(repoPath: repoPath, working: data.working),
             if (hasConflicts && !resolving)
               Padding(
                 padding: const EdgeInsets.fromLTRB(8, 6, 8, 2),
@@ -103,6 +115,7 @@ class WorkingTreePanel extends ConsumerWidget {
                           files: unstaged,
                           staged: false,
                           tree: tree,
+                          lfs: lfs,
                           onBulk: actions.stageAll,
                           bulkLabel: l.wtpStageAll,
                           onToggle: (f) => actions.stageFile(f.path),
@@ -116,6 +129,7 @@ class WorkingTreePanel extends ConsumerWidget {
                           files: staged,
                           staged: true,
                           tree: tree,
+                          lfs: lfs,
                           onBulk: actions.unstageAll,
                           bulkLabel: l.wtpUnstageAll,
                           onToggle: (f) => actions.unstageFile(f.path),
@@ -305,6 +319,7 @@ class _FileSection extends StatelessWidget {
   final List<WorkingFile> files;
   final bool staged;
   final bool tree;
+  final Set<String> lfs;
   final VoidCallback onBulk;
   final String bulkLabel;
   final void Function(WorkingFile) onToggle;
@@ -317,6 +332,7 @@ class _FileSection extends StatelessWidget {
     required this.files,
     required this.staged,
     required this.tree,
+    required this.lfs,
     required this.onBulk,
     required this.bulkLabel,
     required this.onToggle,
@@ -370,6 +386,7 @@ class _FileSection extends StatelessWidget {
             staged: staged,
             indent: FileTreeView.indent(depth),
             inTree: tree,
+            lfs: lfs.contains(path),
             onToggle: onToggle,
             onOpen: onOpen,
             onDiscard: onDiscard,
@@ -388,6 +405,7 @@ class _FileRow extends StatelessWidget {
   final bool staged;
   final double indent;
   final bool inTree;
+  final bool lfs;
   final void Function(WorkingFile) onToggle;
   final void Function(WorkingFile) onOpen;
   final void Function(WorkingFile) onDiscard;
@@ -401,6 +419,7 @@ class _FileRow extends StatelessWidget {
     required this.onDiscard,
     this.indent = 0,
     this.inTree = false,
+    this.lfs = false,
   });
 
   String get _label {
@@ -479,6 +498,7 @@ class _FileRow extends StatelessWidget {
                   style: TextStyle(color: t.textMuted, fontSize: 12.5),
                 ),
               ),
+              if (lfs) const LfsChip(),
               if (file.isPartial)
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 6),

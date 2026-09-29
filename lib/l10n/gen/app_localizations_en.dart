@@ -2209,10 +2209,75 @@ class AppLocalizationsEn extends AppLocalizations {
   String get diffShowWholeFile => 'Show whole file';
 
   @override
+  String get diffMoreActions => 'More actions';
+
+  @override
+  String get diffViewInline => 'Inline';
+
+  @override
+  String get diffViewSplit => 'Split';
+
+  @override
   String get diffCouldNotLoad => 'Could not load diff';
 
   @override
   String get diffBinaryFile => 'Binary file — diff not shown';
+
+  @override
+  String get lfsBadge => 'LFS';
+
+  @override
+  String get lfsBadgeTooltip => 'Stored with Git LFS';
+
+  @override
+  String get lfsCardModified => 'LFS object';
+
+  @override
+  String get lfsCardAdded => 'Added LFS object';
+
+  @override
+  String get lfsCardDeleted => 'Deleted LFS object';
+
+  @override
+  String get lfsCardMovedIn => 'Moved into LFS';
+
+  @override
+  String get lfsCardMovedOut => 'Moved out of LFS';
+
+  @override
+  String get lfsDownloaded => 'Downloaded';
+
+  @override
+  String get lfsNotDownloaded => 'Not downloaded';
+
+  @override
+  String get lfsToolMissing =>
+      'git-lfs isn\'t installed — files show as pointers';
+
+  @override
+  String get lfsMismatch => 'Tracked by LFS but stored as a regular blob';
+
+  @override
+  String get lfsShowTextDiff => 'Show text diff';
+
+  @override
+  String get lfsBannerText =>
+      'This repository stores files with Git LFS, but git-lfs isn\'t installed. Files show as pointers until you install it.';
+
+  @override
+  String get lfsBannerDismiss => 'Dismiss';
+
+  @override
+  String get lfsInstallHomebrew =>
+      'Install it with `brew install git-lfs`, then run `git lfs install`.';
+
+  @override
+  String get lfsInstallGitForWindows =>
+      'Git for Windows includes it — reinstall with Git LFS selected, then run `git lfs install`.';
+
+  @override
+  String get lfsInstallPackageManager =>
+      'Install git-lfs with your package manager, then run `git lfs install`.';
 
   @override
   String get diffCouldNotStage => 'Could not stage';

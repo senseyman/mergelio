@@ -9,6 +9,7 @@ import '../../domain/git/models.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/diff_target.dart';
 import '../../state/graph_selection.dart';
+import '../../state/lfs.dart';
 import '../../state/repo_data.dart';
 import '../../state/settings_controller.dart';
 import '../common/change_file_row.dart';
@@ -234,6 +235,24 @@ class CommitDetails extends ConsumerWidget {
                       settingsProvider.select((s) => s.filesAsTree),
                     );
                     final byPath = {for (final f in list) f.path: f};
+                    final lfs =
+                        ref
+                            .watch(
+                              lfsPathsProvider(
+                                LfsQuery(
+                                  LfsSource(
+                                    repoPath: repoPath,
+                                    rev: c.sha,
+                                    parentRev: c.parents.isEmpty
+                                        ? null
+                                        : c.parents.first,
+                                  ),
+                                  [for (final f in list) f.path],
+                                ),
+                              ),
+                            )
+                            .valueOrNull ??
+                        const <String>{};
                     return FileTreeView(
                       paths: [for (final f in list) f.path],
                       tree: tree,
@@ -242,6 +261,7 @@ class CommitDetails extends ConsumerWidget {
                         repoPath: repoPath,
                         indent: FileTreeView.indent(depth),
                         inTree: tree,
+                        lfs: lfs.contains(path),
                         onTap: () =>
                             ref
                                 .read(diffTargetProvider.notifier)

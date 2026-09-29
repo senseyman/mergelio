@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,10 +21,12 @@ import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
 import '../../state/settings_controller.dart';
 import '../common/confirm.dart';
+import '../common/fit_or_collapse.dart';
 import '../insight/line_history_dialog.dart';
 import 'diff_editor.dart';
 import 'diff_metrics.dart';
 import 'diff_selection.dart';
+import 'lfs_card.dart';
 import 'line_selection.dart';
 import 'linked_scroll.dart';
 import 'syntax_style.dart';
@@ -177,90 +181,166 @@ class _DiffHeader extends ConsumerWidget {
       _ => l.diffUncommittedWorkingTree,
     };
 
+    void setStaged(bool staged) =>
+        ref.read(diffTargetProvider.notifier).state = target.withStaged(staged);
+    void startEditing() =>
+        ref.read(diffEditingProvider.notifier).state = target;
+    Future<void> toggleFileStaged() async {
+      final actions = ref.read(repoActionsProvider(target.repoPath));
+      if (doc!.staged) {
+        await actions.unstageFile(target.path);
+      } else {
+        await actions.stageFile(target.path);
+      }
+      ref.invalidate(diffDocumentProvider(target));
+    }
+
+    void toggleWholeFile() => ref.read(diffTargetProvider.notifier).state =
+        target.withWholeFile(!target.wholeFile);
+
+    // An LFS file shows its card, not its text. Editing it would mean
+    // hand-editing pointer text, which staging would then commit as is.
+    final isLfs = doc?.files.any((f) => f.lfs != null) ?? false;
+    final canEdit = target.isWorkingTree && !editing && !isLfs;
+    final canStage = doc != null && doc.editable && !editing;
+    final stageLabel = (doc?.staged ?? false)
+        ? l.diffUnstageFile
+        : l.diffStageFile;
+    final wholeLabel = target.wholeFile
+        ? l.diffShowChangesOnly
+        : l.diffShowWholeFile;
+
+    // Every action as a button, for when there is room for all of them.
+    final full = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (partial) ...[
+          _SideToggle(
+            staged: target.staged,
+            onUnstaged: () => setStaged(false),
+            onStaged: () => setStaged(true),
+          ),
+          const SizedBox(width: 8),
+        ],
+        if (canEdit)
+          TextButton(
+            style: _compactButton,
+            onPressed: startEditing,
+            child: Text(l.edit),
+          ),
+        if (canStage)
+          TextButton(
+            style: _compactButton,
+            onPressed: toggleFileStaged,
+            child: Text(stageLabel),
+          ),
+        _SegToggle(
+          split: split,
+          onInline: () => ctl.setDiffSplit(false),
+          onSplit: () => ctl.setDiffSplit(true),
+        ),
+        if (!editing)
+          IconButton(
+            iconSize: 18,
+            tooltip: wholeLabel,
+            icon: Icon(
+              target.wholeFile ? Icons.unfold_less : Icons.unfold_more,
+            ),
+            onPressed: toggleWholeFile,
+          ),
+      ],
+    );
+
+    // The same actions folded into one menu, for a narrow sheet.
+    final compact = PopupMenuButton<VoidCallback>(
+      tooltip: l.diffMoreActions,
+      iconSize: 18,
+      icon: const Icon(Icons.more_horiz),
+      onSelected: (action) => action(),
+      itemBuilder: (_) => [
+        if (partial) ...[
+          CheckedPopupMenuItem(
+            value: () => setStaged(false),
+            checked: !target.staged,
+            child: Text(l.diffUnstagedLabel),
+          ),
+          CheckedPopupMenuItem(
+            value: () => setStaged(true),
+            checked: target.staged,
+            child: Text(l.diffStagedLabel),
+          ),
+          const PopupMenuDivider(),
+        ],
+        if (canEdit) PopupMenuItem(value: startEditing, child: Text(l.edit)),
+        if (canStage)
+          PopupMenuItem(value: toggleFileStaged, child: Text(stageLabel)),
+        CheckedPopupMenuItem(
+          value: () => ctl.setDiffSplit(false),
+          checked: !split,
+          child: Text(l.diffViewInline),
+        ),
+        CheckedPopupMenuItem(
+          value: () => ctl.setDiffSplit(true),
+          checked: split,
+          child: Text(l.diffViewSplit),
+        ),
+        if (!editing)
+          PopupMenuItem(value: toggleWholeFile, child: Text(wholeLabel)),
+      ],
+    );
+
     return Container(
       height: 38,
       padding: const EdgeInsets.only(left: 12, right: 6),
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: t.border)),
       ),
-      child: Row(
-        children: [
-          _StatusBadge(target: target),
-          const SizedBox(width: 8),
-          Flexible(
-            child: Text(
-              target.path,
-              overflow: TextOverflow.ellipsis,
-              style: _codeStyle.copyWith(
-                color: t.textPrimary,
-                fontWeight: FontWeight.w600,
+      child: LayoutBuilder(
+        builder: (context, box) {
+          // Kept clear of the actions: the status badge and its gap, the
+          // close button, and enough of the file name to recognise it. The
+          // actions never get less than their menu button needs, so on a
+          // very narrow sheet the file name gives way instead.
+          const reserved = 16 + 8 + 40 + 96;
+          const menuWidth = 48.0;
+          final actionsWidth = math.max(menuWidth, box.maxWidth - reserved);
+          return Row(
+            children: [
+              _StatusBadge(target: target),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  target.path,
+                  overflow: TextOverflow.ellipsis,
+                  style: _codeStyle.copyWith(
+                    color: t.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Flexible(
-            child: Text(
-              context0,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: t.textFaint, fontSize: 11),
-            ),
-          ),
-          const Spacer(),
-          if (partial) ...[
-            _SideToggle(
-              staged: target.staged,
-              onUnstaged: () => ref.read(diffTargetProvider.notifier).state =
-                  target.withStaged(false),
-              onStaged: () => ref.read(diffTargetProvider.notifier).state =
-                  target.withStaged(true),
-            ),
-            const SizedBox(width: 8),
-          ],
-          if (target.isWorkingTree && !editing)
-            TextButton(
-              style: _compactButton,
-              onPressed: () =>
-                  ref.read(diffEditingProvider.notifier).state = target,
-              child: Text(l.edit),
-            ),
-          if (doc != null && doc.editable && !editing)
-            TextButton(
-              style: _compactButton,
-              onPressed: () async {
-                final actions = ref.read(repoActionsProvider(target.repoPath));
-                if (doc.staged) {
-                  await actions.unstageFile(target.path);
-                } else {
-                  await actions.stageFile(target.path);
-                }
-                ref.invalidate(diffDocumentProvider(target));
-              },
-              child: Text(doc.staged ? l.diffUnstageFile : l.diffStageFile),
-            ),
-          _SegToggle(
-            split: split,
-            onInline: () => ctl.setDiffSplit(false),
-            onSplit: () => ctl.setDiffSplit(true),
-          ),
-          if (!editing)
-            IconButton(
-              iconSize: 18,
-              tooltip: target.wholeFile
-                  ? l.diffShowChangesOnly
-                  : l.diffShowWholeFile,
-              icon: Icon(
-                target.wholeFile ? Icons.unfold_less : Icons.unfold_more,
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  context0,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: t.textFaint, fontSize: 11),
+                ),
               ),
-              onPressed: () => ref.read(diffTargetProvider.notifier).state =
-                  target.withWholeFile(!target.wholeFile),
-            ),
-          IconButton(
-            iconSize: 18,
-            tooltip: l.close,
-            icon: const Icon(Icons.close),
-            onPressed: onClose,
-          ),
-        ],
+              Flexible(child: LfsMismatchNote(target: target)),
+              const Spacer(),
+              ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: actionsWidth),
+                child: FitOrCollapse(full: full, compact: compact),
+              ),
+              IconButton(
+                iconSize: 18,
+                tooltip: l.close,
+                icon: const Icon(Icons.close),
+                onPressed: onClose,
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -360,6 +440,7 @@ class _SegToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
     Widget seg(String label, bool on, VoidCallback tap) => InkWell(
       onTap: tap,
@@ -386,8 +467,8 @@ class _SegToggle extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          seg('Inline', !split, onInline),
-          seg('Split', split, onSplit),
+          seg(l.diffViewInline, !split, onInline),
+          seg(l.diffViewSplit, split, onSplit),
         ],
       ),
     );
@@ -416,6 +497,10 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
   final _hRight = ScrollController();
   final _vSplit = LinkedScrollController();
 
+  // A moved-into/out-of-LFS file can still be read as text; the choice resets
+  // with the file.
+  bool _lfsText = false;
+
   @override
   void dispose() {
     _hInline.dispose();
@@ -441,6 +526,7 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
     // other staging side, so a run picked out there must not survive.
     ref.listen(diffTargetProvider, (_, _) {
       ref.read(lineSelectionProvider.notifier).state = null;
+      if (_lfsText && mounted) setState(() => _lfsText = false);
     });
     return ref
         .watch(diffDocumentProvider(target))
@@ -459,6 +545,20 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
             ),
           ),
           data: (doc) {
+            final lfsFile = doc.files.where((f) => f.lfs != null).firstOrNull;
+            if (lfsFile != null && !_lfsText) {
+              final kind = lfsChangeKind(lfsFile);
+              final hasText =
+                  kind == LfsChangeKind.movedIn ||
+                  kind == LfsChangeKind.movedOut;
+              return LfsCard(
+                repoPath: target.repoPath,
+                file: lfsFile,
+                onShowText: hasText
+                    ? () => setState(() => _lfsText = true)
+                    : null,
+              );
+            }
             if (doc.isBinary) {
               return Center(
                 child: Text(
@@ -918,54 +1018,79 @@ class _HunkHeaderRow extends StatelessWidget {
       // Nothing in the hunk header belongs in a copy — neither the @@ marker
       // nor the action buttons, which Select All would otherwise sweep up.
       child: SelectionContainer.disabled(
-        child: Row(
-          children: [
-            Expanded(
-              child: showMarker
-                  ? Text(
-                      expandTabs(header),
-                      style: _codeStyle.copyWith(
-                        color: t.textFaint,
-                        fontSize: 11,
-                      ),
-                    )
-                  : const SizedBox.shrink(),
-            ),
-            if (editable && showActions)
-              TextButton(
-                onPressed: onStage,
-                style: TextButton.styleFrom(
-                  minimumSize: Size.zero,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 1,
+        child: LayoutBuilder(
+          builder: (context, box) {
+            final stageLabel = staged ? l.diffUnstageHunk : l.diffStageHunk;
+            final hasActions = editable && showActions;
+            // Every hunk action as a button, when they fit beside the marker.
+            final full = Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextButton(
+                  onPressed: onStage,
+                  style: _hunkButton,
+                  child: Text(stageLabel, style: const TextStyle(fontSize: 11)),
+                ),
+                if (onDiscard != null)
+                  TextButton(
+                    onPressed: onDiscard,
+                    style: _hunkButton,
+                    child: Text(
+                      l.diffDiscardHunk,
+                      style: const TextStyle(fontSize: 11),
+                    ),
                   ),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: Text(
-                  staged ? l.diffUnstageHunk : l.diffStageHunk,
-                  style: const TextStyle(fontSize: 11),
-                ),
-              ),
-            if (onDiscard != null && showActions)
-              TextButton(
-                onPressed: onDiscard,
-                style: TextButton.styleFrom(
-                  minimumSize: Size.zero,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 1,
+              ],
+            );
+            // The same actions behind one button, for a narrow column.
+            final compact = PopupMenuButton<VoidCallback>(
+              tooltip: l.diffMoreActions,
+              onSelected: (action) => action(),
+              itemBuilder: (_) => [
+                PopupMenuItem(value: onStage, child: Text(stageLabel)),
+                if (onDiscard != null)
+                  PopupMenuItem(
+                    value: onDiscard!,
+                    child: Text(l.diffDiscardHunk),
                   ),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: Text(l.diffDiscardHunk, style: TextStyle(fontSize: 11)),
+              ],
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: Icon(Icons.more_horiz, size: 16, color: t.textFaint),
               ),
-          ],
+            );
+            return Row(
+              children: [
+                Expanded(
+                  child: showMarker
+                      ? Text(
+                          expandTabs(header),
+                          style: _codeStyle.copyWith(
+                            color: t.textFaint,
+                            fontSize: 11,
+                          ),
+                        )
+                      : const SizedBox.shrink(),
+                ),
+                if (hasActions)
+                  ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: box.maxWidth),
+                    child: FitOrCollapse(full: full, compact: compact),
+                  ),
+              ],
+            );
+          },
         ),
       ),
     );
   }
 }
+
+final _hunkButton = TextButton.styleFrom(
+  minimumSize: Size.zero,
+  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+);
 
 /// Groups hunk lines into left/right pairs for split view: context aligns on
 /// both sides; a run of deletions pairs with the following run of additions.

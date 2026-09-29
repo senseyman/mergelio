@@ -96,6 +96,77 @@ void main() {
     });
   });
 
+  group('pathWithGitDir', () {
+    test('appends the directory of an absolute git', () {
+      expect(
+        pathWithGitDir('/opt/homebrew/bin/git', '/usr/bin:/bin', ':'),
+        '/usr/bin:/bin:/opt/homebrew/bin',
+      );
+    });
+
+    test('is just that directory when there is no PATH', () {
+      expect(
+        pathWithGitDir('/opt/homebrew/bin/git', null, ':'),
+        '/opt/homebrew/bin',
+      );
+      expect(
+        pathWithGitDir('/opt/homebrew/bin/git', '', ':'),
+        '/opt/homebrew/bin',
+      );
+    });
+
+    test('leaves PATH alone when the directory is already on it', () {
+      expect(
+        pathWithGitDir(
+          '/opt/homebrew/bin/git',
+          '/usr/bin:/opt/homebrew/bin',
+          ':',
+        ),
+        '/usr/bin:/opt/homebrew/bin',
+      );
+      expect(
+        pathWithGitDir(
+          '/opt/homebrew/bin/git',
+          '/usr/bin:/opt/homebrew/bin/',
+          ':',
+        ),
+        '/usr/bin:/opt/homebrew/bin/',
+      );
+    });
+
+    test('does not mistake a longer directory for the same one', () {
+      expect(
+        pathWithGitDir('/opt/homebrew/bin/git', '/opt/homebrew/bin2', ':'),
+        '/opt/homebrew/bin2:/opt/homebrew/bin',
+      );
+    });
+
+    test('uses the Windows separator and backslash paths', () {
+      expect(
+        pathWithGitDir(
+          r'C:\Program Files\Git\cmd\git.exe',
+          r'C:\Windows\system32',
+          ';',
+        ),
+        r'C:\Windows\system32;C:\Program Files\Git\cmd',
+      );
+      // Windows paths compare case-insensitively.
+      expect(
+        pathWithGitDir(
+          r'C:\Program Files\Git\cmd\git.exe',
+          r'C:\Windows;c:\program files\git\cmd',
+          ';',
+        ),
+        r'C:\Windows;c:\program files\git\cmd',
+      );
+    });
+
+    test('changes nothing for a bare git found through PATH', () {
+      expect(pathWithGitDir('git', '/usr/bin:/bin', ':'), '/usr/bin:/bin');
+      expect(pathWithGitDir('git', null, ':'), '');
+    });
+  });
+
   group('toolchainFailure', () {
     test('names the fix for an unaccepted Xcode license', () {
       final message = toolchainFailure(
@@ -258,5 +329,20 @@ void main() {
       expect(res.exitCode, 128);
       expect(res.err, contains('not a git repository'));
     }, skip: Platform.isWindows ? 'no `/bin/sh` on Windows' : false);
+
+    test(
+      "puts git's own directory on the child's PATH, keeping the rest",
+      () async {
+        // A Dock-launched app has a bare PATH; git must still find helpers
+        // such as git-lfs installed beside it.
+        const svc = SystemGitService(gitBinary: '/bin/sh');
+        final res = await svc.run(
+          ['-c', r'printf "%s|%s" "$PATH" "$KEEP"'],
+          environment: {'PATH': '/usr/bin', 'KEEP': 'yes'},
+        );
+        expect(res.out, '/usr/bin:/bin|yes');
+      },
+      skip: Platform.isWindows ? 'no `/bin/sh` on Windows' : false,
+    );
   });
 }

@@ -6,6 +6,7 @@ import 'package:mergelio/domain/git/models.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/state/graph_selection.dart';
+import 'package:mergelio/state/lfs.dart';
 import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
@@ -25,6 +26,7 @@ Widget _harness({
   bool hasWip = false,
   Commit? commit,
   String sigStatus = 'G',
+  Future<Set<String>> Function(Ref ref, LfsQuery q)? lfsPaths,
 }) => ProviderScope(
   overrides: [
     commitFilesProvider.overrideWith(
@@ -33,6 +35,9 @@ Widget _harness({
           const [CommitFileChange(path: 'x', change: GitChange.modified)],
     ),
     commitSignatureProvider.overrideWith((ref, key) async => sigStatus),
+    lfsPathsProvider.overrideWith(
+      lfsPaths ?? (ref, q) async => const <String>{},
+    ),
     settingsProvider.overrideWith(
       (ref) => SettingsController(
         InMemorySettingsRepository(),
@@ -118,5 +123,44 @@ void main() {
     await tester.tap(find.text('‹ WIP'));
     await tester.pump();
     expect(container.read(selectedCommitProvider), wipSelection);
+  });
+
+  testWidgets('asks LFS about the diff against the first parent', (
+    tester,
+  ) async {
+    final seen = <LfsQuery>[];
+    await tester.pumpWidget(
+      _harness(
+        lfsPaths: (ref, q) async {
+          seen.add(q);
+          return const <String>{};
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(seen, isNotEmpty);
+    final q = seen.first;
+    expect(q.source.repoPath, '/repo');
+    expect(q.source.rev, _commit.sha);
+    expect(q.source.parentRev, _commit.parents.first);
+    expect(q.paths, ['x']);
+  });
+
+  testWidgets('a root commit has no parent to diff against', (tester) async {
+    final seen = <LfsQuery>[];
+    await tester.pumpWidget(
+      _harness(
+        commit: _commit.copyWith(parents: const []),
+        lfsPaths: (ref, q) async {
+          seen.add(q);
+          return const <String>{};
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(seen, isNotEmpty);
+    expect(seen.first.source.parentRev, isNull);
   });
 }
