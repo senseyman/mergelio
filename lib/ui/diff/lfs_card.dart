@@ -55,9 +55,10 @@ class LfsCard extends ConsumerWidget {
       if (lfs.before != null) formatLfsSize(lfs.before!.size),
       if (lfs.after != null) formatLfsSize(lfs.after!.size),
     ].join(' → ');
-    final toolMissing =
-        ref.watch(lfsToolProvider).hasValue &&
-        ref.watch(lfsToolProvider).value == null;
+    // Only a settled "not installed" counts; a probe still running says
+    // nothing yet.
+    final tool = ref.watch(lfsToolProvider);
+    final toolMissing = tool.hasValue && tool.value == null;
     final muted = TextStyle(color: t.textMuted, fontSize: 12);
 
     Widget side(LfsPointer p) {

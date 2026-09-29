@@ -269,9 +269,9 @@ class SystemGitService implements GitService {
   }
 
   /// [environment] with PATH extended so git finds the helpers installed
-  /// beside it. Only the entries given here are passed; the rest of the
-  /// app's environment is inherited as before. Null when nothing needs
-  /// changing.
+  /// beside it. The returned map is laid over the app's own environment,
+  /// which the child still inherits in full; only the keys here replace
+  /// inherited ones. Null when nothing needs changing.
   Map<String, String>? _childEnvironment(Map<String, String>? environment) {
     final current = environment?['PATH'] ?? Platform.environment['PATH'];
     final path = pathWithGitDir(
