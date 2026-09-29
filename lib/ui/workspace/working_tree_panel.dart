@@ -50,15 +50,7 @@ class WorkingTreePanel extends ConsumerWidget {
     final lfs =
         ref
             .watch(
-              lfsPathsProvider(
-                LfsQuery(
-                  LfsSource(
-                    repoPath: repoPath,
-                    attrsStamp: lfsAttrsStamp(data.working),
-                  ),
-                  [for (final f in data.working) f.path],
-                ),
-              ),
+              lfsPathsProvider(workingTreeLfsQuery(repoPath, data.working)),
             )
             .valueOrNull ??
         const <String>{};

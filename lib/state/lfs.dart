@@ -190,15 +190,27 @@ class LfsQuery {
   final List<String> paths;
   const LfsQuery(this.source, this.paths);
 
+  // Order is not part of the question: a status refresh may list the same
+  // files differently, and that must not discard the cached answer.
+  List<String> get _sorted => [...paths]..sort();
+
   @override
   bool operator ==(Object other) =>
       other is LfsQuery &&
       other.source == source &&
-      listEquals(other.paths, paths);
+      listEquals(other._sorted, _sorted);
 
   @override
-  int get hashCode => Object.hash(source, Object.hashAll(paths));
+  int get hashCode => Object.hash(source, Object.hashAll(_sorted));
 }
+
+/// The one query for the working tree's changed files. Everything that asks
+/// about the working tree goes through it, so they share one answer.
+LfsQuery workingTreeLfsQuery(String repoPath, List<WorkingFile> working) =>
+    LfsQuery(
+      LfsSource(repoPath: repoPath, attrsStamp: lfsAttrsStamp(working)),
+      [for (final f in working) f.path],
+    );
 
 /// The subset of the query's paths that LFS manages, empty when that cannot
 /// be told. A failure here only costs badges, so it is logged and swallowed

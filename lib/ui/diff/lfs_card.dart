@@ -141,9 +141,11 @@ class LfsMismatchNote extends ConsumerWidget {
     }
     if (doc.files.any((f) => f.lfs != null)) return const SizedBox.shrink();
     final working = target.isWorkingTree
-        ? ref.watch(repoDataProvider(target.repoPath)).valueOrNull?.working ??
-              const <WorkingFile>[]
+        ? ref.watch(repoDataProvider(target.repoPath)).valueOrNull?.working
         : const <WorkingFile>[];
+    // Until the working tree has loaded there is no telling whether the file
+    // is untracked, and no shared query to ask.
+    if (working == null) return const SizedBox.shrink();
     // An untracked file is diffed against nothing, outside git's filters, so
     // its content always shows plain: that says nothing about how it would
     // be stored once added.
@@ -154,7 +156,11 @@ class LfsMismatchNote extends ConsumerWidget {
         ref
             .watch(
               lfsPathsProvider(
-                LfsQuery(lfsSourceFor(target, working: working), [target.path]),
+                // The working tree shares the panel's query, so opening a
+                // diff asks git nothing new.
+                target.isWorkingTree
+                    ? workingTreeLfsQuery(target.repoPath, working)
+                    : LfsQuery(lfsSourceFor(target), [target.path]),
               ),
             )
             .valueOrNull ??

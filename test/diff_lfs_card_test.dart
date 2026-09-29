@@ -295,6 +295,40 @@ void main() {
     expect(find.textContaining('regular blob'), findsNothing);
   });
 
+  testWidgets('mismatch note shares the working-tree panel\'s lookup', (
+    tester,
+  ) async {
+    // The panel already asked about every changed path; the note asking
+    // about one of them under a different key would run check-attr again.
+    const target = DiffTarget(repoPath: '/r', path: 'notes.csv');
+    const plain = FileDiff(path: 'notes.csv', status: GitChange.modified);
+    const working = [
+      WorkingFile(path: 'notes.csv', worktree: GitChange.modified),
+      WorkingFile(path: 'art.psd', worktree: GitChange.modified),
+    ];
+    final seen = <LfsQuery>[];
+    await tester.pumpWidget(
+      _app(
+        const LfsMismatchNote(target: target),
+        extra: [
+          diffDocumentProvider.overrideWith(
+            (ref, t) async =>
+                const DiffDoc(files: [plain], editable: true, staged: false),
+          ),
+          repoDataProvider.overrideWith(
+            (ref, path) async => const RepoData(working: working),
+          ),
+          lfsPathsProvider.overrideWith((ref, q) async {
+            seen.add(q);
+            return const <String>{};
+          }),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(seen.toSet(), {workingTreeLfsQuery('/r', working)});
+  });
+
   testWidgets('diff sheet renders the card, not pointer lines', (tester) async {
     await tester.pumpWidget(
       ProviderScope(

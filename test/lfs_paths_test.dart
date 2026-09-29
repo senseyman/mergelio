@@ -5,6 +5,7 @@ import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/domain/git/lfs.dart'
     show lfsAttributePattern, lfsPointerVersion;
+import 'package:mergelio/domain/git/models.dart';
 import 'package:mergelio/state/lfs.dart';
 
 const _v = 'version https://git-lfs.github.com/spec/v1';
@@ -372,5 +373,28 @@ void main() {
       LfsQuery(const LfsSource(repoPath: '/r'), ['a', 'b']).hashCode,
       LfsQuery(const LfsSource(repoPath: '/r'), ['a', 'b']).hashCode,
     );
+  });
+
+  test('path order does not change which query it is', () {
+    // A status refresh can list the same files in another order; that must
+    // not throw away the answer and ask git again.
+    final a = LfsQuery(const LfsSource(repoPath: '/r'), ['b', 'a']);
+    final b = LfsQuery(const LfsSource(repoPath: '/r'), ['a', 'b']);
+    expect(a, b);
+    expect(a.hashCode, b.hashCode);
+    expect(a, isNot(LfsQuery(const LfsSource(repoPath: '/r'), ['a'])));
+  });
+
+  test('the working-tree query is one key for every view of it', () {
+    const working = [
+      WorkingFile(path: 'b.txt', worktree: GitChange.modified),
+      WorkingFile(path: 'a.psd', worktree: GitChange.modified),
+    ];
+    final q = workingTreeLfsQuery('/r', working);
+    expect(
+      q.source,
+      LfsSource(repoPath: '/r', attrsStamp: lfsAttrsStamp(working)),
+    );
+    expect(q.paths, unorderedEquals(['a.psd', 'b.txt']));
   });
 }
