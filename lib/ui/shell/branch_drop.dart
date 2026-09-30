@@ -27,17 +27,60 @@ enum BranchDrop {
   bool get destructive => this == resetHard || this == moveHere;
 }
 
-/// Where a branch was dropped: onto a local branch, or onto a bare commit.
+/// Where a branch was dropped: onto a local branch, a remote-tracking branch,
+/// or a bare commit.
 class BranchDropTarget {
-  /// Branch name or commit sha.
+  /// Branch name, remote-tracking ref (`origin/main`) or commit sha.
   final String ref;
   final bool isBranch;
 
-  const BranchDropTarget.branch(String name) : ref = name, isBranch = true;
-  const BranchDropTarget.commit(String sha) : ref = sha, isBranch = false;
+  /// Set for a remote-tracking target, which cannot be moved or reset; a merge
+  /// into it lands on its local branch instead.
+  final RemoteBranch? remote;
+
+  const BranchDropTarget.branch(String name)
+    : ref = name,
+      isBranch = true,
+      remote = null;
+  const BranchDropTarget.commit(String sha)
+    : ref = sha,
+      isBranch = false,
+      remote = null;
+  BranchDropTarget.remote(RemoteBranch rb)
+    : ref = rb.name,
+      isBranch = true,
+      remote = rb;
 
   /// What the menu calls this target: the branch name, or a short sha.
   String get label => isBranch || ref.length <= 7 ? ref : ref.substring(0, 7);
+
+  /// The branch a merge lands on: a remote target's local counterpart.
+  String get mergeLabel => remote?.branch ?? label;
+}
+
+/// What a branch chip named [chip] is as a drop target for branch [source],
+/// or null when it refuses the drop. The chip names its branch whether or not
+/// the branch sits on that row (a chip is inherited down its segment), so the
+/// drop is on the branch the user sees. The source itself, a branch on the
+/// source's own tip (every option would be a no-op) and anything that names no
+/// branch, such as the HEAD marker, refuse.
+BranchDropTarget? chipDropTarget({
+  required String source,
+  required String chip,
+  required List<Branch> branches,
+  required List<RemoteBranch> remoteBranches,
+}) {
+  if (chip == source) return null;
+  for (final rb in remoteBranches) {
+    if (rb.name == chip) return BranchDropTarget.remote(rb);
+  }
+  final target = branches.where((b) => b.name == chip).firstOrNull;
+  if (target == null) return null;
+  final sourceTip = branches.where((b) => b.name == source).firstOrNull?.tip;
+  if (sourceTip != null && sourceTip.isNotEmpty && sourceTip == target.tip) {
+    return null;
+  }
+  return BranchDropTarget.branch(chip);
 }
 
 /// What a graph row is as a drop target for branch [source], or null when it
@@ -62,7 +105,7 @@ BranchDropTarget? graphDropTarget({
 /// Menu options for dropping a branch on [target], in menu order.
 ///
 /// A remote-tracking source cannot be moved or reset, so it only merges or
-/// rebases. The current branch is reset in one of git's three modes; any
+/// rebases, and so does any branch dropped on one. The current branch is reset in one of git's three modes; any
 /// other branch is simply moved, which needs no checkout. [canFastForward]
 /// says the target branch is behind the source.
 List<BranchDrop> branchDropOptions({
@@ -71,6 +114,9 @@ List<BranchDrop> branchDropOptions({
   required BranchDropTarget target,
   required bool canFastForward,
 }) {
+  if (target.remote != null) {
+    return const [BranchDrop.merge, BranchDrop.rebase];
+  }
   final resets = sourceIsCurrent
       ? const [
           BranchDrop.resetSoft,
@@ -136,7 +182,7 @@ Future<void> showBranchDropMenu(
           height: 34,
           value: o,
           child: Text(
-            branchDropLabel(l, o, source, target.label),
+            branchDropLabel(l, o, source, target),
             style: const TextStyle(fontSize: 13),
           ),
         ),
@@ -151,31 +197,41 @@ String branchDropLabel(
   AppLocalizations l,
   BranchDrop o,
   String source,
-  String target,
-) => switch (o) {
-  BranchDrop.merge => l.sbMergeSourceInto(source, target),
-  BranchDrop.rebase => l.sbRebaseSourceOnto(source, target),
-  BranchDrop.fastForward => l.bdFastForward(source, target),
-  BranchDrop.moveHere => l.bdMoveHere(source, target),
-  BranchDrop.resetSoft => l.bdResetSoft(source, target),
-  BranchDrop.resetMixed => l.bdResetMixed(source, target),
-  BranchDrop.resetHard => l.bdResetHard(source, target),
-  BranchDrop.cherryPick => l.bdCherryPick(source, target),
-  BranchDrop.createBranch => l.menuCreateBranch,
-};
+  BranchDropTarget to,
+) {
+  final target = to.label;
+  return switch (o) {
+    BranchDrop.merge => l.sbMergeSourceInto(source, to.mergeLabel),
+    BranchDrop.rebase => l.sbRebaseSourceOnto(source, target),
+    BranchDrop.fastForward => l.bdFastForward(source, target),
+    BranchDrop.moveHere => l.bdMoveHere(source, target),
+    BranchDrop.resetSoft => l.bdResetSoft(source, target),
+    BranchDrop.resetMixed => l.bdResetMixed(source, target),
+    BranchDrop.resetHard => l.bdResetHard(source, target),
+    BranchDrop.cherryPick => l.bdCherryPick(source, target),
+    BranchDrop.createBranch => l.menuCreateBranch,
+  };
+}
 
-String _body(AppLocalizations l, BranchDrop o, String source, String target) =>
-    switch (o) {
-      BranchDrop.merge => l.bdMergeBody(source, target),
-      BranchDrop.rebase => l.bdRebaseBody(source, target),
-      BranchDrop.fastForward => l.bdFastForwardBody(source, target),
-      BranchDrop.moveHere => l.bdMoveHereBody(source, target),
-      BranchDrop.resetSoft => l.bdResetSoftBody(source, target),
-      BranchDrop.resetMixed => l.bdResetMixedBody(source, target),
-      BranchDrop.resetHard => l.bdResetHardBody(source, target),
-      BranchDrop.cherryPick => l.bdCherryPickBody(source, target),
-      BranchDrop.createBranch => '',
-    };
+String _body(
+  AppLocalizations l,
+  BranchDrop o,
+  String source,
+  BranchDropTarget to,
+) {
+  final target = to.label;
+  return switch (o) {
+    BranchDrop.merge => l.bdMergeBody(source, to.mergeLabel),
+    BranchDrop.rebase => l.bdRebaseBody(source, target),
+    BranchDrop.fastForward => l.bdFastForwardBody(source, target),
+    BranchDrop.moveHere => l.bdMoveHereBody(source, target),
+    BranchDrop.resetSoft => l.bdResetSoftBody(source, target),
+    BranchDrop.resetMixed => l.bdResetMixedBody(source, target),
+    BranchDrop.resetHard => l.bdResetHardBody(source, target),
+    BranchDrop.cherryPick => l.bdCherryPickBody(source, target),
+    BranchDrop.createBranch => '',
+  };
+}
 
 Future<void> _run(
   BuildContext context,
@@ -197,8 +253,8 @@ Future<void> _run(
     if (name != null) await actions.createBranch(name, at: target.ref);
     return;
   }
-  final title = branchDropLabel(l, o, source, target.label);
-  final body = _body(l, o, source, target.label);
+  final title = branchDropLabel(l, o, source, target);
+  final body = _body(l, o, source, target);
   final ok = o.destructive
       ? await confirmDestructive(ref, context, title: title, body: body)
       : await showConfirmDialog(
@@ -216,7 +272,10 @@ Future<void> _run(
         repoPath: repoPath,
         source: source,
       )) {
-        await actions.mergeInto(source, target.ref);
+        final rb = target.remote;
+        await (rb != null
+            ? actions.mergeIntoRemote(source, rb)
+            : actions.mergeInto(source, target.ref));
       }
     case BranchDrop.rebase:
       await actions.rebaseOnto(source, target.ref);

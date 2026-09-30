@@ -178,4 +178,56 @@ void main() {
       );
     });
   });
+
+  group('chipDropTarget', () {
+    const branches = [
+      Branch(name: 'main', current: true, tip: 'm1'),
+      Branch(name: 'feat', tip: 'f1'),
+      Branch(name: 'twin', tip: 'f1'),
+    ];
+    const remotes = [RemoteBranch(remote: 'origin', branch: 'main')];
+
+    BranchDropTarget? on(String source, String chip) => chipDropTarget(
+      source: source,
+      chip: chip,
+      branches: branches,
+      remoteBranches: remotes,
+    );
+
+    test('a local chip is a drop on the branch it names', () {
+      final t = on('feat', 'main');
+      expect(t?.isBranch, isTrue);
+      expect(t?.ref, 'main');
+      expect(t?.remote, isNull);
+    });
+
+    test('a remote chip is a drop on that remote-tracking branch', () {
+      final t = on('feat', 'origin/main');
+      expect(t?.remote, remotes.single);
+      expect(t?.ref, 'origin/main');
+    });
+
+    test('refuses the dragged branch itself, and a branch on its tip', () {
+      expect(on('main', 'main'), isNull);
+      expect(on('feat', 'twin'), isNull);
+    });
+
+    test('refuses the HEAD marker', () {
+      expect(on('feat', 'HEAD'), isNull);
+    });
+  });
+
+  test('a remote target only merges or rebases', () {
+    expect(
+      branchDropOptions(
+        sourceIsRemote: false,
+        sourceIsCurrent: true,
+        target: BranchDropTarget.remote(
+          RemoteBranch(remote: 'origin', branch: 'main'),
+        ),
+        canFastForward: true,
+      ),
+      [BranchDrop.merge, BranchDrop.rebase],
+    );
+  });
 }

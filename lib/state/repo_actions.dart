@@ -1475,7 +1475,9 @@ class RepoActions {
     );
   }
 
-  /// Switches to [branch] then cherry-picks [sha] onto it (drag-and-drop).
+  /// Switches to [branch] then cherry-picks [sha] onto it (drag-and-drop). One
+  /// undo entry (the pick); the switch is not undoable on its own, so a pick
+  /// that conflicts or is undone still leaves HEAD on [branch].
   Future<void> cherryPickOnto(String branch, String sha) async {
     if (await _switchTo(branch)) await cherryPick(sha);
   }

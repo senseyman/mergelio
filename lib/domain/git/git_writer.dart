@@ -641,7 +641,8 @@ class GitWriter {
       _ok(['branch', name, ?at], 'git branch');
 
   /// Points the existing branch [name] at [at] without checking it out. git
-  /// refuses this for the branch HEAD is on; that one needs a reset.
+  /// refuses this for a branch checked out here or in another worktree; the
+  /// current one needs a reset instead.
   Future<void> forceBranch(String name, String at) =>
       _ok(['branch', '-f', name, at], 'git branch -f');
 

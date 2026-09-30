@@ -78,4 +78,57 @@ void main() {
   testWidgets('the HEAD marker is not draggable', (tester) async {
     expect(await dragChip(tester, 'HEAD', head: true), isEmpty);
   });
+
+  testWidgets('a branch dropped on a chip is handed to that chip', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final drops = <String>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(extensions: [AppTokens.dark()]),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: Column(
+            children: [
+              CommitRow(
+                commit: _c(),
+                branchLabels: const ['feat', 'origin/feat'],
+                showBranchLabel: true,
+                metrics: const RailMetrics(),
+                maxLane: 0,
+                cols: const {'branch': true},
+                selected: false,
+                onTap: () {},
+                acceptsBranchDrop: (source, chip) => chip != 'feat',
+                onBranchDropped: (source, chip, _) =>
+                    drops.add('$source>$chip'),
+              ),
+              const Draggable<String>(
+                data: 'topic',
+                feedback: SizedBox(width: 10, height: 10),
+                child: Text('source'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    Future<void> dropOn(String chip) async {
+      await tester.drag(
+        find.text('source'),
+        tester.getCenter(find.text(chip)) -
+            tester.getCenter(find.text('source')),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    await dropOn('origin/feat');
+    expect(drops, ['topic>origin/feat']);
+    await dropOn('feat');
+    expect(drops, ['topic>origin/feat'], reason: 'the chip refused it');
+  });
 }

@@ -54,6 +54,16 @@ class _RecordingActions extends RepoActions {
   @override
   Future<void> resetHard(String sha) async => calls.add('hard $sha');
   @override
+  Future<void> resetMixed(String sha) async => calls.add('mixed $sha');
+  @override
+  Future<void> resetSoft(String sha) async => calls.add('soft $sha');
+  @override
+  Future<void> createBranch(String name, {String? at}) async =>
+      calls.add('create $name $at');
+  @override
+  Future<void> mergeIntoRemote(String source, RemoteBranch rb) async =>
+      calls.add('merge-remote $source ${rb.name}');
+  @override
   Future<void> cherryPickOnto(String branch, String sha) async =>
       calls.add('pick $branch $sha');
 }
@@ -203,6 +213,51 @@ void main() {
     await tester.tap(find.text('Confirm'));
     await tester.pumpAndSettle();
     expect(actions.calls, ['move feat $_sha']);
+  });
+
+  for (final (mode, call) in [
+    ('--soft', 'soft feat'),
+    ('--mixed', 'mixed feat'),
+    ('--hard', 'hard feat'),
+  ]) {
+    testWidgets('reset $mode runs that reset', (tester) async {
+      await drop(tester, 'main', const BranchDropTarget.branch('feat'));
+      await tester.tap(find.text('Reset «main» to «feat» ($mode)'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Confirm'));
+      await tester.pumpAndSettle();
+      expect(actions.calls, [call]);
+    });
+  }
+
+  testWidgets('create branch asks for a name and branches at the commit', (
+    tester,
+  ) async {
+    await drop(tester, 'feat', const BranchDropTarget.commit(_sha));
+    await tester.tap(find.text('Create branch here'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'topic');
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+    expect(actions.calls, ['create topic $_sha']);
+  });
+
+  testWidgets('merging into a remote branch lands on its local branch, '
+      'after confirming', (tester) async {
+    await drop(
+      tester,
+      'feat',
+      BranchDropTarget.remote(RemoteBranch(remote: 'origin', branch: 'main')),
+    );
+    expect(find.byType(PopupMenuItem<BranchDrop>), findsNWidgets(2));
+    expect(find.text('Rebase «feat» onto «origin/main»'), findsOneWidget);
+
+    await tester.tap(find.text('Merge «feat» into «main»'));
+    await tester.pumpAndSettle();
+    expect(actions.calls, isEmpty);
+    await tester.tap(find.text('Confirm'));
+    await tester.pumpAndSettle();
+    expect(actions.calls, ['merge-remote feat origin/main']);
   });
 
   testWidgets('fast-forward is hidden when the target is not behind', (

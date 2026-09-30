@@ -600,6 +600,35 @@ class _GraphListState extends ConsumerState<GraphList> {
                             _focus.requestFocus();
                             _select(c.sha, metrics.rowHeight);
                           },
+                          acceptsBranchDrop: (source, chip) =>
+                              chipDropTarget(
+                                source: source,
+                                chip: chip,
+                                branches: d.branches,
+                                remoteBranches: d.remoteBranches,
+                              ) !=
+                              null,
+                          onBranchDropped: (source, chip, at) {
+                            final target = chipDropTarget(
+                              source: source,
+                              chip: chip,
+                              branches: d.branches,
+                              remoteBranches: d.remoteBranches,
+                            );
+                            final repoPath = ref
+                                .read(workspaceProvider)
+                                .activeTab
+                                ?.path;
+                            if (target == null || repoPath == null) return;
+                            showBranchDropMenu(
+                              this.context,
+                              ref,
+                              repoPath: repoPath,
+                              source: source,
+                              target: target,
+                              at: at,
+                            );
+                          },
                           onBranchActivated: (label) {
                             final repoPath = ref
                                 .read(workspaceProvider)
@@ -627,8 +656,9 @@ class _GraphListState extends ConsumerState<GraphList> {
                           },
                         ),
                       );
-                      // A row accepts a dragged branch as a drop on its local
-                      // branch or on its commit; see [graphDropTarget].
+                      // Around its chips (which take a drop on the branch they
+                      // name), a row accepts a dragged branch as a drop on its
+                      // local branch or its commit; see [graphDropTarget].
                       final localRef = derived.localRefBySha[c.sha];
                       BranchDropTarget? targetFor(String source) =>
                           graphDropTarget(

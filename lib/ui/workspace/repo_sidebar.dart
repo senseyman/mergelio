@@ -697,18 +697,13 @@ class _BranchRow extends ConsumerWidget {
     // while a compatible branch hovers over this row.
     return DragTarget<String>(
       onWillAcceptWithDetails: (d) => d.data != branch.name,
-      onAcceptWithDetails: (d) {
-        final path = ref.read(workspaceProvider).activeTab?.path;
-        if (path == null) return;
-        showBranchDropMenu(
-          context,
-          ref,
-          repoPath: path,
-          source: d.data,
-          target: BranchDropTarget.branch(branch.name),
-          at: d.offset,
-        );
-      },
+      onAcceptWithDetails: (d) => _openDropMenu(
+        context,
+        ref,
+        d.data,
+        BranchDropTarget.branch(branch.name),
+        d.offset,
+      ),
       builder: (ctx, candidate, rejected) => Draggable<String>(
         data: branch.name,
         dragAnchorStrategy: pointerDragAnchorStrategy,
@@ -842,8 +837,13 @@ class _RemoteBranchRow extends ConsumerWidget {
     // and dropping onto one lands on the local branch behind it.
     return DragTarget<String>(
       onWillAcceptWithDetails: (d) => d.data != rb.name,
-      onAcceptWithDetails: (d) =>
-          _remoteDropMenu(context, ref, d.data, rb, d.offset),
+      onAcceptWithDetails: (d) => _openDropMenu(
+        context,
+        ref,
+        d.data,
+        BranchDropTarget.remote(rb),
+        d.offset,
+      ),
       builder: (ctx, candidate, rejected) => Draggable<String>(
         data: rb.name,
         dragAnchorStrategy: pointerDragAnchorStrategy,
@@ -856,53 +856,6 @@ class _RemoteBranchRow extends ConsumerWidget {
       ),
     );
   }
-}
-
-/// Drop menu for a remote-tracking branch as the target. Merging names the
-/// local branch that will actually carry the merge commit; rebasing can point
-/// at the remote ref directly, since it needs no checkout of the target.
-Future<void> _remoteDropMenu(
-  BuildContext context,
-  WidgetRef ref,
-  String source,
-  RemoteBranch rb,
-  Offset at,
-) async {
-  final l = AppLocalizations.of(context);
-  final path = ref.read(workspaceProvider).activeTab?.path;
-  if (path == null) return;
-  final actions = ref.read(repoActionsProvider(path));
-  await showContextMenu<void>(
-    context: context,
-    position: at,
-    items: [
-      PopupMenuItem(
-        height: 34,
-        onTap: () async {
-          if (await confirmRemoteSource(
-            context,
-            ref,
-            repoPath: path,
-            source: source,
-          )) {
-            await actions.mergeIntoRemote(source, rb);
-          }
-        },
-        child: Text(
-          l.sbMergeSourceInto(source, rb.branch),
-          style: const TextStyle(fontSize: 13),
-        ),
-      ),
-      PopupMenuItem(
-        height: 34,
-        onTap: () => actions.rebaseOnto(source, rb.name),
-        child: Text(
-          l.sbRebaseSourceOnto(source, rb.name),
-          style: const TextStyle(fontSize: 13),
-        ),
-      ),
-    ],
-  );
 }
 
 Future<void> _remoteBranchMenu(
@@ -1367,4 +1320,24 @@ class _LeafRow extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Opens the branch drop menu for [source] dropped on a sidebar row.
+void _openDropMenu(
+  BuildContext context,
+  WidgetRef ref,
+  String source,
+  BranchDropTarget target,
+  Offset at,
+) {
+  final path = ref.read(workspaceProvider).activeTab?.path;
+  if (path == null) return;
+  showBranchDropMenu(
+    context,
+    ref,
+    repoPath: path,
+    source: source,
+    target: target,
+    at: at,
+  );
 }

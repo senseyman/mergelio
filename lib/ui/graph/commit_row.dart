@@ -60,6 +60,13 @@ class CommitRow extends StatelessWidget {
   /// the gesture (the chip renders plain).
   final void Function(String label)? onBranchActivated;
 
+  /// Whether the chip labelled [chip] takes a dragged branch [source]. Null
+  /// makes chips no drop target, leaving the drop to the row around them.
+  final bool Function(String source, String chip)? acceptsBranchDrop;
+
+  /// A branch [source] dropped on the chip labelled [chip] at [at].
+  final void Function(String source, String chip, Offset at)? onBranchDropped;
+
   const CommitRow({
     super.key,
     required this.commit,
@@ -75,6 +82,8 @@ class CommitRow extends StatelessWidget {
     this.searchMatch,
     required this.onTap,
     this.onBranchActivated,
+    this.acceptsBranchDrop,
+    this.onBranchDropped,
   });
 
   bool _on(String id) => cols[id] ?? true;
@@ -227,24 +236,7 @@ class CommitRow extends StatelessWidget {
               if (chip.isHead)
                 _branchChip(chip.name, colorFor(chip))
               else
-                // Dragged onto another row it opens the branch drop menu;
-                // a drag only starts once the pointer moves, so double-click
-                // still switches to the branch.
-                Draggable<String>(
-                  data: chip.name,
-                  dragAnchorStrategy: pointerDragAnchorStrategy,
-                  feedback: BranchDragChip(label: chip.name),
-                  childWhenDragging: Opacity(
-                    opacity: 0.4,
-                    child: _branchChip(chip.name, colorFor(chip)),
-                  ),
-                  child: GestureDetector(
-                    onDoubleTap: onBranchActivated == null
-                        ? null
-                        : () => onBranchActivated!(chip.name),
-                    child: _branchChip(chip.name, colorFor(chip)),
-                  ),
-                ),
+                _dragChip(t, chip.name, colorFor(chip)),
             if (overflow > 0)
               Tooltip(
                 message: hidden.join('\n'),
@@ -252,6 +244,36 @@ class CommitRow extends StatelessWidget {
               ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// A branch chip that can be dragged onto another row to open the branch
+  /// drop menu, and takes a dropped branch itself as a drop on the branch it
+  /// names — the row around it could only guess which of its chips was meant.
+  /// A drag only starts once the pointer moves, so double-click still switches
+  /// to the branch.
+  Widget _dragChip(AppTokens t, String name, Color color) {
+    final chip = Draggable<String>(
+      data: name,
+      dragAnchorStrategy: pointerDragAnchorStrategy,
+      feedback: BranchDragChip(label: name),
+      childWhenDragging: Opacity(opacity: 0.4, child: _branchChip(name, color)),
+      child: GestureDetector(
+        onDoubleTap: onBranchActivated == null
+            ? null
+            : () => onBranchActivated!(name),
+        child: _branchChip(name, color),
+      ),
+    );
+    final accepts = acceptsBranchDrop;
+    if (accepts == null) return chip;
+    return DragTarget<String>(
+      onWillAcceptWithDetails: (d) => accepts(d.data, name),
+      onAcceptWithDetails: (d) => onBranchDropped?.call(d.data, name, d.offset),
+      builder: (ctx, candidates, _) => Container(
+        color: candidates.isNotEmpty ? t.accent.withValues(alpha: 0.28) : null,
+        child: chip,
       ),
     );
   }
