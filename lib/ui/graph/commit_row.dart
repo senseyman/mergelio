@@ -284,10 +284,28 @@ class CommitRow extends StatelessWidget {
       },
       builder: (ctx, candidates, _) {
         final source = candidates.firstOrNull;
-        final lit = source != null && accepts(source, name);
-        return Container(
-          color: lit ? t.accent.withValues(alpha: 0.28) : null,
-          child: child,
+        if (source == null || !accepts(source, name)) return child;
+        // A pill around the label, set apart from the whole-row wash of a
+        // commit drop. Drawn past the label's edges rather than padding it,
+        // so marking a label never moves the labels stacked around it.
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned(
+              left: -4,
+              right: -3,
+              top: -2,
+              bottom: -2,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: t.accent.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: t.accent),
+                ),
+              ),
+            ),
+            child,
+          ],
         );
       },
     );

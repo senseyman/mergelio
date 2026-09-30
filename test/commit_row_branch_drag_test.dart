@@ -182,4 +182,74 @@ void main() {
     }
     expect(drops, isEmpty);
   });
+
+  testWidgets('a label under an accepted drag is marked as a pill wider and '
+      'taller than its text, without moving the rows', (tester) async {
+    tester.view.physicalSize = const Size(1200, 400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(extensions: [AppTokens.dark()]),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: Column(
+            children: [
+              CommitRow(
+                commit: _c(),
+                branchLabels: const ['ok', 'no'],
+                showBranchLabel: true,
+                metrics: const RailMetrics(),
+                maxLane: 0,
+                cols: const {'branch': true},
+                selected: false,
+                onTap: () {},
+                acceptsBranchDrop: (source, chip) => chip == 'ok',
+                onBranchDropped: (_, _, _) {},
+              ),
+              const Draggable<String>(
+                data: 'topic',
+                feedback: SizedBox(width: 10, height: 10),
+                child: Text('source'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    final pill = find.byWidgetPredicate(
+      (w) =>
+          w is DecoratedBox &&
+          w.decoration is BoxDecoration &&
+          (w.decoration as BoxDecoration).border != null,
+    );
+    final okTop = tester.getTopLeft(find.text('ok'));
+
+    Future<TestGesture> hover(String chip) async {
+      final g = await tester.startGesture(
+        tester.getCenter(find.text('source')),
+      );
+      await g.moveBy(const Offset(0, -20));
+      await g.moveTo(tester.getCenter(find.text(chip)));
+      await tester.pump();
+      return g;
+    }
+
+    var g = await hover('no');
+    expect(pill, findsNothing, reason: 'a refused label is not marked');
+    await g.up();
+    await tester.pumpAndSettle();
+
+    g = await hover('ok');
+    expect(pill, findsOneWidget);
+    final box = tester.getRect(pill);
+    final text = tester.getRect(find.text('ok'));
+    expect(box.height, greaterThan(text.height));
+    expect(box.width, greaterThan(text.width));
+    expect(box.contains(text.center), isTrue);
+    expect(tester.getTopLeft(find.text('ok')), okTop);
+    await g.up();
+    await tester.pumpAndSettle();
+  });
 }
