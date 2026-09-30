@@ -9,16 +9,17 @@ import '../common/confirm.dart';
 import 'forge_presentation.dart';
 
 /// Lock, unlock or force-unlock entries for a file's context menu. Empty
-/// unless the file is LFS-managed and the server can lock, and for a path
-/// starting with `-`, which git-lfs would read as an option.
+/// unless the file is LFS-managed and the server can lock, for a submodule,
+/// and for a path starting with `-`, which git-lfs would read as an option.
 List<PopupMenuEntry<void>> lfsLockMenuItems({
   required BuildContext context,
   required WidgetRef ref,
   required String repoPath,
   required String path,
   required bool isLfs,
+  bool submodule = false,
 }) {
-  if (!isLfs || path.startsWith('-')) return const [];
+  if (!isLfs || submodule || path.startsWith('-')) return const [];
   final state = ref.read(lfsLocksProvider(repoPath)).valueOrNull;
   if (state == null || !state.available) return const [];
   final l = AppLocalizations.of(context);
@@ -32,7 +33,7 @@ List<PopupMenuEntry<void>> lfsLockMenuItems({
   );
 
   final LfsLock? held = lock;
-  final ours = held != null && state.ours.any((o) => o.id == held.id);
+  final ours = state.isOurs(path);
   return [
     const PopupMenuDivider(height: 1),
     if (held == null)
@@ -61,7 +62,10 @@ Future<void> confirmLfsForceUnlock(
     ref,
     context,
     title: l.lfsForceUnlockTitle,
-    body: l.lfsForceUnlockBody(lock.owner, forgeAgo(l, lock.lockedAt) ?? ''),
+    body: switch (forgeAgo(l, lock.lockedAt)) {
+      null => l.lfsForceUnlockBodyNoAge(lock.owner),
+      final age => l.lfsForceUnlockBody(lock.owner, age),
+    },
     confirmLabel: l.lfsForceUnlockConfirm,
   );
   // No mounted check: the confirmed unlock needs nothing from the row.

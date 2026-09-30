@@ -2479,6 +2479,21 @@ class AppLocalizationsUk extends AppLocalizations {
   }
 
   @override
+  String lfsLockTooltipNoAge(String owner) {
+    return 'Заблоковано: $owner';
+  }
+
+  @override
+  String lfsForceUnlockBodyNoAge(String owner) {
+    return 'Файл заблоковано користувачем $owner. Зняття блокування не завадить надіслати їхні зміни, і їхня робота може бути втрачена.';
+  }
+
+  @override
+  String lfsLocksRefreshedAt(String age) {
+    return 'Останнє оновлення: $age';
+  }
+
+  @override
   String get lfsLocksUnsupported =>
       'Сервер цього репозиторію не підтримує блокування файлів.';
 

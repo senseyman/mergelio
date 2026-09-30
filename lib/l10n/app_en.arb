@@ -1585,6 +1585,30 @@
       }
     }
   },
+  "lfsLockTooltipNoAge": "Locked by {owner}",
+  "@lfsLockTooltipNoAge": {
+    "placeholders": {
+      "owner": {
+        "type": "String"
+      }
+    }
+  },
+  "lfsForceUnlockBodyNoAge": "Locked by {owner}. Breaking the lock does not stop them from pushing their changes, and they may lose work.",
+  "@lfsForceUnlockBodyNoAge": {
+    "placeholders": {
+      "owner": {
+        "type": "String"
+      }
+    }
+  },
+  "lfsLocksRefreshedAt": "Last refreshed: {age}",
+  "@lfsLocksRefreshedAt": {
+    "placeholders": {
+      "age": {
+        "type": "String"
+      }
+    }
+  },
   "lfsLocksUnsupported": "This repository's server doesn't support file locks.",
   "lfsPushLockedTitle": "Files locked by someone else",
   "lfsPushLockedBody": "These files are locked by someone else. Pushing changes to them may overwrite their work.",

@@ -127,6 +127,9 @@ void main() {
       expect(s.lockFor('a.ps'), isNull);
       expect(s.lockFor('dir/a.psd'), isNull);
       expect(LfsLockState.none.lockFor('a.psd'), isNull);
+      expect(s.isOurs('a.psd'), isTrue);
+      expect(s.isOurs('b.psd'), isFalse);
+      expect(s.isOurs('c.psd'), isFalse);
     },
   );
 

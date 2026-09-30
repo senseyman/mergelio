@@ -217,6 +217,20 @@ void main() {
     expect(h.container.read(lfsGenerationProvider('/r')), 1);
   });
 
+  testWidgets('Refresh says when the list was last refreshed', (t) async {
+    await _pump(
+      t,
+      LfsLockState(
+        ours: [_lock(1, 'me')],
+        theirs: const [],
+        available: true,
+        stale: false,
+        refreshedAt: DateTime.now().subtract(const Duration(minutes: 5)),
+      ),
+    );
+    expect(find.byTooltip('Refresh · Last refreshed: 5m'), findsOneWidget);
+  });
+
   testWidgets('shows a progress indicator, not nothing, while refreshing', (
     t,
   ) async {

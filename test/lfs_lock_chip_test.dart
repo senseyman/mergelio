@@ -72,7 +72,8 @@ void main() {
     expect(find.text('me'), findsNothing);
     expect(_textColor(tester, 'You'), tokens.textMuted);
     expect(find.byIcon(Icons.lock_outline), findsOneWidget);
-    expect(find.byTooltip('Locked by me · '), findsOneWidget);
+    // No lock time known: no dangling separator.
+    expect(find.byTooltip('Locked by me'), findsOneWidget);
   });
 
   testWidgets("someone else's lock names the owner in the warning colour", (

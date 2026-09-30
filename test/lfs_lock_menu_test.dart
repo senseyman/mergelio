@@ -143,6 +143,8 @@ void main() {
     await t.tap(_item('Force unlock…'));
     await t.pumpAndSettle();
     expect(find.text("Break someone else's lock"), findsOneWidget);
+    // No lock time known: the body names the owner without an empty age.
+    expect(find.textContaining('Locked by zed. Breaking'), findsOneWidget);
     await t.tap(find.text('Cancel'));
     await t.pumpAndSettle();
     expect(git.lfsCalls.where((c) => c[1] == 'unlock'), isEmpty);
@@ -163,6 +165,19 @@ void main() {
       '--id',
       '7',
     ]);
+  });
+
+  testWidgets('a submodule gets no lock items', (t) async {
+    await _pump(
+      t,
+      file: const WorkingFile(
+        path: 'a/sub',
+        worktree: GitChange.modified,
+        submodule: true,
+      ),
+    );
+    await _openMenu(t, 'a/sub');
+    expect(_item('Lock file'), findsNothing);
   });
 
   testWidgets('not an LFS file: no lock items', (t) async {

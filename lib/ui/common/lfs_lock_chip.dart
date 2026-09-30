@@ -19,7 +19,7 @@ class LfsLockChip extends StatelessWidget {
     final l = AppLocalizations.of(context);
     final color = ours ? t.textMuted : t.warning;
     return Tooltip(
-      message: l.lfsLockTooltip(lock.owner, forgeAgo(l, lock.lockedAt) ?? ''),
+      message: lfsLockTooltip(l, lock),
       child: Container(
         margin: const EdgeInsets.only(left: 6),
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
@@ -51,4 +51,12 @@ class LfsLockChip extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The lock chip tooltip, without the age when the server gave no time.
+String lfsLockTooltip(AppLocalizations l, LfsLock lock) {
+  final age = forgeAgo(l, lock.lockedAt);
+  return age == null
+      ? l.lfsLockTooltipNoAge(lock.owner)
+      : l.lfsLockTooltip(lock.owner, age);
 }

@@ -4274,6 +4274,24 @@ abstract class AppLocalizations {
   /// **'{count, plural, one{and {count}+ more} other{and {count}+ more}}'**
   String lfsLocksMoreAtLeast(int count);
 
+  /// No description provided for @lfsLockTooltipNoAge.
+  ///
+  /// In en, this message translates to:
+  /// **'Locked by {owner}'**
+  String lfsLockTooltipNoAge(String owner);
+
+  /// No description provided for @lfsForceUnlockBodyNoAge.
+  ///
+  /// In en, this message translates to:
+  /// **'Locked by {owner}. Breaking the lock does not stop them from pushing their changes, and they may lose work.'**
+  String lfsForceUnlockBodyNoAge(String owner);
+
+  /// No description provided for @lfsLocksRefreshedAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Last refreshed: {age}'**
+  String lfsLocksRefreshedAt(String age);
+
   /// No description provided for @lfsLocksUnsupported.
   ///
   /// In en, this message translates to:

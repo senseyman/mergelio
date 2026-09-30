@@ -2457,6 +2457,21 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String lfsLockTooltipNoAge(String owner) {
+    return 'Locked by $owner';
+  }
+
+  @override
+  String lfsForceUnlockBodyNoAge(String owner) {
+    return 'Locked by $owner. Breaking the lock does not stop them from pushing their changes, and they may lose work.';
+  }
+
+  @override
+  String lfsLocksRefreshedAt(String age) {
+    return 'Last refreshed: $age';
+  }
+
+  @override
   String get lfsLocksUnsupported =>
       'This repository\'s server doesn\'t support file locks.';
 

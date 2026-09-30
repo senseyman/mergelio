@@ -511,6 +511,9 @@ class LfsLockState {
     refreshedAt: refreshedAt,
   );
 
+  /// Whether the user holds the lock on exactly [path].
+  bool isOurs(String path) => ours.any((l) => l.path == path);
+
   /// The lock on exactly [path], the user's own first; null when none.
   LfsLock? lockFor(String path) {
     for (final l in ours) {

@@ -75,7 +75,11 @@ class LfsLocksSection extends ConsumerWidget {
                 IconButton(
                   iconSize: 15,
                   visualDensity: VisualDensity.compact,
-                  tooltip: l.lfsLocksRefresh,
+                  tooltip: switch (forgeAgo(l, state.refreshedAt)) {
+                    null => l.lfsLocksRefresh,
+                    final age =>
+                      '${l.lfsLocksRefresh} · ${l.lfsLocksRefreshedAt(age)}',
+                  },
                   icon: const Icon(Icons.refresh),
                   onPressed: () => ref
                       .read(lfsGenerationProvider(repoPath).notifier)

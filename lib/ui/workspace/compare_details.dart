@@ -152,7 +152,7 @@ class CompareDetails extends ConsumerWidget {
                         inTree: tree,
                         lfs: lfs.contains(path),
                         lock: locks.lockFor(path),
-                        lockIsOurs: locks.ours.any((l) => l.path == path),
+                        lockIsOurs: locks.isOurs(path),
                         extraMenu: (ctx) => lfsLockMenuItems(
                           context: ctx,
                           ref: ref,

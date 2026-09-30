@@ -79,6 +79,7 @@ class WorkingTreePanel extends ConsumerWidget {
         repoPath: repoPath,
         path: f.path,
         isLfs: isLfs,
+        submodule: f.submodule,
       ),
     ];
 
@@ -425,7 +426,7 @@ class _FileSection extends StatelessWidget {
             inTree: tree,
             lfs: lfs.contains(path),
             lock: locks.lockFor(path),
-            lockIsOurs: locks.ours.any((l) => l.path == path),
+            lockIsOurs: locks.isOurs(path),
             onToggle: onToggle,
             onOpen: onOpen,
             onDiscard: onDiscard,
