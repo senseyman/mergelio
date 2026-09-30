@@ -493,12 +493,6 @@ LfsLock? _lockFrom(Object? v) {
 List<LfsLock> _locksFrom(Object? v) =>
     v is List ? [for (final e in v) ?_lockFrom(e)] : const [];
 
-/// Parses the array printed by `git lfs locks --json`; null when it is not one.
-List<LfsLock>? parseLfsLocksJson(String raw) {
-  final v = _decode(raw);
-  return v is List ? _locksFrom(v) : null;
-}
-
 /// Parses `git lfs locks --verify --json`: locks held by the user (`ours`)
 /// and by others (`theirs`). A missing key is an empty list.
 ({List<LfsLock> ours, List<LfsLock> theirs})? parseLfsLocksVerifyJson(
@@ -508,9 +502,6 @@ List<LfsLock>? parseLfsLocksJson(String raw) {
   if (v is! Map) return null;
   return (ours: _locksFrom(v['ours']), theirs: _locksFrom(v['theirs']));
 }
-
-/// Parses the single object printed by `git lfs lock --json`.
-LfsLock? parseLfsLockResultJson(String raw) => _lockFrom(_decode(raw));
 
 /// The first failure reason in `git lfs unlock --json` output, or null when
 /// every entry unlocked. Entries may be keyed by `id` or by `path`; a single

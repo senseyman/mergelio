@@ -479,38 +479,43 @@ void main() {
     lockedAt: DateTime.utc(2026, 9, 30, 10),
   );
 
-  group('parseLfsLocksJson', () {
-    test('empty array', () => expect(parseLfsLocksJson('[]'), isEmpty));
+  // Each lock entry, read through the one listing Mergelio runs.
+  group('lock entries', () {
+    List<LfsLock>? entries(String list) =>
+        parseLfsLocksVerifyJson('{"theirs":$list}')?.theirs;
+
+    test('empty array', () => expect(entries('[]'), isEmpty));
     test('numeric id kept as its string form', () {
-      final locks = parseLfsLocksJson(
+      final locks = entries(
         '[{"id":42,"path":"a.psd","owner":{"name":"A"},'
         '"locked_at":"2026-09-30T10:00:00Z"}]',
       )!;
       expect(locks.single.id, '42');
     });
     test('one lock', () {
-      final locks = parseLfsLocksJson('[$lockJson]')!;
+      final locks = entries('[$lockJson]')!;
       expect(locks, [lockA]);
       expect(locks.single.lockedAt!.isUtc, isTrue);
     });
     test('two locks keep order', () {
       const b = '{"id":"9","path":"b.bin","owner":{"name":"Bo"}}';
-      final locks = parseLfsLocksJson('[$lockJson,$b]')!;
+      final locks = entries('[$lockJson,$b]')!;
       expect(locks.map((l) => l.id), ['123', '9']);
     });
+    test('a nanosecond locked_at, as Go writes it, still parses', () {
+      final l = entries(
+        '[{"id":"1","path":"a","locked_at":"2026-09-30T10:00:00.123456789Z"}]',
+      )!.single;
+      expect(l.lockedAt, DateTime.utc(2026, 9, 30, 10, 0, 0, 123, 456));
+    });
     test('missing owner and locked_at', () {
-      final l = parseLfsLocksJson('[{"id":"1","path":"a"}]')!.single;
+      final l = entries('[{"id":"1","path":"a"}]')!.single;
       expect(l.owner, '');
       expect(l.lockedAt, isNull);
     });
     test('wrong-typed elements are skipped', () {
-      final locks = parseLfsLocksJson('[1,{"id":true,"path":"a"},$lockJson]')!;
+      final locks = entries('[1,{"id":true,"path":"a"},$lockJson]')!;
       expect(locks, [lockA]);
-    });
-    test('not an array or not JSON is null', () {
-      expect(parseLfsLocksJson('nope'), isNull);
-      expect(parseLfsLocksJson('{}'), isNull);
-      expect(parseLfsLocksJson(''), isNull);
     });
   });
 
@@ -535,16 +540,6 @@ void main() {
     test('not JSON is null', () {
       expect(parseLfsLocksVerifyJson('nope'), isNull);
       expect(parseLfsLocksVerifyJson('[]'), isNull);
-    });
-  });
-
-  group('parseLfsLockResultJson', () {
-    test('object gives a lock', () {
-      expect(parseLfsLockResultJson(lockJson), lockA);
-    });
-    test('array or not JSON is null', () {
-      expect(parseLfsLockResultJson('[]'), isNull);
-      expect(parseLfsLockResultJson('nope'), isNull);
     });
   });
 
