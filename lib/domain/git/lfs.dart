@@ -471,7 +471,10 @@ Object? _decode(String raw) {
 
 LfsLock? _lockFrom(Object? v) {
   if (v is! Map) return null;
-  final id = v['id'];
+  // Some servers send the id as a number; it only ever goes back to git-lfs
+  // as text.
+  final raw = v['id'];
+  final id = raw is num ? raw.toString() : raw;
   final path = v['path'];
   if (id is! String || path is! String) return null;
   final owner = v['owner'];
@@ -523,17 +526,26 @@ String? parseLfsUnlockFailure(String raw) {
   return null;
 }
 
-/// Stderr fragments meaning the remote cannot do locking at all.
+/// Stderr fragments, lowercased, meaning the remote cannot do locking at all.
 const _locksUnsupportedMarkers = [
   // A file:// or otherwise protocol-less remote has no locking API.
   'missing protocol',
-  // The server answers the locks endpoint with 404.
-  '404',
-  // The server says so explicitly.
+  // The server or git-lfs says so explicitly.
   'not supported',
+  'does not support',
 ];
 
-/// True when [stderr] shows the server does not support file locking.
-bool lfsLocksUnsupported(String stderr) =>
-    _locksUnsupportedMarkers.any(stderr.contains) ||
-    (stderr.contains('Not Found') && stderr.contains('locks'));
+/// A 404 reported as an HTTP status. A bare `404` would also match ports,
+/// addresses and object ids in unrelated network errors.
+final _locksNotFoundStatus = RegExp(
+  r'\[404\]|status:? 404\b|http:? 404\b|\b404 not found',
+);
+
+/// True when [stderr] shows the server does not support file locking. Any
+/// other failure (network, auth) must not match: a match hides locking for
+/// the rest of the session.
+bool lfsLocksUnsupported(String stderr) {
+  final s = stderr.toLowerCase();
+  return _locksUnsupportedMarkers.any(s.contains) ||
+      _locksNotFoundStatus.hasMatch(s);
+}

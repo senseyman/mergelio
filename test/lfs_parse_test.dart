@@ -481,6 +481,13 @@ void main() {
 
   group('parseLfsLocksJson', () {
     test('empty array', () => expect(parseLfsLocksJson('[]'), isEmpty));
+    test('numeric id kept as its string form', () {
+      final locks = parseLfsLocksJson(
+        '[{"id":42,"path":"a.psd","owner":{"name":"A"},'
+        '"locked_at":"2026-09-30T10:00:00Z"}]',
+      )!;
+      expect(locks.single.id, '42');
+    });
     test('one lock', () {
       final locks = parseLfsLocksJson('[$lockJson]')!;
       expect(locks, [lockA]);
@@ -497,7 +504,7 @@ void main() {
       expect(l.lockedAt, isNull);
     });
     test('wrong-typed elements are skipped', () {
-      final locks = parseLfsLocksJson('[1,{"id":5,"path":"a"},$lockJson]')!;
+      final locks = parseLfsLocksJson('[1,{"id":true,"path":"a"},$lockJson]')!;
       expect(locks, [lockA]);
     });
     test('not an array or not JSON is null', () {
@@ -567,21 +574,29 @@ void main() {
   });
 
   group('lfsLocksUnsupported', () {
-    test('true for unsupported servers', () {
-      expect(
-        lfsLocksUnsupported(
-          'Locking a.psd failed: missing protocol: "file:///x/remote.git"',
-        ),
-        isTrue,
-      );
-      expect(lfsLocksUnsupported('error: 404 from server'), isTrue);
-      expect(lfsLocksUnsupported('locks API Not Found'), isTrue);
-      expect(lfsLocksUnsupported('locking is not supported'), isTrue);
-    });
-    test('false for other failures', () {
-      expect(lfsLocksUnsupported('dial tcp: lookup x: no such host'), isFalse);
-      expect(lfsLocksUnsupported('authentication failed'), isFalse);
-      expect(lfsLocksUnsupported('Not Found'), isFalse);
-    });
+    for (final stderr in [
+      'Locking a.psd failed: missing protocol: "file:///x/remote.git"',
+      'Remote "origin" does not support the Git LFS locking API.',
+      'Locking is not supported by this server',
+      'Unable to list locks: https://host/x.git/info/lfs/locks [404] Not Found',
+      'list locks: status 404',
+      'HTTP 404 NOT FOUND',
+    ]) {
+      test('true: $stderr', () {
+        expect(lfsLocksUnsupported(stderr), isTrue);
+      });
+    }
+    for (final stderr in [
+      'dial tcp 10.0.4.04:4040: connect: connection refused',
+      'Locking a.psd failed: Post "https://h:4040/x.git/info/lfs/locks": '
+          'dial tcp: lookup h: no such host',
+      "Authentication failed for 'https://host/x.git/info/lfs/locks'",
+      'Not Found',
+      'object 4040404 not found',
+    ]) {
+      test('false: $stderr', () {
+        expect(lfsLocksUnsupported(stderr), isFalse);
+      });
+    }
   });
 }
