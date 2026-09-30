@@ -15,6 +15,7 @@ import '../palette/command_palette.dart';
 import '../workspace/branch_switch.dart';
 import '../workspace/remote_dialog.dart';
 import 'lfs_prune_flow.dart';
+import 'lfs_push_guard.dart';
 import 'repo_op_dialogs.dart';
 
 /// App-wide actions shared by the keyboard dispatcher and toolbar buttons, so
@@ -61,7 +62,11 @@ void openGlobalPalette(BuildContext context, WidgetRef ref) {
         () => showLfsPruneFlow(context, ref, path),
       ),
     ],
-    PaletteCommand('Push', Icons.north_east, () => actions.push()),
+    PaletteCommand('Push', Icons.north_east, () async {
+      if (context.mounted && await confirmLfsPushReady(context, ref, path)) {
+        await actions.push();
+      }
+    }),
     PaletteCommand(l.opPushOptions, Icons.north_east, () async {
       if (!context.mounted) return;
       await showPushDialog(context, ref, path);

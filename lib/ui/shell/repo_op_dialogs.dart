@@ -10,6 +10,7 @@ import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
 import '../common/confirm.dart';
 import '../common/dialogs.dart';
+import 'lfs_push_guard.dart';
 import 'remote_merge_confirm.dart';
 
 /// Create-branch dialog: name, the branch to start from (defaults to the
@@ -279,6 +280,9 @@ class _PushBodyState extends ConsumerState<_PushBody> {
         confirmLabel: l.bbForcePush,
       );
       if (!ok) return;
+    }
+    if (!mounted || !await confirmLfsPushReady(context, ref, widget.repoPath)) {
+      return;
     }
     // The confirm can outlive this route, and popping a disposed navigator
     // throws. The push itself no longer depends on the widget being alive.

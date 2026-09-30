@@ -15,6 +15,7 @@ import '../../state/workspace.dart';
 import '../common/confirm.dart';
 import '../common/dialogs.dart';
 import 'lfs_prune_flow.dart';
+import 'lfs_push_guard.dart';
 import 'repo_op_dialogs.dart';
 import 'shell_widgets.dart';
 
@@ -183,7 +184,16 @@ class AppBottomBar extends ConsumerWidget {
                           enabled: hasRemote && !busy,
                           onDisabledTap: () => whyDisabled(running: busy),
                           items: () => [
-                            _Op(l.opPushOrigin, () => actions!.push()),
+                            _Op(l.opPushOrigin, () async {
+                              if (path == null) return;
+                              if (await confirmLfsPushReady(
+                                context,
+                                ref,
+                                path,
+                              )) {
+                                await actions!.push();
+                              }
+                            }),
                             _Op(l.opForcePush, () async {
                               final ok = await confirmDestructive(
                                 ref,
@@ -192,7 +202,16 @@ class AppBottomBar extends ConsumerWidget {
                                 body: l.bbForcePushBody,
                                 confirmLabel: l.bbForcePush,
                               );
-                              if (ok) await actions!.push(force: true);
+                              if (!ok || path == null || !context.mounted) {
+                                return;
+                              }
+                              if (await confirmLfsPushReady(
+                                context,
+                                ref,
+                                path,
+                              )) {
+                                await actions!.push(force: true);
+                              }
                             }, danger: true),
                             _Op(l.opPushOptions, () async {
                               if (path != null) {

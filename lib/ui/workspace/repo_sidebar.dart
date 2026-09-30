@@ -16,6 +16,7 @@ import '../../state/workspace.dart';
 import '../../state/worktrees.dart';
 import '../common/confirm.dart';
 import '../common/dialogs.dart';
+import '../shell/lfs_push_guard.dart';
 import '../shell/remote_merge_confirm.dart';
 import 'add_submodule_dialog.dart';
 import 'branch_switch.dart';
@@ -1156,7 +1157,11 @@ Future<void> _tagMenu(
       ),
       PopupMenuItem(
         height: 34,
-        onTap: () => actions.pushTag(tag),
+        onTap: () async {
+          if (await confirmLfsPushReady(context, ref, actions.path)) {
+            await actions.pushTag(tag);
+          }
+        },
         child: Text(l.sbPushTag, style: const TextStyle(fontSize: 13)),
       ),
       PopupMenuItem(
