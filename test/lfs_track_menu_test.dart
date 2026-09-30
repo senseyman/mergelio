@@ -14,6 +14,7 @@ import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
 import 'package:mergelio/ui/workspace/working_tree_panel.dart';
+import 'package:path/path.dart' as p;
 
 const _hash =
     'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90';
@@ -23,6 +24,7 @@ class _FakeGit implements GitService {
   String listed = '';
   String lfsFiles = '';
   String trackList = '';
+  final dirs = <String, String?>{};
 
   /// Command lines (args joined by a space) that fail with exit 2.
   final failing = <String>{};
@@ -37,6 +39,7 @@ class _FakeGit implements GitService {
     String? stdin,
   }) async {
     calls.add(args);
+    dirs[args.join(' ')] = repoPath;
     if (failing.contains(args.join(' '))) return const GitResult(2, '', 'boom');
     if (args.first == 'ls-files') return GitResult(0, listed, '');
     if (args.first == 'check-attr') {
@@ -247,7 +250,10 @@ void main() {
     await _openMenu(t, 'dir/x [1].psd');
     await t.tap(find.text('Track this file with LFS'));
     await t.pumpAndSettle();
-    expect(git.ran(['lfs', 'track', '--filename', '--', 'dir/x [1].psd']), isTrue);
+    expect(
+      git.ran(['lfs', 'track', '--filename', '--', 'dir/x [1].psd']),
+      isTrue,
+    );
   });
 
   testWidgets('untrack dialog lists patterns; picking one untracks it', (
@@ -269,6 +275,24 @@ void main() {
     await t.pumpAndSettle();
     expect(git.ran(['lfs', 'untrack', '--', '*.psd']), isTrue);
     expect(find.text('Stop tracking with LFS'), findsNothing);
+  });
+
+  testWidgets('untracking a nested pattern runs in its directory', (t) async {
+    final git = _FakeGit()
+      ..trackList =
+          'Listing tracked patterns\n'
+          '    *.psd (.gitattributes)\n'
+          '    sub/*.psd (sub/.gitattributes)\n'
+          'Listing excluded patterns\n';
+    await _pump(t, file: _wf('art/cover.psd'), isLfs: true, git: git);
+    await _openMenu(t, 'art/cover.psd');
+    await t.tap(find.text('Stop tracking with LFS…'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('sub/*.psd (sub/.gitattributes)'));
+    await t.pumpAndSettle();
+    expect(git.ran(['lfs', 'untrack', '--', '*.psd']), isTrue);
+    expect(git.ran(['lfs', 'untrack', '--', 'sub/*.psd']), isFalse);
+    expect(git.dirs['lfs untrack -- *.psd'], p.join('/r', 'sub'));
   });
 
   testWidgets('convert dialog shows 20 paths and the remainder', (t) async {

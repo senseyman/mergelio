@@ -73,7 +73,7 @@ Future<void> showLfsUntrackDialog(
     return;
   }
   if (!context.mounted) return;
-  final picked = await showAppModal<String>(
+  final picked = await showAppModal<LfsTrackedPattern>(
     context: context,
     title: l.lfsUntrackTitle,
     icon: Icons.link_off,
@@ -87,7 +87,7 @@ Future<void> showLfsUntrackDialog(
         for (final p in patterns)
           Builder(
             builder: (ctx) => InkWell(
-              onTap: () => Navigator.of(ctx).pop(p.pattern),
+              onTap: () => Navigator.of(ctx).pop(p),
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Text(
@@ -105,7 +105,9 @@ Future<void> showLfsUntrackDialog(
       ],
     ),
   );
-  if (picked != null) await actions.lfsUntrack(picked);
+  if (picked != null) {
+    await actions.lfsUntrack(picked.pattern, picked.source);
+  }
 }
 
 /// After a pattern change, offers to re-stage the committed files it now

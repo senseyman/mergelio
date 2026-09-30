@@ -8,6 +8,7 @@ import 'package:mergelio/state/feedback.dart';
 import 'package:mergelio/state/lfs.dart';
 import 'package:mergelio/state/operation_journal.dart';
 import 'package:mergelio/state/repo_actions.dart';
+import 'package:path/path.dart' as p;
 
 /// Scripts git by exact argument list and records each call together with
 /// the busy lanes that were held while it ran.
@@ -18,6 +19,7 @@ class _FakeGit implements GitService {
   final stdins = <String, String?>{};
   late ProviderContainer container;
   Object? throwOnRun;
+  final dirs = <String, String?>{};
 
   @override
   Future<GitResult> run(
@@ -31,6 +33,7 @@ class _FakeGit implements GitService {
     calls.add(args);
     final key = args.join(' ');
     stdins[key] = stdin;
+    dirs[key] = repoPath;
     lanesAtCall[key] = (
       repo: container.read(busyProvider) != null,
       fetch: container.read(fetchBusyProvider) != null,
@@ -275,10 +278,32 @@ void main() {
   });
 
   test('lfsUntrack runs lfs untrack', () async {
-    expect(await actions.lfsUntrack('*.psd'), isTrue);
+    expect(await actions.lfsUntrack('*.psd', '.gitattributes'), isTrue);
     expect(ran(), [
       ['lfs', 'untrack', '--', '*.psd'],
     ]);
+    expect(git.dirs['lfs untrack -- *.psd'], '/r');
+  });
+
+  // git-lfs lists a nested pattern prefixed with its directory, but only
+  // removes it when run in that directory with the pattern as written there.
+  test('lfsUntrack of a nested pattern runs in its directory', () async {
+    expect(
+      await actions.lfsUntrack('sub/a/*.psd', 'sub/a/.gitattributes'),
+      isTrue,
+    );
+    expect(ran(), [
+      ['lfs', 'untrack', '--', '*.psd'],
+    ]);
+    expect(git.dirs['lfs untrack -- *.psd'], p.join('/r', 'sub/a'));
+  });
+
+  test('lfsUntrack keeps a nested pattern that lacks the prefix', () async {
+    expect(await actions.lfsUntrack('*.psd', 'sub/.gitattributes'), isTrue);
+    expect(ran(), [
+      ['lfs', 'untrack', '--', '*.psd'],
+    ]);
+    expect(git.dirs['lfs untrack -- *.psd'], p.join('/r', 'sub'));
   });
 
   test('lfsTrackFile tracks one exact filename', () async {

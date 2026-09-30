@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:path/path.dart' as p;
+
 import 'askpass.dart';
 import 'commit_message.dart';
 import 'git_service.dart';
@@ -254,12 +256,18 @@ class GitWriter {
     timeout: lfsLocalTimeout,
   );
 
-  /// Stops routing files matching [pattern] through LFS.
-  Future<void> lfsUntrack(String pattern) => _ok(
-    ['lfs', 'untrack', '--', pattern],
-    'git lfs untrack',
-    timeout: lfsLocalTimeout,
-  );
+  /// Stops routing files matching [pattern] through LFS. git-lfs only edits
+  /// the `.gitattributes` of the directory it runs in, so a pattern from a
+  /// nested one runs in that [dir] (relative to the repository), written as
+  /// it appears there.
+  Future<void> lfsUntrack(String pattern, {String dir = ''}) async {
+    final r = await git.run(
+      ['lfs', 'untrack', '--', pattern],
+      repoPath: dir.isEmpty ? repoPath : p.join(repoPath, dir),
+      timeout: lfsLocalTimeout,
+    );
+    if (!r.ok) throw GitException('git lfs untrack', r);
+  }
 
   /// Lists the patterns currently routed through LFS, as git-lfs's own
   /// report — left unparsed since callers only display it.

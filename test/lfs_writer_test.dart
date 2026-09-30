@@ -1,11 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/domain/git/git_writer.dart';
+import 'package:path/path.dart' as p;
 
 class _Capture implements GitService {
   final calls = <List<String>>[];
   final timeouts = <Duration?>[];
   final envs = <Map<String, String>?>[];
+  final dirs = <String?>[];
 
   @override
   Future<GitResult> run(
@@ -19,6 +21,7 @@ class _Capture implements GitService {
     calls.add(args);
     timeouts.add(timeout);
     envs.add(environment);
+    dirs.add(repoPath);
     return const GitResult(0, 'out', '');
   }
 
@@ -113,6 +116,16 @@ void main() {
     expect(git.calls, hasLength(5));
     expect(git.timeouts, everyElement(GitWriter.lfsLocalTimeout));
     expect(GitWriter.lfsLocalTimeout, const Duration(seconds: 60));
+  });
+
+  test('untrack runs in the subdirectory the pattern belongs to', () async {
+    await w.lfsUntrack('*.psd');
+    expect(git.dirs.last, '/r');
+
+    await w.lfsUntrack('*.psd', dir: 'sub/deeper');
+    expect(last(), ['lfs', 'untrack', '--', '*.psd']);
+    expect(git.dirs.last, p.join('/r', 'sub/deeper'));
+    expect(git.timeouts.last, GitWriter.lfsLocalTimeout);
   });
 
   test('renormalize batches at 200 paths', () async {

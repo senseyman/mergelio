@@ -311,8 +311,15 @@ class RepoActions {
   Future<bool> lfsTrackFile(String file) =>
       _lfsLocal('Track $file', () => _writer.lfsTrackFile(file));
 
-  Future<bool> lfsUntrack(String pattern) =>
-      _lfsLocal('Stop tracking $pattern', () => _writer.lfsUntrack(pattern));
+  /// Untracks [pattern] as `git lfs track` lists it, with [source] the
+  /// `.gitattributes` file it came from.
+  Future<bool> lfsUntrack(String pattern, String source) {
+    final target = lfsUntrackTarget(pattern, source);
+    return _lfsLocal(
+      'Stop tracking $pattern',
+      () => _writer.lfsUntrack(target.pattern, dir: target.dir),
+    );
+  }
 
   Future<List<LfsTrackedPattern>> lfsTrackedPatterns() async =>
       parseLfsTrackList(await _writer.lfsTrackList());

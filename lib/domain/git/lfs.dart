@@ -321,6 +321,23 @@ class LfsTrackedPattern {
   int get hashCode => Object.hash(pattern, source);
 }
 
+/// Where to run `git lfs untrack` for a pattern `git lfs track` listed from
+/// [source], and the pattern to pass there. git-lfs lists a nested pattern
+/// prefixed with its file's directory (`sub/*.psd` from `sub/.gitattributes`)
+/// yet only removes it when run in that directory with the pattern as that
+/// file writes it (`*.psd`).
+({String dir, String pattern}) lfsUntrackTarget(String pattern, String source) {
+  final dir = p.posix.dirname(source);
+  if (dir == '.' || dir.isEmpty) return (dir: '', pattern: pattern);
+  final prefix = '$dir/';
+  return (
+    dir: dir,
+    pattern: pattern.startsWith(prefix)
+        ? pattern.substring(prefix.length)
+        : pattern,
+  );
+}
+
 final _trackLine = RegExp(r'^\s+(.+) \(([^()]+)\)$');
 
 /// `git lfs track` (no arguments) → the tracked patterns. Excluded patterns,
