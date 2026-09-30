@@ -2922,4 +2922,232 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get bisectRunCancelled =>
       'Run cancelled. The marks recorded so far are kept.';
+
+  @override
+  String get mtTitle => 'Repository maintenance';
+
+  @override
+  String get mtPaletteOpen => 'Repository maintenance…';
+
+  @override
+  String get mtStorage => 'Storage';
+
+  @override
+  String mtStorageTotal(String size) {
+    return 'Git data: $size';
+  }
+
+  @override
+  String get mtPacks => 'Packs';
+
+  @override
+  String mtPackCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count packs',
+      one: '1 pack',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get mtLoose => 'Loose objects';
+
+  @override
+  String mtLooseCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count objects',
+      one: '1 object',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get mtLfs => 'LFS objects';
+
+  @override
+  String get mtOther => 'Other git data';
+
+  @override
+  String get mtStorageNote => 'Files in the working tree are not counted.';
+
+  @override
+  String mtReadFailed(String error) {
+    return 'Could not read this: $error';
+  }
+
+  @override
+  String get mtBlobs => 'Largest files in history';
+
+  @override
+  String get mtBlobsIntro =>
+      'Scans every object in the repository\'s history. On a large repository this can take several minutes.';
+
+  @override
+  String get mtScan => 'Scan';
+
+  @override
+  String get mtRescan => 'Rescan';
+
+  @override
+  String get mtScanning => 'Scanning history…';
+
+  @override
+  String mtScannedAt(String when) {
+    return 'Scanned $when';
+  }
+
+  @override
+  String get mtScanStale =>
+      'Out of date: branches or tags have moved since this scan';
+
+  @override
+  String mtScanFailed(String error) {
+    return 'Scan failed: $error';
+  }
+
+  @override
+  String get mtNoBlobs => 'No files in history.';
+
+  @override
+  String get mtNoPath => '(no path)';
+
+  @override
+  String get mtNoCommit => 'introducing commit not found';
+
+  @override
+  String get mtBranches => 'Branches';
+
+  @override
+  String mtMergedInto(String trunk) {
+    return 'Merged into $trunk, or not touched for 90 days, or their upstream is gone.';
+  }
+
+  @override
+  String get mtNoBranches => 'No merged or stale branches.';
+
+  @override
+  String get mtTagMerged => 'merged';
+
+  @override
+  String get mtTagStale => 'stale';
+
+  @override
+  String get mtTagGone => 'upstream gone';
+
+  @override
+  String mtHeldBy(String path) {
+    return 'checked out in $path';
+  }
+
+  @override
+  String get mtSelectAll => 'Select all';
+
+  @override
+  String mtDeleteSelected(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Delete $count branches',
+      one: 'Delete 1 branch',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get mtDeleteTitle => 'Delete branches';
+
+  @override
+  String mtDeleteBody(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Delete $count branches?',
+      one: 'Delete 1 branch?',
+    );
+    return '$_temp0 Undo puts them back.';
+  }
+
+  @override
+  String get mtDeleteForce =>
+      'These are not merged and will be force-deleted. Their commits stay reachable only through the reflog:';
+
+  @override
+  String get mtDeleteConfirm => 'Delete';
+
+  @override
+  String get mtWorktrees => 'Worktrees';
+
+  @override
+  String mtPrunable(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count worktrees point at missing directories',
+      one: '1 worktree points at a missing directory',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get mtNoPrunable => 'Nothing to prune.';
+
+  @override
+  String get mtPrune => 'Prune…';
+
+  @override
+  String get mtReflog => 'Reflog';
+
+  @override
+  String mtReflogExpiry(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'The next gc would expire $count reflog entries.',
+      one: 'The next gc would expire 1 reflog entry.',
+      zero: 'The next gc would not expire any reflog entries.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get mtHousekeeping => 'Housekeeping';
+
+  @override
+  String get mtHousekeepingHint =>
+      'Repacks objects and removes unreachable ones git considers expired. Never runs on its own.';
+
+  @override
+  String get mtRunGc => 'Run gc';
+
+  @override
+  String get mtRunMaintenance => 'Run maintenance';
+
+  @override
+  String get mtGcTitle => 'Run git gc?';
+
+  @override
+  String get mtGcBody =>
+      'git gc repacks the repository and deletes unreachable objects older than its expiry settings. It can take a while and can be cancelled from the status bar.';
+
+  @override
+  String get mtMaintenanceTitle => 'Run git maintenance?';
+
+  @override
+  String get mtMaintenanceBody =>
+      'Runs the maintenance tasks this repository\'s config enables (gc when none are set). It can take a while and can be cancelled from the status bar.';
+
+  @override
+  String get mtRun => 'Run';
+
+  @override
+  String mtSizeChange(String before, String after) {
+    return 'Git data: $before → $after';
+  }
+
+  @override
+  String get mtOutput => 'Output';
 }

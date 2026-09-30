@@ -2952,4 +2952,238 @@ class AppLocalizationsUk extends AppLocalizations {
   @override
   String get bisectRunCancelled =>
       'Запуск скасовано. Записані рішення збережені.';
+
+  @override
+  String get mtTitle => 'Обслуговування репозиторію';
+
+  @override
+  String get mtPaletteOpen => 'Обслуговування репозиторію…';
+
+  @override
+  String get mtStorage => 'Сховище';
+
+  @override
+  String mtStorageTotal(String size) {
+    return 'Дані git: $size';
+  }
+
+  @override
+  String get mtPacks => 'Пакети';
+
+  @override
+  String mtPackCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count пакетів',
+      few: '$count пакети',
+      one: '$count пакет',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get mtLoose => 'Окремі об\'єкти';
+
+  @override
+  String mtLooseCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count об\'єктів',
+      few: '$count об\'єкти',
+      one: '$count об\'єкт',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get mtLfs => 'Об\'єкти LFS';
+
+  @override
+  String get mtOther => 'Інші дані git';
+
+  @override
+  String get mtStorageNote => 'Файли робочого дерева не враховуються.';
+
+  @override
+  String mtReadFailed(String error) {
+    return 'Не вдалося прочитати: $error';
+  }
+
+  @override
+  String get mtBlobs => 'Найбільші файли в історії';
+
+  @override
+  String get mtBlobsIntro =>
+      'Переглядає кожен об\'єкт в історії репозиторію. На великому репозиторії це може тривати кілька хвилин.';
+
+  @override
+  String get mtScan => 'Сканувати';
+
+  @override
+  String get mtRescan => 'Сканувати знову';
+
+  @override
+  String get mtScanning => 'Сканування історії…';
+
+  @override
+  String mtScannedAt(String when) {
+    return 'Скановано $when';
+  }
+
+  @override
+  String get mtScanStale =>
+      'Застаріло: гілки або теги змінилися після сканування';
+
+  @override
+  String mtScanFailed(String error) {
+    return 'Сканування не вдалося: $error';
+  }
+
+  @override
+  String get mtNoBlobs => 'В історії немає файлів.';
+
+  @override
+  String get mtNoPath => '(без шляху)';
+
+  @override
+  String get mtNoCommit => 'коміт, що додав файл, не знайдено';
+
+  @override
+  String get mtBranches => 'Гілки';
+
+  @override
+  String mtMergedInto(String trunk) {
+    return 'Злиті в $trunk, або без змін 90 днів, або їхня віддалена гілка зникла.';
+  }
+
+  @override
+  String get mtNoBranches => 'Немає злитих чи застарілих гілок.';
+
+  @override
+  String get mtTagMerged => 'злита';
+
+  @override
+  String get mtTagStale => 'застаріла';
+
+  @override
+  String get mtTagGone => 'віддалена гілка зникла';
+
+  @override
+  String mtHeldBy(String path) {
+    return 'відкрита в $path';
+  }
+
+  @override
+  String get mtSelectAll => 'Вибрати всі';
+
+  @override
+  String mtDeleteSelected(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Видалити $count гілок',
+      few: 'Видалити $count гілки',
+      one: 'Видалити $count гілку',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get mtDeleteTitle => 'Видалення гілок';
+
+  @override
+  String mtDeleteBody(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Видалити $count гілок?',
+      few: 'Видалити $count гілки?',
+      one: 'Видалити $count гілку?',
+    );
+    return '$_temp0 Скасування поверне їх.';
+  }
+
+  @override
+  String get mtDeleteForce =>
+      'Ці гілки не злиті й будуть видалені примусово. Їхні коміти залишаться доступними лише через reflog:';
+
+  @override
+  String get mtDeleteConfirm => 'Видалити';
+
+  @override
+  String get mtWorktrees => 'Робочі дерева';
+
+  @override
+  String mtPrunable(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count робочих дерев вказують на відсутні каталоги',
+      few: '$count робочі дерева вказують на відсутні каталоги',
+      one: '$count робоче дерево вказує на відсутній каталог',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get mtNoPrunable => 'Нічого очищати.';
+
+  @override
+  String get mtPrune => 'Очистити…';
+
+  @override
+  String get mtReflog => 'Reflog';
+
+  @override
+  String mtReflogExpiry(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Наступний gc видалить $count записів reflog.',
+      few: 'Наступний gc видалить $count записи reflog.',
+      one: 'Наступний gc видалить $count запис reflog.',
+      zero: 'Наступний gc не видалить жодного запису reflog.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get mtHousekeeping => 'Прибирання';
+
+  @override
+  String get mtHousekeepingHint =>
+      'Перепаковує об\'єкти й видаляє недосяжні, які git вважає застарілими. Ніколи не запускається сам.';
+
+  @override
+  String get mtRunGc => 'Запустити gc';
+
+  @override
+  String get mtRunMaintenance => 'Запустити maintenance';
+
+  @override
+  String get mtGcTitle => 'Запустити git gc?';
+
+  @override
+  String get mtGcBody =>
+      'git gc перепаковує репозиторій і видаляє недосяжні об\'єкти, старші за налаштований термін. Це може тривати довго; скасувати можна з рядка стану.';
+
+  @override
+  String get mtMaintenanceTitle => 'Запустити git maintenance?';
+
+  @override
+  String get mtMaintenanceBody =>
+      'Виконує завдання обслуговування, увімкнені в налаштуваннях репозиторію (gc, якщо жодне не задано). Це може тривати довго; скасувати можна з рядка стану.';
+
+  @override
+  String get mtRun => 'Запустити';
+
+  @override
+  String mtSizeChange(String before, String after) {
+    return 'Дані git: $before → $after';
+  }
+
+  @override
+  String get mtOutput => 'Вивід';
 }
