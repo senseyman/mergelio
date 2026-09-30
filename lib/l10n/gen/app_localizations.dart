@@ -4145,7 +4145,7 @@ abstract class AppLocalizations {
   /// No description provided for @lfsConvertBody.
   ///
   /// In en, this message translates to:
-  /// **'This stages these files as LFS pointers, including any edits you have in them. Nothing is committed.'**
+  /// **'This stages these files as LFS pointers, together with the .gitattributes change that makes them so, including any edits you have in them. Nothing is committed.'**
   String get lfsConvertBody;
 
   /// No description provided for @lfsConvertMore.

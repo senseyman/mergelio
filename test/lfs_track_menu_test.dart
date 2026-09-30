@@ -310,6 +310,8 @@ void main() {
     await t.pumpAndSettle();
     expect(find.textContaining(RegExp(r'^f\d+\.psd$')), findsNWidgets(20));
     expect(find.text('and 5 more'), findsOneWidget);
+    // Says the attributes change is staged as well.
+    expect(find.textContaining('.gitattributes change'), findsOneWidget);
   });
 
   testWidgets('untrack: failing pattern listing toasts, opens no dialog', (

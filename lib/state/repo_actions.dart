@@ -369,16 +369,19 @@ class RepoActions {
     ];
   }
 
-  /// Stages [files] again through the current attributes, as LFS pointers.
-  /// Stops at staged, as every Mergelio flow does.
+  /// Stages [files] again through the current attributes, as LFS pointers,
+  /// together with the changed `.gitattributes` files behind them. Stops at
+  /// staged, as every Mergelio flow does.
   Future<bool> lfsConvert(List<String> files) async {
     // A busy-lane skip inside _network reports true; the caller must not
     // read that as "converted".
     if (_blockedByRepoOp) return false;
-    return _lfsNetwork(
-      'Convert files to LFS',
-      (c) => _writer.renormalize(files, cancel: c),
-    );
+    return _lfsNetwork('Convert files to LFS', (c) async {
+      await _writer.renormalize(files, cancel: c);
+      // Pointers staged without the rule that makes them pointers would
+      // commit as plain pointer text.
+      await _writer.stageGitattributes();
+    });
   }
 
   /// Writes the LFS filters and hooks into this repository. Only ever run on

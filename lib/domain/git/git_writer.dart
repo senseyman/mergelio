@@ -303,6 +303,29 @@ class GitWriter {
     }
   }
 
+  /// Stages every `.gitattributes` file, at any depth, that is modified or
+  /// new — the rules that make freshly staged LFS pointers pointers. Lists
+  /// them first because `git add` fails outright on a pathspec that matches
+  /// nothing.
+  Future<void> stageGitattributes() async {
+    final r = await _run([
+      'ls-files',
+      '-z',
+      '-m',
+      '-o',
+      '--exclude-standard',
+      '--',
+      ':(glob)**/.gitattributes',
+    ]);
+    if (!r.ok) throw GitException('git ls-files', r);
+    final paths = {
+      for (final f in r.stdout.split('\x00'))
+        if (f.isNotEmpty) f,
+    };
+    if (paths.isEmpty) return;
+    await _ok(['add', '--', ...paths], 'git add');
+  }
+
   /// Registers [name] pointing at [url]. Fails when [name] is already taken.
   Future<void> addRemote(String name, String url) =>
       _ok(['remote', 'add', name, url], 'git remote add');

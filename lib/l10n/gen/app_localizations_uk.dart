@@ -2384,7 +2384,7 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get lfsConvertBody =>
-      'Ці файли буде проіндексовано як вказівники LFS разом з усіма вашими змінами в них. Нічого не комітиться.';
+      'Ці файли буде проіндексовано як вказівники LFS разом зі зміною .gitattributes, яка це визначає, і з усіма вашими змінами в них. Нічого не комітиться.';
 
   @override
   String lfsConvertMore(int count) {

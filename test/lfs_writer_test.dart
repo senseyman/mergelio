@@ -128,6 +128,23 @@ void main() {
     expect(git.timeouts.last, GitWriter.lfsLocalTimeout);
   });
 
+  test('stageGitattributes adds only the listed changed files', () async {
+    await w.stageGitattributes();
+    // The capture fake answers every listing with 'out'.
+    expect(git.calls, [
+      [
+        'ls-files',
+        '-z',
+        '-m',
+        '-o',
+        '--exclude-standard',
+        '--',
+        ':(glob)**/.gitattributes',
+      ],
+      ['add', '--', 'out'],
+    ]);
+  });
+
   test('renormalize batches at 200 paths', () async {
     final paths = [for (var i = 0; i < 450; i++) 'f$i.psd'];
     await w.renormalize(paths);

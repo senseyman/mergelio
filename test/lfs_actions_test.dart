@@ -270,11 +270,46 @@ void main() {
     expect(ok, isTrue);
     expect(ran(), [
       ['add', '--renormalize', '--', 'dir/b.psd'],
+      [
+        'ls-files',
+        '-z',
+        '-m',
+        '-o',
+        '--exclude-standard',
+        '--',
+        ':(glob)**/.gitattributes',
+      ],
     ]);
     expect(git.lanesAtCall['add --renormalize -- dir/b.psd']!.repo, isTrue);
     expect(container.read(busyProvider), isNull);
     expect(ran().any((c) => c.first == 'commit'), isFalse);
     expect(gen(), 1);
+  });
+
+  // Staged pointers without the rule that makes them pointers commit into a
+  // repository that no longer knows those paths are LFS.
+  test('lfsConvert also stages changed .gitattributes files', () async {
+    git.responses['ls-files -z -m -o --exclude-standard -- '
+        ':(glob)**/.gitattributes'] = const GitResult(
+      0,
+      'sub/.gitattributes\x00.gitattributes\x00',
+      '',
+    );
+    expect(await actions.lfsConvert(['dir/b.psd']), isTrue);
+    expect(ran(), [
+      ['add', '--renormalize', '--', 'dir/b.psd'],
+      [
+        'ls-files',
+        '-z',
+        '-m',
+        '-o',
+        '--exclude-standard',
+        '--',
+        ':(glob)**/.gitattributes',
+      ],
+      ['add', '--', 'sub/.gitattributes', '.gitattributes'],
+    ]);
+    expect(ran().any((c) => c.first == 'commit'), isFalse);
   });
 
   test('lfsUntrack runs lfs untrack', () async {

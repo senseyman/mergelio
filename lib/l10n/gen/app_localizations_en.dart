@@ -2366,7 +2366,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get lfsConvertBody =>
-      'This stages these files as LFS pointers, including any edits you have in them. Nothing is committed.';
+      'This stages these files as LFS pointers, together with the .gitattributes change that makes them so, including any edits you have in them. Nothing is committed.';
 
   @override
   String lfsConvertMore(int count) {

@@ -1528,7 +1528,7 @@
   "@lfsConvertOffer": { "placeholders": { "count": { "type": "int" } } },
   "lfsConvertAction": "Convert…",
   "lfsConvertTitle": "Convert files to LFS",
-  "lfsConvertBody": "This stages these files as LFS pointers, including any edits you have in them. Nothing is committed.",
+  "lfsConvertBody": "This stages these files as LFS pointers, together with the .gitattributes change that makes them so, including any edits you have in them. Nothing is committed.",
   "lfsConvertMore": "and {count} more",
   "@lfsConvertMore": { "placeholders": { "count": { "type": "int" } } },
   "lfsConvertConfirm": "Stage as LFS",
