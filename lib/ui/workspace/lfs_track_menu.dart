@@ -145,6 +145,9 @@ Future<void> _showConvertDialog(
   // The toast can outlive the widget that raised it.
   if (!context.mounted) return;
   final l = AppLocalizations.of(context);
+  // Taken now: the row that raised the toast may be gone once the dialog
+  // closes, and with it the ref.
+  final actions = ref.read(repoActionsProvider(repoPath));
   final shown = candidates.take(_maxListed).toList();
   final rest = candidates.length - shown.length;
   final ok = await showAppModal<bool>(
@@ -197,6 +200,6 @@ Future<void> _showConvertDialog(
     ],
   );
   if (ok == true) {
-    await ref.read(repoActionsProvider(repoPath)).lfsConvert(candidates);
+    await actions.lfsConvert(candidates);
   }
 }
