@@ -16,6 +16,18 @@ Future<void> showLfsPruneFlow(
   final l = AppLocalizations.of(context);
   final actions = ref.read(repoActionsProvider(repoPath));
   final toasts = ref.read(toastProvider.notifier);
+  // Read through the container: the check repeats after the confirm dialog,
+  // by which time the widget behind [ref] may be gone.
+  final container = ProviderScope.containerOf(context, listen: false);
+  // Prune runs on the repo lane, so a fetch on its own lane can overlap it
+  // and prune could delete objects that fetch has just downloaded.
+  bool fetchRunning() {
+    if (container.read(fetchBusyProvider) == null) return false;
+    toasts.show(l.bbOperationRunning, kind: ToastKind.warning);
+    return true;
+  }
+
+  if (fetchRunning()) return;
   final (:completed, :preview) = await actions.lfsPrunePreview();
   if (!completed) return; // the failure, skip or cancel was already shown
   if (preview == null) {
@@ -33,5 +45,6 @@ Future<void> showLfsPruneFlow(
     body: l.lfsPruneBody(preview.count),
     confirmLabel: l.lfsPruneConfirm,
   );
-  if (ok) await actions.lfsPrune();
+  if (!ok || fetchRunning()) return;
+  await actions.lfsPrune();
 }

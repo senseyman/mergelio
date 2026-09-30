@@ -167,6 +167,41 @@ void main() {
     expect(find.text('Prune LFS objects'), findsNothing);
   });
 
+  // A prune racing a fetch could delete objects the fetch just downloaded.
+  testWidgets('busy fetch lane: warning toast, no git call', (tester) async {
+    final git = _FakeGit(
+      GitResult(0, '3 local objects, 1 retained, done.\n', ''),
+    );
+    final c = await _pump(tester, git);
+    c.read(fetchBusyProvider.notifier).state = const BusyState('Fetch');
+    await tester.tap(find.text('go'));
+    await tester.pumpAndSettle();
+    final warnings = [
+      for (final t in c.read(toastProvider))
+        if (t.kind == ToastKind.warning) t.title,
+    ];
+    expect(warnings, ['An operation is already running']);
+    expect(git.calls, isEmpty);
+    expect(find.text('Prune LFS objects'), findsNothing);
+  });
+
+  testWidgets('a fetch that starts while confirming stops the prune', (
+    tester,
+  ) async {
+    final git = _FakeGit(
+      GitResult(0, '3 local objects, 1 retained, done.\n', ''),
+    );
+    final c = await _pump(tester, git);
+    await tester.tap(find.text('go'));
+    await tester.pumpAndSettle();
+    expect(find.text('Prune LFS objects'), findsOneWidget);
+    c.read(fetchBusyProvider.notifier).state = const BusyState('Fetch');
+    await tester.tap(find.text('Prune'));
+    await tester.pumpAndSettle();
+    expect(git.pruneCalls, 0);
+    expect(_toasts(c), contains('An operation is already running'));
+  });
+
   testWidgets('cancelled preview: no unreadable toast, no dialog, no prune', (
     tester,
   ) async {
