@@ -413,6 +413,70 @@ class RepoActions {
   Future<bool> lfsInstallHooks() =>
       _lfsLocal('Install LFS hooks', _writer.lfsInstallLocal);
 
+  /// Locks [path] on the LFS server so nobody else can change it.
+  Future<bool> lfsLock(String path) {
+    if (_blockedByFetchOp) return Future.value(false);
+    return _lfsNetwork(
+      'Lock $path',
+      (c) async {
+        try {
+          await _writer.lfsLock(path, cancel: c);
+        } on GitException catch (e) {
+          throw _lockRefusal(e, unlock: false);
+        }
+      },
+      lane: _Lane.fetch,
+      writesWorkingTree: false,
+    );
+  }
+
+  /// Releases [lock], which the current user holds.
+  Future<bool> lfsUnlock(LfsLock lock) => _lfsUnlock(lock, force: false);
+
+  /// Releases [lock] even when someone else holds it. Does not confirm;
+  /// callers ask the user first.
+  Future<bool> lfsForceUnlock(LfsLock lock) => _lfsUnlock(lock, force: true);
+
+  Future<bool> _lfsUnlock(LfsLock lock, {required bool force}) {
+    if (_blockedByFetchOp) return Future.value(false);
+    return _lfsNetwork(
+      '${force ? 'Force unlock' : 'Unlock'} ${lock.path}',
+      (c) async {
+        try {
+          // git-lfs can exit 0 and still report a refusal in the JSON.
+          final out = await _writer.lfsUnlock(lock.id, force: force, cancel: c);
+          final reason = parseLfsUnlockFailure(out);
+          if (reason != null) throw GitException(reason);
+        } on GitException catch (e) {
+          throw _lockRefusal(e, unlock: true);
+        }
+      },
+      lane: _Lane.fetch,
+      writesWorkingTree: false,
+    );
+  }
+
+  /// git-lfs writes refusal reasons to stdout as JSON, but the failure toast
+  /// prefers stderr and falls back to the message, so lift the reason there.
+  GitException _lockRefusal(GitException e, {required bool unlock}) {
+    if ((e.result?.err ?? '').isNotEmpty) return e;
+    final out = e.result?.stdout ?? '';
+    if (unlock) {
+      final reason = parseLfsUnlockFailure(out);
+      return reason == null || reason == 'unlock failed'
+          ? e
+          : GitException(reason);
+    }
+    try {
+      final v = jsonDecode(out);
+      final m = v is Map ? v['message'] : null;
+      if (m is String && m.isNotEmpty) return GitException(m);
+    } on FormatException {
+      // Not JSON; keep the original.
+    }
+    return e;
+  }
+
   // — Submodules —
 
   Future<void> submoduleUpdateAll({bool recursive = false}) => _network(
@@ -536,6 +600,16 @@ class RepoActions {
         onSuccess: () =>
             _ref.read(forgeRefreshProvider).refreshAfterGitOp(path),
       );
+
+  /// True (and toasts) when a fetch-lane operation is running, so a second
+  /// one must not start beside it.
+  bool get _blockedByFetchOp {
+    if (_ref.read(fetchBusyProvider) == null) return false;
+    _ref
+        .read(toastProvider.notifier)
+        .show('An operation is already running', kind: ToastKind.warning);
+    return true;
+  }
 
   /// True (and toasts) when something already holds the repository lane, so an
   /// index-touching mutation must not run concurrently and race on
