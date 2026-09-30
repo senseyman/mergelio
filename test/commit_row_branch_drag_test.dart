@@ -131,4 +131,55 @@ void main() {
     await dropOn('feat');
     expect(drops, ['topic>origin/feat'], reason: 'the chip refused it');
   });
+
+  testWidgets('a label that refuses a drop does not pass it to its row', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final drops = <String>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(extensions: [AppTokens.dark()]),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: Column(
+            children: [
+              DragTarget<String>(
+                onAcceptWithDetails: (d) => drops.add('row'),
+                builder: (_, _, _) => CommitRow(
+                  commit: _c(head: true),
+                  branchLabels: const ['feat'],
+                  showBranchLabel: true,
+                  metrics: const RailMetrics(),
+                  maxLane: 0,
+                  cols: const {'branch': true},
+                  selected: false,
+                  onTap: () {},
+                  acceptsBranchDrop: (source, chip) => false,
+                  onBranchDropped: (source, chip, _) => drops.add(chip),
+                ),
+              ),
+              const Draggable<String>(
+                data: 'topic',
+                feedback: SizedBox(width: 10, height: 10),
+                child: Text('source'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    for (final chip in ['feat', 'HEAD']) {
+      await tester.drag(
+        find.text('source'),
+        tester.getCenter(find.text(chip)) -
+            tester.getCenter(find.text('source')),
+      );
+      await tester.pumpAndSettle();
+    }
+    expect(drops, isEmpty);
+  });
 }

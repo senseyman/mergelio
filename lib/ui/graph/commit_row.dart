@@ -233,10 +233,13 @@ class CommitRow extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             for (final chip in shown)
-              if (chip.isHead)
-                _branchChip(chip.name, colorFor(chip))
-              else
-                _dragChip(t, chip.name, colorFor(chip)),
+              _labelDropTarget(
+                t,
+                chip.name,
+                chip.isHead
+                    ? _branchChip(chip.name, colorFor(chip))
+                    : _dragChip(chip.name, colorFor(chip)),
+              ),
             if (overflow > 0)
               Tooltip(
                 message: hidden.join('\n'),
@@ -249,32 +252,44 @@ class CommitRow extends StatelessWidget {
   }
 
   /// A branch chip that can be dragged onto another row to open the branch
-  /// drop menu, and takes a dropped branch itself as a drop on the branch it
-  /// names — the row around it could only guess which of its chips was meant.
-  /// A drag only starts once the pointer moves, so double-click still switches
-  /// to the branch.
-  Widget _dragChip(AppTokens t, String name, Color color) {
-    final chip = Draggable<String>(
-      data: name,
-      dragAnchorStrategy: pointerDragAnchorStrategy,
-      feedback: BranchDragChip(label: name),
-      childWhenDragging: Opacity(opacity: 0.4, child: _branchChip(name, color)),
-      child: GestureDetector(
-        onDoubleTap: onBranchActivated == null
-            ? null
-            : () => onBranchActivated!(name),
-        child: _branchChip(name, color),
-      ),
-    );
+  /// drop menu. A drag only starts once the pointer moves, so double-click
+  /// still switches to the branch.
+  Widget _dragChip(String name, Color color) => Draggable<String>(
+    data: name,
+    dragAnchorStrategy: pointerDragAnchorStrategy,
+    feedback: BranchDragChip(label: name),
+    childWhenDragging: Opacity(opacity: 0.4, child: _branchChip(name, color)),
+    child: GestureDetector(
+      onDoubleTap: onBranchActivated == null
+          ? null
+          : () => onBranchActivated!(name),
+      child: _branchChip(name, color),
+    ),
+  );
+
+  /// Makes the label [name] the drop target for a branch let go over it, as a
+  /// drop on the label rather than on the row around it. The label claims
+  /// every branch drag, even one it refuses: Flutter hands a refused drop to
+  /// the next target under the pointer, which would turn a drop on a label
+  /// into a drop on the row's commit.
+  Widget _labelDropTarget(AppTokens t, String name, Widget child) {
     final accepts = acceptsBranchDrop;
-    if (accepts == null) return chip;
+    if (accepts == null) return child;
     return DragTarget<String>(
-      onWillAcceptWithDetails: (d) => accepts(d.data, name),
-      onAcceptWithDetails: (d) => onBranchDropped?.call(d.data, name, d.offset),
-      builder: (ctx, candidates, _) => Container(
-        color: candidates.isNotEmpty ? t.accent.withValues(alpha: 0.28) : null,
-        child: chip,
-      ),
+      onWillAcceptWithDetails: (_) => true,
+      onAcceptWithDetails: (d) {
+        if (accepts(d.data, name)) {
+          onBranchDropped?.call(d.data, name, d.offset);
+        }
+      },
+      builder: (ctx, candidates, _) {
+        final source = candidates.firstOrNull;
+        final lit = source != null && accepts(source, name);
+        return Container(
+          color: lit ? t.accent.withValues(alpha: 0.28) : null,
+          child: child,
+        );
+      },
     );
   }
 
