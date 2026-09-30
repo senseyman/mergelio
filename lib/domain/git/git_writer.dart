@@ -232,18 +232,25 @@ class GitWriter {
       _lfsNet(['lfs', 'prune'], 'git lfs prune', cancel: cancel);
 
   /// Routes files matching [pattern] through LFS by adding it to
-  /// `.gitattributes`. Stages nothing.
+  /// `.gitattributes`. Stages nothing. The `--` here and in the other track
+  /// commands keeps a pattern or path that starts with `-` from being read as
+  /// an option.
   Future<void> lfsTrack(String pattern) =>
-      _ok(['lfs', 'track', pattern], 'git lfs track');
+      _ok(['lfs', 'track', '--', pattern], 'git lfs track');
 
   /// Routes exactly [path] through LFS; `--filename` escapes any glob
   /// characters that appear in it.
-  Future<void> lfsTrackFile(String path) =>
-      _ok(['lfs', 'track', '--filename', path], 'git lfs track --filename');
+  Future<void> lfsTrackFile(String path) => _ok([
+    'lfs',
+    'track',
+    '--filename',
+    '--',
+    path,
+  ], 'git lfs track --filename');
 
   /// Stops routing files matching [pattern] through LFS.
   Future<void> lfsUntrack(String pattern) =>
-      _ok(['lfs', 'untrack', pattern], 'git lfs untrack');
+      _ok(['lfs', 'untrack', '--', pattern], 'git lfs untrack');
 
   /// Lists the patterns currently routed through LFS, as git-lfs's own
   /// report — left unparsed since callers only display it.

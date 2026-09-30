@@ -87,13 +87,13 @@ void main() {
 
   test('track, untrack, list, install --local', () async {
     await w.lfsTrack('*.psd');
-    expect(last(), ['lfs', 'track', '*.psd']);
+    expect(last(), ['lfs', 'track', '--', '*.psd']);
 
     await w.lfsTrackFile('sub/odd [1].bin');
-    expect(last(), ['lfs', 'track', '--filename', 'sub/odd [1].bin']);
+    expect(last(), ['lfs', 'track', '--filename', '--', 'sub/odd [1].bin']);
 
     await w.lfsUntrack('*.psd');
-    expect(last(), ['lfs', 'untrack', '*.psd']);
+    expect(last(), ['lfs', 'untrack', '--', '*.psd']);
 
     final out = await w.lfsTrackList();
     expect(out, 'out');

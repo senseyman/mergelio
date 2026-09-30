@@ -192,7 +192,7 @@ void main() {
     await _openMenu(t, 'art/cover.psd');
     await t.tap(find.text('Track *.psd with LFS'));
     await t.pumpAndSettle();
-    expect(git.ran(['lfs', 'track', '*.psd']), isTrue);
+    expect(git.ran(['lfs', 'track', '--', '*.psd']), isTrue);
     final toast = h.container
         .read(toastProvider)
         .firstWhere((x) => x.title.contains('not in LFS'));
@@ -234,7 +234,7 @@ void main() {
     await _openMenu(t, 'art/cover.psd');
     await t.tap(find.text('Track *.psd with LFS'));
     await t.pumpAndSettle();
-    expect(git.ran(['lfs', 'track', '*.psd']), isTrue);
+    expect(git.ran(['lfs', 'track', '--', '*.psd']), isTrue);
     expect(
       h.container.read(toastProvider).any((x) => x.action != null),
       isFalse,
@@ -247,7 +247,7 @@ void main() {
     await _openMenu(t, 'dir/x [1].psd');
     await t.tap(find.text('Track this file with LFS'));
     await t.pumpAndSettle();
-    expect(git.ran(['lfs', 'track', '--filename', 'dir/x [1].psd']), isTrue);
+    expect(git.ran(['lfs', 'track', '--filename', '--', 'dir/x [1].psd']), isTrue);
   });
 
   testWidgets('untrack dialog lists patterns; picking one untracks it', (
@@ -267,7 +267,7 @@ void main() {
     expect(find.textContaining('-weird'), findsNothing);
     await t.tap(find.text('*.psd (.gitattributes)'));
     await t.pumpAndSettle();
-    expect(git.ran(['lfs', 'untrack', '*.psd']), isTrue);
+    expect(git.ran(['lfs', 'untrack', '--', '*.psd']), isTrue);
     expect(find.text('Stop tracking with LFS'), findsNothing);
   });
 
@@ -313,7 +313,7 @@ void main() {
     await _openMenu(t, 'art/cover.psd');
     await t.tap(find.text('Track *.psd with LFS'));
     await t.pumpAndSettle();
-    expect(git.ran(['lfs', 'track', '*.psd']), isTrue);
+    expect(git.ran(['lfs', 'track', '--', '*.psd']), isTrue);
     final toasts = h.container.read(toastProvider);
     final errors = toasts.where((x) => x.kind == ToastKind.error);
     expect(errors, hasLength(1));

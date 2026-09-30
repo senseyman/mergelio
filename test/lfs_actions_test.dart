@@ -202,7 +202,7 @@ void main() {
     final ok = await actions.lfsTrack('*.psd');
     expect(ok, isTrue);
     expect(ran(), [
-      ['lfs', 'track', '*.psd'],
+      ['lfs', 'track', '--', '*.psd'],
     ]);
     expect(ran().any((c) => c.first == 'add'), isFalse);
     expect(gen(), 1);
@@ -277,14 +277,14 @@ void main() {
   test('lfsUntrack runs lfs untrack', () async {
     expect(await actions.lfsUntrack('*.psd'), isTrue);
     expect(ran(), [
-      ['lfs', 'untrack', '*.psd'],
+      ['lfs', 'untrack', '--', '*.psd'],
     ]);
   });
 
   test('lfsTrackFile tracks one exact filename', () async {
     expect(await actions.lfsTrackFile('dir/x [1].psd'), isTrue);
     expect(ran(), [
-      ['lfs', 'track', '--filename', 'dir/x [1].psd'],
+      ['lfs', 'track', '--filename', '--', 'dir/x [1].psd'],
     ]);
   });
 
@@ -311,7 +311,7 @@ void main() {
     container.read(fetchBusyProvider.notifier).state = const BusyState('Fetch');
     expect(await actions.lfsTrack('*.psd'), isTrue);
     expect(ran(), [
-      ['lfs', 'track', '*.psd'],
+      ['lfs', 'track', '--', '*.psd'],
     ]);
   });
 
