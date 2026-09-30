@@ -585,6 +585,7 @@ diff --git a/$pPsd b/$pPsd
       LfsPointer? before,
       LfsPointer? after,
       String path = 'art.psd',
+      String? oldPath,
     }) {
       rec.clear();
       return _app(
@@ -593,7 +594,8 @@ diff --git a/$pPsd b/$pPsd
           target: target,
           file: FileDiff(
             path: path,
-            status: GitChange.modified,
+            oldPath: oldPath,
+            status: oldPath == null ? GitChange.modified : GitChange.renamed,
             lfs: LfsDiff(before: before, after: after),
           ),
         ),
@@ -641,6 +643,47 @@ diff --git a/$pPsd b/$pPsd
       expect(rec.where((c) => c.first == 'lfs'), [
         ['lfs', 'fetch', 'origin', '$sha^', '--include=art.psd'],
       ]);
+    });
+
+    testWidgets('a rename fetches the before side at its old path', (
+      tester,
+    ) async {
+      final t = DiffTarget(repoPath: '/r', path: 'new.psd', commitSha: sha);
+      await tester.pumpWidget(
+        card(
+          t,
+          before: p1,
+          after: p2,
+          present: {_b},
+          path: 'new.psd',
+          oldPath: 'old.psd',
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Download'));
+      await tester.pumpAndSettle();
+      expect(rec.where((c) => c.first == 'lfs'), [
+        ['lfs', 'fetch', 'origin', '$sha^', '--include=old.psd'],
+      ]);
+    });
+
+    testWidgets('a rename judges include-safety on the old path', (
+      tester,
+    ) async {
+      final t = DiffTarget(repoPath: '/r', path: 'new.psd', commitSha: sha);
+      await tester.pumpWidget(
+        card(
+          t,
+          before: p1,
+          after: p2,
+          present: {_b},
+          path: 'new.psd',
+          oldPath: 'old[1].psd',
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Download'), findsNothing);
+      expect(find.textContaining('Pull LFS files'), findsOneWidget);
     });
 
     testWidgets('comparison before side uses baseRev', (tester) async {

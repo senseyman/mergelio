@@ -105,19 +105,20 @@ class LfsCard extends ConsumerWidget {
         : null;
 
     /// The action that downloads a side's object, or null when there is
-    /// nothing sensible to run. [rev] is where that side's content lives.
-    VoidCallback? download(String? rev) {
+    /// nothing sensible to run. [rev] is where that side's content lives and
+    /// [path] the name it has there.
+    VoidCallback? download(String? rev, String path) {
       final actions = ref.read(repoActionsProvider(repoPath));
       if (target.isWorkingTree) {
-        return () => actions.lfsDownloadFile(file.path);
+        return () => actions.lfsDownloadFile(path);
       }
       // git-lfs would read a revision starting with `-` as one of its own
       // options, and its fetch has no marker that ends them.
       if (remote == null || rev == null || rev.startsWith('-')) return null;
-      return () => actions.lfsFetchObject(remote, rev, file.path);
+      return () => actions.lfsFetchObject(remote, rev, path);
     }
 
-    Widget side(LfsPointer p, {required String? rev}) {
+    Widget side(LfsPointer p, {required String? rev, required String path}) {
       final present =
           ref
               .watch(lfsObjectPresentProvider((repoPath: repoPath, oid: p.oid)))
@@ -126,10 +127,10 @@ class LfsCard extends ConsumerWidget {
       final Widget? extra;
       if (present || !ready) {
         extra = null;
-      } else if (!lfsIncludeSafe(file.path)) {
+      } else if (!lfsIncludeSafe(path)) {
         extra = Text(l.lfsDownloadUnsafePath, style: muted);
       } else {
-        final go = download(rev);
+        final go = download(rev, path);
         extra = go == null
             ? null
             : TextButton(onPressed: go, child: Text(l.lfsDownload));
@@ -180,9 +181,14 @@ class LfsCard extends ConsumerWidget {
                   ),
                   const SizedBox(height: 6),
                   if (lfs.before != null)
-                    side(lfs.before!, rev: lfsSourceFor(target).parentRev),
+                    // A rename's old content lives under its old name.
+                    side(
+                      lfs.before!,
+                      rev: lfsSourceFor(target).parentRev,
+                      path: file.oldPath ?? file.path,
+                    ),
                   if (lfs.after != null)
-                    side(lfs.after!, rev: target.commitSha),
+                    side(lfs.after!, rev: target.commitSha, path: file.path),
                   if (toolMissing) ...[
                     const SizedBox(height: 8),
                     Text(l.lfsToolMissing, style: muted),
