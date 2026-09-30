@@ -253,6 +253,9 @@ class CommitDetails extends ConsumerWidget {
                             )
                             .valueOrNull ??
                         const <String>{};
+                    final locks =
+                        ref.watch(lfsLocksProvider(repoPath)).valueOrNull ??
+                        LfsLockState.none;
                     return FileTreeView(
                       paths: [for (final f in list) f.path],
                       tree: tree,
@@ -262,6 +265,8 @@ class CommitDetails extends ConsumerWidget {
                         indent: FileTreeView.indent(depth),
                         inTree: tree,
                         lfs: lfs.contains(path),
+                        lock: locks.lockFor(path),
+                        lockIsOurs: locks.ours.any((l) => l.path == path),
                         onTap: () =>
                             ref
                                 .read(diffTargetProvider.notifier)

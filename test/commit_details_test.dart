@@ -35,6 +35,7 @@ Widget _harness({
           const [CommitFileChange(path: 'x', change: GitChange.modified)],
     ),
     commitSignatureProvider.overrideWith((ref, key) async => sigStatus),
+    lfsLocksProvider.overrideWith((ref, p) async => LfsLockState.none),
     lfsPathsProvider.overrideWith(
       lfsPaths ?? (ref, q) async => const <String>{},
     ),
