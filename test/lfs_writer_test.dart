@@ -181,13 +181,14 @@ void main() {
       expect(last(), ['lfs', 'unlock', '--json', '--force', '--id', '7']);
     });
 
-    test('lock commands use the local timeout and network env', () async {
+    test('lock commands use the lock-server timeout and network env', () async {
+      expect(GitWriter.lfsLockTimeout, const Duration(minutes: 5));
       await w.lfsLockList();
       await w.lfsLock('a.psd');
       await w.lfsUnlock('7');
       for (var i = 0; i < git.calls.length; i++) {
         if (git.calls[i].first != 'lfs') continue;
-        expect(git.timeouts[i], GitWriter.lfsLocalTimeout);
+        expect(git.timeouts[i], GitWriter.lfsLockTimeout);
         expect(git.envs[i], isNotNull);
       }
       expect(git.calls.where((c) => c.first == 'lfs'), hasLength(3));

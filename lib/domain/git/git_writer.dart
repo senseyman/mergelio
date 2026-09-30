@@ -98,6 +98,11 @@ class GitWriter {
   /// some of these, which can outlast the ordinary default on a large tree.
   static const lfsLocalTimeout = Duration(seconds: 60);
 
+  /// Ceiling for a call to the LFS lock server. One unlock can be several
+  /// requests (git-lfs looks the lock up before releasing it), and a distant
+  /// or ssh-authenticated server can be slow; a stuck call can be cancelled.
+  static const lfsLockTimeout = Duration(minutes: 5);
+
   /// Resolved once per repository: the ssh command git would use anyway, plus
   /// what a command that hits an authentication prompt needs.
   Map<String, String>? _netEnvCache;
@@ -306,7 +311,7 @@ class GitWriter {
   /// other failures.
   Future<GitResult> lfsLockList({GitCancel? cancel}) async => _run(
     ['lfs', 'locks', '--verify', '--json', '--limit', '1000'],
-    timeout: lfsLocalTimeout,
+    timeout: lfsLockTimeout,
     environment: await _netEnv(),
     cancel: cancel,
   );
@@ -317,7 +322,7 @@ class GitWriter {
     if (path.isEmpty) throw ArgumentError.value(path, 'path', 'is empty');
     final r = await _run(
       ['lfs', 'lock', '--json', '--', path],
-      timeout: lfsLocalTimeout,
+      timeout: lfsLockTimeout,
       environment: await _netEnv(),
       cancel: cancel,
     );
@@ -338,7 +343,7 @@ class GitWriter {
     }
     final r = await _run(
       ['lfs', 'unlock', '--json', if (force) '--force', '--id', id],
-      timeout: lfsLocalTimeout,
+      timeout: lfsLockTimeout,
       environment: await _netEnv(),
       cancel: cancel,
     );
