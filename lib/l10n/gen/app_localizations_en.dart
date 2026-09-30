@@ -2391,6 +2391,72 @@ class AppLocalizationsEn extends AppLocalizations {
       'The pre-push hook exists, but git will not run it because the file is not executable. Nothing was pushed.';
 
   @override
+  String get lfsLockChipYou => 'You';
+
+  @override
+  String lfsLockTooltip(String owner, String age) {
+    return 'Locked by $owner $age';
+  }
+
+  @override
+  String get lfsLockFile => 'Lock file';
+
+  @override
+  String get lfsUnlockFile => 'Unlock file';
+
+  @override
+  String get lfsForceUnlock => 'Force unlock…';
+
+  @override
+  String get lfsForceUnlockTitle => 'Break someone else\'s lock';
+
+  @override
+  String lfsForceUnlockBody(String owner, String age) {
+    return '$owner locked this file $age. Breaking the lock does not stop them from pushing their changes, and they may lose work.';
+  }
+
+  @override
+  String get lfsForceUnlockConfirm => 'Break lock';
+
+  @override
+  String get lfsLocksSection => 'Locks';
+
+  @override
+  String get lfsLocksYours => 'Yours';
+
+  @override
+  String get lfsLocksOthers => 'Others';
+
+  @override
+  String get lfsLocksRefresh => 'Refresh';
+
+  @override
+  String get lfsLocksStale =>
+      'Couldn\'t refresh locks — showing the last known list';
+
+  @override
+  String lfsLocksMore(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'and $count more',
+      one: 'and $count more',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get lfsLocksUnsupported =>
+      'This repository\'s server doesn\'t support file locks.';
+
+  @override
+  String get lfsPushLockedTitle => 'Files locked by someone else';
+
+  @override
+  String get lfsPushLockedBody =>
+      'These files are locked by someone else. Pushing changes to them may overwrite their work.';
+
+  @override
   String get lfsPushAnyway => 'Push anyway';
 
   @override
