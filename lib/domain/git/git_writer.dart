@@ -277,6 +277,29 @@ class GitWriter {
     return r.stdout;
   }
 
+  /// Paths a push would send: what [upstream]`...HEAD` changes, or, with no
+  /// upstream or a [rev] other than HEAD, what [rev] holds that no remote has.
+  /// An [upstream] that starts with `-` is never handed to git; nothing is
+  /// reported for it.
+  Future<List<String>> changedPathsToPush({
+    String? upstream,
+    String rev = 'HEAD',
+  }) async {
+    if (upstream != null && upstream.startsWith('-')) return const [];
+    final useUpstream =
+        upstream != null && upstream.isNotEmpty && rev == 'HEAD';
+    final args = useUpstream
+        ? ['diff', '--name-only', '-z', '$upstream...HEAD']
+        : ['log', '--name-only', '-z', '--format=', rev, '--not', '--remotes'];
+    final r = await _run(args);
+    if (!r.ok) throw GitException('git ${args.first}', r);
+    final seen = <String>{};
+    for (final path in r.stdout.split('\u0000')) {
+      if (path.isNotEmpty) seen.add(path);
+    }
+    return seen.toList();
+  }
+
   /// Lists file locks, with which are the caller's own. Returned, never
   /// thrown on failure: a non-zero exit is how a server without locking
   /// support shows up, and the caller reads the report to tell that from

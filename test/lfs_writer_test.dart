@@ -229,6 +229,79 @@ void main() {
       await expectLater(w2.lfsUnlock('7'), throwsA(isA<GitException>()));
     });
   });
+
+  group('changedPathsToPush', () {
+    test(
+      'upstream: three-dot diff, NUL split, blanks dropped, de-duplicated',
+      () async {
+        final g = _Names('a.psd\u0000b c.bin\u0000\u0000a.psd\u0000');
+        final paths = await GitWriter(
+          g,
+          '/r',
+        ).changedPathsToPush(upstream: 'origin/main');
+        expect(paths, ['a.psd', 'b c.bin']);
+        expect(g.calls.single, [
+          'diff',
+          '--name-only',
+          '-z',
+          'origin/main...HEAD',
+        ]);
+      },
+    );
+
+    test('no upstream: log of commits no remote has', () async {
+      final g = _Names('x\u0000');
+      final paths = await GitWriter(g, '/r').changedPathsToPush();
+      expect(paths, ['x']);
+      expect(g.calls.single, [
+        'log',
+        '--name-only',
+        '-z',
+        '--format=',
+        'HEAD',
+        '--not',
+        '--remotes',
+      ]);
+    });
+
+    test('a tag pushes with the log form on refs/tags/<tag>', () async {
+      final g = _Names('x\u0000');
+      await GitWriter(
+        g,
+        '/r',
+      ).changedPathsToPush(upstream: 'origin/main', rev: 'refs/tags/v1');
+      expect(g.calls.single, [
+        'log',
+        '--name-only',
+        '-z',
+        '--format=',
+        'refs/tags/v1',
+        '--not',
+        '--remotes',
+      ]);
+    });
+
+    test(
+      'a dash-leading upstream makes no git call and returns nothing',
+      () async {
+        final g = _Names('x\u0000');
+        final paths = await GitWriter(
+          g,
+          '/r',
+        ).changedPathsToPush(upstream: '--output=/tmp/x');
+        expect(paths, isEmpty);
+        expect(g.calls, isEmpty);
+      },
+    );
+
+    test('a failing git throws GitException', () async {
+      final g = _Names('', code: 128);
+      await expectLater(
+        GitWriter(g, '/r').changedPathsToPush(upstream: 'origin/main'),
+        throwsA(isA<GitException>()),
+      );
+    });
+  });
 }
 
 class _Failing extends _Capture {
@@ -247,6 +320,24 @@ class _Failing extends _Capture {
     return args.first == 'lfs'
         ? const GitResult(2, '', 'boom')
         : const GitResult(0, '', '');
+  }
+}
+
+class _Names extends _Capture {
+  _Names(this.out, {this.code = 0});
+  final String out;
+  final int code;
+  @override
+  Future<GitResult> run(
+    List<String> args, {
+    String? repoPath,
+    Duration? timeout,
+    Map<String, String>? environment,
+    GitCancel? cancel,
+    String? stdin,
+  }) async {
+    calls.add(args);
+    return GitResult(code, out, code == 0 ? '' : 'bad revision');
   }
 }
 

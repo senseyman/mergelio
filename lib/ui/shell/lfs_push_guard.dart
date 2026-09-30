@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
+import '../../domain/git/git_providers.dart';
+import '../../domain/git/git_writer.dart';
 import '../../domain/git/lfs.dart';
 import '../../domain/git/models.dart';
 import '../../l10n/gen/app_localizations.dart';
@@ -12,9 +14,101 @@ import '../../state/repo_data.dart';
 import '../common/dialogs.dart';
 import '../diff/lfs_card.dart';
 
-/// Checks, before a push, that LFS objects would go up with the commits.
-/// Asks the user only when they would not; returns whether to push.
+/// Checks, before a push, that LFS objects would go up with the commits, then
+/// that no file others have locked is among them. Asks the user only when a
+/// check fails; returns whether to push. Pass [tag] when pushing that tag
+/// rather than the current branch.
 Future<bool> confirmLfsPushReady(
+  BuildContext context,
+  WidgetRef ref,
+  String repoPath, {
+  String? tag,
+}) async {
+  if (!await _confirmObjectsReady(context, ref, repoPath)) return false;
+  if (!context.mounted) return true;
+  return _confirmNoLockedFiles(context, ref, repoPath, tag);
+}
+
+/// Warns when the push carries changes to files others hold locks on.
+///
+/// Reads the lock list as it stands and never waits for it or refreshes it: a
+/// push must not wait on the lock server. No list yet, or no locking, skips.
+Future<bool> _confirmNoLockedFiles(
+  BuildContext context,
+  WidgetRef ref,
+  String repoPath,
+  String? tag,
+) async {
+  final locks = ref.read(lfsLocksProvider(repoPath)).valueOrNull;
+  if (locks == null || !locks.available || locks.theirs.isEmpty) return true;
+  final branches =
+      ref.read(repoDataProvider(repoPath)).valueOrNull?.branches ??
+      const <Branch>[];
+  final upstream = branches.where((b) => b.current).firstOrNull?.upstream;
+  final writer = GitWriter(ref.read(gitServiceProvider), repoPath);
+  final List<String> changed;
+  try {
+    changed = await writer.changedPathsToPush(
+      upstream: upstream,
+      rev: tag == null ? 'HEAD' : 'refs/tags/$tag',
+    );
+  } on Object {
+    return true;
+  }
+  final changedSet = changed.toSet();
+  final hits = [
+    for (final lock in locks.theirs)
+      if (changedSet.contains(lock.path)) lock,
+  ];
+  if (hits.isEmpty || !context.mounted) return true;
+  final l = AppLocalizations.of(context);
+  final t = context.tokens;
+  const shown = 10;
+  final ok = await showAppModal<bool>(
+    context: context,
+    title: l.lfsPushLockedTitle,
+    icon: Icons.lock_outline,
+    width: 480,
+    body: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          l.lfsPushLockedBody,
+          style: TextStyle(color: t.textMuted, fontSize: 13, height: 1.5),
+        ),
+        const SizedBox(height: 12),
+        for (final lock in hits.take(shown))
+          Text(
+            '${lock.path} — ${lock.owner}',
+            style: TextStyle(color: t.textPrimary, fontSize: 12.5, height: 1.5),
+          ),
+        if (hits.length > shown)
+          Text(
+            l.lfsLocksMore(hits.length - shown),
+            style: TextStyle(color: t.textMuted, fontSize: 12.5, height: 1.5),
+          ),
+      ],
+    ),
+    actions: [
+      Builder(
+        builder: (ctx) => TextButton(
+          onPressed: () => Navigator.of(ctx).pop(false),
+          child: Text(l.cancel),
+        ),
+      ),
+      Builder(
+        builder: (ctx) => FilledButton(
+          onPressed: () => Navigator.of(ctx).pop(true),
+          child: Text(l.lfsPushAnyway),
+        ),
+      ),
+    ],
+  );
+  return ok ?? false;
+}
+
+Future<bool> _confirmObjectsReady(
   BuildContext context,
   WidgetRef ref,
   String repoPath,
