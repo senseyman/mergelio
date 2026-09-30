@@ -2395,7 +2395,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String lfsLockTooltip(String owner, String age) {
-    return 'Locked by $owner $age';
+    return 'Locked by $owner · $age';
   }
 
   @override
@@ -2412,7 +2412,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String lfsForceUnlockBody(String owner, String age) {
-    return '$owner locked this file $age. Breaking the lock does not stop them from pushing their changes, and they may lose work.';
+    return 'Locked by $owner ($age). Breaking the lock does not stop them from pushing their changes, and they may lose work.';
   }
 
   @override

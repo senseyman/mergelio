@@ -1537,7 +1537,7 @@
   "lfsPushInstallAndPush": "Install LFS hooks and push",
   "lfsPushHookNotRunnable": "The pre-push hook exists, but git will not run it because the file is not executable. Nothing was pushed.",
   "lfsLockChipYou": "You",
-  "lfsLockTooltip": "Locked by {owner} {age}",
+  "lfsLockTooltip": "Locked by {owner} · {age}",
   "@lfsLockTooltip": {
     "placeholders": {
       "owner": {
@@ -1552,7 +1552,7 @@
   "lfsUnlockFile": "Unlock file",
   "lfsForceUnlock": "Force unlock…",
   "lfsForceUnlockTitle": "Break someone else's lock",
-  "lfsForceUnlockBody": "{owner} locked this file {age}. Breaking the lock does not stop them from pushing their changes, and they may lose work.",
+  "lfsForceUnlockBody": "Locked by {owner} ({age}). Breaking the lock does not stop them from pushing their changes, and they may lose work.",
   "@lfsForceUnlockBody": {
     "placeholders": {
       "owner": {

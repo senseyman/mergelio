@@ -4193,7 +4193,7 @@ abstract class AppLocalizations {
   /// No description provided for @lfsLockTooltip.
   ///
   /// In en, this message translates to:
-  /// **'Locked by {owner} {age}'**
+  /// **'Locked by {owner} · {age}'**
   String lfsLockTooltip(String owner, String age);
 
   /// No description provided for @lfsLockFile.
@@ -4223,7 +4223,7 @@ abstract class AppLocalizations {
   /// No description provided for @lfsForceUnlockBody.
   ///
   /// In en, this message translates to:
-  /// **'{owner} locked this file {age}. Breaking the lock does not stop them from pushing their changes, and they may lose work.'**
+  /// **'Locked by {owner} ({age}). Breaking the lock does not stop them from pushing their changes, and they may lose work.'**
   String lfsForceUnlockBody(String owner, String age);
 
   /// No description provided for @lfsForceUnlockConfirm.

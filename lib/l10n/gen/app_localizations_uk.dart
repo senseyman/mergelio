@@ -2413,7 +2413,7 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String lfsLockTooltip(String owner, String age) {
-    return 'Заблоковано: $owner, $age';
+    return 'Заблоковано: $owner · $age';
   }
 
   @override
@@ -2430,7 +2430,7 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String lfsForceUnlockBody(String owner, String age) {
-    return 'Файл заблоковано користувачем $owner $age. Зняття блокування не завадить надіслати їхні зміни, і їхня робота може бути втрачена.';
+    return 'Файл заблоковано користувачем $owner ($age). Зняття блокування не завадить надіслати їхні зміни, і їхня робота може бути втрачена.';
   }
 
   @override
