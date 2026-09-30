@@ -13,6 +13,7 @@ import 'package:mergelio/state/lfs.dart';
 import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
+import 'package:mergelio/ui/workspace/lfs_lock_menu.dart';
 import 'package:mergelio/ui/workspace/working_tree_panel.dart';
 
 class _FakeGit implements GitService {
@@ -183,5 +184,53 @@ void main() {
     await _openMenu(t, '-x.psd');
     expect(find.text('Blame'), findsOneWidget);
     expect(_item('Lock file'), findsNothing);
+  });
+
+  testWidgets('force unlock still runs when the row that asked is gone', (
+    t,
+  ) async {
+    final git = _FakeGit();
+    final shown = ValueNotifier(true);
+    await t.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gitServiceProvider.overrideWithValue(git),
+          settingsProvider.overrideWith(
+            (ref) => SettingsController(
+              InMemorySettingsRepository(),
+              const AppSettings(),
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          theme: ThemeData(extensions: [AppTokens.dark()]),
+          home: Scaffold(
+            body: ValueListenableBuilder<bool>(
+              valueListenable: shown,
+              builder: (_, on, _) => on
+                  ? Consumer(
+                      builder: (context, ref, _) => TextButton(
+                        onPressed: () =>
+                            confirmLfsForceUnlock(context, ref, '/r', _theirs),
+                        child: const Text('ask'),
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ),
+        ),
+      ),
+    );
+    await t.tap(find.text('ask'));
+    await t.pumpAndSettle();
+    shown.value = false;
+    await t.pump();
+    await t.tap(find.text('Break lock'));
+    await t.pumpAndSettle();
+    expect(git.lfsCalls, [
+      ['lfs', 'unlock', '--json', '--force', '--id', '7'],
+    ]);
   });
 }

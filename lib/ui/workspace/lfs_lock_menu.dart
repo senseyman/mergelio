@@ -64,6 +64,7 @@ Future<void> confirmLfsForceUnlock(
     body: l.lfsForceUnlockBody(lock.owner, forgeAgo(l, lock.lockedAt) ?? ''),
     confirmLabel: l.lfsForceUnlockConfirm,
   );
-  if (!ok || !context.mounted) return;
+  // No mounted check: the confirmed unlock needs nothing from the row.
+  if (!ok) return;
   await actions.lfsForceUnlock(lock);
 }
