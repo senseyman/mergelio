@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/data/kv_store.dart';
@@ -316,6 +318,8 @@ void main() {
     expect(await actions.lfsUntrack('*.psd', '.gitattributes'), isTrue);
     expect(ran(), [
       ['lfs', 'untrack', '--', '*.psd'],
+      // Read back to confirm git-lfs really removed it.
+      ['lfs', 'track'],
     ]);
     expect(git.dirs['lfs untrack -- *.psd'], '/r');
   });
@@ -329,14 +333,113 @@ void main() {
     );
     expect(ran(), [
       ['lfs', 'untrack', '--', '*.psd'],
+      // Read back to confirm git-lfs really removed it.
+      ['lfs', 'track'],
     ]);
     expect(git.dirs['lfs untrack -- *.psd'], p.join('/r', 'sub/a'));
+  });
+
+  group('lfsUntrack when git-lfs leaves the pattern in place', () {
+    const escaped = r'x[[:space:]]\[1\].z';
+    late Directory repo;
+    late RepoActions local;
+
+    setUp(() {
+      // The repository sits inside a scratch root, so a path that climbs out
+      // of it lands somewhere this test owns.
+      final root = Directory.systemTemp.createTempSync('mergelio_untrack_');
+      addTearDown(() => root.deleteSync(recursive: true));
+      repo = Directory(p.join(root.path, 'repo'))..createSync();
+      local = container.read(repoActionsProvider(repo.path));
+    });
+
+    String listing(String pattern, String source) =>
+        'Listing tracked patterns\n    $pattern ($source)\n'
+        'Listing excluded patterns\n';
+
+    test('removes the line from its .gitattributes itself', () async {
+      final attrs = File(p.join(repo.path, '.gitattributes'))
+        ..writeAsStringSync(
+          '*.txt text\n$escaped filter=lfs diff=lfs merge=lfs -text\n',
+        );
+      git.responses['lfs track'] = GitResult(
+        0,
+        listing(escaped, '.gitattributes'),
+        '',
+      );
+      expect(await local.lfsUntrack(escaped, '.gitattributes'), isTrue);
+      expect(attrs.readAsStringSync(), '*.txt text\n');
+      expect(git.calls.where((c) => c.first == 'add'), isEmpty);
+    });
+
+    test(
+      'edits a nested file, writing the pattern as that file does',
+      () async {
+        Directory(p.join(repo.path, 'sub')).createSync();
+        final attrs = File(p.join(repo.path, 'sub', '.gitattributes'))
+          ..writeAsStringSync('$escaped filter=lfs diff=lfs merge=lfs -text\n');
+        git.responses['lfs track'] = GitResult(
+          0,
+          listing('sub/$escaped', 'sub/.gitattributes'),
+          '',
+        );
+        expect(
+          await local.lfsUntrack('sub/$escaped', 'sub/.gitattributes'),
+          isTrue,
+        );
+        expect(attrs.readAsStringSync(), '');
+      },
+    );
+
+    test('leaves the file alone when git-lfs did remove it', () async {
+      final attrs = File(p.join(repo.path, '.gitattributes'))
+        ..writeAsStringSync('*.psd filter=lfs diff=lfs merge=lfs -text\n');
+      git.responses['lfs track'] = const GitResult(
+        0,
+        'Listing tracked patterns\nListing excluded patterns\n',
+        '',
+      );
+      expect(await local.lfsUntrack('*.psd', '.gitattributes'), isTrue);
+      expect(
+        attrs.readAsStringSync(),
+        '*.psd filter=lfs diff=lfs merge=lfs -text\n',
+      );
+    });
+
+    test('reports failure when the line cannot be found either', () async {
+      File(p.join(repo.path, '.gitattributes')).writeAsStringSync('');
+      git.responses['lfs track'] = GitResult(
+        0,
+        listing(escaped, '.gitattributes'),
+        '',
+      );
+      expect(await local.lfsUntrack(escaped, '.gitattributes'), isFalse);
+      expect(
+        container.read(toastProvider).map((t) => t.kind),
+        contains(ToastKind.error),
+      );
+    });
+
+    test('never edits a file outside the repository', () async {
+      const line = '$escaped filter=lfs diff=lfs merge=lfs -text\n';
+      final outside = File(p.join(repo.parent.path, '.gitattributes'))
+        ..writeAsStringSync(line);
+      git.responses['lfs track'] = GitResult(
+        0,
+        listing(escaped, '../.gitattributes'),
+        '',
+      );
+      expect(await local.lfsUntrack(escaped, '../.gitattributes'), isFalse);
+      expect(outside.readAsStringSync(), line);
+    });
   });
 
   test('lfsUntrack keeps a nested pattern that lacks the prefix', () async {
     expect(await actions.lfsUntrack('*.psd', 'sub/.gitattributes'), isTrue);
     expect(ran(), [
       ['lfs', 'untrack', '--', '*.psd'],
+      // Read back to confirm git-lfs really removed it.
+      ['lfs', 'track'],
     ]);
     expect(git.dirs['lfs untrack -- *.psd'], p.join('/r', 'sub'));
   });

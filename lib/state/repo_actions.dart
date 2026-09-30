@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
 
 import '../core/concurrency.dart';
 import '../core/logging.dart';
@@ -313,12 +314,32 @@ class RepoActions {
 
   /// Untracks [pattern] as `git lfs track` lists it, with [source] the
   /// `.gitattributes` file it came from.
+  /// Stops routing [pattern], listed from [source], through LFS.
+  ///
+  /// `git lfs untrack` succeeds without removing some patterns — those
+  /// written with escapes, as tracking a single file writes them. So the
+  /// listing is read again afterwards, and a pattern still there is removed
+  /// from its own `.gitattributes` directly. Nothing is staged either way.
   Future<bool> lfsUntrack(String pattern, String source) {
     final target = lfsUntrackTarget(pattern, source);
-    return _lfsLocal(
-      'Stop tracking $pattern',
-      () => _writer.lfsUntrack(target.pattern, dir: target.dir),
-    );
+    return _lfsLocal('Stop tracking $pattern', () async {
+      await _writer.lfsUntrack(target.pattern, dir: target.dir);
+      final still = parseLfsTrackList(await _writer.lfsTrackList())
+          .contains(LfsTrackedPattern(pattern: pattern, source: source));
+      if (!still) return;
+      final file = p.normalize(p.join(path, source.replaceAll(r'\', '/')));
+      if (!p.isWithin(path, file)) {
+        throw GitException('$source is outside the repository');
+      }
+      final edited = withoutLfsPattern(
+        await File(file).readAsString(),
+        target.pattern,
+      );
+      if (edited == null) {
+        throw GitException('$pattern could not be removed from $source');
+      }
+      await File(file).writeAsString(edited);
+    });
   }
 
   Future<List<LfsTrackedPattern>> lfsTrackedPatterns() async =>

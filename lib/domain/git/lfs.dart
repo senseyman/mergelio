@@ -325,9 +325,11 @@ class LfsTrackedPattern {
 /// [source], and the pattern to pass there. git-lfs lists a nested pattern
 /// prefixed with its file's directory (`sub/*.psd` from `sub/.gitattributes`)
 /// yet only removes it when run in that directory with the pattern as that
-/// file writes it (`*.psd`).
+/// file writes it (`*.psd`). On Windows git-lfs writes [source] with
+/// backslashes; only the source is normalised, since a backslash in the
+/// pattern is an escape.
 ({String dir, String pattern}) lfsUntrackTarget(String pattern, String source) {
-  final dir = p.posix.dirname(source);
+  final dir = p.posix.dirname(source.replaceAll(r'\', '/'));
   if (dir == '.' || dir.isEmpty) return (dir: '', pattern: pattern);
   final prefix = '$dir/';
   return (
@@ -336,6 +338,34 @@ class LfsTrackedPattern {
         ? pattern.substring(prefix.length)
         : pattern,
   );
+}
+
+/// [content] of a `.gitattributes` file without the line that routes
+/// [pattern] through LFS, or null when there is no such line.
+///
+/// `git lfs untrack` cannot remove every pattern it lists: one written with
+/// escapes, as `git lfs track --filename` writes it, survives every form of
+/// the argument while the command still succeeds. Matching the file's own
+/// text is what removes it. Only a line whose first field is exactly
+/// [pattern] and that sets the LFS filter goes; line endings are kept.
+String? withoutLfsPattern(String content, String pattern) {
+  final kept = <String>[];
+  var removed = false;
+  for (final line in content.split('\n')) {
+    if (_routesThroughLfs(line, pattern)) {
+      removed = true;
+    } else {
+      kept.add(line);
+    }
+  }
+  return removed ? kept.join('\n') : null;
+}
+
+bool _routesThroughLfs(String line, String pattern) {
+  final fields = line.trim().split(RegExp(r'\s+'));
+  return fields.length > 1 &&
+      fields.first == pattern &&
+      fields.skip(1).contains('filter=lfs');
 }
 
 final _trackLine = RegExp(r'^\s+(.+) \(([^()]+)\)$');

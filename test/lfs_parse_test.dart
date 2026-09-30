@@ -68,6 +68,76 @@ void main() {
     });
   });
 
+  group('lfsUntrackTarget', () {
+    test('root, nested and deeper sources', () {
+      expect(lfsUntrackTarget('*.psd', '.gitattributes'), (
+        dir: '',
+        pattern: '*.psd',
+      ));
+      expect(lfsUntrackTarget('sub/*.psd', 'sub/.gitattributes'), (
+        dir: 'sub',
+        pattern: '*.psd',
+      ));
+      expect(lfsUntrackTarget('a/b/*.psd', 'a/b/.gitattributes'), (
+        dir: 'a/b',
+        pattern: '*.psd',
+      ));
+    });
+    test('a source written with backslashes, as Windows lists it', () {
+      expect(lfsUntrackTarget(r'sub/*.psd', r'sub\.gitattributes'), (
+        dir: 'sub',
+        pattern: '*.psd',
+      ));
+      expect(lfsUntrackTarget(r'a/b/*.psd', r'a\b\.gitattributes'), (
+        dir: 'a/b',
+        pattern: '*.psd',
+      ));
+    });
+    test('backslashes in the pattern itself are escapes and are kept', () {
+      expect(
+        lfsUntrackTarget(r'x[[:space:]]\[1\].z', '.gitattributes').pattern,
+        r'x[[:space:]]\[1\].z',
+      );
+    });
+  });
+
+  group('withoutLfsPattern', () {
+    const escaped = r'x[[:space:]]\[1\].z';
+    test('drops the LFS line for exactly that pattern', () {
+      expect(
+        withoutLfsPattern(
+          '*.txt text\n$escaped filter=lfs diff=lfs merge=lfs -text\n',
+          escaped,
+        ),
+        '*.txt text\n',
+      );
+    });
+    test('keeps CRLF endings on the lines it leaves', () {
+      expect(
+        withoutLfsPattern(
+          '*.txt text\r\n$escaped filter=lfs diff=lfs merge=lfs -text\r\n',
+          escaped,
+        ),
+        '*.txt text\r\n',
+      );
+    });
+    test('leaves a line for the same pattern without the LFS filter', () {
+      expect(withoutLfsPattern('*.psd -text\n', '*.psd'), isNull);
+    });
+    test('does not match a longer pattern that starts the same', () {
+      expect(
+        withoutLfsPattern(
+          '*.psdx filter=lfs diff=lfs merge=lfs -text\n',
+          '*.psd',
+        ),
+        isNull,
+      );
+    });
+    test('null when the pattern is not there', () {
+      expect(withoutLfsPattern('', '*.psd'), isNull);
+    });
+  });
+
   group('revisionArgs', () {
     test('marks the end of options on git 2.24 and later', () {
       expect(revisionArgs('abc', 'git version 2.24.0'), [
