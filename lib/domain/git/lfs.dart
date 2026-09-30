@@ -431,3 +431,109 @@ String? lfsExtensionPattern(String path) {
   if (!RegExp(r'^[A-Za-z0-9_+-]+$').hasMatch(ext)) return null;
   return '*.$ext';
 }
+
+/// A file lock held on the LFS server.
+class LfsLock {
+  const LfsLock({
+    required this.id,
+    required this.path,
+    required this.owner,
+    this.lockedAt,
+  });
+
+  final String id;
+  final String path;
+  final String owner;
+  final DateTime? lockedAt;
+
+  @override
+  bool operator ==(Object other) =>
+      other is LfsLock &&
+      other.id == id &&
+      other.path == path &&
+      other.owner == owner &&
+      other.lockedAt == lockedAt;
+
+  @override
+  int get hashCode => Object.hash(id, path, owner, lockedAt);
+
+  @override
+  String toString() => 'LfsLock($id, $path, $owner, $lockedAt)';
+}
+
+Object? _decode(String raw) {
+  try {
+    return jsonDecode(raw);
+  } on FormatException {
+    return null;
+  }
+}
+
+LfsLock? _lockFrom(Object? v) {
+  if (v is! Map) return null;
+  final id = v['id'];
+  final path = v['path'];
+  if (id is! String || path is! String) return null;
+  final owner = v['owner'];
+  final name = owner is Map && owner['name'] is String
+      ? owner['name'] as String
+      : '';
+  final at = v['locked_at'];
+  return LfsLock(
+    id: id,
+    path: path,
+    owner: name,
+    lockedAt: at is String ? DateTime.tryParse(at)?.toUtc() : null,
+  );
+}
+
+List<LfsLock> _locksFrom(Object? v) =>
+    v is List ? [for (final e in v) ?_lockFrom(e)] : const [];
+
+/// Parses the array printed by `git lfs locks --json`; null when it is not one.
+List<LfsLock>? parseLfsLocksJson(String raw) {
+  final v = _decode(raw);
+  return v is List ? _locksFrom(v) : null;
+}
+
+/// Parses `git lfs locks --verify --json`: locks held by the user (`ours`)
+/// and by others (`theirs`). A missing key is an empty list.
+({List<LfsLock> ours, List<LfsLock> theirs})? parseLfsLocksVerifyJson(
+  String raw,
+) {
+  final v = _decode(raw);
+  if (v is! Map) return null;
+  return (ours: _locksFrom(v['ours']), theirs: _locksFrom(v['theirs']));
+}
+
+/// Parses the single object printed by `git lfs lock --json`.
+LfsLock? parseLfsLockResultJson(String raw) => _lockFrom(_decode(raw));
+
+/// The first failure reason in `git lfs unlock --json` output, or null when
+/// every entry unlocked. Entries may be keyed by `id` or by `path`.
+String? parseLfsUnlockFailure(String raw) {
+  final v = _decode(raw);
+  if (v is! List) return 'unlock failed';
+  for (final e in v) {
+    if (e is Map && e['unlocked'] != true) {
+      final reason = e['reason'];
+      return reason is String && reason.isNotEmpty ? reason : 'unlock failed';
+    }
+  }
+  return null;
+}
+
+/// Stderr fragments meaning the remote cannot do locking at all.
+const _locksUnsupportedMarkers = [
+  // A file:// or otherwise protocol-less remote has no locking API.
+  'missing protocol',
+  // The server answers the locks endpoint with 404.
+  '404',
+  // The server says so explicitly.
+  'not supported',
+];
+
+/// True when [stderr] shows the server does not support file locking.
+bool lfsLocksUnsupported(String stderr) =>
+    _locksUnsupportedMarkers.any(stderr.contains) ||
+    (stderr.contains('Not Found') && stderr.contains('locks'));

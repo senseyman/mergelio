@@ -468,4 +468,120 @@ void main() {
       expect(lfsExtensionPattern('archive.'), isNull);
     });
   });
+
+  const lockJson =
+      '{"id":"123","path":"art/a.psd","owner":{"name":"Ann"},'
+      '"locked_at":"2026-09-30T10:00:00Z"}';
+  final lockA = LfsLock(
+    id: '123',
+    path: 'art/a.psd',
+    owner: 'Ann',
+    lockedAt: DateTime.utc(2026, 9, 30, 10),
+  );
+
+  group('parseLfsLocksJson', () {
+    test('empty array', () => expect(parseLfsLocksJson('[]'), isEmpty));
+    test('one lock', () {
+      final locks = parseLfsLocksJson('[$lockJson]')!;
+      expect(locks, [lockA]);
+      expect(locks.single.lockedAt!.isUtc, isTrue);
+    });
+    test('two locks keep order', () {
+      const b = '{"id":"9","path":"b.bin","owner":{"name":"Bo"}}';
+      final locks = parseLfsLocksJson('[$lockJson,$b]')!;
+      expect(locks.map((l) => l.id), ['123', '9']);
+    });
+    test('missing owner and locked_at', () {
+      final l = parseLfsLocksJson('[{"id":"1","path":"a"}]')!.single;
+      expect(l.owner, '');
+      expect(l.lockedAt, isNull);
+    });
+    test('wrong-typed elements are skipped', () {
+      final locks = parseLfsLocksJson('[1,{"id":5,"path":"a"},$lockJson]')!;
+      expect(locks, [lockA]);
+    });
+    test('not an array or not JSON is null', () {
+      expect(parseLfsLocksJson('nope'), isNull);
+      expect(parseLfsLocksJson('{}'), isNull);
+      expect(parseLfsLocksJson(''), isNull);
+    });
+  });
+
+  group('parseLfsLocksVerifyJson', () {
+    test('both empty', () {
+      final r = parseLfsLocksVerifyJson('{"ours":[],"theirs":[]}')!;
+      expect(r.ours, isEmpty);
+      expect(r.theirs, isEmpty);
+    });
+    test('splits ours and theirs', () {
+      final r = parseLfsLocksVerifyJson(
+        '{"ours":[$lockJson],"theirs":[{"id":"2","path":"t","owner":{"name":"Tim"}}]}',
+      )!;
+      expect(r.ours, [lockA]);
+      expect(r.theirs.single.owner, 'Tim');
+    });
+    test('missing key is empty', () {
+      final r = parseLfsLocksVerifyJson('{"ours":[$lockJson]}')!;
+      expect(r.ours, [lockA]);
+      expect(r.theirs, isEmpty);
+    });
+    test('not JSON is null', () {
+      expect(parseLfsLocksVerifyJson('nope'), isNull);
+      expect(parseLfsLocksVerifyJson('[]'), isNull);
+    });
+  });
+
+  group('parseLfsLockResultJson', () {
+    test('object gives a lock', () {
+      expect(parseLfsLockResultJson(lockJson), lockA);
+    });
+    test('array or not JSON is null', () {
+      expect(parseLfsLockResultJson('[]'), isNull);
+      expect(parseLfsLockResultJson('nope'), isNull);
+    });
+  });
+
+  group('parseLfsUnlockFailure', () {
+    test('returns the first reason', () {
+      expect(
+        parseLfsUnlockFailure(
+          '[{"id":"7","unlocked":false,"reason":"Unable to unlock 7: no"}]',
+        ),
+        'Unable to unlock 7: no',
+      );
+    });
+    test('entries keyed by path', () {
+      expect(
+        parseLfsUnlockFailure(
+          '[{"path":"a.psd","unlocked":false,"reason":"unable get lock ID"}]',
+        ),
+        'unable get lock ID',
+      );
+    });
+    test('all unlocked is null', () {
+      expect(parseLfsUnlockFailure('[{"id":"7","unlocked":true}]'), isNull);
+    });
+    test('not JSON', () {
+      expect(parseLfsUnlockFailure('boom'), 'unlock failed');
+    });
+  });
+
+  group('lfsLocksUnsupported', () {
+    test('true for unsupported servers', () {
+      expect(
+        lfsLocksUnsupported(
+          'Locking a.psd failed: missing protocol: "file:///x/remote.git"',
+        ),
+        isTrue,
+      );
+      expect(lfsLocksUnsupported('error: 404 from server'), isTrue);
+      expect(lfsLocksUnsupported('locks API Not Found'), isTrue);
+      expect(lfsLocksUnsupported('locking is not supported'), isTrue);
+    });
+    test('false for other failures', () {
+      expect(lfsLocksUnsupported('dial tcp: lookup x: no such host'), isFalse);
+      expect(lfsLocksUnsupported('authentication failed'), isFalse);
+      expect(lfsLocksUnsupported('Not Found'), isFalse);
+    });
+  });
 }
