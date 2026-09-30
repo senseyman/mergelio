@@ -2387,6 +2387,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lfsPushInstallAndPush => 'Install LFS hooks and push';
 
   @override
+  String get lfsPushHookNotRunnable =>
+      'The pre-push hook exists, but git will not run it because the file is not executable. Nothing was pushed.';
+
+  @override
   String get lfsPushAnyway => 'Push anyway';
 
   @override

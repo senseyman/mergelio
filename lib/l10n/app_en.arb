@@ -1535,6 +1535,7 @@
   "lfsPushHookTitle": "LFS hooks are not installed",
   "lfsPushHookBody": "This repository stores files with Git LFS, but pushing from here would upload only pointers — the LFS hooks are not installed.",
   "lfsPushInstallAndPush": "Install LFS hooks and push",
+  "lfsPushHookNotRunnable": "The pre-push hook exists, but git will not run it because the file is not executable. Nothing was pushed.",
   "lfsPushAnyway": "Push anyway",
   "lfsPushToolTitle": "git-lfs is not installed",
   "lfsPushToolBody": "This repository stores files with Git LFS. Pushing without git-lfs uploads pointers without their content.",

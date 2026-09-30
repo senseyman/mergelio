@@ -2405,6 +2405,10 @@ class AppLocalizationsUk extends AppLocalizations {
   String get lfsPushInstallAndPush => 'Встановити хуки LFS і надіслати';
 
   @override
+  String get lfsPushHookNotRunnable =>
+      'Хук pre-push існує, але git не запустить його, бо файл не виконуваний. Нічого не надіслано.';
+
+  @override
   String get lfsPushAnyway => 'Однаково надіслати';
 
   @override

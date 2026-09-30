@@ -23,6 +23,9 @@ class _FakeGit implements GitService {
   final List<List<String>> calls = [];
   int installExit = 0;
 
+  /// Set once `git lfs install --local` has succeeded.
+  bool installed = false;
+
   @override
   Future<GitResult> run(
     List<String> args, {
@@ -34,6 +37,7 @@ class _FakeGit implements GitService {
   }) async {
     calls.add(args);
     if (args.first == 'lfs' && args[1] == 'install') {
+      installed = installExit == 0;
       return GitResult(installExit, '', installExit == 0 ? '' : 'no hooks dir');
     }
     final out = switch (args.first) {
@@ -61,10 +65,13 @@ Widget _app(
   LfsPushReadiness readiness,
   Widget home, {
   RepoData? data,
+  LfsPushReadiness afterInstall = LfsPushReadiness.ready,
 }) => ProviderScope(
   overrides: [
     gitServiceProvider.overrideWithValue(git),
-    lfsPushReadinessProvider.overrideWith((ref, src) async => readiness),
+    lfsPushReadinessProvider.overrideWith(
+      (ref, src) async => git.installed ? afterInstall : readiness,
+    ),
     settingsProvider.overrideWith(
       (ref) => SettingsController(
         InMemorySettingsRepository(),
@@ -92,13 +99,15 @@ Future<ProviderContainer> _open(WidgetTester tester, Finder host) async {
 Future<List<bool>> _pumpGuard(
   WidgetTester tester,
   _FakeGit git,
-  LfsPushReadiness readiness,
-) async {
+  LfsPushReadiness readiness, {
+  LfsPushReadiness afterInstall = LfsPushReadiness.ready,
+}) async {
   final answers = <bool>[];
   await tester.pumpWidget(
     _app(
       git,
       readiness,
+      afterInstall: afterInstall,
       Consumer(
         builder: (ctx, ref, _) => Scaffold(
           body: ElevatedButton(
@@ -144,6 +153,32 @@ void main() {
         git.calls.any((c) => c.join(' ') == 'lfs install --local'),
         isTrue,
       );
+    });
+
+    // git-lfs reports success yet leaves an existing pre-push hook that lacks
+    // the execute bit as it is, and git skips such a hook on push.
+    testWidgets('hookMissing: install that leaves the hook unrunnable returns '
+        'false and says why', (tester) async {
+      final git = _FakeGit();
+      final answers = await _pumpGuard(
+        tester,
+        git,
+        LfsPushReadiness.hookMissing,
+        afterInstall: LfsPushReadiness.hookMissing,
+      );
+      await tester.tap(find.text('Install LFS hooks and push'));
+      await tester.pumpAndSettle();
+      expect(git.installed, isTrue);
+      expect(answers, [false]);
+      final c = ProviderScope.containerOf(
+        tester.element(find.byType(Scaffold)),
+      );
+      final errors = [
+        for (final t in c.read(toastProvider))
+          if (t.kind == ToastKind.error) '${t.title} ${t.description}',
+      ];
+      expect(errors, hasLength(1));
+      expect(errors.single, contains('not executable'));
     });
 
     testWidgets('hookMissing: failed install returns false and toasts stderr', (

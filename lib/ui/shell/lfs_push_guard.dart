@@ -5,6 +5,7 @@ import '../../core/tokens.dart';
 import '../../domain/git/lfs.dart';
 import '../../domain/git/models.dart';
 import '../../l10n/gen/app_localizations.dart';
+import '../../state/feedback.dart';
 import '../../state/lfs.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
@@ -21,9 +22,8 @@ Future<bool> confirmLfsPushReady(
   final working =
       ref.read(repoDataProvider(repoPath)).valueOrNull?.working ??
       const <WorkingFile>[];
-  final readiness = await ref.read(
-    lfsPushReadinessProvider(workingTreeLfsSource(repoPath, working)).future,
-  );
+  final source = workingTreeLfsSource(repoPath, working);
+  final readiness = await ref.read(lfsPushReadinessProvider(source).future);
   if (readiness == LfsPushReadiness.ready || !context.mounted) {
     return readiness == LfsPushReadiness.ready;
   }
@@ -62,7 +62,18 @@ Future<bool> confirmLfsPushReady(
   );
   switch (choice) {
     case _Choice.install:
-      return ref.read(repoActionsProvider(repoPath)).lfsInstallHooks();
+      final toasts = ref.read(toastProvider.notifier);
+      if (!await ref.read(repoActionsProvider(repoPath)).lfsInstallHooks()) {
+        return false;
+      }
+      // git-lfs reports success yet leaves an existing pre-push hook that
+      // lacks the execute bit untouched, and git skips such a hook. Look
+      // again rather than trusting the exit code; the file is the user's, so
+      // its mode is theirs to change.
+      final after = await ref.refresh(lfsPushReadinessProvider(source).future);
+      if (after == LfsPushReadiness.ready) return true;
+      toasts.show(l.lfsPushHookNotRunnable, kind: ToastKind.error);
+      return false;
     case _Choice.pushAnyway:
       return true;
     case _Choice.cancel || null:

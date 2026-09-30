@@ -4178,6 +4178,12 @@ abstract class AppLocalizations {
   /// **'Install LFS hooks and push'**
   String get lfsPushInstallAndPush;
 
+  /// No description provided for @lfsPushHookNotRunnable.
+  ///
+  /// In en, this message translates to:
+  /// **'The pre-push hook exists, but git will not run it because the file is not executable. Nothing was pushed.'**
+  String get lfsPushHookNotRunnable;
+
   /// No description provided for @lfsPushAnyway.
   ///
   /// In en, this message translates to:
