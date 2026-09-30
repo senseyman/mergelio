@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mergelio/domain/git/models.dart';
 import 'package:mergelio/ui/shell/branch_drop.dart';
 
 void main() {
@@ -109,5 +110,72 @@ void main() {
       BranchDrop.values.where((d) => d.destructive),
       unorderedEquals([BranchDrop.resetHard, BranchDrop.moveHere]),
     );
+  });
+
+  group('graphDropTarget', () {
+    const branches = [
+      Branch(name: 'main', current: true, tip: 'm1'),
+      Branch(name: 'feat', tip: 'f1'),
+    ];
+
+    test('a row carrying a local branch is a drop on that branch', () {
+      final t = graphDropTarget(
+        source: 'feat',
+        sha: 'm1',
+        localRef: 'main',
+        isStash: false,
+        branches: branches,
+      );
+      expect(t?.isBranch, isTrue);
+      expect(t?.ref, 'main');
+    });
+
+    test('any other row is a drop on the commit', () {
+      final t = graphDropTarget(
+        source: 'feat',
+        sha: 'c9',
+        localRef: null,
+        isStash: false,
+        branches: branches,
+      );
+      expect(t?.isBranch, isFalse);
+      expect(t?.ref, 'c9');
+    });
+
+    test('rejects a branch dropped on itself or on its own tip', () {
+      expect(
+        graphDropTarget(
+          source: 'main',
+          sha: 'm1',
+          localRef: 'main',
+          isStash: false,
+          branches: branches,
+        ),
+        isNull,
+      );
+      expect(
+        graphDropTarget(
+          source: 'feat',
+          sha: 'f1',
+          localRef: null,
+          isStash: false,
+          branches: branches,
+        ),
+        isNull,
+      );
+    });
+
+    test('rejects a stash row, whose commit is not history', () {
+      expect(
+        graphDropTarget(
+          source: 'feat',
+          sha: 's1',
+          localRef: null,
+          isStash: true,
+          branches: branches,
+        ),
+        isNull,
+      );
+    });
   });
 }

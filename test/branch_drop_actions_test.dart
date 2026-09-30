@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/state/repo_actions.dart';
+import 'package:mergelio/state/undo_stack.dart';
 
 void main() {
   late Directory dir;
@@ -65,6 +66,22 @@ void main() {
 
       await actions.undo();
       expect(await out(['rev-parse', 'side']), a);
+    });
+
+    test('names a branch target in full in the undo label', () async {
+      await commit('a.txt', 'a\n', 'A');
+      await g(['branch', 'side']);
+      await g(['branch', 'feature-long-name']);
+      await commit('b.txt', 'b\n', 'B');
+
+      await actions.moveBranch('side', 'main');
+
+      expect(c.read(undoProvider(dir.path)).undoLabel, 'Move side to main');
+      await actions.moveBranch('side', 'feature-long-name');
+      expect(
+        c.read(undoProvider(dir.path)).undoLabel,
+        'Move side to feature-long-name',
+      );
     });
 
     test('refuses the current branch, which needs a reset instead', () async {

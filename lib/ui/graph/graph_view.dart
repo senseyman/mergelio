@@ -627,27 +627,29 @@ class _GraphListState extends ConsumerState<GraphList> {
                           },
                         ),
                       );
-                      // Every row accepts a dragged branch: a row carrying a
-                      // local branch is a drop on that branch, any other row a
-                      // drop on the commit itself.
+                      // A row accepts a dragged branch as a drop on its local
+                      // branch or on its commit; see [graphDropTarget].
                       final localRef = derived.localRefBySha[c.sha];
-                      final target = localRef != null
-                          ? BranchDropTarget.branch(localRef)
-                          : BranchDropTarget.commit(c.sha);
+                      BranchDropTarget? targetFor(String source) =>
+                          graphDropTarget(
+                            source: source,
+                            sha: c.sha,
+                            localRef: localRef,
+                            isStash: stashBySha.containsKey(c.sha),
+                            branches: d.branches,
+                          );
                       return DragTarget<String>(
                         onWillAcceptWithDetails: (dd) =>
-                            dd.data != localRef &&
-                            !d.branches.any(
-                              (b) => b.name == dd.data && b.tip == c.sha,
-                            ),
+                            targetFor(dd.data) != null,
                         onAcceptWithDetails: (dd) {
+                          final target = targetFor(dd.data);
                           final repoPath = ref
                               .read(workspaceProvider)
                               .activeTab
                               ?.path;
-                          if (repoPath == null) return;
+                          if (target == null || repoPath == null) return;
                           showBranchDropMenu(
-                            context,
+                            this.context,
                             ref,
                             repoPath: repoPath,
                             source: dd.data,

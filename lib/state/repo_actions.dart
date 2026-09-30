@@ -2794,8 +2794,11 @@ class RepoActions {
     _refresh();
   }
 
+  /// Abbreviates a full sha for labels. Anything else is a ref name (a reset
+  /// or move can target a branch), which is left whole.
   static String _short(String sha) =>
-      sha.length > 7 ? sha.substring(0, 7) : sha;
+      sha.length > 7 && _fullSha.hasMatch(sha) ? sha.substring(0, 7) : sha;
+  static final _fullSha = RegExp(r'^[0-9a-f]{40}([0-9a-f]{24})?$');
 
   /// A local (non-network) mutation: time it, toast the outcome, refresh.
   ///

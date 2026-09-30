@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/git/models.dart';
 import '../../domain/git/remote_ref.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/repo_actions.dart';
@@ -37,6 +38,25 @@ class BranchDropTarget {
 
   /// What the menu calls this target: the branch name, or a short sha.
   String get label => isBranch || ref.length <= 7 ? ref : ref.substring(0, 7);
+}
+
+/// What a graph row is as a drop target for branch [source], or null when it
+/// refuses the drop. A row carrying the local branch [localRef] is a drop on
+/// that branch; any other row a drop on its commit [sha]. A stash row is
+/// refused (its commit is not history), as is a drop that would target the
+/// source itself.
+BranchDropTarget? graphDropTarget({
+  required String source,
+  required String sha,
+  required String? localRef,
+  required bool isStash,
+  required List<Branch> branches,
+}) {
+  if (isStash || source == localRef) return null;
+  if (branches.any((b) => b.name == source && b.tip == sha)) return null;
+  return localRef != null
+      ? BranchDropTarget.branch(localRef)
+      : BranchDropTarget.commit(sha);
 }
 
 /// Menu options for dropping a branch on [target], in menu order.
