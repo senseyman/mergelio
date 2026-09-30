@@ -1,6 +1,11 @@
 import 'dart:convert';
+import 'dart:io';
+import 'dart:isolate';
 
 import 'package:crypto/crypto.dart';
+import 'package:path/path.dart' as p;
+
+import 'git_service.dart';
 
 /// `git count-objects -v`, sizes converted from git's KiB to bytes.
 class CountObjects {
@@ -354,4 +359,237 @@ String formatBytes(int bytes) {
     u++;
   }
   return '${v.toStringAsFixed(1)} ${units[u]}';
+}
+
+/// Bytes a git directory holds, split by what they are.
+class GitDirSize {
+  final int packBytes;
+  final int looseBytes;
+  final int lfsBytes;
+  final int otherBytes;
+
+  const GitDirSize({
+    this.packBytes = 0,
+    this.looseBytes = 0,
+    this.lfsBytes = 0,
+    this.otherBytes = 0,
+  });
+
+  int get totalBytes => packBytes + looseBytes + lfsBytes + otherBytes;
+}
+
+final _looseDir = RegExp(r'^objects/[0-9a-f]{2}/');
+
+/// Walks [gitDir] and buckets every file's size. Symlinks are not followed,
+/// so a shared object store linked in is not counted twice. A missing
+/// directory measures as empty.
+Future<GitDirSize> measureGitDir(String gitDir) async {
+  final root = Directory(gitDir);
+  if (!await root.exists()) return const GitDirSize();
+  var pack = 0, loose = 0, lfs = 0, other = 0;
+  await for (final e in root.list(recursive: true, followLinks: false)) {
+    if (e is! File) continue;
+    final int size;
+    try {
+      size = await e.length();
+    } on FileSystemException {
+      continue; // removed mid-walk, e.g. by a concurrent gc
+    }
+    final rel = p.relative(e.path, from: gitDir).replaceAll('\\', '/');
+    if (rel.startsWith('objects/pack/')) {
+      pack += size;
+    } else if (_looseDir.hasMatch(rel)) {
+      loose += size;
+    } else if (rel.startsWith('lfs/')) {
+      lfs += size;
+    } else {
+      other += size;
+    }
+  }
+  return GitDirSize(
+    packBytes: pack,
+    looseBytes: loose,
+    lfsBytes: lfs,
+    otherBytes: other,
+  );
+}
+
+/// [measureGitDir] on a background isolate: a repository with many loose
+/// objects is tens of thousands of stat calls.
+Future<GitDirSize> measureGitDirOffThread(String gitDir) =>
+    Isolate.run(() => measureGitDir(gitDir));
+
+/// Branch clean-up candidates and the branch they were measured against.
+class BranchHygiene {
+  final String? trunk;
+  final List<HygieneBranch> branches;
+
+  const BranchHygiene({required this.trunk, required this.branches});
+}
+
+/// Listings above this size are sorted on a background isolate. Below it the
+/// copy to the isolate costs more than the sort.
+const _offThreadBatchChars = 1 << 20;
+
+/// The read side of the maintenance panel. Nothing here changes the
+/// repository.
+class MaintenanceReader {
+  final GitService git;
+  final String repoPath;
+
+  MaintenanceReader(this.git, this.repoPath);
+
+  /// Each step of a largest-blobs scan walks every object in the repository,
+  /// which on a large one runs far past the ordinary default.
+  static const scanTimeout = Duration(minutes: 10);
+
+  Future<GitResult> _run(
+    List<String> args, {
+    Duration? timeout,
+    GitCancel? cancel,
+    String? stdin,
+  }) => git.run(
+    args,
+    repoPath: repoPath,
+    timeout: timeout,
+    cancel: cancel,
+    stdin: stdin,
+  );
+
+  Future<String> _out(List<String> args, String what) async {
+    final r = await _run(args);
+    if (!r.ok) throw GitException(what, r);
+    return r.stdout;
+  }
+
+  /// Where objects actually live. A linked worktree answers with its main
+  /// repository's git dir, which is what its storage is.
+  Future<String> commonGitDir() async {
+    final dir = (await _out([
+      'rev-parse',
+      '--git-common-dir',
+    ], 'git rev-parse --git-common-dir')).trim();
+    return p.isAbsolute(dir) ? dir : p.normalize(p.join(repoPath, dir));
+  }
+
+  Future<CountObjects> countObjects() async => parseCountObjects(
+    await _out(['count-objects', '-v'], 'git count-objects'),
+  );
+
+  /// How many reflog entries the next gc would expire. No `--expire` is
+  /// passed, so the user's own `gc.reflogExpire*` settings decide.
+  Future<int> reflogExpiryCount() async => countReflogExpiry(
+    await _out([
+      'reflog',
+      'expire',
+      '--all',
+      '--dry-run',
+      '--verbose',
+    ], 'git reflog expire --dry-run'),
+  );
+
+  /// [heldBy] maps branch names to the worktree holding them.
+  Future<BranchHygiene> branchHygiene({
+    required DateTime now,
+    required Map<String, String> heldBy,
+  }) async {
+    final results = await Future.wait([
+      _run(['for-each-ref', '--format=$branchInfoFormat', 'refs/heads']),
+      _run(['symbolic-ref', '--quiet', '--short', 'refs/remotes/origin/HEAD']),
+      _run(['branch', '--show-current']),
+    ]);
+    if (!results[0].ok) {
+      throw GitException('git for-each-ref refs/heads', results[0]);
+    }
+    final infos = parseBranchInfo(results[0].stdout);
+    final current = results[2].out.isEmpty ? null : results[2].out;
+    final trunk = pickTrunk(
+      branches: {for (final i in infos) i.name},
+      originHead: results[1].ok && results[1].out.isNotEmpty
+          ? results[1].out
+          : null,
+      current: current,
+    );
+    var merged = const <String>{};
+    if (trunk != null) {
+      final r = await _run([
+        'for-each-ref',
+        '--merged=$trunk',
+        '--format=%(refname:short)',
+        'refs/heads',
+      ]);
+      if (r.ok) merged = const LineSplitter().convert(r.stdout).toSet();
+    }
+    return BranchHygiene(
+      trunk: trunk,
+      branches: classifyBranches(
+        infos: infos,
+        merged: merged,
+        trunk: trunk,
+        current: current,
+        heldBy: heldBy,
+        now: now,
+      ),
+    );
+  }
+
+  Future<String> currentRefsFingerprint() async => refsFingerprint(
+    await _out([
+      'for-each-ref',
+      '--format=%(objectname) %(refname)',
+    ], 'git for-each-ref'),
+  );
+
+  /// The [top] largest blobs anywhere in history, each with the commit that
+  /// introduced it. Every step takes [cancel], so the scan can be abandoned
+  /// part way.
+  Future<BlobScan> scanBlobs({
+    required int top,
+    required DateTime now,
+    GitCancel? cancel,
+  }) async {
+    final fingerprint = await currentRefsFingerprint();
+    Future<String> step(List<String> args, String what, {String? stdin}) async {
+      final r = await _run(
+        args,
+        timeout: scanTimeout,
+        cancel: cancel,
+        stdin: stdin,
+      );
+      if (!r.ok) throw GitException(what, r);
+      return r.stdout;
+    }
+
+    final listing = await step([
+      'rev-list',
+      '--objects',
+      '--all',
+    ], 'git rev-list --objects');
+    final batch = await step(
+      ['cat-file', '--batch-check=$blobBatchFormat'],
+      'git cat-file --batch-check',
+      stdin: listing,
+    );
+    final largest = batch.length > _offThreadBatchChars
+        ? await Isolate.run(() => topBlobs(batch, top))
+        : topBlobs(batch, top);
+    final blobs = await Future.wait([
+      for (final b in largest)
+        step(
+          [
+            'log',
+            '--all',
+            '--reverse',
+            '--format=$introducingCommitFormat',
+            '--find-object=${b.sha}',
+          ],
+          'git log --find-object',
+        ).then((out) => BigBlob(b, parseIntroducingCommit(out))),
+    ]);
+    return BlobScan(
+      scannedAt: now.toUtc().toIso8601String(),
+      fingerprint: fingerprint,
+      blobs: blobs,
+    );
+  }
 }
