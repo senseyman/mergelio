@@ -5,6 +5,7 @@ import '../../core/tokens.dart';
 import '../../domain/git/models.dart';
 import '../../state/graph_selection.dart';
 import '../../state/repo_data.dart';
+import '../../state/settings.dart';
 import '../../state/settings_controller.dart';
 import '../../state/workspace.dart';
 import '../../state/diff_target.dart';
@@ -16,6 +17,7 @@ import '../shell/collapsed_rail.dart';
 import '../shell/resize_handle.dart';
 import '../../state/compare_target.dart';
 import 'commit_details.dart';
+import 'lfs_locks_section.dart';
 import 'compare_details.dart';
 import 'panel_placeholder.dart';
 import 'repo_sidebar.dart';
@@ -33,30 +35,35 @@ class WorkspaceView extends ConsumerWidget {
     final s = ref.watch(settingsProvider);
     final ctl = ref.read(settingsProvider.notifier);
     final tab = ref.watch(workspaceProvider.select((w) => w.activeTab));
-
+    final Widget view;
     if (tab != null && tab.viewMode == RepoViewMode.files) {
-      return MergeToolGate(child: FilesView(repoPath: tab.path));
+      view = MergeToolGate(child: FilesView(repoPath: tab.path));
+    } else {
+      view = _panels(s, ctl);
     }
-
-    return MergeToolGate(
-      child: Row(
-        children: [
-          if (s.leftCollapsed)
-            CollapsedRail(onExpand: ctl.toggleLeftCollapsed)
-          else ...[
-            SizedBox(
-              width: s.leftWidth,
-              child: RepoSidebar(onCollapse: ctl.toggleLeftCollapsed),
-            ),
-            ResizeHandle(onDrag: (dx) => ctl.setLeftWidth(s.leftWidth + dx)),
-          ],
-          const Expanded(child: _CenterWithDiff()),
-          ResizeHandle(onDrag: (dx) => ctl.setRightWidth(s.rightWidth - dx)),
-          SizedBox(width: s.rightWidth, child: const RightPanel()),
-        ],
-      ),
-    );
+    return tab == null
+        ? view
+        : LfsLocksUnsupportedNotice(repoPath: tab.path, child: view);
   }
+
+  Widget _panels(AppSettings s, SettingsController ctl) => MergeToolGate(
+    child: Row(
+      children: [
+        if (s.leftCollapsed)
+          CollapsedRail(onExpand: ctl.toggleLeftCollapsed)
+        else ...[
+          SizedBox(
+            width: s.leftWidth,
+            child: RepoSidebar(onCollapse: ctl.toggleLeftCollapsed),
+          ),
+          ResizeHandle(onDrag: (dx) => ctl.setLeftWidth(s.leftWidth + dx)),
+        ],
+        const Expanded(child: _CenterWithDiff()),
+        ResizeHandle(onDrag: (dx) => ctl.setRightWidth(s.rightWidth - dx)),
+        SizedBox(width: s.rightWidth, child: const RightPanel()),
+      ],
+    ),
+  );
 }
 
 /// Centre column: the graph, with the diff sheet sliding up over its lower

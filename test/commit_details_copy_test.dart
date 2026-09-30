@@ -50,6 +50,7 @@ void main() {
           workspaceProvider.overrideWith((ref) => workspace),
           commitFilesProvider.overrideWith((ref, key) async => const []),
           commitSignatureProvider.overrideWith((ref, key) async => 'N'),
+          lfsLocksProvider.overrideWith((ref, p) async => LfsLockState.none),
           lfsPathsProvider.overrideWith((ref, q) async => const <String>{}),
           settingsProvider.overrideWith(
             (ref) => SettingsController(

@@ -7,6 +7,7 @@ import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/domain/git/models.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
+import 'package:mergelio/state/lfs.dart';
 import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
@@ -41,6 +42,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          lfsLocksProvider.overrideWith((ref, repo) async => LfsLockState.none),
           gitServiceProvider.overrideWithValue(_FakeGit()),
           commitFilesProvider((repo: '/r', sha: c.sha))
               .overrideWith((ref) async => const <CommitFileChange>[]),

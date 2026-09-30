@@ -26,6 +26,7 @@ Future<ProviderContainer> _pump(
   final container = ProviderContainer(
     overrides: [
       compareFilesProvider.overrideWith((ref, key) async => files),
+      lfsLocksProvider.overrideWith((ref, p) async => LfsLockState.none),
       lfsPathsProvider.overrideWith(
         lfsPaths ?? (ref, q) async => const <String>{},
       ),

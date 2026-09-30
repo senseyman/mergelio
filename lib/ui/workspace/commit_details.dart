@@ -17,6 +17,7 @@ import '../common/file_tree_view.dart';
 import '../graph/commit_columns.dart';
 import '../graph/ref_pill.dart';
 import 'edit_commit_message.dart';
+import 'lfs_lock_menu.dart';
 
 /// Right panel content for a selected commit: metadata, signature, the list of
 /// changed files (read-only), and a `‹ WIP` shortcut back to the working tree
@@ -253,6 +254,9 @@ class CommitDetails extends ConsumerWidget {
                             )
                             .valueOrNull ??
                         const <String>{};
+                    final locks =
+                        ref.watch(lfsLocksProvider(repoPath)).valueOrNull ??
+                        LfsLockState.none;
                     return FileTreeView(
                       paths: [for (final f in list) f.path],
                       tree: tree,
@@ -262,6 +266,15 @@ class CommitDetails extends ConsumerWidget {
                         indent: FileTreeView.indent(depth),
                         inTree: tree,
                         lfs: lfs.contains(path),
+                        lock: locks.lockFor(path),
+                        lockIsOurs: locks.isOurs(path),
+                        extraMenu: (ctx) => lfsLockMenuItems(
+                          context: ctx,
+                          ref: ref,
+                          repoPath: repoPath,
+                          path: path,
+                          isLfs: lfs.contains(path),
+                        ),
                         onTap: () =>
                             ref
                                 .read(diffTargetProvider.notifier)

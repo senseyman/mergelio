@@ -134,6 +134,20 @@ void main() {
     },
   );
 
+  test('a pull with no remote to reach says so, not the raw error', () async {
+    git.responses['lfs pull'] = const GitResult(
+      2,
+      '',
+      'batch request: missing protocol: ""\n'
+          "Failed to fetch some objects from ''",
+    );
+    await actions.lfsPull();
+    expect(
+      container.read(toastProvider).single.description,
+      'This repository has no remote to download LFS files from.',
+    );
+  });
+
   test('the operation is journaled', () async {
     await actions.lfsPull();
     final j = OperationJournal(kv, '/r');

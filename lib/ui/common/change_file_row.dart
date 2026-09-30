@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../core/tokens.dart';
+import '../../domain/git/lfs.dart';
 import '../../domain/git/models.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../insight/file_insight_dialog.dart';
 import 'dialogs.dart';
 import 'lfs_chip.dart';
+import 'lfs_lock_chip.dart';
 
 /// One row of a changed-file list: status badge, path, and the history/blame
 /// context menu. Shared by every read-only file list — a commit's changes and
@@ -17,6 +19,13 @@ class ChangeFileRow extends StatelessWidget {
   final double indent;
   final bool inTree;
   final bool lfs;
+
+  /// The server lock on this file, shown only on LFS rows.
+  final LfsLock? lock;
+  final bool lockIsOurs;
+
+  /// Extra context-menu entries, such as lock actions, built when it opens.
+  final List<PopupMenuEntry<void>> Function(BuildContext context)? extraMenu;
   const ChangeFileRow({
     super.key,
     required this.file,
@@ -25,6 +34,9 @@ class ChangeFileRow extends StatelessWidget {
     this.indent = 0,
     this.inTree = false,
     this.lfs = false,
+    this.lock,
+    this.lockIsOurs = false,
+    this.extraMenu,
   });
 
   String get _label {
@@ -59,6 +71,7 @@ class ChangeFileRow extends StatelessWidget {
           ),
           child: Text(l.wtpBlame, style: TextStyle(fontSize: 13)),
         ),
+        ...?extraMenu?.call(context),
       ],
     );
   }
@@ -108,6 +121,8 @@ class ChangeFileRow extends StatelessWidget {
                 ),
               ),
               if (lfs) const LfsChip(),
+              if (lfs && lock != null)
+                LfsLockChip(lock: lock!, ours: lockIsOurs),
             ],
           ),
         ),

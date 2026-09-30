@@ -468,4 +468,140 @@ void main() {
       expect(lfsExtensionPattern('archive.'), isNull);
     });
   });
+
+  const lockJson =
+      '{"id":"123","path":"art/a.psd","owner":{"name":"Ann"},'
+      '"locked_at":"2026-09-30T10:00:00Z"}';
+  final lockA = LfsLock(
+    id: '123',
+    path: 'art/a.psd',
+    owner: 'Ann',
+    lockedAt: DateTime.utc(2026, 9, 30, 10),
+  );
+
+  // Each lock entry, read through the one listing Mergelio runs.
+  group('lock entries', () {
+    List<LfsLock>? entries(String list) =>
+        parseLfsLocksVerifyJson('{"theirs":$list}')?.theirs;
+
+    test('empty array', () => expect(entries('[]'), isEmpty));
+    test('numeric id kept as its string form', () {
+      final locks = entries(
+        '[{"id":42,"path":"a.psd","owner":{"name":"A"},'
+        '"locked_at":"2026-09-30T10:00:00Z"}]',
+      )!;
+      expect(locks.single.id, '42');
+    });
+    test('one lock', () {
+      final locks = entries('[$lockJson]')!;
+      expect(locks, [lockA]);
+      expect(locks.single.lockedAt!.isUtc, isTrue);
+    });
+    test('two locks keep order', () {
+      const b = '{"id":"9","path":"b.bin","owner":{"name":"Bo"}}';
+      final locks = entries('[$lockJson,$b]')!;
+      expect(locks.map((l) => l.id), ['123', '9']);
+    });
+    test('a nanosecond locked_at, as Go writes it, still parses', () {
+      final l = entries(
+        '[{"id":"1","path":"a","locked_at":"2026-09-30T10:00:00.123456789Z"}]',
+      )!.single;
+      expect(l.lockedAt, DateTime.utc(2026, 9, 30, 10, 0, 0, 123, 456));
+    });
+    test('missing owner and locked_at', () {
+      final l = entries('[{"id":"1","path":"a"}]')!.single;
+      expect(l.owner, '');
+      expect(l.lockedAt, isNull);
+    });
+    test('wrong-typed elements are skipped', () {
+      final locks = entries('[1,{"id":true,"path":"a"},$lockJson]')!;
+      expect(locks, [lockA]);
+    });
+  });
+
+  group('parseLfsLocksVerifyJson', () {
+    test('both empty', () {
+      final r = parseLfsLocksVerifyJson('{"ours":[],"theirs":[]}')!;
+      expect(r.ours, isEmpty);
+      expect(r.theirs, isEmpty);
+    });
+    test('splits ours and theirs', () {
+      final r = parseLfsLocksVerifyJson(
+        '{"ours":[$lockJson],"theirs":[{"id":"2","path":"t","owner":{"name":"Tim"}}]}',
+      )!;
+      expect(r.ours, [lockA]);
+      expect(r.theirs.single.owner, 'Tim');
+    });
+    test('missing key is empty', () {
+      final r = parseLfsLocksVerifyJson('{"ours":[$lockJson]}')!;
+      expect(r.ours, [lockA]);
+      expect(r.theirs, isEmpty);
+    });
+    test('not JSON is null', () {
+      expect(parseLfsLocksVerifyJson('nope'), isNull);
+      expect(parseLfsLocksVerifyJson('[]'), isNull);
+    });
+  });
+
+  group('parseLfsUnlockFailure', () {
+    test('returns the first reason', () {
+      expect(
+        parseLfsUnlockFailure(
+          '[{"id":"7","unlocked":false,"reason":"Unable to unlock 7: no"}]',
+        ),
+        'Unable to unlock 7: no',
+      );
+    });
+    test('entries keyed by path', () {
+      expect(
+        parseLfsUnlockFailure(
+          '[{"path":"a.psd","unlocked":false,"reason":"unable get lock ID"}]',
+        ),
+        'unable get lock ID',
+      );
+    });
+    test('a single object is read like a one-entry list', () {
+      expect(parseLfsUnlockFailure('{"id":"7","unlocked":true}'), isNull);
+      expect(
+        parseLfsUnlockFailure('{"id":"7","unlocked":false,"reason":"no"}'),
+        'no',
+      );
+    });
+    test('all unlocked is null', () {
+      expect(parseLfsUnlockFailure('[{"id":"7","unlocked":true}]'), isNull);
+    });
+    test('not JSON', () {
+      expect(parseLfsUnlockFailure('boom'), 'unlock failed');
+    });
+  });
+
+  group('lfsLocksUnsupported', () {
+    for (final stderr in [
+      'Locking a.psd failed: missing protocol: "file:///x/remote.git"',
+      'Remote "origin" does not support the Git LFS locking API.',
+      'Locking is not supported by this server',
+      'Unable to list locks: https://host/x.git/info/lfs/locks [404] Not Found',
+      'list locks: status 404',
+      'HTTP 404 NOT FOUND',
+      'hint: The remote resolves to a file:// URL, which can only work with a',
+    ]) {
+      test('true: $stderr', () {
+        expect(lfsLocksUnsupported(stderr), isTrue);
+      });
+    }
+    for (final stderr in [
+      'dial tcp 10.0.4.04:4040: connect: connection refused',
+      'Locking a.psd failed: Post "https://h:4040/x.git/info/lfs/locks": '
+          'dial tcp: lookup h: no such host',
+      "Authentication failed for 'https://host/x.git/info/lfs/locks'",
+      'Not Found',
+      'object 4040404 not found',
+      'dial tcp [::1]:443: connect: address family not supported by protocol',
+      'error: RPC failed; the server does not support HTTP/2',
+    ]) {
+      test('false: $stderr', () {
+        expect(lfsLocksUnsupported(stderr), isFalse);
+      });
+    }
+  });
 }

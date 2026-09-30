@@ -7,9 +7,11 @@ import 'package:path/path.dart' as p;
 import '../core/logging.dart';
 import '../domain/git/git_providers.dart';
 import '../domain/git/git_service.dart';
+import '../domain/git/git_writer.dart';
 import '../domain/git/lfs.dart';
 import '../domain/git/models.dart';
 import 'diff_target.dart';
+import 'repo_data.dart';
 
 /// Every LFS read gets this long. Attribute and blob lookups over a commit
 /// with thousands of files take longer than git's 30-second default.
@@ -466,4 +468,144 @@ final lfsPushReadinessProvider = FutureProvider.autoDispose
       return hook != null && isLfsPrePushHook(hook)
           ? LfsPushReadiness.ready
           : LfsPushReadiness.hookMissing;
+    });
+
+/// What the server says about file locks in a repository.
+class LfsLockState {
+  const LfsLockState({
+    required this.ours,
+    required this.theirs,
+    required this.available,
+    required this.stale,
+    this.refreshedAt,
+  });
+
+  /// Locks the user holds.
+  final List<LfsLock> ours;
+
+  /// Locks held by others.
+  final List<LfsLock> theirs;
+
+  /// Whether locking can be used here: LFS is set up, a remote exists and the
+  /// server supports it.
+  final bool available;
+
+  /// True when the last refresh failed and [ours] and [theirs] are from an
+  /// earlier one.
+  final bool stale;
+  final DateTime? refreshedAt;
+
+  static const none = LfsLockState(
+    ours: [],
+    theirs: [],
+    available: false,
+    stale: false,
+  );
+
+  /// The same locks, marked as older than the latest failed refresh.
+  LfsLockState asStale() => LfsLockState(
+    ours: ours,
+    theirs: theirs,
+    available: available,
+    stale: true,
+    refreshedAt: refreshedAt,
+  );
+
+  /// Whether the user holds the lock on exactly [path].
+  bool isOurs(String path) => ours.any((l) => l.path == path);
+
+  /// The lock on exactly [path], the user's own first; null when none.
+  LfsLock? lockFor(String path) {
+    for (final l in ours) {
+      if (l.path == path) return l;
+    }
+    for (final l in theirs) {
+      if (l.path == path) return l;
+    }
+    return null;
+  }
+}
+
+/// Set for the session once a server reports it cannot lock files, so the
+/// query is not repeated on every refresh.
+final lfsLocksUnsupportedProvider = StateProvider.family<bool, String>(
+  (ref, repo) => false,
+);
+
+/// The last locks the server answered with, kept to show while a refresh is
+/// failing.
+final lfsLocksLastProvider = StateProvider.family<LfsLockState?, String>(
+  (ref, repo) => null,
+);
+
+/// File locks on the server. One query per refresh, and the answer is kept for
+/// the session; it follows [lfsGenerationProvider], not every change of the
+/// repository data.
+final lfsLocksProvider = FutureProvider.autoDispose
+    .family<LfsLockState, String>((ref, repoPath) async {
+      ref.keepAlive();
+      ref.watch(lfsGenerationProvider(repoPath));
+      // Only the `.gitattributes` state and whether a remote exists matter;
+      // any other change to the repository data must not cost a server query.
+      final gate = ref.watch(
+        repoDataProvider(repoPath).select((d) {
+          final v = d.valueOrNull;
+          return v == null
+              ? null
+              : (
+                  stamp: lfsAttrsStamp(v.working),
+                  hasRemote: v.remotes.isNotEmpty,
+                );
+        }),
+      );
+      if (gate == null || !gate.hasRemote) return LfsLockState.none;
+      final source = LfsSource(repoPath: repoPath, attrsStamp: gate.stamp);
+      if (!await ref.watch(lfsReadyProvider(source).future)) {
+        return LfsLockState.none;
+      }
+      if (ref.read(lfsLocksUnsupportedProvider(repoPath))) {
+        return LfsLockState.none;
+      }
+      final git = ref.watch(gitServiceProvider);
+      LfsLockState previous() {
+        final last = ref.read(lfsLocksLastProvider(repoPath));
+        return last?.asStale() ??
+            const LfsLockState(
+              ours: [],
+              theirs: [],
+              available: true,
+              stale: true,
+            );
+      }
+
+      try {
+        final r = await GitWriter(git, repoPath).lfsLockList();
+        // For a file:// remote git-lfs exits 0 with empty lists and says so
+        // only on stderr; any other success is taken at its word.
+        if (r.ok ? lfsFileRemoteHint(r.err) : lfsLocksUnsupported(r.err)) {
+          Future.microtask(
+            () =>
+                ref.read(lfsLocksUnsupportedProvider(repoPath).notifier).state =
+                    true,
+          );
+          return LfsLockState.none;
+        }
+        if (!r.ok) throw GitException('git lfs locks', r);
+        final parsed = parseLfsLocksVerifyJson(r.stdout);
+        if (parsed == null) throw const FormatException('unreadable lock list');
+        final state = LfsLockState(
+          ours: parsed.ours,
+          theirs: parsed.theirs,
+          available: true,
+          stale: false,
+          refreshedAt: DateTime.now(),
+        );
+        Future.microtask(
+          () => ref.read(lfsLocksLastProvider(repoPath).notifier).state = state,
+        );
+        return state;
+      } on Object catch (e) {
+        appLog.warn('LFS lock query failed: $e', scope: repoPath);
+        return previous();
+      }
     });

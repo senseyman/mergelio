@@ -110,6 +110,11 @@ class LfsCard extends ConsumerWidget {
     VoidCallback? download(String? rev, String path) {
       final actions = ref.read(repoActionsProvider(repoPath));
       if (target.isWorkingTree) {
+        // Pulling needs a remote to download from.
+        final remotes =
+            ref.watch(repoDataProvider(repoPath)).valueOrNull?.remotes ??
+            const <String>[];
+        if (remotes.isEmpty) return null;
         return () => actions.lfsDownloadFile(path);
       }
       // git-lfs would read a revision starting with `-` as one of its own

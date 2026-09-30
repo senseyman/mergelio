@@ -98,6 +98,11 @@ class GitWriter {
   /// some of these, which can outlast the ordinary default on a large tree.
   static const lfsLocalTimeout = Duration(seconds: 60);
 
+  /// Ceiling for a call to the LFS lock server. One unlock can be several
+  /// requests (git-lfs looks the lock up before releasing it), and a distant
+  /// or ssh-authenticated server can be slow; a stuck call can be cancelled.
+  static const lfsLockTimeout = Duration(minutes: 5);
+
   /// Resolved once per repository: the ssh command git would use anyway, plus
   /// what a command that hits an authentication prompt needs.
   Map<String, String>? _netEnvCache;
@@ -274,6 +279,75 @@ class GitWriter {
   Future<String> lfsTrackList() async {
     final r = await _run(['lfs', 'track'], timeout: lfsLocalTimeout);
     if (!r.ok) throw GitException('git lfs track', r);
+    return r.stdout;
+  }
+
+  /// Paths a push would send: what [upstream]`...HEAD` changes, or, with no
+  /// upstream or a [rev] other than HEAD, what [rev] holds that no remote has.
+  /// An [upstream] that starts with `-` is never handed to git; nothing is
+  /// reported for it.
+  Future<List<String>> changedPathsToPush({
+    String? upstream,
+    String rev = 'HEAD',
+  }) async {
+    if (upstream != null && upstream.startsWith('-')) return const [];
+    final useUpstream =
+        upstream != null && upstream.isNotEmpty && rev == 'HEAD';
+    final args = useUpstream
+        ? ['diff', '--name-only', '-z', '$upstream...HEAD']
+        : ['log', '--name-only', '-z', '--format=', rev, '--not', '--remotes'];
+    final r = await _run(args);
+    if (!r.ok) throw GitException('git ${args.first}', r);
+    final seen = <String>{};
+    for (final path in r.stdout.split('\u0000')) {
+      if (path.isNotEmpty) seen.add(path);
+    }
+    return seen.toList();
+  }
+
+  /// Lists file locks, with which are the caller's own. Returned, never
+  /// thrown on failure: a non-zero exit is how a server without locking
+  /// support shows up, and the caller reads the report to tell that from
+  /// other failures.
+  Future<GitResult> lfsLockList({GitCancel? cancel}) async => _run(
+    ['lfs', 'locks', '--verify', '--json', '--limit', '1000'],
+    timeout: lfsLockTimeout,
+    environment: await _netEnv(),
+    cancel: cancel,
+  );
+
+  /// Locks [path] on the server and returns git-lfs's JSON report. `--`
+  /// keeps a path that starts with `-` from being read as an option.
+  Future<String> lfsLock(String path, {GitCancel? cancel}) async {
+    if (path.isEmpty) throw ArgumentError.value(path, 'path', 'is empty');
+    final r = await _run(
+      ['lfs', 'lock', '--json', '--', path],
+      timeout: lfsLockTimeout,
+      environment: await _netEnv(),
+      cancel: cancel,
+    );
+    if (!r.ok) throw GitException('git lfs lock', r);
+    return r.stdout;
+  }
+
+  /// Releases the lock with server id [id] and returns git-lfs's JSON report.
+  /// [force] releases a lock someone else holds. The id is refused when empty
+  /// or dash-leading, since it would be read as an option.
+  Future<String> lfsUnlock(
+    String id, {
+    bool force = false,
+    GitCancel? cancel,
+  }) async {
+    if (id.isEmpty || id.startsWith('-')) {
+      throw ArgumentError.value(id, 'id', 'is not a lock id');
+    }
+    final r = await _run(
+      ['lfs', 'unlock', '--json', if (force) '--force', '--id', id],
+      timeout: lfsLockTimeout,
+      environment: await _netEnv(),
+      cancel: cancel,
+    );
+    if (!r.ok) throw GitException('git lfs unlock', r);
     return r.stdout;
   }
 

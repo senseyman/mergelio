@@ -4058,6 +4058,12 @@ abstract class AppLocalizations {
   /// **'Download'**
   String get lfsDownload;
 
+  /// No description provided for @lfsNoRemote.
+  ///
+  /// In en, this message translates to:
+  /// **'No remote to download from'**
+  String get lfsNoRemote;
+
   /// No description provided for @lfsDownloadUnsafePath.
   ///
   /// In en, this message translates to:
@@ -4183,6 +4189,132 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The pre-push hook exists, but git will not run it because the file is not executable. Nothing was pushed.'**
   String get lfsPushHookNotRunnable;
+
+  /// No description provided for @lfsLockChipYou.
+  ///
+  /// In en, this message translates to:
+  /// **'You'**
+  String get lfsLockChipYou;
+
+  /// No description provided for @lfsLockTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Locked by {owner} · {age}'**
+  String lfsLockTooltip(String owner, String age);
+
+  /// No description provided for @lfsLockFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Lock file'**
+  String get lfsLockFile;
+
+  /// No description provided for @lfsUnlockFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock file'**
+  String get lfsUnlockFile;
+
+  /// No description provided for @lfsForceUnlock.
+  ///
+  /// In en, this message translates to:
+  /// **'Force unlock…'**
+  String get lfsForceUnlock;
+
+  /// No description provided for @lfsForceUnlockTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Break someone else\'s lock'**
+  String get lfsForceUnlockTitle;
+
+  /// No description provided for @lfsForceUnlockBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Locked by {owner} ({age}). Breaking the lock does not stop them from pushing their changes, and they may lose work.'**
+  String lfsForceUnlockBody(String owner, String age);
+
+  /// No description provided for @lfsForceUnlockConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Break lock'**
+  String get lfsForceUnlockConfirm;
+
+  /// No description provided for @lfsLocksSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Locks'**
+  String get lfsLocksSection;
+
+  /// No description provided for @lfsLocksYours.
+  ///
+  /// In en, this message translates to:
+  /// **'Yours'**
+  String get lfsLocksYours;
+
+  /// No description provided for @lfsLocksOthers.
+  ///
+  /// In en, this message translates to:
+  /// **'Others'**
+  String get lfsLocksOthers;
+
+  /// No description provided for @lfsLocksRefresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get lfsLocksRefresh;
+
+  /// No description provided for @lfsLocksStale.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t refresh locks — showing the last known list'**
+  String get lfsLocksStale;
+
+  /// No description provided for @lfsLocksMore.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{and {count} more} other{and {count} more}}'**
+  String lfsLocksMore(int count);
+
+  /// No description provided for @lfsLocksMoreAtLeast.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{and {count}+ more} other{and {count}+ more}}'**
+  String lfsLocksMoreAtLeast(int count);
+
+  /// No description provided for @lfsLockTooltipNoAge.
+  ///
+  /// In en, this message translates to:
+  /// **'Locked by {owner}'**
+  String lfsLockTooltipNoAge(String owner);
+
+  /// No description provided for @lfsForceUnlockBodyNoAge.
+  ///
+  /// In en, this message translates to:
+  /// **'Locked by {owner}. Breaking the lock does not stop them from pushing their changes, and they may lose work.'**
+  String lfsForceUnlockBodyNoAge(String owner);
+
+  /// No description provided for @lfsLocksRefreshedAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Last refreshed: {age}'**
+  String lfsLocksRefreshedAt(String age);
+
+  /// No description provided for @lfsLocksUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'This repository\'s server doesn\'t support file locks.'**
+  String get lfsLocksUnsupported;
+
+  /// No description provided for @lfsPushLockedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Files locked by someone else'**
+  String get lfsPushLockedTitle;
+
+  /// No description provided for @lfsPushLockedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'These files are locked by someone else. Pushing changes to them may overwrite their work.'**
+  String get lfsPushLockedBody;
 
   /// No description provided for @lfsPushAnyway.
   ///

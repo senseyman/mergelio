@@ -9,6 +9,7 @@ import 'package:mergelio/domain/git/models.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/state/lfs.dart';
 import 'package:mergelio/state/operation_journal.dart';
+import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/ui/workspace/lfs_pointer_strip.dart';
 
 class _Git implements GitService {
@@ -33,11 +34,16 @@ class _Git implements GitService {
   Future<bool> isRepository(String path) async => true;
 }
 
-Widget _app(_Git git, Set<String> pointers) => ProviderScope(
+Widget _app(
+  _Git git,
+  Set<String> pointers, {
+  List<String> remotes = const ['origin'],
+}) => ProviderScope(
   overrides: [
     gitServiceProvider.overrideWithValue(git),
     kvStoreProvider.overrideWithValue(InMemoryKeyValueStore()),
     lfsPointerFilesProvider.overrideWith((ref, s) async => pointers),
+    repoDataProvider.overrideWith((ref, p) async => RepoData(remotes: remotes)),
   ],
   child: MaterialApp(
     localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -60,6 +66,17 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('2 LFS files are not downloaded'), findsOneWidget);
     expect(find.text('Download'), findsOneWidget);
+  });
+
+  testWidgets('with no remote it says so instead of offering Download', (
+    tester,
+  ) async {
+    final git = _Git();
+    await tester.pumpWidget(_app(git, {'a.bin'}, remotes: const []));
+    await tester.pumpAndSettle();
+    expect(find.text('1 LFS file is not downloaded'), findsOneWidget);
+    expect(find.text('Download'), findsNothing);
+    expect(find.text('No remote to download from'), findsOneWidget);
   });
 
   testWidgets('shows nothing when no pointers remain', (tester) async {

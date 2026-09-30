@@ -2319,6 +2319,10 @@ class AppLocalizationsUk extends AppLocalizations {
   String get lfsDownload => 'Завантажити';
 
   @override
+  String get lfsNoRemote =>
+      'Немає віддаленого репозиторію, з якого завантажити';
+
+  @override
   String get lfsDownloadUnsafePath =>
       'Цей файл не можна завантажити окремо через його назву — скористайтеся «Завантажити файли LFS».';
 
@@ -2407,6 +2411,102 @@ class AppLocalizationsUk extends AppLocalizations {
   @override
   String get lfsPushHookNotRunnable =>
       'Хук pre-push існує, але git не запустить його, бо файл не виконуваний. Нічого не надіслано.';
+
+  @override
+  String get lfsLockChipYou => 'Ви';
+
+  @override
+  String lfsLockTooltip(String owner, String age) {
+    return 'Заблоковано: $owner · $age';
+  }
+
+  @override
+  String get lfsLockFile => 'Заблокувати файл';
+
+  @override
+  String get lfsUnlockFile => 'Розблокувати файл';
+
+  @override
+  String get lfsForceUnlock => 'Примусово розблокувати…';
+
+  @override
+  String get lfsForceUnlockTitle => 'Зняти чуже блокування';
+
+  @override
+  String lfsForceUnlockBody(String owner, String age) {
+    return 'Файл заблоковано користувачем $owner ($age). Зняття блокування не завадить надіслати їхні зміни, і їхня робота може бути втрачена.';
+  }
+
+  @override
+  String get lfsForceUnlockConfirm => 'Зняти блокування';
+
+  @override
+  String get lfsLocksSection => 'Блокування';
+
+  @override
+  String get lfsLocksYours => 'Ваші';
+
+  @override
+  String get lfsLocksOthers => 'Інші';
+
+  @override
+  String get lfsLocksRefresh => 'Оновити';
+
+  @override
+  String get lfsLocksStale =>
+      'Не вдалося оновити блокування — показано останній відомий список';
+
+  @override
+  String lfsLocksMore(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'і ще $count',
+      many: 'і ще $count',
+      few: 'і ще $count',
+      one: 'і ще $count',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String lfsLocksMoreAtLeast(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'і ще $count+',
+      many: 'і ще $count+',
+      few: 'і ще $count+',
+      one: 'і ще $count+',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String lfsLockTooltipNoAge(String owner) {
+    return 'Заблоковано: $owner';
+  }
+
+  @override
+  String lfsForceUnlockBodyNoAge(String owner) {
+    return 'Файл заблоковано користувачем $owner. Зняття блокування не завадить надіслати їхні зміни, і їхня робота може бути втрачена.';
+  }
+
+  @override
+  String lfsLocksRefreshedAt(String age) {
+    return 'Останнє оновлення: $age';
+  }
+
+  @override
+  String get lfsLocksUnsupported =>
+      'Сервер цього репозиторію не підтримує блокування файлів.';
+
+  @override
+  String get lfsPushLockedTitle => 'Файли, заблоковані іншими';
+
+  @override
+  String get lfsPushLockedBody =>
+      'Ці файли заблокували інші. Надсилання змін до них може перезаписати чужу роботу.';
 
   @override
   String get lfsPushAnyway => 'Однаково надіслати';

@@ -10,6 +10,7 @@ import '../../state/lfs.dart';
 import '../../state/settings_controller.dart';
 import '../common/change_file_row.dart';
 import '../common/file_tree_view.dart';
+import 'lfs_lock_menu.dart';
 
 /// Right panel content while two revisions are being compared: the pair being
 /// read, and every file that differs between them. Read-only — a comparison
@@ -131,6 +132,11 @@ class CompareDetails extends ConsumerWidget {
                             )
                             .valueOrNull ??
                         const <String>{};
+                    final locks =
+                        ref
+                            .watch(lfsLocksProvider(target.repoPath))
+                            .valueOrNull ??
+                        LfsLockState.none;
                     return FileTreeView(
                       paths: [for (final f in list) f.path],
                       tree: tree,
@@ -145,6 +151,15 @@ class CompareDetails extends ConsumerWidget {
                         indent: FileTreeView.indent(depth),
                         inTree: tree,
                         lfs: lfs.contains(path),
+                        lock: locks.lockFor(path),
+                        lockIsOurs: locks.isOurs(path),
+                        extraMenu: (ctx) => lfsLockMenuItems(
+                          context: ctx,
+                          ref: ref,
+                          repoPath: target.repoPath,
+                          path: path,
+                          isLfs: lfs.contains(path),
+                        ),
                         onTap: () =>
                             ref.read(diffTargetProvider.notifier).state = target
                                 .fileTarget(path),

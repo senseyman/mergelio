@@ -586,6 +586,7 @@ diff --git a/$pPsd b/$pPsd
       LfsPointer? after,
       String path = 'art.psd',
       String? oldPath,
+      List<String> remotes = const ['origin'],
     }) {
       rec.clear();
       return _app(
@@ -605,7 +606,7 @@ diff --git a/$pPsd b/$pPsd
           gitServiceProvider.overrideWithValue(_RecordingGit(rec)),
           kvStoreProvider.overrideWithValue(InMemoryKeyValueStore()),
           repoDataProvider.overrideWith(
-            (ref, p) async => const RepoData(remotes: ['origin']),
+            (ref, p) async => RepoData(remotes: remotes),
           ),
         ],
       );
@@ -613,6 +614,15 @@ diff --git a/$pPsd b/$pPsd
 
     const p1 = LfsPointer(oid: _a, size: 1);
     const p2 = LfsPointer(oid: _b, size: 2);
+
+    testWidgets('working tree with no remote offers no Download', (
+      tester,
+    ) async {
+      await tester.pumpWidget(card(_wt, after: p2, remotes: const []));
+      await tester.pumpAndSettle();
+      expect(find.text('Not downloaded'), findsOneWidget);
+      expect(find.text('Download'), findsNothing);
+    });
 
     testWidgets('working tree pulls the one file', (tester) async {
       await tester.pumpWidget(card(_wt, after: p2));

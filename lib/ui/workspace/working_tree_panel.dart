@@ -6,6 +6,7 @@ import '../../core/tokens.dart';
 import '../../domain/git/commit_message.dart';
 import '../../domain/git/git_providers.dart';
 import '../../domain/git/git_reader.dart';
+import '../../domain/git/lfs.dart';
 import '../../domain/git/models.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/diff_target.dart';
@@ -20,8 +21,11 @@ import '../common/confirm.dart';
 import '../common/dialogs.dart';
 import '../common/file_tree_view.dart';
 import '../common/lfs_chip.dart';
+import '../common/lfs_lock_chip.dart';
 import '../insight/file_insight_dialog.dart';
 import 'lfs_banner.dart';
+import 'lfs_lock_menu.dart';
+import 'lfs_locks_section.dart';
 import 'lfs_track_menu.dart';
 import 'lfs_pointer_strip.dart';
 
@@ -56,16 +60,28 @@ class WorkingTreePanel extends ConsumerWidget {
             )
             .valueOrNull ??
         const <String>{};
+    // Read once for every row; each row picks its own path from it.
+    final locks =
+        ref.watch(lfsLocksProvider(repoPath)).valueOrNull ?? LfsLockState.none;
     // Watched so the menu gains or loses its LFS entries once git-lfs is known.
     ref.watch(lfsToolProvider);
-    List<PopupMenuEntry<void>> trackItems(WorkingFile f, bool isLfs) =>
-        lfsTrackMenuItems(
-          context: context,
-          ref: ref,
-          repoPath: repoPath,
-          file: f,
-          isLfs: isLfs,
-        );
+    List<PopupMenuEntry<void>> trackItems(WorkingFile f, bool isLfs) => [
+      ...lfsTrackMenuItems(
+        context: context,
+        ref: ref,
+        repoPath: repoPath,
+        file: f,
+        isLfs: isLfs,
+      ),
+      ...lfsLockMenuItems(
+        context: context,
+        ref: ref,
+        repoPath: repoPath,
+        path: f.path,
+        isLfs: isLfs,
+        submodule: f.submodule,
+      ),
+    ];
 
     return Semantics(
       container: true,
@@ -102,6 +118,7 @@ class WorkingTreePanel extends ConsumerWidget {
             ),
             LfsBanner(repoPath: repoPath, working: data.working),
             LfsPointerStrip(repoPath: repoPath, working: data.working),
+            LfsLocksSection(repoPath: repoPath, working: data.working),
             if (hasConflicts && !resolving)
               Padding(
                 padding: const EdgeInsets.fromLTRB(8, 6, 8, 2),
@@ -129,6 +146,7 @@ class WorkingTreePanel extends ConsumerWidget {
                           staged: false,
                           tree: tree,
                           lfs: lfs,
+                          locks: locks,
                           onBulk: actions.stageAll,
                           bulkLabel: l.wtpStageAll,
                           onToggle: (f) => actions.stageFile(f.path),
@@ -144,6 +162,7 @@ class WorkingTreePanel extends ConsumerWidget {
                           staged: true,
                           tree: tree,
                           lfs: lfs,
+                          locks: locks,
                           onBulk: actions.unstageAll,
                           bulkLabel: l.wtpUnstageAll,
                           onToggle: (f) => actions.unstageFile(f.path),
@@ -335,6 +354,7 @@ class _FileSection extends StatelessWidget {
   final bool staged;
   final bool tree;
   final Set<String> lfs;
+  final LfsLockState locks;
   final VoidCallback onBulk;
   final String bulkLabel;
   final void Function(WorkingFile) onToggle;
@@ -349,6 +369,7 @@ class _FileSection extends StatelessWidget {
     required this.staged,
     required this.tree,
     required this.lfs,
+    required this.locks,
     required this.onBulk,
     required this.bulkLabel,
     required this.onToggle,
@@ -404,6 +425,8 @@ class _FileSection extends StatelessWidget {
             indent: FileTreeView.indent(depth),
             inTree: tree,
             lfs: lfs.contains(path),
+            lock: locks.lockFor(path),
+            lockIsOurs: locks.isOurs(path),
             onToggle: onToggle,
             onOpen: onOpen,
             onDiscard: onDiscard,
@@ -424,6 +447,8 @@ class _FileRow extends StatelessWidget {
   final double indent;
   final bool inTree;
   final bool lfs;
+  final LfsLock? lock;
+  final bool lockIsOurs;
   final void Function(WorkingFile) onToggle;
   final void Function(WorkingFile) onOpen;
   final void Function(WorkingFile) onDiscard;
@@ -440,6 +465,8 @@ class _FileRow extends StatelessWidget {
     this.indent = 0,
     this.inTree = false,
     this.lfs = false,
+    this.lock,
+    this.lockIsOurs = false,
   });
 
   String get _label {
@@ -520,6 +547,8 @@ class _FileRow extends StatelessWidget {
                 ),
               ),
               if (lfs) const LfsChip(),
+              if (lfs && lock != null)
+                LfsLockChip(lock: lock!, ours: lockIsOurs),
               if (file.isPartial)
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 6),

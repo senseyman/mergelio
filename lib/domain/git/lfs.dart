@@ -431,3 +431,126 @@ String? lfsExtensionPattern(String path) {
   if (!RegExp(r'^[A-Za-z0-9_+-]+$').hasMatch(ext)) return null;
   return '*.$ext';
 }
+
+/// A file lock held on the LFS server.
+class LfsLock {
+  const LfsLock({
+    required this.id,
+    required this.path,
+    required this.owner,
+    this.lockedAt,
+  });
+
+  final String id;
+  final String path;
+  final String owner;
+  final DateTime? lockedAt;
+
+  @override
+  bool operator ==(Object other) =>
+      other is LfsLock &&
+      other.id == id &&
+      other.path == path &&
+      other.owner == owner &&
+      other.lockedAt == lockedAt;
+
+  @override
+  int get hashCode => Object.hash(id, path, owner, lockedAt);
+
+  @override
+  String toString() => 'LfsLock($id, $path, $owner, $lockedAt)';
+}
+
+Object? _decode(String raw) {
+  try {
+    return jsonDecode(raw);
+  } on FormatException {
+    return null;
+  }
+}
+
+LfsLock? _lockFrom(Object? v) {
+  if (v is! Map) return null;
+  // Some servers send the id as a number; it only ever goes back to git-lfs
+  // as text.
+  final raw = v['id'];
+  final id = raw is num ? raw.toString() : raw;
+  final path = v['path'];
+  if (id is! String || path is! String) return null;
+  final owner = v['owner'];
+  final name = owner is Map && owner['name'] is String
+      ? owner['name'] as String
+      : '';
+  final at = v['locked_at'];
+  return LfsLock(
+    id: id,
+    path: path,
+    owner: name,
+    lockedAt: at is String ? DateTime.tryParse(at)?.toUtc() : null,
+  );
+}
+
+List<LfsLock> _locksFrom(Object? v) =>
+    v is List ? [for (final e in v) ?_lockFrom(e)] : const [];
+
+/// Parses `git lfs locks --verify --json`: locks held by the user (`ours`)
+/// and by others (`theirs`). A missing key is an empty list.
+({List<LfsLock> ours, List<LfsLock> theirs})? parseLfsLocksVerifyJson(
+  String raw,
+) {
+  final v = _decode(raw);
+  if (v is! Map) return null;
+  return (ours: _locksFrom(v['ours']), theirs: _locksFrom(v['theirs']));
+}
+
+/// The first failure reason in `git lfs unlock --json` output, or null when
+/// every entry unlocked. Entries may be keyed by `id` or by `path`; a single
+/// object counts as a one-entry list.
+String? parseLfsUnlockFailure(String raw) {
+  final decoded = _decode(raw);
+  final v = decoded is Map ? [decoded] : decoded;
+  if (v is! List) return 'unlock failed';
+  for (final e in v) {
+    if (e is Map && e['unlocked'] != true) {
+      final reason = e['reason'];
+      return reason is String && reason.isNotEmpty ? reason : 'unlock failed';
+    }
+  }
+  return null;
+}
+
+/// Stderr fragments, lowercased, meaning the remote cannot do locking at all.
+const _locksUnsupportedMarkers = [
+  // A file:// or otherwise protocol-less remote has no locking API.
+  'missing protocol',
+  // git-lfs's hint for a file:// remote, printed even when it exits 0.
+  'resolves to a file:// url',
+  // The server or git-lfs says so explicitly. Only its own wording counts:
+  // plain "not supported" also turns up in unrelated network errors.
+  'does not support the git lfs locking api',
+  'locking is not supported',
+];
+
+/// A 404 reported as an HTTP status. A bare `404` would also match ports,
+/// addresses and object ids in unrelated network errors.
+final _locksNotFoundStatus = RegExp(
+  r'\[404\]|status:? 404\b|http:? 404\b|\b404 not found',
+);
+
+/// True when [stderr] carries git-lfs's hint that the remote is a file://
+/// URL, which has no locking API.
+bool lfsFileRemoteHint(String stderr) =>
+    stderr.toLowerCase().contains('resolves to a file:// url');
+
+/// True when [stderr] shows the server does not support file locking. Any
+/// other failure (network, auth) must not match: a match hides locking for
+/// the rest of the session.
+bool lfsLocksUnsupported(String stderr) {
+  final s = stderr.toLowerCase();
+  return _locksUnsupportedMarkers.any(s.contains) ||
+      _locksNotFoundStatus.hasMatch(s);
+}
+
+/// True when git-lfs failed because there is no remote URL to reach: it asks
+/// an empty endpoint and reports `missing protocol: ""`.
+bool lfsNoRemote(String stderr) => stderr.contains('missing protocol: ""');

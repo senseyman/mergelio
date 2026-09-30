@@ -1158,7 +1158,7 @@ Future<void> _tagMenu(
       PopupMenuItem(
         height: 34,
         onTap: () async {
-          if (await confirmLfsPushReady(context, ref, actions.path)) {
+          if (await confirmLfsPushReady(context, ref, actions.path, tag: tag)) {
             await actions.pushTag(tag);
           }
         },

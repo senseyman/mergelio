@@ -9,6 +9,7 @@ import 'package:mergelio/domain/git/models.dart';
 import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/state/merge_session.dart';
 import 'package:mergelio/state/repo_actions.dart';
+import 'package:mergelio/state/lfs.dart';
 import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
@@ -40,6 +41,7 @@ const _conflicted = WorkingFile(
 
 Widget _harness(RepoData data, {PendingOp? pending}) => ProviderScope(
   overrides: [
+    lfsLocksProvider.overrideWith((ref, repo) async => LfsLockState.none),
     gitServiceProvider.overrideWithValue(_FakeGit()),
     pendingOpProvider('/r').overrideWith((ref) async => pending),
     settingsProvider.overrideWith(

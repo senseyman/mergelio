@@ -9,6 +9,7 @@ import 'package:mergelio/domain/git/models.dart';
 import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/state/diff_target.dart';
 import 'package:mergelio/state/feedback.dart';
+import 'package:mergelio/state/lfs.dart';
 import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
@@ -45,6 +46,7 @@ const _partial = WorkingFile(
 
 Widget _harness(_FakeGit git, RepoData data) => ProviderScope(
   overrides: [
+    lfsLocksProvider.overrideWith((ref, repo) async => LfsLockState.none),
     gitServiceProvider.overrideWithValue(git),
     settingsProvider.overrideWith(
       (ref) =>

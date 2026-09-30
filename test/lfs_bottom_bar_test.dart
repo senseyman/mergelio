@@ -44,6 +44,7 @@ Future<ProviderContainer> _pump(
   WidgetTester tester,
   _FakeGit git, {
   required bool ready,
+  List<String> remotes = const ['origin'],
   Widget home = const Scaffold(body: Align(child: AppBottomBar())),
 }) async {
   await tester.pumpWidget(
@@ -57,7 +58,7 @@ Future<ProviderContainer> _pump(
           ),
         ),
         repoDataProvider('/r')
-            .overrideWith((ref) async => const RepoData(remotes: ['origin'])),
+            .overrideWith((ref) async => RepoData(remotes: remotes)),
         lfsReadyProvider.overrideWith((ref, s) async => ready),
       ],
       child: MaterialApp(
@@ -149,4 +150,34 @@ void main() {
       expect(find.text(_prune), ready ? findsOneWidget : findsNothing);
     });
   }
+
+  testWidgets('palette offers no LFS download with no remote, prune stays', (
+    tester,
+  ) async {
+    final container = await _pump(
+      tester,
+      _FakeGit(),
+      ready: true,
+      remotes: const [],
+      home: Consumer(
+        builder: (ctx, ref, _) => Scaffold(
+          body: Center(
+            child: ElevatedButton(
+              onPressed: () => openGlobalPalette(ctx, ref),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ),
+    );
+    final src = workingTreeLfsSource('/r', const []);
+    final sub = container.listen(lfsReadyProvider(src), (_, _) {});
+    addTearDown(sub.close);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    expect(find.text(_pull), findsNothing);
+    expect(find.text(_fetchAll), findsNothing);
+    expect(find.text(_prune), findsOneWidget);
+  });
 }

@@ -1511,6 +1511,7 @@
   "lfsPointerStrip": "{count, plural, one{1 LFS file is not downloaded} other{{count} LFS files are not downloaded}}",
   "@lfsPointerStrip": { "placeholders": { "count": { "type": "int" } } },
   "lfsDownload": "Download",
+  "lfsNoRemote": "No remote to download from",
   "lfsDownloadUnsafePath": "This file's name cannot be downloaded on its own — use Pull LFS files.",
   "lfsPruneNothing": "Nothing to prune",
   "lfsPruneUnreadable": "Could not preview the prune",
@@ -1536,6 +1537,82 @@
   "lfsPushHookBody": "This repository stores files with Git LFS, but pushing from here would upload only pointers — the LFS hooks are not installed.",
   "lfsPushInstallAndPush": "Install LFS hooks and push",
   "lfsPushHookNotRunnable": "The pre-push hook exists, but git will not run it because the file is not executable. Nothing was pushed.",
+  "lfsLockChipYou": "You",
+  "lfsLockTooltip": "Locked by {owner} · {age}",
+  "@lfsLockTooltip": {
+    "placeholders": {
+      "owner": {
+        "type": "String"
+      },
+      "age": {
+        "type": "String"
+      }
+    }
+  },
+  "lfsLockFile": "Lock file",
+  "lfsUnlockFile": "Unlock file",
+  "lfsForceUnlock": "Force unlock…",
+  "lfsForceUnlockTitle": "Break someone else's lock",
+  "lfsForceUnlockBody": "Locked by {owner} ({age}). Breaking the lock does not stop them from pushing their changes, and they may lose work.",
+  "@lfsForceUnlockBody": {
+    "placeholders": {
+      "owner": {
+        "type": "String"
+      },
+      "age": {
+        "type": "String"
+      }
+    }
+  },
+  "lfsForceUnlockConfirm": "Break lock",
+  "lfsLocksSection": "Locks",
+  "lfsLocksYours": "Yours",
+  "lfsLocksOthers": "Others",
+  "lfsLocksRefresh": "Refresh",
+  "lfsLocksStale": "Couldn't refresh locks — showing the last known list",
+  "lfsLocksMore": "{count, plural, one{and {count} more} other{and {count} more}}",
+  "@lfsLocksMore": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "lfsLocksMoreAtLeast": "{count, plural, one{and {count}+ more} other{and {count}+ more}}",
+  "@lfsLocksMoreAtLeast": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "lfsLockTooltipNoAge": "Locked by {owner}",
+  "@lfsLockTooltipNoAge": {
+    "placeholders": {
+      "owner": {
+        "type": "String"
+      }
+    }
+  },
+  "lfsForceUnlockBodyNoAge": "Locked by {owner}. Breaking the lock does not stop them from pushing their changes, and they may lose work.",
+  "@lfsForceUnlockBodyNoAge": {
+    "placeholders": {
+      "owner": {
+        "type": "String"
+      }
+    }
+  },
+  "lfsLocksRefreshedAt": "Last refreshed: {age}",
+  "@lfsLocksRefreshedAt": {
+    "placeholders": {
+      "age": {
+        "type": "String"
+      }
+    }
+  },
+  "lfsLocksUnsupported": "This repository's server doesn't support file locks.",
+  "lfsPushLockedTitle": "Files locked by someone else",
+  "lfsPushLockedBody": "These files are locked by someone else. Pushing changes to them may overwrite their work.",
   "lfsPushAnyway": "Push anyway",
   "lfsPushToolTitle": "git-lfs is not installed",
   "lfsPushToolBody": "This repository stores files with Git LFS. Pushing without git-lfs uploads pointers without their content.",
