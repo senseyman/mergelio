@@ -513,9 +513,11 @@ List<LfsLock>? parseLfsLocksJson(String raw) {
 LfsLock? parseLfsLockResultJson(String raw) => _lockFrom(_decode(raw));
 
 /// The first failure reason in `git lfs unlock --json` output, or null when
-/// every entry unlocked. Entries may be keyed by `id` or by `path`.
+/// every entry unlocked. Entries may be keyed by `id` or by `path`; a single
+/// object counts as a one-entry list.
 String? parseLfsUnlockFailure(String raw) {
-  final v = _decode(raw);
+  final decoded = _decode(raw);
+  final v = decoded is Map ? [decoded] : decoded;
   if (v is! List) return 'unlock failed';
   for (final e in v) {
     if (e is Map && e['unlocked'] != true) {

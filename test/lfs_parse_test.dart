@@ -565,6 +565,13 @@ void main() {
         'unable get lock ID',
       );
     });
+    test('a single object is read like a one-entry list', () {
+      expect(parseLfsUnlockFailure('{"id":"7","unlocked":true}'), isNull);
+      expect(
+        parseLfsUnlockFailure('{"id":"7","unlocked":false,"reason":"no"}'),
+        'no',
+      );
+    });
     test('all unlocked is null', () {
       expect(parseLfsUnlockFailure('[{"id":"7","unlocked":true}]'), isNull);
     });
