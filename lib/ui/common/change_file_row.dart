@@ -23,6 +23,9 @@ class ChangeFileRow extends StatelessWidget {
   /// The server lock on this file, shown only on LFS rows.
   final LfsLock? lock;
   final bool lockIsOurs;
+
+  /// Extra context-menu entries, such as lock actions, built when it opens.
+  final List<PopupMenuEntry<void>> Function(BuildContext context)? extraMenu;
   const ChangeFileRow({
     super.key,
     required this.file,
@@ -33,6 +36,7 @@ class ChangeFileRow extends StatelessWidget {
     this.lfs = false,
     this.lock,
     this.lockIsOurs = false,
+    this.extraMenu,
   });
 
   String get _label {
@@ -67,6 +71,7 @@ class ChangeFileRow extends StatelessWidget {
           ),
           child: Text(l.wtpBlame, style: TextStyle(fontSize: 13)),
         ),
+        ...?extraMenu?.call(context),
       ],
     );
   }

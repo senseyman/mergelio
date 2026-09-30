@@ -10,6 +10,7 @@ import '../../state/lfs.dart';
 import '../../state/settings_controller.dart';
 import '../common/change_file_row.dart';
 import '../common/file_tree_view.dart';
+import 'lfs_lock_menu.dart';
 
 /// Right panel content while two revisions are being compared: the pair being
 /// read, and every file that differs between them. Read-only — a comparison
@@ -152,6 +153,13 @@ class CompareDetails extends ConsumerWidget {
                         lfs: lfs.contains(path),
                         lock: locks.lockFor(path),
                         lockIsOurs: locks.ours.any((l) => l.path == path),
+                        extraMenu: (ctx) => lfsLockMenuItems(
+                          context: ctx,
+                          ref: ref,
+                          repoPath: target.repoPath,
+                          path: path,
+                          isLfs: lfs.contains(path),
+                        ),
                         onTap: () =>
                             ref.read(diffTargetProvider.notifier).state = target
                                 .fileTarget(path),

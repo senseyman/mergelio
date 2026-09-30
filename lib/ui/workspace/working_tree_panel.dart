@@ -24,6 +24,8 @@ import '../common/lfs_chip.dart';
 import '../common/lfs_lock_chip.dart';
 import '../insight/file_insight_dialog.dart';
 import 'lfs_banner.dart';
+import 'lfs_lock_menu.dart';
+import 'lfs_locks_section.dart';
 import 'lfs_track_menu.dart';
 import 'lfs_pointer_strip.dart';
 
@@ -63,14 +65,22 @@ class WorkingTreePanel extends ConsumerWidget {
         ref.watch(lfsLocksProvider(repoPath)).valueOrNull ?? LfsLockState.none;
     // Watched so the menu gains or loses its LFS entries once git-lfs is known.
     ref.watch(lfsToolProvider);
-    List<PopupMenuEntry<void>> trackItems(WorkingFile f, bool isLfs) =>
-        lfsTrackMenuItems(
-          context: context,
-          ref: ref,
-          repoPath: repoPath,
-          file: f,
-          isLfs: isLfs,
-        );
+    List<PopupMenuEntry<void>> trackItems(WorkingFile f, bool isLfs) => [
+      ...lfsTrackMenuItems(
+        context: context,
+        ref: ref,
+        repoPath: repoPath,
+        file: f,
+        isLfs: isLfs,
+      ),
+      ...lfsLockMenuItems(
+        context: context,
+        ref: ref,
+        repoPath: repoPath,
+        path: f.path,
+        isLfs: isLfs,
+      ),
+    ];
 
     return Semantics(
       container: true,
@@ -107,6 +117,7 @@ class WorkingTreePanel extends ConsumerWidget {
             ),
             LfsBanner(repoPath: repoPath, working: data.working),
             LfsPointerStrip(repoPath: repoPath, working: data.working),
+            LfsLocksSection(repoPath: repoPath, working: data.working),
             if (hasConflicts && !resolving)
               Padding(
                 padding: const EdgeInsets.fromLTRB(8, 6, 8, 2),
