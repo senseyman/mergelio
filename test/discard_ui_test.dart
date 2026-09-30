@@ -8,6 +8,7 @@ import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/domain/git/models.dart';
+import 'package:mergelio/state/lfs.dart';
 import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
@@ -31,6 +32,7 @@ class _FakeGit implements GitService {
 
 Widget _harness(RepoData data) => ProviderScope(
   overrides: [
+    lfsLocksProvider.overrideWith((ref, repo) async => LfsLockState.none),
     gitServiceProvider.overrideWithValue(_FakeGit()),
     settingsProvider.overrideWith(
       (ref) =>

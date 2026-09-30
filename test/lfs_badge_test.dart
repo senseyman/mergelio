@@ -33,6 +33,7 @@ class _Git implements GitService {
 Widget _app(Widget child, {List<Override> overrides = const []}) =>
     ProviderScope(
       overrides: [
+        lfsLocksProvider.overrideWith((ref, repo) async => LfsLockState.none),
         gitServiceProvider.overrideWithValue(_Git()),
         settingsProvider.overrideWith(
           (ref) => SettingsController(

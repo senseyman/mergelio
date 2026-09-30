@@ -98,6 +98,7 @@ Future<_H> _pump(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        lfsLocksProvider.overrideWith((ref, repo) async => LfsLockState.none),
         gitServiceProvider.overrideWithValue(g),
         lfsToolProvider.overrideWith((ref) async => tool),
         lfsPathsProvider.overrideWith(

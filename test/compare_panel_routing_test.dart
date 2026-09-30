@@ -9,6 +9,7 @@ import 'package:mergelio/domain/git/models.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/state/compare_target.dart';
 import 'package:mergelio/state/graph_selection.dart';
+import 'package:mergelio/state/lfs.dart';
 import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
@@ -34,6 +35,7 @@ Future<ProviderContainer> _pump(
   final workspace = WorkspaceController()..openRepo('/r');
   final container = ProviderContainer(
     overrides: [
+      lfsLocksProvider.overrideWith((ref, repo) async => LfsLockState.none),
       workspaceProvider.overrideWith((ref) => workspace),
       repoDataProvider.overrideWith(
         (ref, path) async => RepoData(commits: [_commit]),
