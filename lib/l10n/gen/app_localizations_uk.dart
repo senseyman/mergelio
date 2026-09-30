@@ -738,6 +738,76 @@ class AppLocalizationsUk extends AppLocalizations {
   }
 
   @override
+  String bdFastForward(String source, String target) {
+    return 'Перемотати «$target» до «$source»';
+  }
+
+  @override
+  String bdMoveHere(String source, String target) {
+    return 'Перемістити «$source» на «$target»';
+  }
+
+  @override
+  String bdResetSoft(String source, String target) {
+    return 'Скинути «$source» до «$target» (--soft)';
+  }
+
+  @override
+  String bdResetMixed(String source, String target) {
+    return 'Скинути «$source» до «$target» (--mixed)';
+  }
+
+  @override
+  String bdResetHard(String source, String target) {
+    return 'Скинути «$source» до «$target» (--hard)';
+  }
+
+  @override
+  String bdCherryPick(String source, String target) {
+    return 'Перенести «$target» на «$source» (cherry-pick)';
+  }
+
+  @override
+  String bdMergeBody(String source, String target) {
+    return 'Перемикає на «$target» і зливає в неї «$source».';
+  }
+
+  @override
+  String bdRebaseBody(String source, String target) {
+    return 'Перемикає на «$source» і переносить її коміти на «$target».';
+  }
+
+  @override
+  String bdFastForwardBody(String source, String target) {
+    return 'Пересуває «$target» вперед до «$source». Новий коміт не створюється.';
+  }
+
+  @override
+  String bdMoveHereBody(String source, String target) {
+    return 'Спрямовує «$source» на «$target» без перемикання. Коміти, що були лише в «$source», можуть стати недосяжними; скасування повертає гілку назад.';
+  }
+
+  @override
+  String bdResetSoftBody(String source, String target) {
+    return 'Пересуває «$source» на «$target». Зміни з покинутих комітів лишаються в індексі.';
+  }
+
+  @override
+  String bdResetMixedBody(String source, String target) {
+    return 'Пересуває «$source» на «$target». Зміни з покинутих комітів лишаються в робочому дереві, не проіндексовані.';
+  }
+
+  @override
+  String bdResetHardBody(String source, String target) {
+    return 'Пересуває «$source» на «$target» і відкидає покинуті коміти. Незакомічені зміни спершу ховаються в stash.';
+  }
+
+  @override
+  String bdCherryPickBody(String source, String target) {
+    return 'Перемикає на «$source» і застосовує коміт «$target» поверх неї.';
+  }
+
+  @override
   String sbTipSwitchHint(String branch) {
     return 'Клацніть, щоб показати вершину · подвійне клацання — переключитися на $branch';
   }

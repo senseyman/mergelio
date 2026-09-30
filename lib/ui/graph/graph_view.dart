@@ -24,7 +24,7 @@ import '../../state/workspace.dart';
 import '../common/confirm.dart';
 import '../common/dialogs.dart';
 import '../rebase/rebase_editor.dart';
-import '../shell/remote_merge_confirm.dart';
+import '../shell/branch_drop.dart';
 import '../shell/repo_op_dialogs.dart';
 import '../shell/resize_handle.dart';
 import '../workspace/branch_switch.dart';
@@ -367,50 +367,6 @@ class _GraphListState extends ConsumerState<GraphList> {
     _select(ordered[next], metrics.rowHeight);
   }
 
-  /// Merge/Rebase menu for a branch dropped onto a commit's local ref.
-  Future<void> _branchDropMenu(
-    BuildContext context,
-    String source,
-    String target,
-    Offset at,
-  ) async {
-    final l = AppLocalizations.of(context);
-    final path = ref.read(workspaceProvider).activeTab?.path;
-    if (path == null) return;
-    final actions = ref.read(repoActionsProvider(path));
-    await showContextMenu<void>(
-      context: context,
-      position: at,
-      items: [
-        PopupMenuItem(
-          height: 34,
-          onTap: () async {
-            if (await confirmRemoteSource(
-              context,
-              ref,
-              repoPath: path,
-              source: source,
-            )) {
-              await actions.mergeInto(source, target);
-            }
-          },
-          child: Text(
-            l.sbMergeSourceInto(source, target),
-            style: const TextStyle(fontSize: 13),
-          ),
-        ),
-        PopupMenuItem(
-          height: 34,
-          onTap: () => actions.rebaseOnto(source, target),
-          child: Text(
-            l.sbRebaseSourceOnto(source, target),
-            style: const TextStyle(fontSize: 13),
-          ),
-        ),
-      ],
-    );
-  }
-
   KeyEventResult _onKey(FocusNode node, KeyEvent event, double rowHeight) {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
@@ -671,19 +627,34 @@ class _GraphListState extends ConsumerState<GraphList> {
                           },
                         ),
                       );
-                      // A commit carrying a local branch ref accepts a branch
-                      // drag from the sidebar, opening the Merge/Rebase menu
-                      // against that branch (same flow as branch-onto-branch).
+                      // Every row accepts a dragged branch: a row carrying a
+                      // local branch is a drop on that branch, any other row a
+                      // drop on the commit itself.
                       final localRef = derived.localRefBySha[c.sha];
-                      if (localRef == null) return row;
+                      final target = localRef != null
+                          ? BranchDropTarget.branch(localRef)
+                          : BranchDropTarget.commit(c.sha);
                       return DragTarget<String>(
-                        onWillAcceptWithDetails: (dd) => dd.data != localRef,
-                        onAcceptWithDetails: (dd) => _branchDropMenu(
-                          context,
-                          dd.data,
-                          localRef,
-                          dd.offset,
-                        ),
+                        onWillAcceptWithDetails: (dd) =>
+                            dd.data != localRef &&
+                            !d.branches.any(
+                              (b) => b.name == dd.data && b.tip == c.sha,
+                            ),
+                        onAcceptWithDetails: (dd) {
+                          final repoPath = ref
+                              .read(workspaceProvider)
+                              .activeTab
+                              ?.path;
+                          if (repoPath == null) return;
+                          showBranchDropMenu(
+                            context,
+                            ref,
+                            repoPath: repoPath,
+                            source: dd.data,
+                            target: target,
+                            at: dd.offset,
+                          );
+                        },
                         builder: (ctx, candidates, _) => Container(
                           color: candidates.isNotEmpty
                               ? context.tokens.accent.withValues(alpha: 0.14)

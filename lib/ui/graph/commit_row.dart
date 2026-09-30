@@ -5,6 +5,7 @@ import '../../core/tokens.dart';
 import '../../domain/git/bisect.dart';
 import '../../domain/git/models.dart';
 import '../../l10n/gen/app_localizations.dart';
+import '../common/branch_drag_chip.dart';
 import 'commit_columns.dart';
 import 'graph_rail.dart';
 import 'rail_metrics.dart';
@@ -226,11 +227,23 @@ class CommitRow extends StatelessWidget {
               if (chip.isHead)
                 _branchChip(chip.name, colorFor(chip))
               else
-                GestureDetector(
-                  onDoubleTap: onBranchActivated == null
-                      ? null
-                      : () => onBranchActivated!(chip.name),
-                  child: _branchChip(chip.name, colorFor(chip)),
+                // Dragged onto another row it opens the branch drop menu;
+                // a drag only starts once the pointer moves, so double-click
+                // still switches to the branch.
+                Draggable<String>(
+                  data: chip.name,
+                  dragAnchorStrategy: pointerDragAnchorStrategy,
+                  feedback: BranchDragChip(label: chip.name),
+                  childWhenDragging: Opacity(
+                    opacity: 0.4,
+                    child: _branchChip(chip.name, colorFor(chip)),
+                  ),
+                  child: GestureDetector(
+                    onDoubleTap: onBranchActivated == null
+                        ? null
+                        : () => onBranchActivated!(chip.name),
+                    child: _branchChip(chip.name, colorFor(chip)),
+                  ),
                 ),
             if (overflow > 0)
               Tooltip(
