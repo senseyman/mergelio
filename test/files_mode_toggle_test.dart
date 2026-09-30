@@ -14,6 +14,7 @@ import 'package:mergelio/state/workspace.dart';
 import 'package:mergelio/ui/files/files_view.dart';
 import 'package:mergelio/ui/shell/app_toolbar.dart';
 import 'package:mergelio/ui/workspace/workspace_view.dart';
+import 'package:mergelio/ui/workspace/lfs_locks_section.dart';
 
 class _FakeGit implements GitService {
   @override
@@ -90,5 +91,22 @@ void main() {
     await tester.pump();
 
     expect(find.byType(FilesView), findsOneWidget);
+  });
+
+  testWidgets('the workspace reports a server without locking in any mode', (
+    tester,
+  ) async {
+    // Files mode mounts no working-tree panel; the notice must still be there.
+    final workspace = WorkspaceController();
+    final tab = workspace.openRepo('/r');
+    workspace.setViewMode(tab.id, RepoViewMode.files);
+
+    await tester.pumpWidget(_wrap(const WorkspaceView(), workspace));
+    await tester.pump();
+
+    final notice = tester.widget<LfsLocksUnsupportedNotice>(
+      find.byType(LfsLocksUnsupportedNotice),
+    );
+    expect(notice.repoPath, '/r');
   });
 }

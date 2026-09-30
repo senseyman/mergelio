@@ -35,14 +35,6 @@ class LfsLocksSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context);
-    // Listened to before any early return so a hidden section still reports.
-    ref.listen<bool>(lfsLocksUnsupportedProvider(repoPath), (prev, next) {
-      if (next && prev != true) {
-        ref
-            .read(toastProvider.notifier)
-            .show(l.lfsLocksUnsupported, kind: ToastKind.info);
-      }
-    });
     final async = ref.watch(lfsLocksProvider(repoPath));
     final state = async.valueOrNull;
     if (state == null || !state.available) return const SizedBox.shrink();
@@ -141,6 +133,35 @@ class LfsLocksSection extends ConsumerWidget {
         ],
       ),
     );
+  }
+}
+
+/// Says once, when it is found out, that the server cannot lock files. Wraps
+/// the whole workspace: the lock query also runs under commit details and
+/// compare, where no locks section is mounted to say it.
+class LfsLocksUnsupportedNotice extends ConsumerWidget {
+  const LfsLocksUnsupportedNotice({
+    super.key,
+    required this.repoPath,
+    required this.child,
+  });
+
+  final String repoPath;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.listen<bool>(lfsLocksUnsupportedProvider(repoPath), (prev, next) {
+      if (next && prev != true) {
+        ref
+            .read(toastProvider.notifier)
+            .show(
+              AppLocalizations.of(context).lfsLocksUnsupported,
+              kind: ToastKind.info,
+            );
+      }
+    });
+    return child;
   }
 }
 

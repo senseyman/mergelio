@@ -70,6 +70,8 @@ Future<_H> _pump(
   LfsLockState state, {
   List<WorkingFile> working = const [],
   Future<LfsLockState> Function()? loader,
+  bool notice = false,
+  bool section = true,
 }) async {
   final git = _FakeGit();
   tester.view.physicalSize = const Size(400, 900);
@@ -94,7 +96,16 @@ Future<_H> _pump(
         supportedLocales: AppLocalizations.supportedLocales,
         theme: ThemeData(extensions: [AppTokens.dark()]),
         home: Scaffold(
-          body: LfsLocksSection(repoPath: '/r', working: working),
+          body: Builder(
+            builder: (_) {
+              final Widget body = section
+                  ? LfsLocksSection(repoPath: '/r', working: working)
+                  : const SizedBox.shrink();
+              return notice
+                  ? LfsLocksUnsupportedNotice(repoPath: '/r', child: body)
+                  : body;
+            },
+          ),
         ),
       ),
     ),
@@ -102,7 +113,7 @@ Future<_H> _pump(
   await tester.pumpAndSettle();
   return _H(
     git,
-    ProviderScope.containerOf(tester.element(find.byType(LfsLocksSection))),
+    ProviderScope.containerOf(tester.element(find.byType(Scaffold))),
   );
 }
 
@@ -219,7 +230,8 @@ void main() {
   testWidgets('the unsupported flag flip toasts once across rebuilds', (
     t,
   ) async {
-    final h = await _pump(t, _state(ours: [_lock(1, 'me')]));
+    // Section and notice both mounted, as in the app: one toast, not two.
+    final h = await _pump(t, _state(ours: [_lock(1, 'me')]), notice: true);
     final flag = h.container.read(lfsLocksUnsupportedProvider('/r').notifier);
     flag.state = true;
     await t.pump();
@@ -240,15 +252,28 @@ void main() {
     await t.pump(const Duration(seconds: 5));
   });
 
-  testWidgets('a hidden section still toasts the flag flip', (t) async {
-    final h = await _pump(t, LfsLockState.none);
+  const unsupported = "This repository's server doesn't support file locks.";
+
+  testWidgets('the notice toasts the flip with no section mounted', (t) async {
+    // The query also runs under commit details, where no section exists.
+    final h = await _pump(t, LfsLockState.none, notice: true, section: false);
     h.container.read(lfsLocksUnsupportedProvider('/r').notifier).state = true;
     await t.pump();
     expect(
       h.container.read(toastProvider).map((x) => x.title),
-      contains("This repository's server doesn't support file locks."),
+      contains(unsupported),
     );
     await t.pump(const Duration(seconds: 5));
+  });
+
+  testWidgets('the section itself never toasts the flip', (t) async {
+    final h = await _pump(t, _state(ours: [_lock(1, 'me')]));
+    h.container.read(lfsLocksUnsupportedProvider('/r').notifier).state = true;
+    await t.pump();
+    expect(
+      h.container.read(toastProvider).map((x) => x.title),
+      isNot(contains(unsupported)),
+    );
   });
 
   testWidgets('tapping a row opens its diff when the file is changed', (
