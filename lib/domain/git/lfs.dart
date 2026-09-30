@@ -309,7 +309,15 @@ List<String> _lines(String raw) => raw.replaceAll('\r\n', '\n').split('\n');
 class LfsTrackedPattern {
   final String pattern;
   final String source;
-  const LfsTrackedPattern({required this.pattern, required this.source});
+
+  /// Files matching the pattern are meant to be locked before editing.
+  /// Not part of equality: the pattern and its file identify the line.
+  final bool lockable;
+  const LfsTrackedPattern({
+    required this.pattern,
+    required this.source,
+    this.lockable = false,
+  });
 
   @override
   bool operator ==(Object other) =>
@@ -368,6 +376,8 @@ bool _routesThroughLfs(String line, String pattern) {
       fields.skip(1).contains('filter=lfs');
 }
 
+const _lockableTag = ' [lockable]';
+
 final _trackLine = RegExp(r'^\s+(.+) \(([^()]+)\)$');
 
 /// `git lfs track` (no arguments) → the tracked patterns. Excluded patterns,
@@ -382,7 +392,19 @@ List<LfsTrackedPattern> parseLfsTrackList(String raw) {
       inTracked = false;
     } else if (inTracked) {
       final m = _trackLine.firstMatch(line);
-      if (m != null) out.add(LfsTrackedPattern(pattern: m[1]!, source: m[2]!));
+      if (m == null) continue;
+      // git-lfs appends a tag to lockable patterns: `*.psd [lockable]`.
+      final raw = m[1]!;
+      final lockable = raw.endsWith(_lockableTag);
+      out.add(
+        LfsTrackedPattern(
+          pattern: lockable
+              ? raw.substring(0, raw.length - _lockableTag.length)
+              : raw,
+          source: m[2]!,
+          lockable: lockable,
+        ),
+      );
     }
   }
   return out;

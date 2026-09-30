@@ -366,6 +366,30 @@ void main() {
     });
   });
 
+  group('parseLfsTrackList with lockable patterns', () {
+    test('the [lockable] tag is not part of the pattern', () {
+      final list = parseLfsTrackList(
+        'Listing tracked patterns\n'
+        '    *.psd [lockable] (.gitattributes)\n'
+        '    *.bin (.gitattributes)\n'
+        'Listing excluded patterns\n',
+      );
+      expect(list.map((t) => t.pattern), ['*.psd', '*.bin']);
+      expect(list.map((t) => t.lockable), [true, false]);
+      expect(list.first.source, '.gitattributes');
+    });
+    test('equality still keys on pattern and source', () {
+      expect(
+        const LfsTrackedPattern(
+          pattern: '*.psd',
+          source: '.gitattributes',
+          lockable: true,
+        ),
+        const LfsTrackedPattern(pattern: '*.psd', source: '.gitattributes'),
+      );
+    });
+  });
+
   group('parseLfsTrackList', () {
     test('tracked patterns with their source file', () {
       expect(
