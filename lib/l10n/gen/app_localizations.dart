@@ -4058,6 +4058,12 @@ abstract class AppLocalizations {
   /// **'Download'**
   String get lfsDownload;
 
+  /// No description provided for @lfsNoRemote.
+  ///
+  /// In en, this message translates to:
+  /// **'No remote to download from'**
+  String get lfsNoRemote;
+
   /// No description provided for @lfsDownloadUnsafePath.
   ///
   /// In en, this message translates to:

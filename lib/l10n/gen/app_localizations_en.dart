@@ -2303,6 +2303,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lfsDownload => 'Download';
 
   @override
+  String get lfsNoRemote => 'No remote to download from';
+
+  @override
   String get lfsDownloadUnsafePath =>
       'This file\'s name cannot be downloaded on its own — use Pull LFS files.';
 

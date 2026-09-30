@@ -1511,6 +1511,7 @@
   "lfsPointerStrip": "{count, plural, one{1 LFS file is not downloaded} other{{count} LFS files are not downloaded}}",
   "@lfsPointerStrip": { "placeholders": { "count": { "type": "int" } } },
   "lfsDownload": "Download",
+  "lfsNoRemote": "No remote to download from",
   "lfsDownloadUnsafePath": "This file's name cannot be downloaded on its own — use Pull LFS files.",
   "lfsPruneNothing": "Nothing to prune",
   "lfsPruneUnreadable": "Could not preview the prune",

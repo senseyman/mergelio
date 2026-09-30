@@ -835,6 +835,7 @@
   "lfsOpPrune": "Очистити об'єкти LFS…",
   "lfsPointerStrip": "{count, plural, one{{count} файл LFS не завантажено} few{{count} файли LFS не завантажено} other{{count} файлів LFS не завантажено}}",
   "lfsDownload": "Завантажити",
+  "lfsNoRemote": "Немає віддаленого репозиторію, з якого завантажити",
   "lfsDownloadUnsafePath": "Цей файл не можна завантажити окремо через його назву — скористайтеся «Завантажити файли LFS».",
   "lfsPruneNothing": "Нічого очищати",
   "lfsPruneUnreadable": "Не вдалося переглянути очищення",

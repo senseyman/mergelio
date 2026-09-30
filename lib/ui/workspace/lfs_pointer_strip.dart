@@ -6,6 +6,7 @@ import '../../domain/git/models.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/lfs.dart';
 import '../../state/repo_actions.dart';
+import '../../state/repo_data.dart';
 
 /// Says how many LFS-managed files in the working tree are still pointers
 /// and offers to bring their content down. Goes away by itself once they
@@ -29,6 +30,11 @@ class LfsPointerStrip extends ConsumerWidget {
             .valueOrNull ??
         const <String>{};
     if (pointers.isEmpty) return const SizedBox.shrink();
+    // Without a remote git-lfs has nowhere to download from.
+    final hasRemote = ref.watch(
+      repoDataProvider(repoPath)
+          .select((d) => d.valueOrNull?.remotes.isNotEmpty ?? false),
+    );
     final l = AppLocalizations.of(context);
     final t = context.tokens;
     return Container(
@@ -42,10 +48,20 @@ class LfsPointerStrip extends ConsumerWidget {
               style: TextStyle(color: t.textPrimary, fontSize: 12),
             ),
           ),
-          TextButton(
-            onPressed: () => ref.read(repoActionsProvider(repoPath)).lfsPull(),
-            child: Text(l.lfsDownload, style: const TextStyle(fontSize: 12)),
-          ),
+          if (hasRemote)
+            TextButton(
+              onPressed: () =>
+                  ref.read(repoActionsProvider(repoPath)).lfsPull(),
+              child: Text(l.lfsDownload, style: const TextStyle(fontSize: 12)),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Text(
+                l.lfsNoRemote,
+                style: TextStyle(color: t.textMuted, fontSize: 12),
+              ),
+            ),
         ],
       ),
     );

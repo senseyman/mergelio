@@ -2319,6 +2319,10 @@ class AppLocalizationsUk extends AppLocalizations {
   String get lfsDownload => 'Завантажити';
 
   @override
+  String get lfsNoRemote =>
+      'Немає віддаленого репозиторію, з якого завантажити';
+
+  @override
   String get lfsDownloadUnsafePath =>
       'Цей файл не можна завантажити окремо через його назву — скористайтеся «Завантажити файли LFS».';
 

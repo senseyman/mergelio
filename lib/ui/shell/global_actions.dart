@@ -49,13 +49,16 @@ void openGlobalPalette(BuildContext context, WidgetRef ref) {
       final pull = pullDefaults(ref.read(settingsProvider));
       return actions.pull(rebase: pull.rebase, autostash: pull.autostash);
     }),
-    if (lfsReady) ...[
+    // Downloads need a remote to come from; pruning is local.
+    if (lfsReady && (data?.remotes.isNotEmpty ?? false)) ...[
       PaletteCommand(l.lfsOpPull, Icons.south_west, () => actions.lfsPull()),
       PaletteCommand(
         l.lfsOpFetchAll,
         Icons.download_outlined,
         () => actions.lfsFetchAll(),
       ),
+    ],
+    if (lfsReady) ...[
       PaletteCommand(
         l.lfsOpPrune,
         Icons.cleaning_services_outlined,

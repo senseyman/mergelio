@@ -236,7 +236,17 @@ class RepoActions {
     try {
       return await _network(
         label,
-        op,
+        (c) async {
+          try {
+            await op(c);
+          } on GitException catch (e) {
+            // git-lfs's own wording names an empty URL; say what it means.
+            if (!lfsNoRemote(e.result?.err ?? '')) rethrow;
+            throw GitException(
+              'This repository has no remote to download LFS files from.',
+            );
+          }
+        },
         lane: lane,
         writesWorkingTree: writesWorkingTree,
         toastSuccess: toastSuccess,

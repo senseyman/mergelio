@@ -550,3 +550,7 @@ bool lfsLocksUnsupported(String stderr) {
   return _locksUnsupportedMarkers.any(s.contains) ||
       _locksNotFoundStatus.hasMatch(s);
 }
+
+/// True when git-lfs failed because there is no remote URL to reach: it asks
+/// an empty endpoint and reports `missing protocol: ""`.
+bool lfsNoRemote(String stderr) => stderr.contains('missing protocol: ""');
