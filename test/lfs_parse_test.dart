@@ -601,6 +601,8 @@ void main() {
       "Authentication failed for 'https://host/x.git/info/lfs/locks'",
       'Not Found',
       'object 4040404 not found',
+      'dial tcp [::1]:443: connect: address family not supported by protocol',
+      'error: RPC failed; the server does not support HTTP/2',
     ]) {
       test('false: $stderr', () {
         expect(lfsLocksUnsupported(stderr), isFalse);

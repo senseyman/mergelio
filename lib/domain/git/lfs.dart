@@ -534,9 +534,10 @@ const _locksUnsupportedMarkers = [
   'missing protocol',
   // git-lfs's hint for a file:// remote, printed even when it exits 0.
   'resolves to a file:// url',
-  // The server or git-lfs says so explicitly.
-  'not supported',
-  'does not support',
+  // The server or git-lfs says so explicitly. Only its own wording counts:
+  // plain "not supported" also turns up in unrelated network errors.
+  'does not support the git lfs locking api',
+  'locking is not supported',
 ];
 
 /// A 404 reported as an HTTP status. A bare `404` would also match ports,
