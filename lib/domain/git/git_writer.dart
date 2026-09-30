@@ -673,6 +673,31 @@ class GitWriter {
   Future<void> renameBranch(String from, String to) =>
       _ok(['branch', '-m', from, to], 'git branch -m');
 
+  /// Ceiling for `gc` and `maintenance run`. A full repack of a large
+  /// repository takes far longer than the ordinary default; the user can
+  /// cancel it sooner.
+  static const housekeepingTimeout = Duration(hours: 2);
+
+  /// Runs `git gc` and returns what it printed. Its progress goes to stderr,
+  /// so both streams are kept.
+  Future<String> gc({GitCancel? cancel}) =>
+      _housekeeping(['gc'], 'git gc', cancel);
+
+  /// Runs `git maintenance run` with whatever tasks the repository's config
+  /// enables, and returns what it printed.
+  Future<String> maintenanceRun({GitCancel? cancel}) =>
+      _housekeeping(['maintenance', 'run'], 'git maintenance run', cancel);
+
+  Future<String> _housekeeping(
+    List<String> args,
+    String what,
+    GitCancel? cancel,
+  ) async {
+    final r = await _run(args, timeout: housekeepingTimeout, cancel: cancel);
+    if (!r.ok) throw GitException(what, r);
+    return '${r.stdout}${r.stderr}';
+  }
+
   /// Deletes branch [name]; [force] (`-D`) drops the merged-check.
   Future<void> deleteBranch(String name, {bool force = false}) =>
       _ok(['branch', force ? '-D' : '-d', name], 'git branch -d');

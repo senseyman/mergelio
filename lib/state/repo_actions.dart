@@ -15,6 +15,7 @@ import '../domain/git/git_reader.dart';
 import '../domain/git/git_service.dart';
 import '../domain/git/git_writer.dart';
 import '../domain/git/lfs.dart';
+import '../domain/git/maintenance.dart';
 import '../domain/git/models.dart';
 import '../domain/git/rebase_plan.dart';
 import 'bisect.dart';
@@ -1152,6 +1153,91 @@ class RepoActions {
       undo: () => _writer.createBranch(name, at: sha),
       redo: () => _writer.deleteBranch(name),
     );
+  }
+
+  /// Deletes several local branches as one undoable step. Merged ones go with
+  /// `-d`, so git's own check still stands; the rest need `-D`, which the
+  /// caller has already had the user confirm. A branch git refuses does not
+  /// stop the others, and undo restores exactly the ones that went.
+  Future<void> deleteBranches(List<HygieneBranch> branches) async {
+    if (branches.isEmpty) return;
+    final r = await _git.run([
+      'rev-parse',
+      for (final b in branches) 'refs/heads/${b.name}',
+    ], repoPath: path);
+    final shas = const LineSplitter().convert(r.stdout);
+    if (!r.ok || shas.length != branches.length) {
+      _toastErr('Delete branches', GitException('git rev-parse', r));
+      return;
+    }
+    final deleted = <(String, String)>[];
+    final refused = <String>[];
+    Future<void> forward() async {
+      for (var i = 0; i < branches.length; i++) {
+        final b = branches[i];
+        try {
+          await _writer.deleteBranch(b.name, force: b.needsForce);
+          deleted.add((b.name, shas[i]));
+        } on GitException catch (e) {
+          final err = e.result?.err ?? '';
+          refused.add(err.isNotEmpty ? err : '${b.name}: ${e.message}');
+        }
+      }
+      // Nothing went, so there is nothing to undo: fail the op instead.
+      if (deleted.isEmpty) throw GitException(refused.join('\n'));
+    }
+
+    await _undoable(
+      branches.length == 1
+          ? 'Delete branch ${branches.single.name}'
+          : 'Delete ${branches.length} branches',
+      forward,
+      undo: () async {
+        for (final (name, sha) in deleted) {
+          await _writer.createBranch(name, at: sha);
+        }
+      },
+      redo: () async {
+        for (final (name, _) in deleted) {
+          await _writer.deleteBranch(name, force: true);
+        }
+      },
+    );
+    if (deleted.isNotEmpty && refused.isNotEmpty) {
+      _ref
+          .read(toastProvider.notifier)
+          .show(
+            'Some branches were not deleted',
+            description: refused.join('\n'),
+            kind: ToastKind.warning,
+          );
+    }
+  }
+
+  /// `git gc`. Returns its output, or null when it did not run to the end.
+  Future<String?> runGc() => _housekeeping('Run gc', _writer.gc);
+
+  /// `git maintenance run`. Returns its output, or null when it did not run
+  /// to the end.
+  Future<String?> runMaintenance() =>
+      _housekeeping('Run maintenance', _writer.maintenanceRun);
+
+  /// Holds the repository lane but leaves file saves alone: housekeeping
+  /// repacks objects and refs and never touches the working tree. Refused
+  /// while a fetch runs, since repacking beside a fetch that is still writing
+  /// packs can drop what the fetch just brought in.
+  Future<String?> _housekeeping(
+    String label,
+    Future<String> Function({GitCancel? cancel}) op,
+  ) async {
+    if (_blockedByFetchOp) return null;
+    String? output;
+    await _network(
+      label,
+      (cancel) async => output = await op(cancel: cancel),
+      writesWorkingTree: false,
+    );
+    return output;
   }
 
   /// Deletes the branch behind [rb] on its remote. No undo entry: re-pushing
