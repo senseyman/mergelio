@@ -1394,6 +1394,94 @@ class RepoActions {
     );
   }
 
+  /// Moves the current branch to [sha] with `--soft`: the commits' changes
+  /// stay staged.
+  Future<void> resetSoft(String sha) async {
+    final prev = await _headSha();
+    await _undoable(
+      'Reset to ${_short(sha)} (soft)',
+      () => _writer.resetSoft(sha),
+      undo: () => _writer.resetSoft(prev),
+      redo: () => _writer.resetSoft(sha),
+    );
+  }
+
+  /// True when [ancestor] is reachable from [descendant] (or is it).
+  Future<bool> isAncestor(String ancestor, String descendant) async =>
+      (await _git.run([
+        'merge-base',
+        '--is-ancestor',
+        ancestor,
+        descendant,
+      ], repoPath: path)).ok;
+
+  /// Points branch [name] at [sha] without switching to it (drag-and-drop
+  /// "move here"). The current branch is refused: moving it would leave the
+  /// working tree out of step, which is what a reset is for.
+  Future<void> moveBranch(String name, String sha) async {
+    if (await _headRef() == name) {
+      _ref
+          .read(toastProvider.notifier)
+          .show(
+            'Cannot move the current branch',
+            description: 'Reset it instead',
+            kind: ToastKind.warning,
+          );
+      return;
+    }
+    final prev = await _out(['rev-parse', name]);
+    // Resolved now so redo lands where the user dropped, even if [sha] is a
+    // branch name that has moved since.
+    final to = await _out(['rev-parse', sha]);
+    await _undoable(
+      'Move $name to ${_short(sha)}',
+      () => _writer.forceBranch(name, to),
+      undo: () => _writer.forceBranch(name, prev),
+      redo: () => _writer.forceBranch(name, to),
+    );
+  }
+
+  /// Fast-forwards branch [target] to [to]. The current branch goes through
+  /// `merge --ff-only` so its working tree follows; any other branch only has
+  /// its ref moved. A [target] that has diverged from [to] is left alone.
+  Future<void> fastForward(String target, String to) async {
+    if (!await isAncestor(target, to)) {
+      _ref
+          .read(toastProvider.notifier)
+          .show(
+            'Cannot fast-forward $target',
+            description: '$target has commits that $to does not',
+            kind: ToastKind.warning,
+          );
+      return;
+    }
+    if (await _headRef() != target) {
+      final prev = await _out(['rev-parse', target]);
+      final sha = await _out(['rev-parse', to]);
+      await _undoable(
+        'Fast-forward $target to $to',
+        () => _writer.forceBranch(target, sha),
+        undo: () => _writer.forceBranch(target, prev),
+        redo: () => _writer.forceBranch(target, sha),
+      );
+      return;
+    }
+    final prev = await _headSha();
+    await _undoable(
+      'Fast-forward $target to $to',
+      () => _writer.mergeFfOnly(to),
+      undo: () => _undoReset(prev),
+      redo: () => _writer.mergeFfOnly(to),
+    );
+  }
+
+  /// Switches to [branch] then cherry-picks [sha] onto it (drag-and-drop). One
+  /// undo entry (the pick); the switch is not undoable on its own, so a pick
+  /// that conflicts or is undone still leaves HEAD on [branch].
+  Future<void> cherryPickOnto(String branch, String sha) async {
+    if (await _switchTo(branch)) await cherryPick(sha);
+  }
+
   /// Resets the current branch to a remote-tracking ref (e.g. `origin/x`),
   /// discarding any unpushed commits. Uncommitted work is auto-stashed and the
   /// whole reset is undoable, exactly like [resetHard].
@@ -2708,8 +2796,11 @@ class RepoActions {
     _refresh();
   }
 
+  /// Abbreviates a full sha for labels. Anything else is a ref name (a reset
+  /// or move can target a branch), which is left whole.
   static String _short(String sha) =>
-      sha.length > 7 ? sha.substring(0, 7) : sha;
+      sha.length > 7 && _fullSha.hasMatch(sha) ? sha.substring(0, 7) : sha;
+  static final _fullSha = RegExp(r'^[0-9a-f]{40}([0-9a-f]{24})?$');
 
   /// A local (non-network) mutation: time it, toast the outcome, refresh.
   ///

@@ -734,6 +734,76 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String bdFastForward(String source, String target) {
+    return 'Fast-forward «$target» to «$source»';
+  }
+
+  @override
+  String bdMoveHere(String source, String target) {
+    return 'Move «$source» to «$target»';
+  }
+
+  @override
+  String bdResetSoft(String source, String target) {
+    return 'Reset «$source» to «$target» (--soft)';
+  }
+
+  @override
+  String bdResetMixed(String source, String target) {
+    return 'Reset «$source» to «$target» (--mixed)';
+  }
+
+  @override
+  String bdResetHard(String source, String target) {
+    return 'Reset «$source» to «$target» (--hard)';
+  }
+
+  @override
+  String bdCherryPick(String source, String target) {
+    return 'Cherry-pick «$target» onto «$source»';
+  }
+
+  @override
+  String bdMergeBody(String source, String target) {
+    return 'Switches to «$target» and merges «$source» into it.';
+  }
+
+  @override
+  String bdRebaseBody(String source, String target) {
+    return 'Switches to «$source» and replays its commits onto «$target».';
+  }
+
+  @override
+  String bdFastForwardBody(String source, String target) {
+    return 'Moves «$target» forward to «$source». No new commit is made.';
+  }
+
+  @override
+  String bdMoveHereBody(String source, String target) {
+    return 'Points «$source» at «$target» without switching to it. Commits only «$source» had may become unreachable; undo puts it back.';
+  }
+
+  @override
+  String bdResetSoftBody(String source, String target) {
+    return 'Moves «$source» to «$target». Changes from the commits it leaves behind stay staged.';
+  }
+
+  @override
+  String bdResetMixedBody(String source, String target) {
+    return 'Moves «$source» to «$target». Changes from the commits it leaves behind stay in the working tree, unstaged.';
+  }
+
+  @override
+  String bdResetHardBody(String source, String target) {
+    return 'Moves «$source» to «$target» and discards the commits it leaves behind. Uncommitted work is stashed first.';
+  }
+
+  @override
+  String bdCherryPickBody(String source, String target) {
+    return 'Switches to «$source» and applies commit «$target» on top of it.';
+  }
+
+  @override
   String sbTipSwitchHint(String branch) {
     return 'Click to show its tip · double-click to switch to $branch';
   }

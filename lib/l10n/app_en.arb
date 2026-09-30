@@ -444,6 +444,160 @@
       }
     }
   },
+  "bdFastForward": "Fast-forward «{target}» to «{source}»",
+  "@bdFastForward": {
+    "placeholders": {
+      "source": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "bdMoveHere": "Move «{source}» to «{target}»",
+  "@bdMoveHere": {
+    "placeholders": {
+      "source": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "bdResetSoft": "Reset «{source}» to «{target}» (--soft)",
+  "@bdResetSoft": {
+    "placeholders": {
+      "source": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "bdResetMixed": "Reset «{source}» to «{target}» (--mixed)",
+  "@bdResetMixed": {
+    "placeholders": {
+      "source": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "bdResetHard": "Reset «{source}» to «{target}» (--hard)",
+  "@bdResetHard": {
+    "placeholders": {
+      "source": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "bdCherryPick": "Cherry-pick «{target}» onto «{source}»",
+  "@bdCherryPick": {
+    "placeholders": {
+      "source": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "bdMergeBody": "Switches to «{target}» and merges «{source}» into it.",
+  "@bdMergeBody": {
+    "placeholders": {
+      "source": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "bdRebaseBody": "Switches to «{source}» and replays its commits onto «{target}».",
+  "@bdRebaseBody": {
+    "placeholders": {
+      "source": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "bdFastForwardBody": "Moves «{target}» forward to «{source}». No new commit is made.",
+  "@bdFastForwardBody": {
+    "placeholders": {
+      "source": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "bdMoveHereBody": "Points «{source}» at «{target}» without switching to it. Commits only «{source}» had may become unreachable; undo puts it back.",
+  "@bdMoveHereBody": {
+    "placeholders": {
+      "source": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "bdResetSoftBody": "Moves «{source}» to «{target}». Changes from the commits it leaves behind stay staged.",
+  "@bdResetSoftBody": {
+    "placeholders": {
+      "source": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "bdResetMixedBody": "Moves «{source}» to «{target}». Changes from the commits it leaves behind stay in the working tree, unstaged.",
+  "@bdResetMixedBody": {
+    "placeholders": {
+      "source": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "bdResetHardBody": "Moves «{source}» to «{target}» and discards the commits it leaves behind. Uncommitted work is stashed first.",
+  "@bdResetHardBody": {
+    "placeholders": {
+      "source": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "bdCherryPickBody": "Switches to «{source}» and applies commit «{target}» on top of it.",
+  "@bdCherryPickBody": {
+    "placeholders": {
+      "source": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
   "sbTipSwitchHint": "Click to show its tip · double-click to switch to {branch}",
   "@sbTipSwitchHint": {
     "placeholders": {

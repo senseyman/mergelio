@@ -5,6 +5,7 @@ import '../../core/tokens.dart';
 import '../../domain/git/bisect.dart';
 import '../../domain/git/models.dart';
 import '../../l10n/gen/app_localizations.dart';
+import '../common/branch_drag_chip.dart';
 import 'commit_columns.dart';
 import 'graph_rail.dart';
 import 'rail_metrics.dart';
@@ -59,6 +60,13 @@ class CommitRow extends StatelessWidget {
   /// the gesture (the chip renders plain).
   final void Function(String label)? onBranchActivated;
 
+  /// Whether the chip labelled [chip] takes a dragged branch [source]. Null
+  /// makes chips no drop target, leaving the drop to the row around them.
+  final bool Function(String source, String chip)? acceptsBranchDrop;
+
+  /// A branch [source] dropped on the chip labelled [chip] at [at].
+  final void Function(String source, String chip, Offset at)? onBranchDropped;
+
   const CommitRow({
     super.key,
     required this.commit,
@@ -74,6 +82,8 @@ class CommitRow extends StatelessWidget {
     this.searchMatch,
     required this.onTap,
     this.onBranchActivated,
+    this.acceptsBranchDrop,
+    this.onBranchDropped,
   });
 
   bool _on(String id) => cols[id] ?? true;
@@ -223,15 +233,13 @@ class CommitRow extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             for (final chip in shown)
-              if (chip.isHead)
-                _branchChip(chip.name, colorFor(chip))
-              else
-                GestureDetector(
-                  onDoubleTap: onBranchActivated == null
-                      ? null
-                      : () => onBranchActivated!(chip.name),
-                  child: _branchChip(chip.name, colorFor(chip)),
-                ),
+              _labelDropTarget(
+                t,
+                chip.name,
+                chip.isHead
+                    ? _branchChip(chip.name, colorFor(chip))
+                    : _dragChip(chip.name, colorFor(chip)),
+              ),
             if (overflow > 0)
               Tooltip(
                 message: hidden.join('\n'),
@@ -240,6 +248,69 @@ class CommitRow extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  /// A branch chip that can be dragged onto another row to open the branch
+  /// drop menu. A drag only starts once the pointer moves, so double-click
+  /// still switches to the branch.
+  Widget _dragChip(String name, Color color) => Draggable<String>(
+    data: name,
+    dragAnchorStrategy: pointerDragAnchorStrategy,
+    feedback: BranchDragChip(label: name),
+    childWhenDragging: Opacity(opacity: 0.4, child: _branchChip(name, color)),
+    child: GestureDetector(
+      onDoubleTap: onBranchActivated == null
+          ? null
+          : () => onBranchActivated!(name),
+      child: _branchChip(name, color),
+    ),
+  );
+
+  /// Makes the label [name] the drop target for a branch let go over it, as a
+  /// drop on the label rather than on the row around it. The label claims
+  /// every branch drag, even one it refuses: Flutter hands a refused drop to
+  /// the next target under the pointer, which would turn a drop on a label
+  /// into a drop on the row's commit.
+  Widget _labelDropTarget(AppTokens t, String name, Widget child) {
+    final accepts = acceptsBranchDrop;
+    if (accepts == null) return child;
+    return DragTarget<String>(
+      onWillAcceptWithDetails: (_) => true,
+      onAcceptWithDetails: (d) {
+        if (accepts(d.data, name)) {
+          onBranchDropped?.call(d.data, name, d.offset);
+        }
+      },
+      builder: (ctx, candidates, _) {
+        final source = candidates.firstOrNull;
+        final lit = source != null && accepts(source, name);
+        // A pill around the label, set apart from the whole-row wash of a
+        // commit drop. Drawn past the label's edges rather than padding it,
+        // so marking a label never moves the labels stacked around it. The
+        // Stack is kept when unlit so the label's own drag and double-click
+        // state survive a hover coming and going.
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            if (lit)
+              Positioned(
+                left: -4,
+                right: -3,
+                top: -2,
+                bottom: -2,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: t.accent.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: t.accent),
+                  ),
+                ),
+              ),
+            child,
+          ],
+        );
+      },
     );
   }
 

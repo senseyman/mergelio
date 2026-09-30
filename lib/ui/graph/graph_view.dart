@@ -24,7 +24,7 @@ import '../../state/workspace.dart';
 import '../common/confirm.dart';
 import '../common/dialogs.dart';
 import '../rebase/rebase_editor.dart';
-import '../shell/remote_merge_confirm.dart';
+import '../shell/branch_drop.dart';
 import '../shell/repo_op_dialogs.dart';
 import '../shell/resize_handle.dart';
 import '../workspace/branch_switch.dart';
@@ -367,50 +367,6 @@ class _GraphListState extends ConsumerState<GraphList> {
     _select(ordered[next], metrics.rowHeight);
   }
 
-  /// Merge/Rebase menu for a branch dropped onto a commit's local ref.
-  Future<void> _branchDropMenu(
-    BuildContext context,
-    String source,
-    String target,
-    Offset at,
-  ) async {
-    final l = AppLocalizations.of(context);
-    final path = ref.read(workspaceProvider).activeTab?.path;
-    if (path == null) return;
-    final actions = ref.read(repoActionsProvider(path));
-    await showContextMenu<void>(
-      context: context,
-      position: at,
-      items: [
-        PopupMenuItem(
-          height: 34,
-          onTap: () async {
-            if (await confirmRemoteSource(
-              context,
-              ref,
-              repoPath: path,
-              source: source,
-            )) {
-              await actions.mergeInto(source, target);
-            }
-          },
-          child: Text(
-            l.sbMergeSourceInto(source, target),
-            style: const TextStyle(fontSize: 13),
-          ),
-        ),
-        PopupMenuItem(
-          height: 34,
-          onTap: () => actions.rebaseOnto(source, target),
-          child: Text(
-            l.sbRebaseSourceOnto(source, target),
-            style: const TextStyle(fontSize: 13),
-          ),
-        ),
-      ],
-    );
-  }
-
   KeyEventResult _onKey(FocusNode node, KeyEvent event, double rowHeight) {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
@@ -619,6 +575,38 @@ class _GraphListState extends ConsumerState<GraphList> {
                       final showBranchLabel =
                           rowLabels.isNotEmpty &&
                           !listEquals(rowLabels, prevLabels);
+                      // Labels and the rest of the row both ask the one rule in
+                      // [resolveBranchDrop]; only the spot they report differs.
+                      BranchDropTarget? dropTarget(
+                        String source,
+                        DropSpot spot,
+                      ) => resolveBranchDrop(
+                        source: source,
+                        spot: spot,
+                        branches: d.branches,
+                        remoteBranches: d.remoteBranches,
+                      );
+                      void openDrop(String source, DropSpot spot, Offset at) {
+                        final target = dropTarget(source, spot);
+                        final repoPath = ref
+                            .read(workspaceProvider)
+                            .activeTab
+                            ?.path;
+                        if (target == null || repoPath == null) return;
+                        showBranchDropMenu(
+                          this.context,
+                          ref,
+                          repoPath: repoPath,
+                          source: source,
+                          target: target,
+                          at: at,
+                        );
+                      }
+
+                      final commitSpot = DropSpot.commit(
+                        c.sha,
+                        isStash: stashBySha.containsKey(c.sha),
+                      );
                       final row = _CommitContextMenu(
                         commit: c,
                         // Only the segment top names its branches, so only
@@ -644,6 +632,10 @@ class _GraphListState extends ConsumerState<GraphList> {
                             _focus.requestFocus();
                             _select(c.sha, metrics.rowHeight);
                           },
+                          acceptsBranchDrop: (source, chip) =>
+                              dropTarget(source, DropSpot.label(chip)) != null,
+                          onBranchDropped: (source, chip, at) =>
+                              openDrop(source, DropSpot.label(chip), at),
                           onBranchActivated: (label) {
                             final repoPath = ref
                                 .read(workspaceProvider)
@@ -671,19 +663,11 @@ class _GraphListState extends ConsumerState<GraphList> {
                           },
                         ),
                       );
-                      // A commit carrying a local branch ref accepts a branch
-                      // drag from the sidebar, opening the Merge/Rebase menu
-                      // against that branch (same flow as branch-onto-branch).
-                      final localRef = derived.localRefBySha[c.sha];
-                      if (localRef == null) return row;
                       return DragTarget<String>(
-                        onWillAcceptWithDetails: (dd) => dd.data != localRef,
-                        onAcceptWithDetails: (dd) => _branchDropMenu(
-                          context,
-                          dd.data,
-                          localRef,
-                          dd.offset,
-                        ),
+                        onWillAcceptWithDetails: (dd) =>
+                            dropTarget(dd.data, commitSpot) != null,
+                        onAcceptWithDetails: (dd) =>
+                            openDrop(dd.data, commitSpot, dd.offset),
                         builder: (ctx, candidates, _) => Container(
                           color: candidates.isNotEmpty
                               ? context.tokens.accent.withValues(alpha: 0.14)

@@ -1406,6 +1406,90 @@ abstract class AppLocalizations {
   /// **'Rebase «{source}» onto «{target}»'**
   String sbRebaseSourceOnto(String source, String target);
 
+  /// No description provided for @bdFastForward.
+  ///
+  /// In en, this message translates to:
+  /// **'Fast-forward «{target}» to «{source}»'**
+  String bdFastForward(String source, String target);
+
+  /// No description provided for @bdMoveHere.
+  ///
+  /// In en, this message translates to:
+  /// **'Move «{source}» to «{target}»'**
+  String bdMoveHere(String source, String target);
+
+  /// No description provided for @bdResetSoft.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset «{source}» to «{target}» (--soft)'**
+  String bdResetSoft(String source, String target);
+
+  /// No description provided for @bdResetMixed.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset «{source}» to «{target}» (--mixed)'**
+  String bdResetMixed(String source, String target);
+
+  /// No description provided for @bdResetHard.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset «{source}» to «{target}» (--hard)'**
+  String bdResetHard(String source, String target);
+
+  /// No description provided for @bdCherryPick.
+  ///
+  /// In en, this message translates to:
+  /// **'Cherry-pick «{target}» onto «{source}»'**
+  String bdCherryPick(String source, String target);
+
+  /// No description provided for @bdMergeBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Switches to «{target}» and merges «{source}» into it.'**
+  String bdMergeBody(String source, String target);
+
+  /// No description provided for @bdRebaseBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Switches to «{source}» and replays its commits onto «{target}».'**
+  String bdRebaseBody(String source, String target);
+
+  /// No description provided for @bdFastForwardBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Moves «{target}» forward to «{source}». No new commit is made.'**
+  String bdFastForwardBody(String source, String target);
+
+  /// No description provided for @bdMoveHereBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Points «{source}» at «{target}» without switching to it. Commits only «{source}» had may become unreachable; undo puts it back.'**
+  String bdMoveHereBody(String source, String target);
+
+  /// No description provided for @bdResetSoftBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Moves «{source}» to «{target}». Changes from the commits it leaves behind stay staged.'**
+  String bdResetSoftBody(String source, String target);
+
+  /// No description provided for @bdResetMixedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Moves «{source}» to «{target}». Changes from the commits it leaves behind stay in the working tree, unstaged.'**
+  String bdResetMixedBody(String source, String target);
+
+  /// No description provided for @bdResetHardBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Moves «{source}» to «{target}» and discards the commits it leaves behind. Uncommitted work is stashed first.'**
+  String bdResetHardBody(String source, String target);
+
+  /// No description provided for @bdCherryPickBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Switches to «{source}» and applies commit «{target}» on top of it.'**
+  String bdCherryPickBody(String source, String target);
+
   /// No description provided for @sbTipSwitchHint.
   ///
   /// In en, this message translates to:

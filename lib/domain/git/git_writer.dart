@@ -640,6 +640,17 @@ class GitWriter {
   Future<void> createBranch(String name, {String? at}) =>
       _ok(['branch', name, ?at], 'git branch');
 
+  /// Points the existing branch [name] at [at] without checking it out. git
+  /// refuses this for a branch checked out here or in another worktree; the
+  /// current one needs a reset instead.
+  Future<void> forceBranch(String name, String at) =>
+      _ok(['branch', '-f', name, at], 'git branch -f');
+
+  /// Moves the current branch forward to [ref], failing rather than creating a
+  /// merge commit when the two have diverged.
+  Future<void> mergeFfOnly(String ref) =>
+      _ok(['merge', '--ff-only', ref], 'git merge --ff-only');
+
   /// Checks out [ref] (a branch or commit). [ignoreOtherWorktrees] overrides
   /// git's refusal to check out a branch already held by another worktree —
   /// callers only set it after the user has confirmed the collision, since it

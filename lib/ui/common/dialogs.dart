@@ -298,18 +298,21 @@ class _CommitMessageBodyState extends State<_CommitMessageBody> {
 }
 
 /// Confirmation gate for destructive actions. Returns true when confirmed.
+/// [danger] false drops the warning styling for an action that is only
+/// consequential, not destructive.
 Future<bool> showConfirmDialog(
   BuildContext context, {
   required String title,
   required String body,
   String? confirmLabel,
+  bool danger = true,
 }) async {
   final l = AppLocalizations.of(context);
   final t = context.tokens;
   final result = await showAppModal<bool>(
     context: context,
     title: title,
-    icon: Icons.warning_amber_rounded,
+    icon: danger ? Icons.warning_amber_rounded : Icons.help_outline,
     width: 440,
     body: Text(
       body,
@@ -324,10 +327,12 @@ Future<bool> showConfirmDialog(
       ),
       Builder(
         builder: (ctx) => FilledButton(
-          style: FilledButton.styleFrom(
-            backgroundColor: ctx.tokens.danger,
-            foregroundColor: Colors.white,
-          ),
+          style: danger
+              ? FilledButton.styleFrom(
+                  backgroundColor: ctx.tokens.danger,
+                  foregroundColor: Colors.white,
+                )
+              : null,
           onPressed: () => Navigator.of(ctx).pop(true),
           child: Text(confirmLabel ?? AppLocalizations.of(ctx).confirmAction),
         ),
