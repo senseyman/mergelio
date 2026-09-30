@@ -164,6 +164,71 @@ void main() {
     await expectLater(w2.lfsPull(), throwsA(isA<GitException>()));
     await expectLater(w2.lfsTrack('*.psd'), throwsA(isA<GitException>()));
   });
+
+  group('lfs locks', () {
+    test('exact argv for list, lock and unlock', () async {
+      await w.lfsLockList();
+      expect(last(), ['lfs', 'locks', '--verify', '--json', '--limit', '1000']);
+
+      final out = await w.lfsLock('-x.psd');
+      expect(out, 'out');
+      expect(last(), ['lfs', 'lock', '--json', '--', '-x.psd']);
+
+      expect(await w.lfsUnlock('7'), 'out');
+      expect(last(), ['lfs', 'unlock', '--json', '--id', '7']);
+
+      await w.lfsUnlock('7', force: true);
+      expect(last(), ['lfs', 'unlock', '--json', '--force', '--id', '7']);
+    });
+
+    test('lock commands use the local timeout and network env', () async {
+      await w.lfsLockList();
+      await w.lfsLock('a.psd');
+      await w.lfsUnlock('7');
+      for (var i = 0; i < git.calls.length; i++) {
+        if (git.calls[i].first != 'lfs') continue;
+        expect(git.timeouts[i], GitWriter.lfsLocalTimeout);
+        expect(git.envs[i], isNotNull);
+      }
+      expect(git.calls.where((c) => c.first == 'lfs'), hasLength(3));
+    });
+
+    test(
+      'unlock refuses an empty or dash-leading id, records no call',
+      () async {
+        await expectLater(w.lfsUnlock('-7'), throwsA(isA<ArgumentError>()));
+        await expectLater(w.lfsUnlock(''), throwsA(isA<ArgumentError>()));
+        expect(git.calls, isEmpty);
+      },
+    );
+
+    test('lock refuses an empty path, records no call', () async {
+      await expectLater(w.lfsLock(''), throwsA(isA<ArgumentError>()));
+      expect(git.calls, isEmpty);
+    });
+
+    test('list returns a failing result without throwing', () async {
+      final w2 = GitWriter(_LockFailing(), '/r');
+      final r = await w2.lfsLockList();
+      expect(r.ok, isFalse);
+      expect(r.stderr, 'locking is not supported');
+    });
+
+    test('lock and unlock throw GitException carrying the result', () async {
+      final w2 = GitWriter(_LockFailing(), '/r');
+      await expectLater(
+        w2.lfsLock('a.psd'),
+        throwsA(
+          isA<GitException>().having(
+            (e) => e.result?.stderr,
+            'stderr',
+            'locking is not supported',
+          ),
+        ),
+      );
+      await expectLater(w2.lfsUnlock('7'), throwsA(isA<GitException>()));
+    });
+  });
 }
 
 class _Failing extends _Capture {
@@ -181,6 +246,25 @@ class _Failing extends _Capture {
     envs.add(environment);
     return args.first == 'lfs'
         ? const GitResult(2, '', 'boom')
+        : const GitResult(0, '', '');
+  }
+}
+
+class _LockFailing extends _Capture {
+  @override
+  Future<GitResult> run(
+    List<String> args, {
+    String? repoPath,
+    Duration? timeout,
+    Map<String, String>? environment,
+    GitCancel? cancel,
+    String? stdin,
+  }) async {
+    calls.add(args);
+    timeouts.add(timeout);
+    envs.add(environment);
+    return args.first == 'lfs'
+        ? const GitResult(2, '', 'locking is not supported')
         : const GitResult(0, '', '');
   }
 }

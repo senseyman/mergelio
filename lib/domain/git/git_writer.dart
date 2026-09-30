@@ -277,6 +277,52 @@ class GitWriter {
     return r.stdout;
   }
 
+  /// Lists file locks, with which are the caller's own. Returned, never
+  /// thrown on failure: a non-zero exit is how a server without locking
+  /// support shows up, and the caller reads the report to tell that from
+  /// other failures.
+  Future<GitResult> lfsLockList({GitCancel? cancel}) async => _run(
+    ['lfs', 'locks', '--verify', '--json', '--limit', '1000'],
+    timeout: lfsLocalTimeout,
+    environment: await _netEnv(),
+    cancel: cancel,
+  );
+
+  /// Locks [path] on the server and returns git-lfs's JSON report. `--`
+  /// keeps a path that starts with `-` from being read as an option.
+  Future<String> lfsLock(String path, {GitCancel? cancel}) async {
+    if (path.isEmpty) throw ArgumentError.value(path, 'path', 'is empty');
+    final r = await _run(
+      ['lfs', 'lock', '--json', '--', path],
+      timeout: lfsLocalTimeout,
+      environment: await _netEnv(),
+      cancel: cancel,
+    );
+    if (!r.ok) throw GitException('git lfs lock', r);
+    return r.stdout;
+  }
+
+  /// Releases the lock with server id [id] and returns git-lfs's JSON report.
+  /// [force] releases a lock someone else holds. The id is refused when empty
+  /// or dash-leading, since it would be read as an option.
+  Future<String> lfsUnlock(
+    String id, {
+    bool force = false,
+    GitCancel? cancel,
+  }) async {
+    if (id.isEmpty || id.startsWith('-')) {
+      throw ArgumentError.value(id, 'id', 'is not a lock id');
+    }
+    final r = await _run(
+      ['lfs', 'unlock', '--json', if (force) '--force', '--id', id],
+      timeout: lfsLocalTimeout,
+      environment: await _netEnv(),
+      cancel: cancel,
+    );
+    if (!r.ok) throw GitException('git lfs unlock', r);
+    return r.stdout;
+  }
+
   /// Installs git-lfs's hooks for this repository only, without touching the
   /// user's global git config.
   Future<void> lfsInstallLocal() => _ok(
