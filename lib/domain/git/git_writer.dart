@@ -91,6 +91,11 @@ class GitWriter {
   /// the way out of one that is actually stuck.
   static const lfsTransferTimeout = Duration(hours: 2);
 
+  /// Ceiling for a git-lfs command that stays on this machine (track, untrack,
+  /// listing patterns, installing hooks). git-lfs scans the repository for
+  /// some of these, which can outlast the ordinary default on a large tree.
+  static const lfsLocalTimeout = Duration(seconds: 60);
+
   /// Resolved once per repository: the ssh command git would use anyway, plus
   /// what a command that hits an authentication prompt needs.
   Map<String, String>? _netEnvCache;
@@ -235,35 +240,42 @@ class GitWriter {
   /// `.gitattributes`. Stages nothing. The `--` here and in the other track
   /// commands keeps a pattern or path that starts with `-` from being read as
   /// an option.
-  Future<void> lfsTrack(String pattern) =>
-      _ok(['lfs', 'track', '--', pattern], 'git lfs track');
+  Future<void> lfsTrack(String pattern) => _ok(
+    ['lfs', 'track', '--', pattern],
+    'git lfs track',
+    timeout: lfsLocalTimeout,
+  );
 
   /// Routes exactly [path] through LFS; `--filename` escapes any glob
   /// characters that appear in it.
-  Future<void> lfsTrackFile(String path) => _ok([
-    'lfs',
-    'track',
-    '--filename',
-    '--',
-    path,
-  ], 'git lfs track --filename');
+  Future<void> lfsTrackFile(String path) => _ok(
+    ['lfs', 'track', '--filename', '--', path],
+    'git lfs track --filename',
+    timeout: lfsLocalTimeout,
+  );
 
   /// Stops routing files matching [pattern] through LFS.
-  Future<void> lfsUntrack(String pattern) =>
-      _ok(['lfs', 'untrack', '--', pattern], 'git lfs untrack');
+  Future<void> lfsUntrack(String pattern) => _ok(
+    ['lfs', 'untrack', '--', pattern],
+    'git lfs untrack',
+    timeout: lfsLocalTimeout,
+  );
 
   /// Lists the patterns currently routed through LFS, as git-lfs's own
   /// report — left unparsed since callers only display it.
   Future<String> lfsTrackList() async {
-    final r = await _run(['lfs', 'track']);
+    final r = await _run(['lfs', 'track'], timeout: lfsLocalTimeout);
     if (!r.ok) throw GitException('git lfs track', r);
     return r.stdout;
   }
 
   /// Installs git-lfs's hooks for this repository only, without touching the
   /// user's global git config.
-  Future<void> lfsInstallLocal() =>
-      _ok(['lfs', 'install', '--local'], 'git lfs install --local');
+  Future<void> lfsInstallLocal() => _ok(
+    ['lfs', 'install', '--local'],
+    'git lfs install --local',
+    timeout: lfsLocalTimeout,
+  );
 
   /// Re-stages [paths] through whatever filter `.gitattributes` now assigns
   /// them, so a pattern change added by [lfsTrack] takes effect on files

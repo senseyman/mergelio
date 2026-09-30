@@ -103,6 +103,18 @@ void main() {
     expect(last(), ['lfs', 'install', '--local']);
   });
 
+  test('local git-lfs commands use the local timeout', () async {
+    await w.lfsTrack('*.psd');
+    await w.lfsTrackFile('a.psd');
+    await w.lfsUntrack('*.psd');
+    await w.lfsTrackList();
+    await w.lfsInstallLocal();
+
+    expect(git.calls, hasLength(5));
+    expect(git.timeouts, everyElement(GitWriter.lfsLocalTimeout));
+    expect(GitWriter.lfsLocalTimeout, const Duration(seconds: 60));
+  });
+
   test('renormalize batches at 200 paths', () async {
     final paths = [for (var i = 0; i < 450; i++) 'f$i.psd'];
     await w.renormalize(paths);
