@@ -262,6 +262,25 @@ void main() {
       expect(find.text(_lockedTitle), findsNothing);
     });
 
+    testWidgets('own lock on a changed path beside others\' locks elsewhere: '
+        'no dialog', (tester) async {
+      final git = _FakeGit()..changedOut = 'big.psd\u0000';
+      final answers = await guard(
+        tester,
+        git,
+        _answer(
+          LfsLockState(
+            ours: [_lock('big.psd', 'me')],
+            theirs: [_lock('other.psd')],
+            available: true,
+            stale: false,
+          ),
+        ),
+      );
+      expect(answers, [true]);
+      expect(find.text(_lockedTitle), findsNothing);
+    });
+
     testWidgets('locking unavailable: no dialog, no diff', (tester) async {
       final git = _FakeGit()..changedOut = 'big.psd\u0000';
       final answers = await guard(
