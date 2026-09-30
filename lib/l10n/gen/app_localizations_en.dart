@@ -2280,6 +2280,127 @@ class AppLocalizationsEn extends AppLocalizations {
       'Install git-lfs with your package manager, then run `git lfs install`.';
 
   @override
+  String get lfsOpPull => 'Pull LFS files';
+
+  @override
+  String get lfsOpFetchAll => 'Fetch all LFS objects';
+
+  @override
+  String get lfsOpPrune => 'Prune LFS objects…';
+
+  @override
+  String lfsPointerStrip(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count LFS files are not downloaded',
+      one: '1 LFS file is not downloaded',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get lfsDownload => 'Download';
+
+  @override
+  String get lfsDownloadUnsafePath =>
+      'This file\'s name cannot be downloaded on its own — use Pull LFS files.';
+
+  @override
+  String get lfsPruneNothing => 'Nothing to prune';
+
+  @override
+  String get lfsPruneUnreadable => 'Could not preview the prune';
+
+  @override
+  String get lfsPruneTitle => 'Prune LFS objects';
+
+  @override
+  String lfsPruneBody(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Remove $count downloaded LFS objects?',
+      one: 'Remove 1 downloaded LFS object?',
+    );
+    return '$_temp0 They are not needed by recent commits and can be downloaded again.';
+  }
+
+  @override
+  String get lfsPruneConfirm => 'Prune';
+
+  @override
+  String lfsTrackExtension(String pattern) {
+    return 'Track $pattern with LFS';
+  }
+
+  @override
+  String get lfsTrackFile => 'Track this file with LFS';
+
+  @override
+  String get lfsUntrack => 'Stop tracking with LFS…';
+
+  @override
+  String get lfsUntrackTitle => 'Stop tracking with LFS';
+
+  @override
+  String get lfsUntrackBody =>
+      'Pick the pattern to remove from .gitattributes. Files already stored in LFS stay there.';
+
+  @override
+  String lfsConvertOffer(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count committed files match but are not in LFS',
+      one: '1 committed file matches but is not in LFS',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get lfsConvertAction => 'Convert…';
+
+  @override
+  String get lfsConvertTitle => 'Convert files to LFS';
+
+  @override
+  String get lfsConvertBody =>
+      'This stages these files as LFS pointers, together with the .gitattributes change that makes them so, including any edits you have in them. Nothing is committed.';
+
+  @override
+  String lfsConvertMore(int count) {
+    return 'and $count more';
+  }
+
+  @override
+  String get lfsConvertConfirm => 'Stage as LFS';
+
+  @override
+  String get lfsPushHookTitle => 'LFS hooks are not installed';
+
+  @override
+  String get lfsPushHookBody =>
+      'This repository stores files with Git LFS, but pushing from here would upload only pointers — the LFS hooks are not installed.';
+
+  @override
+  String get lfsPushInstallAndPush => 'Install LFS hooks and push';
+
+  @override
+  String get lfsPushHookNotRunnable =>
+      'The pre-push hook exists, but git will not run it because the file is not executable. Nothing was pushed.';
+
+  @override
+  String get lfsPushAnyway => 'Push anyway';
+
+  @override
+  String get lfsPushToolTitle => 'git-lfs is not installed';
+
+  @override
+  String get lfsPushToolBody =>
+      'This repository stores files with Git LFS. Pushing without git-lfs uploads pointers without their content.';
+
+  @override
   String get diffCouldNotStage => 'Could not stage';
 
   @override

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
 
 import '../core/concurrency.dart';
 import '../core/logging.dart';
@@ -13,6 +14,7 @@ import '../domain/git/git_providers.dart';
 import '../domain/git/git_reader.dart';
 import '../domain/git/git_service.dart';
 import '../domain/git/git_writer.dart';
+import '../domain/git/lfs.dart';
 import '../domain/git/models.dart';
 import '../domain/git/rebase_plan.dart';
 import 'bisect.dart';
@@ -22,6 +24,7 @@ import 'merge_session.dart';
 import 'operation_journal.dart';
 import 'profiles.dart';
 import 'graph_selection.dart';
+import 'lfs.dart';
 import 'repo_data.dart';
 import 'undo_stack.dart';
 import 'workspace.dart';
@@ -124,6 +127,9 @@ class RepoActions {
     // a cancellation, both of which return true above without anything
     // having happened.
     void Function()? onSuccess,
+    // An op whose result the caller shows itself (a preview) wants failures
+    // toasted but not its own success.
+    bool toastSuccess = true,
   }) async {
     final toasts = _ref.read(toastProvider.notifier);
     final slot = lane == _Lane.fetch ? fetchBusyProvider : busyProvider;
@@ -147,7 +153,9 @@ class RepoActions {
       await _timed(label, () => op(cancel));
       await _journalDone(opId);
       onSuccess?.call();
-      if (!silent) toasts.show('$label complete', kind: ToastKind.success);
+      if (!silent && toastSuccess) {
+        toasts.show('$label complete', kind: ToastKind.success);
+      }
       return true;
     } on GitCancelledException {
       await _journalFail(opId);
@@ -208,6 +216,199 @@ class RepoActions {
     writesWorkingTree: false,
     lane: _Lane.fetch,
   );
+
+  // — Git LFS —
+
+  /// LFS state git status cannot see changes after every LFS operation; the
+  /// providers that show it follow this counter.
+  void _bumpLfs() => _ref.read(lfsGenerationProvider(path).notifier).state++;
+
+  Future<bool> _lfsNetwork(
+    String label,
+    Future<void> Function(GitCancel cancel) op, {
+    _Lane lane = _Lane.repo,
+    bool writesWorkingTree = true,
+    bool toastSuccess = true,
+  }) async {
+    try {
+      return await _network(
+        label,
+        op,
+        lane: lane,
+        writesWorkingTree: writesWorkingTree,
+        toastSuccess: toastSuccess,
+      );
+    } finally {
+      _bumpLfs();
+    }
+  }
+
+  Future<bool> _lfsLocal(String label, Future<void> Function() op) async {
+    if (_blockedByRepoOp) return false;
+    try {
+      return await _local(label, op);
+    } finally {
+      _bumpLfs();
+    }
+  }
+
+  /// Downloads LFS content and replaces working-tree pointers with it.
+  Future<void> lfsPull() =>
+      _lfsNetwork('Pull LFS files', (c) => _writer.lfsPull(cancel: c));
+
+  /// Downloads every LFS object any ref needs, for working offline.
+  Future<void> lfsFetchAll() => _lfsNetwork(
+    'Fetch all LFS objects',
+    (c) => _writer.lfsFetchAll(cancel: c),
+    lane: _Lane.fetch,
+    writesWorkingTree: false,
+  );
+
+  /// Downloads one working-tree file's content and checks it out.
+  Future<void> lfsDownloadFile(String file) => _lfsNetwork(
+    'Download $file',
+    (c) => _writer.lfsPull(include: file, cancel: c),
+  );
+
+  /// Downloads the object [file] has at [rev], leaving the working tree alone.
+  Future<void> lfsFetchObject(String remote, String rev, String file) =>
+      _lfsNetwork(
+        'Download $file',
+        (c) => _writer.lfsFetchObject(remote, rev, file, cancel: c),
+        lane: _Lane.fetch,
+        writesWorkingTree: false,
+      );
+
+  /// What a prune would remove. [completed] is true only when the dry run ran
+  /// to the end; a failure, a busy-lane skip or a cancel leaves it false (each
+  /// already toasted). With [completed] true, a null preview means the report
+  /// was unreadable.
+  Future<({bool completed, LfsPrunePreview? preview})> lfsPrunePreview() async {
+    LfsPrunePreview? preview;
+    var completed = false;
+    await _lfsNetwork(
+      'Preview LFS prune',
+      (c) async {
+        final r = await _writer.lfsPruneDryRun(cancel: c);
+        if (!r.ok) throw GitException('git lfs prune --dry-run', r);
+        preview = parseLfsPruneDryRun('${r.stdout}\n${r.stderr}');
+        completed = true;
+      },
+      writesWorkingTree: false,
+      toastSuccess: false,
+    );
+    return (completed: completed, preview: preview);
+  }
+
+  Future<void> lfsPrune() => _lfsNetwork(
+    'Prune LFS objects',
+    (c) => _writer.lfsPrune(cancel: c),
+    writesWorkingTree: false,
+  );
+
+  Future<bool> lfsTrack(String pattern) =>
+      _lfsLocal('Track $pattern', () => _writer.lfsTrack(pattern));
+
+  Future<bool> lfsTrackFile(String file) =>
+      _lfsLocal('Track $file', () => _writer.lfsTrackFile(file));
+
+  /// Untracks [pattern] as `git lfs track` lists it, with [source] the
+  /// `.gitattributes` file it came from.
+  /// Stops routing [pattern], listed from [source], through LFS.
+  ///
+  /// `git lfs untrack` succeeds without removing some patterns — those
+  /// written with escapes, as tracking a single file writes them. So the
+  /// listing is read again afterwards, and a pattern still there is removed
+  /// from its own `.gitattributes` directly. Nothing is staged either way.
+  Future<bool> lfsUntrack(String pattern, String source) {
+    final target = lfsUntrackTarget(pattern, source);
+    return _lfsLocal('Stop tracking $pattern', () async {
+      await _writer.lfsUntrack(target.pattern, dir: target.dir);
+      final still = parseLfsTrackList(await _writer.lfsTrackList())
+          .contains(LfsTrackedPattern(pattern: pattern, source: source));
+      if (!still) return;
+      final file = p.normalize(p.join(path, source.replaceAll(r'\', '/')));
+      if (!p.isWithin(path, file)) {
+        throw GitException('$source is outside the repository');
+      }
+      final edited = withoutLfsPattern(
+        await File(file).readAsString(),
+        target.pattern,
+      );
+      if (edited == null) {
+        throw GitException('$pattern could not be removed from $source');
+      }
+      await File(file).writeAsString(edited);
+    });
+  }
+
+  Future<List<LfsTrackedPattern>> lfsTrackedPatterns() async =>
+      parseLfsTrackList(await _writer.lfsTrackList());
+
+  /// Committed files whose current attributes route them through LFS but that
+  /// are still stored as regular blobs. Throws [GitException] when git fails,
+  /// so callers can report it.
+  Future<List<String>> lfsConvertCandidates() async {
+    // Which files the attributes reach is git's call, not a glob's: nested
+    // .gitattributes, negations and directory patterns all shape it. So list
+    // every tracked file and keep those whose filter attribute is lfs.
+    final listed = await _git.run(
+      ['ls-files', '-z'],
+      repoPath: path,
+      timeout: lfsReadTimeout,
+    );
+    if (!listed.ok) throw GitException('git ls-files', listed);
+    final files = [
+      for (final f in listed.stdout.split('\x00'))
+        if (f.isNotEmpty) f,
+    ];
+    if (files.isEmpty) return const [];
+    final attrs = await _git.run(
+      ['check-attr', '-z', '--stdin', 'filter'],
+      repoPath: path,
+      timeout: lfsReadTimeout,
+      stdin: '${files.join('\x00')}\x00',
+    );
+    if (!attrs.ok) throw GitException('git check-attr', attrs);
+    // Output is repeated path, attribute, value triples.
+    final parts = attrs.stdout.split('\x00');
+    final routed = <String>{
+      for (var i = 0; i + 2 < parts.length; i += 3)
+        if (parts[i + 2] == 'lfs') parts[i],
+    };
+    final lfs = await _git.run(
+      ['lfs', 'ls-files', '-l'],
+      repoPath: path,
+      timeout: lfsReadTimeout,
+    );
+    final already = lfs.ok
+        ? {for (final e in parseLfsLsFiles(lfs.stdout)) e.path}
+        : const <String>{};
+    return [
+      for (final f in files)
+        if (routed.contains(f) && !already.contains(f)) f,
+    ];
+  }
+
+  /// Stages [files] again through the current attributes, as LFS pointers,
+  /// together with the changed `.gitattributes` files behind them. Stops at
+  /// staged, as every Mergelio flow does.
+  Future<bool> lfsConvert(List<String> files) async {
+    // A busy-lane skip inside _network reports true; the caller must not
+    // read that as "converted".
+    if (_blockedByRepoOp) return false;
+    return _lfsNetwork('Convert files to LFS', (c) async {
+      await _writer.renormalize(files, cancel: c);
+      // Pointers staged without the rule that makes them pointers would
+      // commit as plain pointer text.
+      await _writer.stageGitattributes();
+    });
+  }
+
+  /// Writes the LFS filters and hooks into this repository. Only ever run on
+  /// the user's explicit choice.
+  Future<bool> lfsInstallHooks() =>
+      _lfsLocal('Install LFS hooks', _writer.lfsInstallLocal);
 
   // — Submodules —
 

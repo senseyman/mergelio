@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
 
 import '../core/logging.dart';
 import '../domain/git/git_providers.dart';
@@ -170,6 +171,7 @@ final lfsObjectsDirProvider = FutureProvider.autoDispose
 /// false rather than failing the diff sheet.
 final lfsObjectPresentProvider = FutureProvider.autoDispose
     .family<bool, ({String repoPath, String oid})>((ref, key) async {
+      ref.watch(lfsGenerationProvider(key.repoPath));
       try {
         final dir = await ref.watch(lfsObjectsDirProvider(key.repoPath).future);
         if (dir == null) return false;
@@ -204,13 +206,16 @@ class LfsQuery {
   int get hashCode => Object.hash(source, Object.hashAll(_sorted));
 }
 
+/// The source every view of the working tree shares, so they share answers.
+LfsSource workingTreeLfsSource(String repoPath, List<WorkingFile> working) =>
+    LfsSource(repoPath: repoPath, attrsStamp: lfsAttrsStamp(working));
+
 /// The one query for the working tree's changed files. Everything that asks
 /// about the working tree goes through it, so they share one answer.
 LfsQuery workingTreeLfsQuery(String repoPath, List<WorkingFile> working) =>
-    LfsQuery(
-      LfsSource(repoPath: repoPath, attrsStamp: lfsAttrsStamp(working)),
-      [for (final f in working) f.path],
-    );
+    LfsQuery(workingTreeLfsSource(repoPath, working), [
+      for (final f in working) f.path,
+    ]);
 
 /// The subset of the query's paths that LFS manages, empty when that cannot
 /// be told. A failure here only costs badges, so it is logged and swallowed
@@ -362,3 +367,103 @@ Future<Set<String>> _pointerScan(
       if (parseLfsPointer(text) != null) ...?oidToPaths[oid],
   };
 }
+
+/// Bumped after every LFS operation. LFS state that git status cannot show —
+/// the object store, pointer versus content, hooks — is watched through it.
+final lfsGenerationProvider = StateProvider.family<int, String>(
+  (ref, repoPath) => 0,
+);
+
+/// Whether LFS operations can run here: the repository uses LFS and git-lfs
+/// is installed. Asks git-lfs nothing when the repository does not use it.
+final lfsReadyProvider = FutureProvider.autoDispose.family<bool, LfsSource>((
+  ref,
+  source,
+) async {
+  if (!await ref.watch(lfsRepoProvider(source).future)) return false;
+  return await ref.watch(lfsToolProvider.future) != null;
+});
+
+/// Working-tree files LFS manages that are still pointers — typically a
+/// repository cloned before git-lfs was set up.
+final lfsPointerFilesProvider = FutureProvider.autoDispose
+    .family<Set<String>, LfsSource>((ref, source) async {
+      ref.watch(lfsGenerationProvider(source.repoPath));
+      if (!await ref.watch(lfsReadyProvider(source).future)) return const {};
+      final git = ref.watch(gitServiceProvider);
+      try {
+        final r = await git.run(
+          ['lfs', 'ls-files', '-l'],
+          repoPath: source.repoPath,
+          timeout: lfsReadTimeout,
+        );
+        if (!r.ok) throw GitException('git lfs ls-files', r);
+        return {
+          for (final e in parseLfsLsFiles(r.stdout))
+            if (!e.checkedOut) e.path,
+        };
+      } on Object catch (e) {
+        appLog.warn('LFS pointer scan failed: $e', scope: source.repoPath);
+        return const {};
+      }
+    });
+
+/// Whether pushing from here would upload LFS objects along with commits.
+enum LfsPushReadiness { ready, toolMissing, hookMissing }
+
+/// Whether git would actually run a hook file with the given [mode]. On
+/// POSIX, git silently skips a hook that lacks an execute bit for owner,
+/// group, or other; on Windows git runs hooks regardless of the execute
+/// bit, so [windows] skips the mode check entirely.
+bool lfsHookRuns({
+  required bool exists,
+  required int mode,
+  required bool windows,
+}) => exists && (windows || mode & 0x49 != 0);
+
+/// The text of the repository's `pre-push` hook, or null when there is none
+/// or when git would not run it (the file lacks an execute bit on POSIX).
+/// Reads the filesystem, so widget tests override it.
+final lfsHookTextProvider = FutureProvider.autoDispose.family<String?, String>((
+  ref,
+  repoPath,
+) async {
+  ref.watch(lfsGenerationProvider(repoPath));
+  final git = ref.watch(gitServiceProvider);
+  try {
+    // Honours core.hooksPath; relative to the repository when not absolute.
+    final r = await git.run(
+      ['rev-parse', '--git-path', 'hooks/pre-push'],
+      repoPath: repoPath,
+      timeout: lfsReadTimeout,
+    );
+    if (!r.ok) return null;
+    final path = p.isAbsolute(r.out) ? r.out : p.join(repoPath, r.out);
+    final file = File(path);
+    final exists = await file.exists();
+    final mode = exists ? (await file.stat()).mode : 0;
+    if (!lfsHookRuns(exists: exists, mode: mode, windows: Platform.isWindows)) {
+      return null;
+    }
+    return await file.readAsString();
+  } on Object catch (e) {
+    appLog.warn('Reading the pre-push hook failed: $e', scope: repoPath);
+    return null;
+  }
+});
+
+/// A `pre-push` hook git would skip — missing, or present but not marked
+/// executable on POSIX — counts the same as no hook at all: [hookMissing].
+final lfsPushReadinessProvider = FutureProvider.autoDispose
+    .family<LfsPushReadiness, LfsSource>((ref, source) async {
+      if (!await ref.watch(lfsRepoProvider(source).future)) {
+        return LfsPushReadiness.ready;
+      }
+      if (await ref.watch(lfsToolProvider.future) == null) {
+        return LfsPushReadiness.toolMissing;
+      }
+      final hook = await ref.watch(lfsHookTextProvider(source.repoPath).future);
+      return hook != null && isLfsPrePushHook(hook)
+          ? LfsPushReadiness.ready
+          : LfsPushReadiness.hookMissing;
+    });

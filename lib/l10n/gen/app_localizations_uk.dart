@@ -2295,6 +2295,130 @@ class AppLocalizationsUk extends AppLocalizations {
       'Встановіть git-lfs через менеджер пакетів, потім виконайте `git lfs install`.';
 
   @override
+  String get lfsOpPull => 'Завантажити файли LFS';
+
+  @override
+  String get lfsOpFetchAll => 'Отримати всі об\'єкти LFS';
+
+  @override
+  String get lfsOpPrune => 'Очистити об\'єкти LFS…';
+
+  @override
+  String lfsPointerStrip(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count файлів LFS не завантажено',
+      few: '$count файли LFS не завантажено',
+      one: '$count файл LFS не завантажено',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get lfsDownload => 'Завантажити';
+
+  @override
+  String get lfsDownloadUnsafePath =>
+      'Цей файл не можна завантажити окремо через його назву — скористайтеся «Завантажити файли LFS».';
+
+  @override
+  String get lfsPruneNothing => 'Нічого очищати';
+
+  @override
+  String get lfsPruneUnreadable => 'Не вдалося переглянути очищення';
+
+  @override
+  String get lfsPruneTitle => 'Очистити об\'єкти LFS';
+
+  @override
+  String lfsPruneBody(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Видалити $count завантажених об\'єктів LFS?',
+      few: 'Видалити $count завантажені об\'єкти LFS?',
+      one: 'Видалити $count завантажений об\'єкт LFS?',
+    );
+    return '$_temp0 Вони не потрібні недавнім комітам і їх можна завантажити знову.';
+  }
+
+  @override
+  String get lfsPruneConfirm => 'Очистити';
+
+  @override
+  String lfsTrackExtension(String pattern) {
+    return 'Відстежувати $pattern через LFS';
+  }
+
+  @override
+  String get lfsTrackFile => 'Відстежувати цей файл через LFS';
+
+  @override
+  String get lfsUntrack => 'Припинити відстеження LFS…';
+
+  @override
+  String get lfsUntrackTitle => 'Припинити відстеження LFS';
+
+  @override
+  String get lfsUntrackBody =>
+      'Виберіть шаблон, який прибрати з .gitattributes. Файли, вже збережені в LFS, там і лишаться.';
+
+  @override
+  String lfsConvertOffer(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count закомічених файлів відповідають шаблону, але не в LFS',
+      few: '$count закомічені файли відповідають шаблону, але не в LFS',
+      one: '$count закомічений файл відповідає шаблону, але не в LFS',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get lfsConvertAction => 'Перетворити…';
+
+  @override
+  String get lfsConvertTitle => 'Перетворити файли на LFS';
+
+  @override
+  String get lfsConvertBody =>
+      'Ці файли буде проіндексовано як вказівники LFS разом зі зміною .gitattributes, яка це визначає, і з усіма вашими змінами в них. Нічого не комітиться.';
+
+  @override
+  String lfsConvertMore(int count) {
+    return 'і ще $count';
+  }
+
+  @override
+  String get lfsConvertConfirm => 'Проіндексувати як LFS';
+
+  @override
+  String get lfsPushHookTitle => 'Хуки LFS не встановлено';
+
+  @override
+  String get lfsPushHookBody =>
+      'Цей репозиторій зберігає файли через Git LFS, але push звідси надішле лише вказівники — хуки LFS не встановлено.';
+
+  @override
+  String get lfsPushInstallAndPush => 'Встановити хуки LFS і надіслати';
+
+  @override
+  String get lfsPushHookNotRunnable =>
+      'Хук pre-push існує, але git не запустить його, бо файл не виконуваний. Нічого не надіслано.';
+
+  @override
+  String get lfsPushAnyway => 'Однаково надіслати';
+
+  @override
+  String get lfsPushToolTitle => 'git-lfs не встановлено';
+
+  @override
+  String get lfsPushToolBody =>
+      'Цей репозиторій зберігає файли через Git LFS. Push без git-lfs надсилає вказівники без вмісту.';
+
+  @override
   String get diffCouldNotStage => 'Не вдалося проіндексувати';
 
   @override

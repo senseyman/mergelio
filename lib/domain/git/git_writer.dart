@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:path/path.dart' as p;
+
 import 'askpass.dart';
 import 'commit_message.dart';
 import 'git_service.dart';
@@ -86,6 +88,16 @@ class GitWriter {
   /// remains the way a run is actually stopped.
   static const _bisectRunTimeout = Duration(hours: 12);
 
+  /// Ceiling for a git-lfs transfer. Objects can run into gigabytes over a
+  /// slow link, far past the ordinary network timeout; cancelling remains
+  /// the way out of one that is actually stuck.
+  static const lfsTransferTimeout = Duration(hours: 2);
+
+  /// Ceiling for a git-lfs command that stays on this machine (track, untrack,
+  /// listing patterns, installing hooks). git-lfs scans the repository for
+  /// some of these, which can outlast the ordinary default on a large tree.
+  static const lfsLocalTimeout = Duration(seconds: 60);
+
   /// Resolved once per repository: the ssh command git would use anyway, plus
   /// what a command that hits an authentication prompt needs.
   Map<String, String>? _netEnvCache;
@@ -138,6 +150,20 @@ class GitWriter {
   Future<Map<String, String>> _netEnv() async => _netEnvCache ??=
       await resolveNetworkEnv(git, repoPath: repoPath, askpass: askpassHelper);
 
+  /// A git-lfs transfer: the network environment, under the longer transfer
+  /// ceiling instead of the ordinary network timeout.
+  Future<void> _lfsNet(
+    List<String> args,
+    String what, {
+    GitCancel? cancel,
+  }) async => _ok(
+    args,
+    what,
+    timeout: lfsTransferTimeout,
+    environment: await _netEnv(),
+    cancel: cancel,
+  );
+
   /// Fetches [remote] (or every remote when null), pruning deleted refs.
   Future<void> fetch({String? remote, GitCancel? cancel}) => _net(
     ['fetch', '--prune', if (remote != null) remote else '--all'],
@@ -168,6 +194,137 @@ class GitWriter {
   /// Prunes remote-tracking refs under [remote] that no longer exist upstream.
   Future<void> pruneRemote(String remote, {GitCancel? cancel}) =>
       _net(['remote', 'prune', remote], 'git remote prune', cancel: cancel);
+
+  // --- Git LFS ---------------------------------------------------------------
+
+  /// Downloads LFS content for the checked-out commit and replaces the
+  /// pointers in the working tree with it — every object unless [include]
+  /// narrows the download to files whose path matches a git-lfs pattern.
+  Future<void> lfsPull({String? include, GitCancel? cancel}) => _lfsNet(
+    ['lfs', 'pull', if (include != null) '--include=$include'],
+    'git lfs pull',
+    cancel: cancel,
+  );
+
+  /// Downloads every LFS object any ref needs, so later commands can work
+  /// offline. Touches only the object store, not the working tree.
+  Future<void> lfsFetchAll({GitCancel? cancel}) =>
+      _lfsNet(['lfs', 'fetch', '--all'], 'git lfs fetch --all', cancel: cancel);
+
+  /// Downloads the object [include] names at [rev] from [remote] into the
+  /// object store, without touching the working tree.
+  Future<void> lfsFetchObject(
+    String remote,
+    String rev,
+    String include, {
+    GitCancel? cancel,
+  }) => _lfsNet(
+    ['lfs', 'fetch', remote, rev, '--include=$include'],
+    'git lfs fetch',
+    cancel: cancel,
+  );
+
+  /// Previews what a prune would remove, without removing anything. Returned
+  /// rather than thrown on failure: the caller reads the report to decide
+  /// what a non-zero exit means here.
+  Future<GitResult> lfsPruneDryRun({GitCancel? cancel}) async => _run(
+    ['lfs', 'prune', '--dry-run', '--verbose'],
+    timeout: lfsTransferTimeout,
+    environment: await _netEnv(),
+    cancel: cancel,
+  );
+
+  /// Removes downloaded LFS objects git-lfs judges safe to drop.
+  Future<void> lfsPrune({GitCancel? cancel}) =>
+      _lfsNet(['lfs', 'prune'], 'git lfs prune', cancel: cancel);
+
+  /// Routes files matching [pattern] through LFS by adding it to
+  /// `.gitattributes`. Stages nothing. The `--` here and in the other track
+  /// commands keeps a pattern or path that starts with `-` from being read as
+  /// an option.
+  Future<void> lfsTrack(String pattern) => _ok(
+    ['lfs', 'track', '--', pattern],
+    'git lfs track',
+    timeout: lfsLocalTimeout,
+  );
+
+  /// Routes exactly [path] through LFS; `--filename` escapes any glob
+  /// characters that appear in it.
+  Future<void> lfsTrackFile(String path) => _ok(
+    ['lfs', 'track', '--filename', '--', path],
+    'git lfs track --filename',
+    timeout: lfsLocalTimeout,
+  );
+
+  /// Stops routing files matching [pattern] through LFS. git-lfs only edits
+  /// the `.gitattributes` of the directory it runs in, so a pattern from a
+  /// nested one runs in that [dir] (relative to the repository), written as
+  /// it appears there.
+  Future<void> lfsUntrack(String pattern, {String dir = ''}) async {
+    final r = await git.run(
+      ['lfs', 'untrack', '--', pattern],
+      repoPath: dir.isEmpty ? repoPath : p.join(repoPath, dir),
+      timeout: lfsLocalTimeout,
+    );
+    if (!r.ok) throw GitException('git lfs untrack', r);
+  }
+
+  /// Lists the patterns currently routed through LFS, as git-lfs's own
+  /// report — left unparsed since callers only display it.
+  Future<String> lfsTrackList() async {
+    final r = await _run(['lfs', 'track'], timeout: lfsLocalTimeout);
+    if (!r.ok) throw GitException('git lfs track', r);
+    return r.stdout;
+  }
+
+  /// Installs git-lfs's hooks for this repository only, without touching the
+  /// user's global git config.
+  Future<void> lfsInstallLocal() => _ok(
+    ['lfs', 'install', '--local'],
+    'git lfs install --local',
+    timeout: lfsLocalTimeout,
+  );
+
+  /// Re-stages [paths] through whatever filter `.gitattributes` now assigns
+  /// them, so a pattern change added by [lfsTrack] takes effect on files
+  /// already tracked. Stages the files' current content, edits included.
+  ///
+  /// Batched at 200 paths per invocation to stay clear of platform argv
+  /// limits on a repository with many newly-tracked files.
+  Future<void> renormalize(List<String> paths, {GitCancel? cancel}) async {
+    for (var i = 0; i < paths.length; i += 200) {
+      final batch = paths.sublist(i, (i + 200).clamp(0, paths.length));
+      await _ok(
+        ['add', '--renormalize', '--', ...batch],
+        'git add --renormalize',
+        timeout: lfsTransferTimeout,
+        cancel: cancel,
+      );
+    }
+  }
+
+  /// Stages every `.gitattributes` file, at any depth, that is modified or
+  /// new — the rules that make freshly staged LFS pointers pointers. Lists
+  /// them first because `git add` fails outright on a pathspec that matches
+  /// nothing.
+  Future<void> stageGitattributes() async {
+    final r = await _run([
+      'ls-files',
+      '-z',
+      '-m',
+      '-o',
+      '--exclude-standard',
+      '--',
+      ':(glob)**/.gitattributes',
+    ]);
+    if (!r.ok) throw GitException('git ls-files', r);
+    final paths = {
+      for (final f in r.stdout.split('\x00'))
+        if (f.isNotEmpty) f,
+    };
+    if (paths.isEmpty) return;
+    await _ok(['add', '--', ...paths], 'git add');
+  }
 
   /// Registers [name] pointing at [url]. Fails when [name] is already taken.
   Future<void> addRemote(String name, String url) =>

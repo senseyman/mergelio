@@ -68,6 +68,76 @@ void main() {
     });
   });
 
+  group('lfsUntrackTarget', () {
+    test('root, nested and deeper sources', () {
+      expect(lfsUntrackTarget('*.psd', '.gitattributes'), (
+        dir: '',
+        pattern: '*.psd',
+      ));
+      expect(lfsUntrackTarget('sub/*.psd', 'sub/.gitattributes'), (
+        dir: 'sub',
+        pattern: '*.psd',
+      ));
+      expect(lfsUntrackTarget('a/b/*.psd', 'a/b/.gitattributes'), (
+        dir: 'a/b',
+        pattern: '*.psd',
+      ));
+    });
+    test('a source written with backslashes, as Windows lists it', () {
+      expect(lfsUntrackTarget(r'sub/*.psd', r'sub\.gitattributes'), (
+        dir: 'sub',
+        pattern: '*.psd',
+      ));
+      expect(lfsUntrackTarget(r'a/b/*.psd', r'a\b\.gitattributes'), (
+        dir: 'a/b',
+        pattern: '*.psd',
+      ));
+    });
+    test('backslashes in the pattern itself are escapes and are kept', () {
+      expect(
+        lfsUntrackTarget(r'x[[:space:]]\[1\].z', '.gitattributes').pattern,
+        r'x[[:space:]]\[1\].z',
+      );
+    });
+  });
+
+  group('withoutLfsPattern', () {
+    const escaped = r'x[[:space:]]\[1\].z';
+    test('drops the LFS line for exactly that pattern', () {
+      expect(
+        withoutLfsPattern(
+          '*.txt text\n$escaped filter=lfs diff=lfs merge=lfs -text\n',
+          escaped,
+        ),
+        '*.txt text\n',
+      );
+    });
+    test('keeps CRLF endings on the lines it leaves', () {
+      expect(
+        withoutLfsPattern(
+          '*.txt text\r\n$escaped filter=lfs diff=lfs merge=lfs -text\r\n',
+          escaped,
+        ),
+        '*.txt text\r\n',
+      );
+    });
+    test('leaves a line for the same pattern without the LFS filter', () {
+      expect(withoutLfsPattern('*.psd -text\n', '*.psd'), isNull);
+    });
+    test('does not match a longer pattern that starts the same', () {
+      expect(
+        withoutLfsPattern(
+          '*.psdx filter=lfs diff=lfs merge=lfs -text\n',
+          '*.psd',
+        ),
+        isNull,
+      );
+    });
+    test('null when the pattern is not there', () {
+      expect(withoutLfsPattern('', '*.psd'), isNull);
+    });
+  });
+
   group('revisionArgs', () {
     test('marks the end of options on git 2.24 and later', () {
       expect(revisionArgs('abc', 'git version 2.24.0'), [
@@ -205,4 +275,197 @@ void main() {
       expect(parseCatFileBatch(raw, ['aaaa', 'bbbb', 'cccc']), {'aaaa': 'abc'});
     },
   );
+
+  group('parseLfsLsFiles', () {
+    const a =
+        '482b8673d879f129dbcc30eb80fcf939481fd963bba4e0a7ebcc2df0e9f50c7b';
+    const b =
+        'c37454b5337b1482c5a42b733bf5fff3f9a28714f9f1547512d8db046112bd92';
+    test('reads checked-out and pointer entries', () {
+      expect(parseLfsLsFiles('$a * a.bin\n$b - b c.bin\n'), const [
+        LfsLsEntry(oid: a, path: 'a.bin', checkedOut: true),
+        LfsLsEntry(oid: b, path: 'b c.bin', checkedOut: false),
+      ]);
+    });
+    test('skips lines it does not recognise', () {
+      expect(
+        parseLfsLsFiles('\nwarning: x\n$a ? a.bin\nshort - a.bin\n'),
+        isEmpty,
+      );
+    });
+    test('tolerates CRLF line endings', () {
+      expect(parseLfsLsFiles('$a * a.bin\r\n$b - c.bin\r\n'), const [
+        LfsLsEntry(oid: a, path: 'a.bin', checkedOut: true),
+        LfsLsEntry(oid: b, path: 'c.bin', checkedOut: false),
+      ]);
+    });
+  });
+
+  group('parseLfsPruneDryRun', () {
+    test('nothing to prune', () {
+      expect(
+        parseLfsPruneDryRun('2 local objects, 2 retained, done.\n'),
+        const LfsPrunePreview(count: 0),
+      );
+    });
+    test('counts from the summary numbers, not the detail lines', () {
+      // git-lfs prints at most one ` * <oid> (<size>)` detail line no matter
+      // how many objects it actually prunes, so the count must come from the
+      // summary's `local − retained` difference, not from counting these
+      // lines: here that would undercount 2 as 1.
+      const oid =
+          '482b8673d879f129dbcc30eb80fcf939481fd963bba4e0a7ebcc2df0e9f50c7b';
+      expect(
+        parseLfsPruneDryRun(
+          '3 local objects, 1 retained, done.\n'
+          ' * $oid (3.0 KB), done.\n',
+        ),
+        const LfsPrunePreview(count: 2),
+      );
+    });
+    test('the captured single-object real output parses', () {
+      // Captured from git-lfs 3.8.0 on darwin arm64: one file pushed then
+      // removed in a follow-up commit, then `git lfs prune --dry-run
+      // --verbose` after pushing both commits to origin.
+      const pruneSome =
+          '1 local object, 0 retained, done.\n'
+          '\n'
+          ' * f4b619328582b9679ce61f8cb487e47daf46583327771dc85e5931f504b95231 '
+          '(4.0 KB), done.\n';
+      expect(parseLfsPruneDryRun(pruneSome), const LfsPrunePreview(count: 1));
+    });
+    test('the captured four-object real output parses', () {
+      // Also reproduced on git-lfs 3.8: pruning 4 objects of different
+      // sizes still prints only a single detail line, so the summary is the
+      // only reliable source for the count.
+      const pruneFour =
+          '4 local objects, 0 retained, done.\n'
+          ' * 1fb01e2582b7379118128c319fd04b565e6eff947b8dda317bceda9363e7385a '
+          '(20 KB), done.\n';
+      expect(parseLfsPruneDryRun(pruneFour), const LfsPrunePreview(count: 4));
+    });
+    test('tolerates CRLF line endings', () {
+      const pruneFourCrlf =
+          '4 local objects, 0 retained, done.\r\n'
+          ' * 1fb01e2582b7379118128c319fd04b565e6eff947b8dda317bceda9363e7385a '
+          '(20 KB), done.\r\n';
+      expect(
+        parseLfsPruneDryRun(pruneFourCrlf),
+        const LfsPrunePreview(count: 4),
+      );
+    });
+    test('more retained than local never goes below zero', () {
+      expect(
+        parseLfsPruneDryRun('2 local objects, 5 retained, done.\n'),
+        const LfsPrunePreview(count: 0),
+      );
+    });
+    test('unrecognisable output is null, not zero', () {
+      expect(parseLfsPruneDryRun(''), isNull);
+      expect(parseLfsPruneDryRun('fatal: not a git repository\n'), isNull);
+    });
+  });
+
+  group('parseLfsTrackList with lockable patterns', () {
+    test('the [lockable] tag is not part of the pattern', () {
+      final list = parseLfsTrackList(
+        'Listing tracked patterns\n'
+        '    *.psd [lockable] (.gitattributes)\n'
+        '    *.bin (.gitattributes)\n'
+        'Listing excluded patterns\n',
+      );
+      expect(list.map((t) => t.pattern), ['*.psd', '*.bin']);
+      expect(list.map((t) => t.lockable), [true, false]);
+      expect(list.first.source, '.gitattributes');
+    });
+    test('equality still keys on pattern and source', () {
+      expect(
+        const LfsTrackedPattern(
+          pattern: '*.psd',
+          source: '.gitattributes',
+          lockable: true,
+        ),
+        const LfsTrackedPattern(pattern: '*.psd', source: '.gitattributes'),
+      );
+    });
+  });
+
+  group('parseLfsTrackList', () {
+    test('tracked patterns with their source file', () {
+      expect(
+        parseLfsTrackList(
+          'Listing tracked patterns\n'
+          '    *.psd (.gitattributes)\n'
+          '    sub/odd[[:space:]]\\[1\\].bin (sub/.gitattributes)\n'
+          'Listing excluded patterns\n'
+          '    *.tmp (.gitattributes)\n',
+        ),
+        const [
+          LfsTrackedPattern(pattern: '*.psd', source: '.gitattributes'),
+          LfsTrackedPattern(
+            pattern: r'sub/odd[[:space:]]\[1\].bin',
+            source: 'sub/.gitattributes',
+          ),
+        ],
+      );
+    });
+    test('tolerates CRLF line endings', () {
+      expect(
+        parseLfsTrackList(
+          'Listing tracked patterns\r\n'
+          '    *.psd (.gitattributes)\r\n'
+          'Listing excluded patterns\r\n',
+        ),
+        const [LfsTrackedPattern(pattern: '*.psd', source: '.gitattributes')],
+      );
+    });
+    test('none', () {
+      expect(
+        parseLfsTrackList(
+          'Listing tracked patterns\nListing excluded patterns\n',
+        ),
+        isEmpty,
+      );
+    });
+  });
+
+  test('isLfsPrePushHook', () {
+    expect(isLfsPrePushHook('#!/bin/sh\ngit lfs pre-push "\$@"\n'), isTrue);
+    expect(isLfsPrePushHook('#!/bin/sh\ngit-lfs pre-push "\$@"\n'), isTrue);
+    expect(isLfsPrePushHook('#!/bin/sh\necho mine\n'), isFalse);
+    expect(isLfsPrePushHook(''), isFalse);
+  });
+
+  group('lfsIncludeSafe', () {
+    for (final ok in ['art.psd', 'dir/b c.bin', 'ünï.psd', '-dash.bin']) {
+      test('safe: $ok', () => expect(lfsIncludeSafe(ok), isTrue));
+    }
+    for (final bad in [
+      'a,b.psd',
+      'x*.psd',
+      'x?.psd',
+      'x[1].psd',
+      r'x\y',
+      'x]',
+    ]) {
+      test('unsafe: $bad', () => expect(lfsIncludeSafe(bad), isFalse));
+    }
+  });
+
+  group('lfsExtensionPattern', () {
+    test('by extension', () {
+      expect(lfsExtensionPattern('art/cover.PSD'), '*.PSD');
+      expect(lfsExtensionPattern('a.tar.gz'), '*.gz');
+      // A dotfile with a further dot has a real extension after it.
+      expect(lfsExtensionPattern('.env.local'), '*.local');
+    });
+    test('none when there is no usable extension', () {
+      expect(lfsExtensionPattern('Makefile'), isNull);
+      expect(lfsExtensionPattern('.gitignore'), isNull);
+      expect(lfsExtensionPattern('dir.d/file'), isNull);
+      expect(lfsExtensionPattern('a.b[1]'), isNull);
+      expect(lfsExtensionPattern('a.b c'), isNull);
+      expect(lfsExtensionPattern('archive.'), isNull);
+    });
+  });
 }

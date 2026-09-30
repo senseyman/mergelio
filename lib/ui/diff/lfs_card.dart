@@ -11,6 +11,7 @@ import '../../l10n/gen/app_localizations.dart';
 import '../../state/diff_document.dart';
 import '../../state/diff_target.dart';
 import '../../state/lfs.dart';
+import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
 
 /// The usual way to get git-lfs on [route]'s platform, as one sentence.
@@ -21,11 +22,32 @@ String lfsInstallHint(AppLocalizations l, LfsInstallRoute route) =>
       LfsInstallRoute.packageManager => l.lfsInstallPackageManager,
     };
 
+/// The remote LFS objects should be fetched from: the current branch's
+/// upstream remote, else `origin`, else the only remote. Null when there is
+/// no telling, or the name could pass for a command-line option.
+String? lfsRemoteFor(List<Branch> branches, List<String> remotes) {
+  String? pick;
+  final upstream = branches.where((b) => b.current).firstOrNull?.upstream;
+  if (upstream != null && upstream.isNotEmpty) {
+    pick = upstream.split('/').first;
+  } else if (remotes.contains('origin')) {
+    pick = 'origin';
+  } else if (remotes.length == 1) {
+    pick = remotes.first;
+  }
+  if (pick == null || pick.isEmpty || pick.startsWith('-')) return null;
+  return pick;
+}
+
 /// Stands in for a diff whose sides are LFS pointers: three lines of pointer
 /// text read like the file was emptied, so this says what actually changed.
 class LfsCard extends ConsumerWidget {
   final String repoPath;
   final FileDiff file;
+
+  /// What the sheet is showing; decides where a missing object is fetched
+  /// from.
+  final DiffTarget target;
 
   /// Offered when one side is ordinary text, whose diff is still worth
   /// reading.
@@ -35,6 +57,7 @@ class LfsCard extends ConsumerWidget {
     super.key,
     required this.repoPath,
     required this.file,
+    required this.target,
     this.onShowText,
   });
 
@@ -61,18 +84,72 @@ class LfsCard extends ConsumerWidget {
     final toolMissing = tool.hasValue && tool.value == null;
     final muted = TextStyle(color: t.textMuted, fontSize: 12);
 
-    Widget side(LfsPointer p) {
+    final ready =
+        ref
+            .watch(
+              lfsReadyProvider(
+                target.isWorkingTree
+                    ? LfsSource(repoPath: repoPath)
+                    : lfsSourceFor(target),
+              ),
+            )
+            .valueOrNull ??
+        false;
+    final remote = ready && !target.isWorkingTree
+        ? lfsRemoteFor(
+            ref.watch(repoDataProvider(repoPath)).valueOrNull?.branches ??
+                const [],
+            ref.watch(repoDataProvider(repoPath)).valueOrNull?.remotes ??
+                const [],
+          )
+        : null;
+
+    /// The action that downloads a side's object, or null when there is
+    /// nothing sensible to run. [rev] is where that side's content lives and
+    /// [path] the name it has there.
+    VoidCallback? download(String? rev, String path) {
+      final actions = ref.read(repoActionsProvider(repoPath));
+      if (target.isWorkingTree) {
+        return () => actions.lfsDownloadFile(path);
+      }
+      // git-lfs would read a revision starting with `-` as one of its own
+      // options, and its fetch has no marker that ends them.
+      if (remote == null || rev == null || rev.startsWith('-')) return null;
+      return () => actions.lfsFetchObject(remote, rev, path);
+    }
+
+    Widget side(LfsPointer p, {required String? rev, required String path}) {
       final present =
           ref
               .watch(lfsObjectPresentProvider((repoPath: repoPath, oid: p.oid)))
               .valueOrNull ??
           false;
-      return Row(
+      final Widget? extra;
+      if (present || !ready) {
+        extra = null;
+      } else if (!lfsIncludeSafe(path)) {
+        extra = Text(l.lfsDownloadUnsafePath, style: muted);
+      } else {
+        final go = download(rev, path);
+        extra = go == null
+            ? null
+            : TextButton(onPressed: go, child: Text(l.lfsDownload));
+      }
+      return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(p.oid.substring(0, 12), style: muted),
-          Text(' · ', style: muted),
-          Text(present ? l.lfsDownloaded : l.lfsNotDownloaded, style: muted),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(p.oid.substring(0, 12), style: muted),
+              Text(' · ', style: muted),
+              Text(
+                present ? l.lfsDownloaded : l.lfsNotDownloaded,
+                style: muted,
+              ),
+            ],
+          ),
+          ?extra,
         ],
       );
     }
@@ -103,8 +180,15 @@ class LfsCard extends ConsumerWidget {
                     style: TextStyle(color: t.textPrimary, fontSize: 12),
                   ),
                   const SizedBox(height: 6),
-                  if (lfs.before != null) side(lfs.before!),
-                  if (lfs.after != null) side(lfs.after!),
+                  if (lfs.before != null)
+                    // A rename's old content lives under its old name.
+                    side(
+                      lfs.before!,
+                      rev: lfsSourceFor(target).parentRev,
+                      path: file.oldPath ?? file.path,
+                    ),
+                  if (lfs.after != null)
+                    side(lfs.after!, rev: target.commitSha, path: file.path),
                   if (toolMissing) ...[
                     const SizedBox(height: 8),
                     Text(l.lfsToolMissing, style: muted),

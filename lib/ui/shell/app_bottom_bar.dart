@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
 import '../../l10n/gen/app_localizations.dart';
+import '../../domain/git/models.dart';
 import '../../state/feedback.dart';
+import '../../state/lfs.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
 import '../../state/settings.dart';
@@ -12,6 +14,8 @@ import '../../state/undo_stack.dart';
 import '../../state/workspace.dart';
 import '../common/confirm.dart';
 import '../common/dialogs.dart';
+import 'lfs_prune_flow.dart';
+import 'lfs_push_guard.dart';
 import 'repo_op_dialogs.dart';
 import 'shell_widgets.dart';
 
@@ -31,6 +35,16 @@ class AppBottomBar extends ConsumerWidget {
         : (ref.watch(repoDataProvider(path)).valueOrNull?.remotes ??
               const <String>[]);
     final hasRemote = path != null && remotes.isNotEmpty;
+    final working = path == null
+        ? const <WorkingFile>[]
+        : (ref.watch(repoDataProvider(path)).valueOrNull?.working ??
+              const <WorkingFile>[]);
+    final lfsReady =
+        path != null &&
+        (ref
+                .watch(lfsReadyProvider(workingTreeLfsSource(path, working)))
+                .valueOrNull ??
+            false);
     final busy = ref.watch(busyProvider) != null;
     // Fetching has its own lane, so only another fetch stands in its way.
     final fetching = ref.watch(fetchBusyProvider) != null;
@@ -108,6 +122,16 @@ class AppBottomBar extends ConsumerWidget {
                               () => actions!.fetch(remote: 'origin'),
                             ),
                             _Op(l.bbFetchAllRemotes, () => actions!.fetch()),
+                            if (lfsReady)
+                              _Op(
+                                l.lfsOpFetchAll,
+                                () => actions!.lfsFetchAll(),
+                              ),
+                            if (lfsReady)
+                              _Op(
+                                l.lfsOpPrune,
+                                () => showLfsPruneFlow(context, ref, path),
+                              ),
                           ],
                         ),
                         _OpButton(
@@ -150,6 +174,8 @@ class AppBottomBar extends ConsumerWidget {
                                 autostash: autostash,
                               );
                             }),
+                            if (lfsReady)
+                              _Op(l.lfsOpPull, () => actions!.lfsPull()),
                           ],
                         ),
                         _OpButton(
@@ -158,7 +184,16 @@ class AppBottomBar extends ConsumerWidget {
                           enabled: hasRemote && !busy,
                           onDisabledTap: () => whyDisabled(running: busy),
                           items: () => [
-                            _Op(l.opPushOrigin, () => actions!.push()),
+                            _Op(l.opPushOrigin, () async {
+                              if (path == null) return;
+                              if (await confirmLfsPushReady(
+                                context,
+                                ref,
+                                path,
+                              )) {
+                                await actions!.push();
+                              }
+                            }),
                             _Op(l.opForcePush, () async {
                               final ok = await confirmDestructive(
                                 ref,
@@ -167,7 +202,16 @@ class AppBottomBar extends ConsumerWidget {
                                 body: l.bbForcePushBody,
                                 confirmLabel: l.bbForcePush,
                               );
-                              if (ok) await actions!.push(force: true);
+                              if (!ok || path == null || !context.mounted) {
+                                return;
+                              }
+                              if (await confirmLfsPushReady(
+                                context,
+                                ref,
+                                path,
+                              )) {
+                                await actions!.push(force: true);
+                              }
                             }, danger: true),
                             _Op(l.opPushOptions, () async {
                               if (path != null) {

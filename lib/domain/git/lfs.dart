@@ -3,6 +3,7 @@
 library;
 
 import 'dart:convert';
+import 'dart:math' show max;
 
 import 'package:path/path.dart' as p;
 
@@ -228,4 +229,205 @@ Map<String, String> parseCatFileBatch(String raw, List<String> order) {
     pos = contentEnd + 1;
   }
   return out;
+}
+
+/// One file `git lfs ls-files -l` reports: its object, its path, and whether
+/// the working-tree file holds the content (`*`) or is still a pointer (`-`).
+class LfsLsEntry {
+  final String oid;
+  final String path;
+  final bool checkedOut;
+  const LfsLsEntry({
+    required this.oid,
+    required this.path,
+    required this.checkedOut,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      other is LfsLsEntry &&
+      other.oid == oid &&
+      other.path == path &&
+      other.checkedOut == checkedOut;
+
+  @override
+  int get hashCode => Object.hash(oid, path, checkedOut);
+}
+
+final _lsFilesLine = RegExp(r'^([0-9a-f]{64}) ([*-]) (.+)$');
+
+/// `git lfs ls-files -l` output → entries. Anything else on the stream
+/// (warnings, blank lines) is skipped. CRLF endings are accepted, since
+/// git-lfs writes the line endings of the platform it runs on.
+List<LfsLsEntry> parseLfsLsFiles(String raw) => [
+  for (final line in _lines(raw))
+    if (_lsFilesLine.firstMatch(line) case final m?)
+      LfsLsEntry(oid: m[1]!, path: m[3]!, checkedOut: m[2] == '*'),
+];
+
+/// What `git lfs prune --dry-run --verbose` would remove: how many objects.
+/// There is no byte total — git-lfs prints at most one ` * <oid> (<size>)`
+/// detail line regardless of how many objects it actually prunes, so no
+/// per-object size is available to sum.
+class LfsPrunePreview {
+  final int count;
+  const LfsPrunePreview({required this.count});
+
+  @override
+  bool operator ==(Object other) =>
+      other is LfsPrunePreview && other.count == count;
+
+  @override
+  int get hashCode => count.hashCode;
+}
+
+final _pruneSummary = RegExp(r'^(\d+) local objects?, (\d+) retained');
+
+/// The dry run's report, or null when it does not look like one. Null and
+/// "nothing to prune" are different answers: only the second may be shown as
+/// such, and neither may lead to a prune.
+///
+/// The count is the summary line's `local − retained` difference, never
+/// below zero. Detail lines cannot be counted instead: git-lfs shows at most
+/// one of them no matter how many objects it prunes.
+LfsPrunePreview? parseLfsPruneDryRun(String raw) {
+  for (final line in _lines(raw)) {
+    final m = _pruneSummary.firstMatch(line.trim());
+    if (m == null) continue;
+    final local = int.parse(m[1]!);
+    final retained = int.parse(m[2]!);
+    return LfsPrunePreview(count: max(0, local - retained));
+  }
+  return null;
+}
+
+/// Splits git-lfs output into lines, dropping CRLF's `\r`: git-lfs's line
+/// endings follow the platform it ran on, not the platform reading them.
+List<String> _lines(String raw) => raw.replaceAll('\r\n', '\n').split('\n');
+
+/// A pattern `git lfs track` lists, and the `.gitattributes` it lives in.
+class LfsTrackedPattern {
+  final String pattern;
+  final String source;
+
+  /// Files matching the pattern are meant to be locked before editing.
+  /// Not part of equality: the pattern and its file identify the line.
+  final bool lockable;
+  const LfsTrackedPattern({
+    required this.pattern,
+    required this.source,
+    this.lockable = false,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      other is LfsTrackedPattern &&
+      other.pattern == pattern &&
+      other.source == source;
+
+  @override
+  int get hashCode => Object.hash(pattern, source);
+}
+
+/// Where to run `git lfs untrack` for a pattern `git lfs track` listed from
+/// [source], and the pattern to pass there. git-lfs lists a nested pattern
+/// prefixed with its file's directory (`sub/*.psd` from `sub/.gitattributes`)
+/// yet only removes it when run in that directory with the pattern as that
+/// file writes it (`*.psd`). On Windows git-lfs writes [source] with
+/// backslashes; only the source is normalised, since a backslash in the
+/// pattern is an escape.
+({String dir, String pattern}) lfsUntrackTarget(String pattern, String source) {
+  final dir = p.posix.dirname(source.replaceAll(r'\', '/'));
+  if (dir == '.' || dir.isEmpty) return (dir: '', pattern: pattern);
+  final prefix = '$dir/';
+  return (
+    dir: dir,
+    pattern: pattern.startsWith(prefix)
+        ? pattern.substring(prefix.length)
+        : pattern,
+  );
+}
+
+/// [content] of a `.gitattributes` file without the line that routes
+/// [pattern] through LFS, or null when there is no such line.
+///
+/// `git lfs untrack` cannot remove every pattern it lists: one written with
+/// escapes, as `git lfs track --filename` writes it, survives every form of
+/// the argument while the command still succeeds. Matching the file's own
+/// text is what removes it. Only a line whose first field is exactly
+/// [pattern] and that sets the LFS filter goes; line endings are kept.
+String? withoutLfsPattern(String content, String pattern) {
+  final kept = <String>[];
+  var removed = false;
+  for (final line in content.split('\n')) {
+    if (_routesThroughLfs(line, pattern)) {
+      removed = true;
+    } else {
+      kept.add(line);
+    }
+  }
+  return removed ? kept.join('\n') : null;
+}
+
+bool _routesThroughLfs(String line, String pattern) {
+  final fields = line.trim().split(RegExp(r'\s+'));
+  return fields.length > 1 &&
+      fields.first == pattern &&
+      fields.skip(1).contains('filter=lfs');
+}
+
+const _lockableTag = ' [lockable]';
+
+final _trackLine = RegExp(r'^\s+(.+) \(([^()]+)\)$');
+
+/// `git lfs track` (no arguments) → the tracked patterns. Excluded patterns,
+/// listed after them, are not tracked and are left out.
+List<LfsTrackedPattern> parseLfsTrackList(String raw) {
+  final out = <LfsTrackedPattern>[];
+  var inTracked = false;
+  for (final line in _lines(raw)) {
+    if (line.startsWith('Listing tracked patterns')) {
+      inTracked = true;
+    } else if (line.startsWith('Listing ')) {
+      inTracked = false;
+    } else if (inTracked) {
+      final m = _trackLine.firstMatch(line);
+      if (m == null) continue;
+      // git-lfs appends a tag to lockable patterns: `*.psd [lockable]`.
+      final raw = m[1]!;
+      final lockable = raw.endsWith(_lockableTag);
+      out.add(
+        LfsTrackedPattern(
+          pattern: lockable
+              ? raw.substring(0, raw.length - _lockableTag.length)
+              : raw,
+          source: m[2]!,
+          lockable: lockable,
+        ),
+      );
+    }
+  }
+  return out;
+}
+
+/// Whether a `pre-push` hook hands the push to git-lfs, which is what
+/// uploads the objects the pushed commits point at.
+bool isLfsPrePushHook(String hookText) =>
+    hookText.contains('git lfs pre-push') ||
+    hookText.contains('git-lfs pre-push');
+
+/// Whether [path] can be passed to `--include` as itself. The option takes
+/// comma-separated glob patterns, so these characters would change its
+/// meaning rather than be matched.
+bool lfsIncludeSafe(String path) => !RegExp(r'[,*?\[\]\\]').hasMatch(path);
+
+/// `*.<ext>` for [path]'s extension, or null when it has none that can be
+/// written as a pattern without escaping.
+String? lfsExtensionPattern(String path) {
+  final name = path.split('/').last;
+  final dot = name.lastIndexOf('.');
+  if (dot <= 0 || dot == name.length - 1) return null;
+  final ext = name.substring(dot + 1);
+  if (!RegExp(r'^[A-Za-z0-9_+-]+$').hasMatch(ext)) return null;
+  return '*.$ext';
 }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/core/tokens.dart';
+import 'package:mergelio/data/kv_store.dart';
 import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/domain/git/diff.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
@@ -13,6 +14,7 @@ import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/state/diff_document.dart';
 import 'package:mergelio/state/diff_target.dart';
 import 'package:mergelio/state/lfs.dart';
+import 'package:mergelio/state/operation_journal.dart';
 import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
@@ -36,11 +38,14 @@ Widget _app(
   Widget child, {
   String? tool = '3.5.1',
   Set<String> present = const {},
+  bool ready = false,
   List<Override> extra = const [],
   Locale? locale,
 }) => ProviderScope(
   overrides: [
     lfsToolProvider.overrideWith((ref) async => tool),
+    // Readiness is stated, never probed: the real provider would run git.
+    lfsReadyProvider.overrideWith((ref, source) async => ready),
     lfsObjectPresentProvider.overrideWith(
       (ref, key) async => present.contains(key.oid),
     ),
@@ -55,6 +60,7 @@ Widget _app(
   ),
 );
 
+const _wt = DiffTarget(repoPath: '/r', path: 'art.psd');
 const _v = 'version https://git-lfs.github.com/spec/v1';
 
 /// Serves a modified-pointer diff for lfs.psd; everything else is empty.
@@ -126,6 +132,7 @@ void main() {
       _app(
         LfsCard(
           repoPath: '/r',
+          target: _wt,
           file: _file(
             before: const LfsPointer(oid: _a, size: 4404019),
             after: const LfsPointer(oid: _b, size: 5347738),
@@ -149,6 +156,7 @@ void main() {
       _app(
         LfsCard(
           repoPath: '/r',
+          target: _wt,
           file: _file(
             after: const LfsPointer(oid: _a, size: 2048),
             status: GitChange.added,
@@ -164,6 +172,7 @@ void main() {
       _app(
         LfsCard(
           repoPath: '/r',
+          target: _wt,
           file: _file(
             before: const LfsPointer(oid: _a, size: 2048),
             status: GitChange.deleted,
@@ -181,6 +190,7 @@ void main() {
       _app(
         LfsCard(
           repoPath: '/r',
+          target: _wt,
           file: _file(after: const LfsPointer(oid: _a, size: 9)),
           onShowText: () => shown = true,
         ),
@@ -197,6 +207,7 @@ void main() {
       _app(
         LfsCard(
           repoPath: '/r',
+          target: _wt,
           file: _file(before: const LfsPointer(oid: _a, size: 9)),
           onShowText: () {},
         ),
@@ -215,6 +226,7 @@ void main() {
         _app(
           LfsCard(
             repoPath: '/r',
+            target: _wt,
             file: _file(
               before: const LfsPointer(oid: _a, size: 1),
               after: const LfsPointer(oid: _b, size: 2),
@@ -341,6 +353,7 @@ void main() {
           height: 120,
           child: LfsCard(
             repoPath: '/r',
+            target: _wt,
             file: _file(after: const LfsPointer(oid: _a, size: 9)),
             onShowText: () {},
           ),
@@ -541,4 +554,214 @@ diff --git a/$pPsd b/$pPsd
     await tester.pumpAndSettle();
     expect(find.text('Moved into LFS'), findsOneWidget);
   });
+
+  group('lfsRemoteFor', () {
+    Branch b(String upstream, {bool current = true}) =>
+        Branch(name: 'main', current: current, upstream: upstream);
+    test('the current branch upstream wins', () {
+      expect(lfsRemoteFor([b('fork/main')], ['origin', 'fork']), 'fork');
+    });
+    test('no upstream: origin, or the only remote', () {
+      expect(lfsRemoteFor([b('')], ['origin', 'x']), 'origin');
+      expect(lfsRemoteFor([b('')], ['only']), 'only');
+    });
+    test('ambiguous or absent remotes give null', () {
+      expect(lfsRemoteFor([b('')], ['a', 'b']), isNull);
+      expect(lfsRemoteFor([], []), isNull);
+    });
+    test('a remote that could pass for an option is refused', () {
+      expect(lfsRemoteFor([b('-x/main')], ['origin']), isNull);
+    });
+  });
+
+  group('download button', () {
+    final sha = 'c' * 40;
+    final rec = <List<String>>[];
+
+    Widget card(
+      DiffTarget target, {
+      bool ready = true,
+      Set<String> present = const {},
+      LfsPointer? before,
+      LfsPointer? after,
+      String path = 'art.psd',
+      String? oldPath,
+    }) {
+      rec.clear();
+      return _app(
+        LfsCard(
+          repoPath: '/r',
+          target: target,
+          file: FileDiff(
+            path: path,
+            oldPath: oldPath,
+            status: oldPath == null ? GitChange.modified : GitChange.renamed,
+            lfs: LfsDiff(before: before, after: after),
+          ),
+        ),
+        ready: ready,
+        present: present,
+        extra: [
+          gitServiceProvider.overrideWithValue(_RecordingGit(rec)),
+          kvStoreProvider.overrideWithValue(InMemoryKeyValueStore()),
+          repoDataProvider.overrideWith(
+            (ref, p) async => const RepoData(remotes: ['origin']),
+          ),
+        ],
+      );
+    }
+
+    const p1 = LfsPointer(oid: _a, size: 1);
+    const p2 = LfsPointer(oid: _b, size: 2);
+
+    testWidgets('working tree pulls the one file', (tester) async {
+      await tester.pumpWidget(card(_wt, after: p2));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Download'));
+      await tester.pumpAndSettle();
+      expect(rec.where((c) => c.first == 'lfs'), [
+        ['lfs', 'pull', '--include=art.psd'],
+      ]);
+    });
+
+    testWidgets('commit target fetches the after side at the commit and the '
+        'before side at its parent', (tester) async {
+      final t = DiffTarget(repoPath: '/r', path: 'art.psd', commitSha: sha);
+      await tester.pumpWidget(card(t, before: p1, after: p2, present: {_a}));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Download'));
+      await tester.pumpAndSettle();
+      expect(rec.where((c) => c.first == 'lfs'), [
+        ['lfs', 'fetch', 'origin', sha, '--include=art.psd'],
+      ]);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpWidget(card(t, before: p1, after: p2, present: {_b}));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Download'));
+      await tester.pumpAndSettle();
+      expect(rec.where((c) => c.first == 'lfs'), [
+        ['lfs', 'fetch', 'origin', '$sha^', '--include=art.psd'],
+      ]);
+    });
+
+    testWidgets('a rename fetches the before side at its old path', (
+      tester,
+    ) async {
+      final t = DiffTarget(repoPath: '/r', path: 'new.psd', commitSha: sha);
+      await tester.pumpWidget(
+        card(
+          t,
+          before: p1,
+          after: p2,
+          present: {_b},
+          path: 'new.psd',
+          oldPath: 'old.psd',
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Download'));
+      await tester.pumpAndSettle();
+      expect(rec.where((c) => c.first == 'lfs'), [
+        ['lfs', 'fetch', 'origin', '$sha^', '--include=old.psd'],
+      ]);
+    });
+
+    testWidgets('a rename judges include-safety on the old path', (
+      tester,
+    ) async {
+      final t = DiffTarget(repoPath: '/r', path: 'new.psd', commitSha: sha);
+      await tester.pumpWidget(
+        card(
+          t,
+          before: p1,
+          after: p2,
+          present: {_b},
+          path: 'new.psd',
+          oldPath: 'old[1].psd',
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Download'), findsNothing);
+      expect(find.textContaining('Pull LFS files'), findsOneWidget);
+    });
+
+    testWidgets('comparison before side uses baseRev', (tester) async {
+      final t = DiffTarget(
+        repoPath: '/r',
+        path: 'art.psd',
+        commitSha: sha,
+        baseRev: 'v1',
+      );
+      await tester.pumpWidget(card(t, before: p1, after: p2, present: {_b}));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Download'));
+      await tester.pumpAndSettle();
+      expect(rec.where((c) => c.first == 'lfs'), [
+        ['lfs', 'fetch', 'origin', 'v1', '--include=art.psd'],
+      ]);
+    });
+
+    testWidgets('a revision shaped like an option gets no button', (
+      tester,
+    ) async {
+      // git-lfs reads a leading-dash revision as one of its own flags.
+      final t = DiffTarget(
+        repoPath: '/r',
+        path: 'art.psd',
+        commitSha: sha,
+        baseRev: '-x',
+      );
+      await tester.pumpWidget(card(t, before: p1, after: p2, present: {_b}));
+      await tester.pumpAndSettle();
+      expect(find.text('Download'), findsNothing);
+    });
+
+    testWidgets('unsafe path shows a hint, no button', (tester) async {
+      await tester.pumpWidget(card(_wt, after: p2, path: 'x[1].psd'));
+      await tester.pumpAndSettle();
+      expect(find.text('Download'), findsNothing);
+      expect(find.textContaining('Pull LFS files'), findsOneWidget);
+    });
+
+    testWidgets('not ready: neither button nor hint', (tester) async {
+      await tester.pumpWidget(
+        card(_wt, after: p2, ready: false, path: 'x[1].psd'),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Download'), findsNothing);
+      expect(find.textContaining('Pull LFS files'), findsNothing);
+    });
+
+    testWidgets('already downloaded: no button', (tester) async {
+      await tester.pumpWidget(card(_wt, after: p2, present: {_b}));
+      await tester.pumpAndSettle();
+      expect(find.text('Download'), findsNothing);
+    });
+  });
+}
+
+/// Records every git call; the network environment probes `config`.
+class _RecordingGit implements GitService {
+  final List<List<String>> calls;
+  _RecordingGit(this.calls);
+
+  @override
+  Future<GitResult> run(
+    List<String> args, {
+    String? repoPath,
+    Duration? timeout,
+    Map<String, String>? environment,
+    GitCancel? cancel,
+    String? stdin,
+  }) async {
+    calls.add(args);
+    if (args.first == 'config') return const GitResult(1, '', '');
+    return const GitResult(0, '', '');
+  }
+
+  @override
+  Future<String> version() async => 'git version 2.55.0';
+  @override
+  Future<bool> isRepository(String path) async => true;
 }
