@@ -577,19 +577,17 @@ final lfsLocksProvider = FutureProvider.autoDispose
 
       try {
         final r = await GitWriter(git, repoPath).lfsLockList();
-        if (!r.ok) {
-          if (lfsLocksUnsupported(r.err)) {
-            Future.microtask(
-              () =>
-                  ref
-                          .read(lfsLocksUnsupportedProvider(repoPath).notifier)
-                          .state =
-                      true,
-            );
-            return LfsLockState.none;
-          }
-          throw GitException('git lfs locks', r);
+        // For a file:// remote git-lfs exits 0 with empty lists and says so
+        // only on stderr; any other success is taken at its word.
+        if (r.ok ? lfsFileRemoteHint(r.err) : lfsLocksUnsupported(r.err)) {
+          Future.microtask(
+            () =>
+                ref.read(lfsLocksUnsupportedProvider(repoPath).notifier).state =
+                    true,
+          );
+          return LfsLockState.none;
         }
+        if (!r.ok) throw GitException('git lfs locks', r);
         final parsed = parseLfsLocksVerifyJson(r.stdout);
         if (parsed == null) throw const FormatException('unreadable lock list');
         final state = LfsLockState(

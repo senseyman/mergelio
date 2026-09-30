@@ -172,6 +172,33 @@ void main() {
     expect(h.git.lockQueries, 1);
   });
 
+  // What git-lfs 3.8 prints for a file:// remote: exit 0, empty lists, and
+  // only a hint on stderr.
+  test('file:// remote answering with success is still unsupported', () async {
+    final h = _Harness();
+    h.git.locks = const GitResult(
+      0,
+      '{"ours":[],"theirs":[]}',
+      '\nhint: The remote resolves to a file:// URL, which can only work with a\nhint: standalone transfer agent.  See section "Using a Custom Transfer Type\nhint: without the API server" in custom-transfers.md for details.\n',
+    );
+    expect(await h.read(), LfsLockState.none);
+    await Future<void>.delayed(Duration.zero);
+    expect(h.c.read(lfsLocksUnsupportedProvider('/r')), isTrue);
+  });
+
+  test('a success with an unrelated warning keeps locking available', () async {
+    final h = _Harness();
+    h.git.locks = GitResult(
+      0,
+      h.git.locks.stdout,
+      'warning: credential store does not support this option',
+    );
+    final s = await h.read();
+    expect(s.available, isTrue);
+    await Future<void>.delayed(Duration.zero);
+    expect(h.c.read(lfsLocksUnsupportedProvider('/r')), isFalse);
+  });
+
   test(
     'network error after a success keeps the previous locks, stale',
     () async {

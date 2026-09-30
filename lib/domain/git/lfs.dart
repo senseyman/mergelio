@@ -532,6 +532,8 @@ String? parseLfsUnlockFailure(String raw) {
 const _locksUnsupportedMarkers = [
   // A file:// or otherwise protocol-less remote has no locking API.
   'missing protocol',
+  // git-lfs's hint for a file:// remote, printed even when it exits 0.
+  'resolves to a file:// url',
   // The server or git-lfs says so explicitly.
   'not supported',
   'does not support',
@@ -542,6 +544,11 @@ const _locksUnsupportedMarkers = [
 final _locksNotFoundStatus = RegExp(
   r'\[404\]|status:? 404\b|http:? 404\b|\b404 not found',
 );
+
+/// True when [stderr] carries git-lfs's hint that the remote is a file://
+/// URL, which has no locking API.
+bool lfsFileRemoteHint(String stderr) =>
+    stderr.toLowerCase().contains('resolves to a file:// url');
 
 /// True when [stderr] shows the server does not support file locking. Any
 /// other failure (network, auth) must not match: a match hides locking for

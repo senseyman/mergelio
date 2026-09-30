@@ -588,6 +588,7 @@ void main() {
       'Unable to list locks: https://host/x.git/info/lfs/locks [404] Not Found',
       'list locks: status 404',
       'HTTP 404 NOT FOUND',
+      'hint: The remote resolves to a file:// URL, which can only work with a',
     ]) {
       test('true: $stderr', () {
         expect(lfsLocksUnsupported(stderr), isTrue);
