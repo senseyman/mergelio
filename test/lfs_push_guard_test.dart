@@ -220,6 +220,18 @@ void main() {
       expect(answers, [false]);
     });
 
+    testWidgets('dismissing the dialog returns false', (tester) async {
+      final git = _FakeGit()..changedOut = 'big.psd\u0000';
+      final answers = await guard(
+        tester,
+        git,
+        _answer(_theirs([_lock('big.psd')])),
+      );
+      await tester.tapAt(const Offset(2, 2));
+      await tester.pumpAndSettle();
+      expect(find.text('Files locked by someone else'), findsNothing);
+      expect(answers, [false]);
+    });
     testWidgets('Push anyway returns true', (tester) async {
       final git = _FakeGit()..changedOut = 'big.psd\u0000';
       final answers = await guard(
