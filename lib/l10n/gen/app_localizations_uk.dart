@@ -2466,6 +2466,19 @@ class AppLocalizationsUk extends AppLocalizations {
   }
 
   @override
+  String lfsLocksMoreAtLeast(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'і ще $count+',
+      many: 'і ще $count+',
+      few: 'і ще $count+',
+      one: 'і ще $count+',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get lfsLocksUnsupported =>
       'Сервер цього репозиторію не підтримує блокування файлів.';
 

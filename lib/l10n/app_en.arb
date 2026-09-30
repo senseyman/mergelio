@@ -1577,6 +1577,14 @@
       }
     }
   },
+  "lfsLocksMoreAtLeast": "{count, plural, one{and {count}+ more} other{and {count}+ more}}",
+  "@lfsLocksMoreAtLeast": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "lfsLocksUnsupported": "This repository's server doesn't support file locks.",
   "lfsPushLockedTitle": "Files locked by someone else",
   "lfsPushLockedBody": "These files are locked by someone else. Pushing changes to them may overwrite their work.",

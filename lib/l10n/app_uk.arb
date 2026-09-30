@@ -870,6 +870,7 @@
   "lfsLocksRefresh": "Оновити",
   "lfsLocksStale": "Не вдалося оновити блокування — показано останній відомий список",
   "lfsLocksMore": "{count, plural, one{і ще {count}} few{і ще {count}} many{і ще {count}} other{і ще {count}}}",
+  "lfsLocksMoreAtLeast": "{count, plural, one{і ще {count}+} few{і ще {count}+} many{і ще {count}+} other{і ще {count}+}}",
   "lfsLocksUnsupported": "Сервер цього репозиторію не підтримує блокування файлів.",
   "lfsPushLockedTitle": "Файли, заблоковані іншими",
   "lfsPushLockedBody": "Ці файли заблокували інші. Надсилання змін до них може перезаписати чужу роботу.",

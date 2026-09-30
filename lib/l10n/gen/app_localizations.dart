@@ -4268,6 +4268,12 @@ abstract class AppLocalizations {
   /// **'{count, plural, one{and {count} more} other{and {count} more}}'**
   String lfsLocksMore(int count);
 
+  /// No description provided for @lfsLocksMoreAtLeast.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{and {count}+ more} other{and {count}+ more}}'**
+  String lfsLocksMoreAtLeast(int count);
+
   /// No description provided for @lfsLocksUnsupported.
   ///
   /// In en, this message translates to:

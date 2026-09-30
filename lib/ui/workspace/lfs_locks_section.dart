@@ -128,7 +128,9 @@ class LfsLocksSection extends ConsumerWidget {
                       child: Text(
                         // A full page from the server means the true count is
                         // unknown, so the hidden figure is a floor.
-                        '${l.lfsLocksMore(hidden)}${total >= _queryLimit ? '+' : ''}',
+                        total >= _queryLimit
+                            ? l.lfsLocksMoreAtLeast(hidden)
+                            : l.lfsLocksMore(hidden),
                         style: TextStyle(color: t.textFaint, fontSize: 12),
                       ),
                     ),

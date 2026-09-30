@@ -177,7 +177,7 @@ void main() {
   testWidgets('a full server page reads as "N+" hidden', (t) async {
     final theirs = [for (var i = 0; i < 1000; i++) _lock(i, 'zed')];
     await _pump(t, _state(theirs: theirs));
-    expect(find.text('and 900 more+', skipOffstage: false), findsOneWidget);
+    expect(find.text('and 900+ more', skipOffstage: false), findsOneWidget);
   });
 
   testWidgets('the list is height-capped', (t) async {

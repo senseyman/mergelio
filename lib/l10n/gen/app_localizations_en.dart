@@ -2446,6 +2446,17 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String lfsLocksMoreAtLeast(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'and $count+ more',
+      one: 'and $count+ more',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get lfsLocksUnsupported =>
       'This repository\'s server doesn\'t support file locks.';
 
