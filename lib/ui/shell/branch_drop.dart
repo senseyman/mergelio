@@ -58,48 +58,59 @@ class BranchDropTarget {
   String get mergeLabel => remote?.branch ?? label;
 }
 
-/// What a branch chip named [chip] is as a drop target for branch [source],
-/// or null when it refuses the drop. The chip names its branch whether or not
-/// the branch sits on that row (a chip is inherited down its segment), so the
-/// drop is on the branch the user sees. The source itself, a branch on the
-/// source's own tip (every option would be a no-op) and anything that names no
-/// branch, such as the HEAD marker, refuse.
-BranchDropTarget? chipDropTarget({
+/// What is under the pointer when a dragged branch is let go: a branch label,
+/// or a commit (anywhere on a graph row that is not a label).
+class DropSpot {
+  /// The label's text, or the commit's sha.
+  final String ref;
+  final bool isLabel;
+
+  /// The commit is a stash's, drawn in the graph but not part of history.
+  final bool isStash;
+
+  const DropSpot.label(String name)
+    : ref = name,
+      isLabel = true,
+      isStash = false;
+  const DropSpot.commit(String sha, {this.isStash = false})
+    : ref = sha,
+      isLabel = false;
+}
+
+/// The one rule for what dropping branch [source] on [spot] means, or null
+/// when the drop is refused.
+///
+/// A label is a drop on the branch it names, local or remote-tracking; a label
+/// naming no branch (the HEAD marker) is refused. A commit is a drop on that
+/// commit, whether or not a branch sits on it — aiming at a branch means
+/// aiming at its label. Refused too: a stash commit, the source itself, and
+/// the source's own tip, where every option would be a no-op.
+BranchDropTarget? resolveBranchDrop({
   required String source,
-  required String chip,
+  required DropSpot spot,
   required List<Branch> branches,
   required List<RemoteBranch> remoteBranches,
 }) {
-  if (chip == source) return null;
+  if (spot.isStash || spot.ref == source) return null;
+  final sourceTip =
+      branches.where((b) => b.name == source).firstOrNull?.tip ??
+      remoteBranches.where((rb) => rb.name == source).firstOrNull?.tip;
+  bool isSourceTip(String sha) =>
+      sourceTip != null && sourceTip.isNotEmpty && sourceTip == sha;
+  if (!spot.isLabel) {
+    return isSourceTip(spot.ref) ? null : BranchDropTarget.commit(spot.ref);
+  }
   for (final rb in remoteBranches) {
-    if (rb.name == chip) return BranchDropTarget.remote(rb);
+    if (rb.name == spot.ref) {
+      return isSourceTip(rb.tip) ? null : BranchDropTarget.remote(rb);
+    }
   }
-  final target = branches.where((b) => b.name == chip).firstOrNull;
-  if (target == null) return null;
-  final sourceTip = branches.where((b) => b.name == source).firstOrNull?.tip;
-  if (sourceTip != null && sourceTip.isNotEmpty && sourceTip == target.tip) {
-    return null;
+  for (final b in branches) {
+    if (b.name == spot.ref) {
+      return isSourceTip(b.tip) ? null : BranchDropTarget.branch(b.name);
+    }
   }
-  return BranchDropTarget.branch(chip);
-}
-
-/// What a graph row is as a drop target for branch [source], or null when it
-/// refuses the drop. A row carrying the local branch [localRef] is a drop on
-/// that branch; any other row a drop on its commit [sha]. A stash row is
-/// refused (its commit is not history), as is a drop that would target the
-/// source itself.
-BranchDropTarget? graphDropTarget({
-  required String source,
-  required String sha,
-  required String? localRef,
-  required bool isStash,
-  required List<Branch> branches,
-}) {
-  if (isStash || source == localRef) return null;
-  if (branches.any((b) => b.name == source && b.tip == sha)) return null;
-  return localRef != null
-      ? BranchDropTarget.branch(localRef)
-      : BranchDropTarget.commit(sha);
+  return null;
 }
 
 /// Menu options for dropping a branch on [target], in menu order.

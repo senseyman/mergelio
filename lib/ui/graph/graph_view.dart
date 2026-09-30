@@ -575,6 +575,38 @@ class _GraphListState extends ConsumerState<GraphList> {
                       final showBranchLabel =
                           rowLabels.isNotEmpty &&
                           !listEquals(rowLabels, prevLabels);
+                      // Labels and the rest of the row both ask the one rule in
+                      // [resolveBranchDrop]; only the spot they report differs.
+                      BranchDropTarget? dropTarget(
+                        String source,
+                        DropSpot spot,
+                      ) => resolveBranchDrop(
+                        source: source,
+                        spot: spot,
+                        branches: d.branches,
+                        remoteBranches: d.remoteBranches,
+                      );
+                      void openDrop(String source, DropSpot spot, Offset at) {
+                        final target = dropTarget(source, spot);
+                        final repoPath = ref
+                            .read(workspaceProvider)
+                            .activeTab
+                            ?.path;
+                        if (target == null || repoPath == null) return;
+                        showBranchDropMenu(
+                          this.context,
+                          ref,
+                          repoPath: repoPath,
+                          source: source,
+                          target: target,
+                          at: at,
+                        );
+                      }
+
+                      final commitSpot = DropSpot.commit(
+                        c.sha,
+                        isStash: stashBySha.containsKey(c.sha),
+                      );
                       final row = _CommitContextMenu(
                         commit: c,
                         // Only the segment top names its branches, so only
@@ -601,34 +633,9 @@ class _GraphListState extends ConsumerState<GraphList> {
                             _select(c.sha, metrics.rowHeight);
                           },
                           acceptsBranchDrop: (source, chip) =>
-                              chipDropTarget(
-                                source: source,
-                                chip: chip,
-                                branches: d.branches,
-                                remoteBranches: d.remoteBranches,
-                              ) !=
-                              null,
-                          onBranchDropped: (source, chip, at) {
-                            final target = chipDropTarget(
-                              source: source,
-                              chip: chip,
-                              branches: d.branches,
-                              remoteBranches: d.remoteBranches,
-                            );
-                            final repoPath = ref
-                                .read(workspaceProvider)
-                                .activeTab
-                                ?.path;
-                            if (target == null || repoPath == null) return;
-                            showBranchDropMenu(
-                              this.context,
-                              ref,
-                              repoPath: repoPath,
-                              source: source,
-                              target: target,
-                              at: at,
-                            );
-                          },
+                              dropTarget(source, DropSpot.label(chip)) != null,
+                          onBranchDropped: (source, chip, at) =>
+                              openDrop(source, DropSpot.label(chip), at),
                           onBranchActivated: (label) {
                             final repoPath = ref
                                 .read(workspaceProvider)
@@ -656,37 +663,11 @@ class _GraphListState extends ConsumerState<GraphList> {
                           },
                         ),
                       );
-                      // Around its chips (which take a drop on the branch they
-                      // name), a row accepts a dragged branch as a drop on its
-                      // local branch or its commit; see [graphDropTarget].
-                      final localRef = derived.localRefBySha[c.sha];
-                      BranchDropTarget? targetFor(String source) =>
-                          graphDropTarget(
-                            source: source,
-                            sha: c.sha,
-                            localRef: localRef,
-                            isStash: stashBySha.containsKey(c.sha),
-                            branches: d.branches,
-                          );
                       return DragTarget<String>(
                         onWillAcceptWithDetails: (dd) =>
-                            targetFor(dd.data) != null,
-                        onAcceptWithDetails: (dd) {
-                          final target = targetFor(dd.data);
-                          final repoPath = ref
-                              .read(workspaceProvider)
-                              .activeTab
-                              ?.path;
-                          if (target == null || repoPath == null) return;
-                          showBranchDropMenu(
-                            this.context,
-                            ref,
-                            repoPath: repoPath,
-                            source: dd.data,
-                            target: target,
-                            at: dd.offset,
-                          );
-                        },
+                            dropTarget(dd.data, commitSpot) != null,
+                        onAcceptWithDetails: (dd) =>
+                            openDrop(dd.data, commitSpot, dd.offset),
                         builder: (ctx, candidates, _) => Container(
                           color: candidates.isNotEmpty
                               ? context.tokens.accent.withValues(alpha: 0.14)

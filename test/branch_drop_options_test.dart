@@ -112,108 +112,59 @@ void main() {
     );
   });
 
-  group('graphDropTarget', () {
-    const branches = [
-      Branch(name: 'main', current: true, tip: 'm1'),
-      Branch(name: 'feat', tip: 'f1'),
-    ];
-
-    test('a row carrying a local branch is a drop on that branch', () {
-      final t = graphDropTarget(
-        source: 'feat',
-        sha: 'm1',
-        localRef: 'main',
-        isStash: false,
-        branches: branches,
-      );
-      expect(t?.isBranch, isTrue);
-      expect(t?.ref, 'main');
-    });
-
-    test('any other row is a drop on the commit', () {
-      final t = graphDropTarget(
-        source: 'feat',
-        sha: 'c9',
-        localRef: null,
-        isStash: false,
-        branches: branches,
-      );
-      expect(t?.isBranch, isFalse);
-      expect(t?.ref, 'c9');
-    });
-
-    test('rejects a branch dropped on itself or on its own tip', () {
-      expect(
-        graphDropTarget(
-          source: 'main',
-          sha: 'm1',
-          localRef: 'main',
-          isStash: false,
-          branches: branches,
-        ),
-        isNull,
-      );
-      expect(
-        graphDropTarget(
-          source: 'feat',
-          sha: 'f1',
-          localRef: null,
-          isStash: false,
-          branches: branches,
-        ),
-        isNull,
-      );
-    });
-
-    test('rejects a stash row, whose commit is not history', () {
-      expect(
-        graphDropTarget(
-          source: 'feat',
-          sha: 's1',
-          localRef: null,
-          isStash: true,
-          branches: branches,
-        ),
-        isNull,
-      );
-    });
-  });
-
-  group('chipDropTarget', () {
+  group('resolveBranchDrop', () {
     const branches = [
       Branch(name: 'main', current: true, tip: 'm1'),
       Branch(name: 'feat', tip: 'f1'),
       Branch(name: 'twin', tip: 'f1'),
     ];
-    const remotes = [RemoteBranch(remote: 'origin', branch: 'main')];
+    const remotes = [RemoteBranch(remote: 'origin', branch: 'main', tip: 'o1')];
 
-    BranchDropTarget? on(String source, String chip) => chipDropTarget(
+    BranchDropTarget? drop(String source, DropSpot spot) => resolveBranchDrop(
       source: source,
-      chip: chip,
+      spot: spot,
       branches: branches,
       remoteBranches: remotes,
     );
 
-    test('a local chip is a drop on the branch it names', () {
-      final t = on('feat', 'main');
+    test('a local label is a drop on the branch it names', () {
+      final t = drop('feat', const DropSpot.label('main'));
       expect(t?.isBranch, isTrue);
       expect(t?.ref, 'main');
       expect(t?.remote, isNull);
     });
 
-    test('a remote chip is a drop on that remote-tracking branch', () {
-      final t = on('feat', 'origin/main');
+    test('a remote label is a drop on that remote-tracking branch', () {
+      final t = drop('feat', const DropSpot.label('origin/main'));
       expect(t?.remote, remotes.single);
       expect(t?.ref, 'origin/main');
     });
 
-    test('refuses the dragged branch itself, and a branch on its tip', () {
-      expect(on('main', 'main'), isNull);
-      expect(on('feat', 'twin'), isNull);
+    test(
+      'anywhere else on a row is a drop on the commit, even a branch tip',
+      () {
+        final t = drop('feat', const DropSpot.commit('m1'));
+        expect(t?.isBranch, isFalse);
+        expect(t?.ref, 'm1');
+      },
+    );
+
+    test('refuses a label that names no branch, such as HEAD', () {
+      expect(drop('feat', const DropSpot.label('HEAD')), isNull);
     });
 
-    test('refuses the HEAD marker', () {
-      expect(on('feat', 'HEAD'), isNull);
+    test('refuses the dragged branch itself', () {
+      expect(drop('main', const DropSpot.label('main')), isNull);
+    });
+
+    test("refuses the source's own tip, as a label or as a commit", () {
+      expect(drop('feat', const DropSpot.label('twin')), isNull);
+      expect(drop('feat', const DropSpot.commit('f1')), isNull);
+      expect(drop('origin/main', const DropSpot.commit('o1')), isNull);
+    });
+
+    test('refuses a stash row, whose commit is not history', () {
+      expect(drop('feat', const DropSpot.commit('s1', isStash: true)), isNull);
     });
   });
 
