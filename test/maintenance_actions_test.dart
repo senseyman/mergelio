@@ -48,6 +48,8 @@ class _FakeGit implements GitService {
   List<String> get ran => [for (final c in calls) c.join(' ')];
 }
 
+const _headsKey = 'for-each-ref --format=%(refname)%09%(objectname) refs/heads';
+
 HygieneBranch _branch(String name, {bool merged = true}) => HygieneBranch(
   name: name,
   lastCommit: DateTime.utc(2026),
@@ -79,9 +81,9 @@ void main() {
 
   group('deleteBranches', () {
     setUp(() {
-      git.responses['rev-parse refs/heads/a refs/heads/b'] = const GitResult(
+      git.responses[_headsKey] = const GitResult(
         0,
-        'sha-a\nsha-b\n',
+        'refs/heads/a\tsha-a\nrefs/heads/b\tsha-b\nrefs/heads/main\tsha-m\n',
         '',
       );
     });
@@ -152,6 +154,40 @@ void main() {
       await container.read(undoProvider('/r').notifier).undo();
       expect(git.ran, ['branch b sha-b']);
     });
+
+    test(
+      'a branch gone since the list was read does not stop the rest',
+      () async {
+        await actions.deleteBranches([
+          _branch('vanished'),
+          _branch('a'),
+          _branch('b', merged: false),
+        ], trunk: 'main');
+        expect(git.ran, containsAll(['branch -D a', 'branch -D b']));
+        expect(git.ran.where((c) => c.contains('vanished')), isEmpty);
+        final warning = container
+            .read(toastProvider)
+            .firstWhere((t) => t.title == 'Some branches were not deleted');
+        expect(warning.description, contains('vanished'));
+        git.calls.clear();
+        await container.read(undoProvider('/r').notifier).undo();
+        expect(git.ran, containsAll(['branch a sha-a', 'branch b sha-b']));
+        expect(git.ran, hasLength(2));
+      },
+    );
+
+    test(
+      'when none of them exist any more, nothing runs and it says so',
+      () async {
+        await actions.deleteBranches([
+          _branch('x'),
+          _branch('y'),
+        ], trunk: 'main');
+        expect(git.ran.where((c) => c.startsWith('branch')), isEmpty);
+        expect(toasts(), contains('Delete 2 branches failed'));
+        expect(container.read(undoProvider('/r')).past, isEmpty);
+      },
+    );
 
     test('nothing to delete runs nothing', () async {
       await actions.deleteBranches(const [], trunk: 'main');

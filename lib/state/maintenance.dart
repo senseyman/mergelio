@@ -7,6 +7,7 @@ import '../domain/git/git_providers.dart';
 import '../domain/git/git_service.dart';
 import '../domain/git/maintenance.dart';
 import 'operation_journal.dart';
+import 'repo_data.dart';
 import 'worktrees.dart';
 
 /// The clock branch ages and scan times are read from. Tests pin it.
@@ -41,11 +42,35 @@ final maintenanceSizeProvider = FutureProvider.autoDispose
       return MaintenanceSize(gitDir: gitDir, disk: disk, counts: counts);
     });
 
-/// Merged and stale branches. Not refreshed on its own: the panel asks for a
-/// fresh read after it deletes something, rather than following every status
-/// tick of the repository.
+/// A digest of the refs as the repository data last read them: local branches
+/// with their tips, upstreams and which one is checked out, remote-tracking
+/// branches and tags. Null until the first read lands.
+///
+/// It changes when a ref moves — a delete, an undo putting one back, a fetch,
+/// a commit, anything done outside the app — and not on the status ticks in
+/// between, so it is what the panel's slower reads follow.
+final maintenanceRefsKeyProvider = Provider.autoDispose.family<String?, String>(
+  (ref, path) => ref.watch(
+    repoDataProvider(path).select((d) {
+      final data = d.valueOrNull;
+      if (data == null) return null;
+      return [
+        for (final b in data.branches)
+          'h ${b.name} ${b.tip} ${b.upstream}${b.current ? ' *' : ''}',
+        for (final r in data.remoteBranches)
+          'r ${r.remote}/${r.branch} ${r.tip}',
+        for (final t in data.tags) 't $t',
+      ].join('\n');
+    }),
+  ),
+);
+
+/// Merged and stale branches. Re-read when the refs move rather than on every
+/// status tick: a few git calls each time, and only a ref change can alter the
+/// answer.
 final branchHygieneProvider = FutureProvider.autoDispose
     .family<BranchHygiene, String>((ref, path) async {
+      ref.watch(maintenanceRefsKeyProvider(path));
       final held = ref.watch(worktreeByBranchProvider(path));
       return _reader(ref, path).branchHygiene(
         now: ref.read(maintenanceClockProvider)(),

@@ -9,6 +9,8 @@ import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/domain/git/maintenance.dart';
 import 'package:mergelio/state/maintenance.dart';
 import 'package:mergelio/state/operation_journal.dart';
+import 'package:mergelio/state/repo_data.dart';
+import 'package:mergelio/domain/git/models.dart';
 
 /// Scripts git by exact argument list. A key in [gates] holds that call until
 /// the completer finishes, so a test can act while a scan is running.
@@ -184,5 +186,78 @@ void main() {
       '',
     );
     expect(await container.read(reflogExpiryProvider('/r').future), 1);
+  });
+
+  group('following the repository', () {
+    late ProviderContainer c;
+    final branches = StateProvider<List<Branch>>(
+      (ref) => const [Branch(name: 'main', tip: '1', current: true)],
+    );
+    int hygieneReads() => git.calls
+        .where((k) => k.startsWith('for-each-ref --format=$branchInfoFormat'))
+        .length;
+
+    setUp(() {
+      c = ProviderContainer(
+        overrides: [
+          gitServiceProvider.overrideWithValue(git),
+          kvStoreProvider.overrideWithValue(kv),
+          maintenanceClockProvider.overrideWithValue(
+            () => DateTime.utc(2026, 9, 30, 12),
+          ),
+          repoDataProvider.overrideWith(
+            (ref, path) async => RepoData(branches: ref.watch(branches)),
+          ),
+        ],
+      );
+      addTearDown(c.dispose);
+    });
+
+    test(
+      'branch hygiene reads again when a branch moves, not otherwise',
+      () async {
+        final sub = c.listen(branchHygieneProvider('/r'), (_, _) {});
+        addTearDown(sub.close);
+        await c.read(branchHygieneProvider('/r').future);
+        final first = hygieneReads();
+        expect(first, 1);
+
+        // An undo putting a branch back, or a delete outside the app, lands
+        // here as a new branch list.
+        c.read(branches.notifier).state = const [
+          Branch(name: 'main', tip: '1', current: true),
+          Branch(name: 'back', tip: '2'),
+        ];
+        await c.read(repoDataProvider('/r').future);
+        await c.read(branchHygieneProvider('/r').future);
+        expect(hygieneReads(), 2);
+
+        // The same refs read again: nothing to re-read.
+        c.invalidate(repoDataProvider('/r'));
+        await c.read(repoDataProvider('/r').future);
+        await c.read(branchHygieneProvider('/r').future);
+        expect(hygieneReads(), 2);
+      },
+    );
+
+    test('refsKey changes with any branch tip or the checkout', () async {
+      final sub = c.listen(maintenanceRefsKeyProvider('/r'), (_, _) {});
+      addTearDown(sub.close);
+      expect(c.read(maintenanceRefsKeyProvider('/r')), isNull);
+      await c.read(repoDataProvider('/r').future);
+      final first = c.read(maintenanceRefsKeyProvider('/r'));
+      expect(first, isNotNull);
+
+      c.read(branches.notifier).state = const [
+        Branch(name: 'main', tip: '9', current: true),
+      ];
+      await c.read(repoDataProvider('/r').future);
+      final moved = c.read(maintenanceRefsKeyProvider('/r'));
+      expect(moved, isNot(first));
+
+      c.read(branches.notifier).state = const [Branch(name: 'main', tip: '9')];
+      await c.read(repoDataProvider('/r').future);
+      expect(c.read(maintenanceRefsKeyProvider('/r')), isNot(moved));
+    });
   });
 }

@@ -1170,27 +1170,41 @@ class RepoActions {
     required String? trunk,
   }) async {
     if (branches.isEmpty) return;
+    // One listing rather than `rev-parse` of every name: rev-parse fails
+    // outright on the first name that no longer resolves, and one branch
+    // deleted elsewhere since the list was read must not cost all the others.
     final r = await _git.run([
-      'rev-parse',
-      for (final b in branches) 'refs/heads/${b.name}',
+      'for-each-ref',
+      '--format=%(refname)%09%(objectname)',
+      'refs/heads',
     ], repoPath: path);
-    final shas = const LineSplitter().convert(r.stdout);
-    if (!r.ok || shas.length != branches.length) {
-      _toastErr('Delete branches', GitException('git rev-parse', r));
+    if (!r.ok) {
+      _toastErr('Delete branches', GitException('git for-each-ref', r));
       return;
     }
+    final tips = <String, String>{
+      for (final line in const LineSplitter().convert(r.stdout))
+        if (line.startsWith('refs/heads/') && line.contains('\t'))
+          line.substring(11, line.indexOf('\t')): line.substring(
+            line.indexOf('\t') + 1,
+          ),
+    };
     final deleted = <(String, String)>[];
     final refused = <String>[];
     Future<void> forward() async {
-      for (var i = 0; i < branches.length; i++) {
-        final b = branches[i];
+      for (final b in branches) {
+        final sha = tips[b.name];
+        if (sha == null) {
+          refused.add('${b.name}: no longer exists');
+          continue;
+        }
         if (!b.needsForce) {
           final still =
               trunk != null &&
               (await _git.run([
                 'merge-base',
                 '--is-ancestor',
-                shas[i],
+                sha,
                 'refs/heads/$trunk',
               ], repoPath: path)).ok;
           if (!still) {
@@ -1200,7 +1214,7 @@ class RepoActions {
         }
         try {
           await _writer.deleteBranch(b.name, force: true);
-          deleted.add((b.name, shas[i]));
+          deleted.add((b.name, sha));
         } on GitException catch (e) {
           final err = e.result?.err ?? '';
           refused.add(err.isNotEmpty ? err : '${b.name}: ${e.message}');

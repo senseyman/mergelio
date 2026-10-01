@@ -62,11 +62,12 @@ class _FakeGit implements GitService {
       'would prune a\nwould prune b\nwould prune c\n',
       '',
     ),
-    'rev-parse refs/heads/done refs/heads/old-work': const GitResult(
-      0,
-      'sha-done\nsha-old\n',
-      '',
-    ),
+    'for-each-ref --format=%(refname)%09%(objectname) refs/heads':
+        const GitResult(
+          0,
+          'refs/heads/done\tsha-done\nrefs/heads/old-work\tsha-old\n',
+          '',
+        ),
     'cat-file --batch-all-objects --batch-check=$allObjectsFormat': GitResult(
       0,
       'blob $_bigSha 5242880\n',
