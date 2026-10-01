@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
 import '../../core/tokens.dart';
+import '../../domain/git/git_service.dart';
 import '../../domain/git/maintenance.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/maintenance.dart';
@@ -127,8 +128,18 @@ Widget _loading() => const Padding(
   child: LinearProgressIndicator(minHeight: 2),
 );
 
+/// What git said, when it said anything; otherwise the short reason. Never
+/// the exception's own rendering, which is a developer's dump.
+String _reason(Object error) {
+  if (error is GitException) {
+    final err = error.result?.err ?? '';
+    return err.isNotEmpty ? err : error.message;
+  }
+  return '$error';
+}
+
 Widget _failed(BuildContext context, Object error) => Text(
-  AppLocalizations.of(context).mtReadFailed('$error'),
+  AppLocalizations.of(context).mtReadFailed(_reason(error)),
   style: _body(context.tokens, color: context.tokens.danger),
 );
 
@@ -578,13 +589,12 @@ class _Housekeeping extends ConsumerStatefulWidget {
 }
 
 class _HousekeepingState extends ConsumerState<_Housekeeping> {
-  String? _output;
   String? _change;
 
   Future<void> _run({
     required String title,
     required String body,
-    required Future<String?> Function(RepoActions) op,
+    required Future<bool> Function(RepoActions) op,
   }) async {
     final l = AppLocalizations.of(context);
     final path = widget.repoPath;
@@ -596,25 +606,22 @@ class _HousekeepingState extends ConsumerState<_Housekeeping> {
     );
     if (!ok || !mounted) return;
     final before = ref.read(maintenanceSizeProvider(path)).valueOrNull;
-    final out = await op(ref.read(repoActionsProvider(path)));
-    if (out == null || !mounted) return;
+    final finished = await op(ref.read(repoActionsProvider(path)));
+    if (!finished || !mounted) return;
     ref
       ..invalidate(maintenanceSizeProvider(path))
       ..invalidate(reflogExpiryProvider(path))
       ..invalidate(worktreesProvider(path));
-    setState(() {
-      _output = out.trim();
-      _change = null;
-    });
+    setState(() => _change = null);
     try {
       final after = await ref.read(maintenanceSizeProvider(path).future);
       if (!mounted || before == null) return;
-      setState(
-        () => _change = l.mtSizeChange(
-          formatBytes(before.disk.totalBytes),
-          formatBytes(after.disk.totalBytes),
-        ),
-      );
+      // Formatted, not raw bytes: a run that freed a few bytes of a
+      // gigabyte has not changed anything the user can see.
+      final from = formatBytes(before.disk.totalBytes);
+      final to = formatBytes(after.disk.totalBytes);
+      if (from == to) return;
+      setState(() => _change = l.mtSizeChange(from, to));
     } on Object {
       // The storage section shows the read failure itself.
     }
@@ -655,25 +662,6 @@ class _HousekeepingState extends ConsumerState<_Housekeeping> {
         if (_change != null) ...[
           const SizedBox(height: 8),
           Text(_change!, style: _body(t)),
-        ],
-        if (_output != null && _output!.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Text(l.mtOutput, style: _faint(t)),
-          const SizedBox(height: 4),
-          Container(
-            constraints: const BoxConstraints(maxHeight: 180),
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              border: Border.all(color: t.border),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: SingleChildScrollView(
-              child: SelectableText(
-                _output!,
-                style: AppFonts.mns(size: 11, color: t.textMuted),
-              ),
-            ),
-          ),
         ],
       ],
     );

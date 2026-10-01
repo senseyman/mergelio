@@ -468,8 +468,16 @@ class MaintenanceReader {
     GitCancel? cancel,
   }) => git.run(args, repoPath: repoPath, timeout: timeout, cancel: cancel);
 
-  Future<String> _out(List<String> args, String what) async {
-    final r = await _run(args);
+  /// For a read that walks every reflog or ref rather than a handful of
+  /// files, which can outrun the ordinary default on a large repository.
+  static const slowReadTimeout = Duration(seconds: 60);
+
+  Future<String> _out(
+    List<String> args,
+    String what, {
+    Duration? timeout,
+  }) async {
+    final r = await _run(args, timeout: timeout);
     if (!r.ok) throw GitException(what, r);
     return r.stdout;
   }
@@ -491,13 +499,11 @@ class MaintenanceReader {
   /// How many reflog entries the next gc would expire. No `--expire` is
   /// passed, so the user's own `gc.reflogExpire*` settings decide.
   Future<int> reflogExpiryCount() async => countReflogExpiry(
-    await _out([
-      'reflog',
-      'expire',
-      '--all',
-      '--dry-run',
-      '--verbose',
-    ], 'git reflog expire --dry-run'),
+    await _out(
+      ['reflog', 'expire', '--all', '--dry-run', '--verbose'],
+      'git reflog expire --dry-run',
+      timeout: slowReadTimeout,
+    ),
   );
 
   /// [heldBy] maps branch names to the worktree holding them.

@@ -678,25 +678,19 @@ class GitWriter {
   /// cancel it sooner.
   static const housekeepingTimeout = Duration(hours: 2);
 
-  /// Runs `git gc` and returns what it printed. Its progress goes to stderr,
-  /// so both streams are kept.
-  Future<String> gc({GitCancel? cancel}) =>
-      _housekeeping(['gc'], 'git gc', cancel);
+  /// Runs `git gc`. Nothing it prints is kept: with its output piped rather
+  /// than on a terminal, git reports no progress at all.
+  Future<void> gc({GitCancel? cancel}) =>
+      _ok(['gc'], 'git gc', timeout: housekeepingTimeout, cancel: cancel);
 
   /// Runs `git maintenance run` with whatever tasks the repository's config
-  /// enables, and returns what it printed.
-  Future<String> maintenanceRun({GitCancel? cancel}) =>
-      _housekeeping(['maintenance', 'run'], 'git maintenance run', cancel);
-
-  Future<String> _housekeeping(
-    List<String> args,
-    String what,
-    GitCancel? cancel,
-  ) async {
-    final r = await _run(args, timeout: housekeepingTimeout, cancel: cancel);
-    if (!r.ok) throw GitException(what, r);
-    return '${r.stdout}${r.stderr}';
-  }
+  /// enables. Silent when piped, like [gc].
+  Future<void> maintenanceRun({GitCancel? cancel}) => _ok(
+    ['maintenance', 'run'],
+    'git maintenance run',
+    timeout: housekeepingTimeout,
+    cancel: cancel,
+  );
 
   /// Deletes branch [name]; [force] (`-D`) drops the merged-check.
   Future<void> deleteBranch(String name, {bool force = false}) =>

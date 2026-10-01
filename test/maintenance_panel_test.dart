@@ -82,7 +82,6 @@ class _FakeGit implements GitService {
           '\nassets/video.mp4\n',
       '',
     ),
-    'gc': const GitResult(0, '', 'Counting objects: 42, done.\n'),
   };
 
   @override
@@ -124,6 +123,7 @@ Future<void> _pump(
   KeyValueStore? kv,
   double width = 900,
   List<Override> extra = const [],
+  MaintenanceSize Function()? size,
 }) async {
   tester.view.physicalSize = Size(width, 2400);
   tester.view.devicePixelRatio = 1;
@@ -135,7 +135,9 @@ Future<void> _pump(
         kvStoreProvider.overrideWithValue(kv ?? InMemoryKeyValueStore()),
         maintenanceClockProvider.overrideWithValue(() => _now),
         // The real one walks the git directory on disk.
-        maintenanceSizeProvider.overrideWith((ref, path) async => _size),
+        maintenanceSizeProvider.overrideWith(
+          (ref, path) async => size?.call() ?? _size,
+        ),
         ...extra,
         settingsProvider.overrideWith(
           (_) => SettingsController(
@@ -172,6 +174,20 @@ void main() {
       find.text('The next gc would expire 3 reflog entries.'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('a failed read shows what git said, not an exception dump', (
+    tester,
+  ) async {
+    final git = _FakeGit();
+    git.responses['reflog expire --all --dry-run --verbose'] = const GitResult(
+      128,
+      '',
+      'fatal: bad reflog',
+    );
+    await _pump(tester, git);
+    expect(find.text('Could not read this: fatal: bad reflog'), findsOneWidget);
+    expect(find.textContaining('GitException'), findsNothing);
   });
 
   testWidgets('lists prunable worktrees', (tester) async {
@@ -325,11 +341,22 @@ void main() {
   });
 
   group('housekeeping', () {
-    testWidgets('gc runs only after the confirm and shows its output', (
+    testWidgets('gc runs only after the confirm and shows what it freed', (
       tester,
     ) async {
       final git = _FakeGit();
-      await _pump(tester, git);
+      var reads = 0;
+      await _pump(
+        tester,
+        git,
+        size: () => reads++ == 0
+            ? _size
+            : const MaintenanceSize(
+                gitDir: '/r/.git',
+                disk: GitDirSize(packBytes: 1024 * 1024),
+                counts: CountObjects(packCount: 1),
+              ),
+      );
       await tester.tap(find.text('Run gc'));
       await tester.pumpAndSettle();
       expect(git.calls, isNot(contains('gc')));
@@ -338,8 +365,18 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, 'Run'));
       await tester.pumpAndSettle();
       expect(git.calls, contains('gc'));
-      expect(find.text('Counting objects: 42, done.'), findsOneWidget);
-      expect(find.text('Git data: 3.0 MB → 3.0 MB'), findsOneWidget);
+      expect(find.text('Git data: 3.0 MB → 1.0 MB'), findsOneWidget);
+    });
+
+    testWidgets('a run that freed nothing does not claim a change', (
+      tester,
+    ) async {
+      await _pump(tester, _FakeGit());
+      await tester.tap(find.text('Run gc'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Run'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('→'), findsNothing);
     });
 
     testWidgets('declining the confirm runs nothing', (tester) async {

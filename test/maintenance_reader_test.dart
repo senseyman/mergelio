@@ -87,6 +87,11 @@ void main() {
       '',
     );
     expect(await reader.reflogExpiryCount(), 2);
+    // It walks every reflog of every ref, which can outrun the default.
+    expect(
+      git.timeouts['reflog expire --all --dry-run --verbose'],
+      MaintenanceReader.slowReadTimeout,
+    );
   });
 
   group('branchHygiene', () {

@@ -197,32 +197,30 @@ void main() {
 
   group('housekeeping', () {
     test('gc runs on the repo lane without blocking file saves', () async {
-      git.responses['gc'] = const GitResult(0, '', 'Counting objects: 9\n');
-      final out = await actions.runGc();
-      expect(out, 'Counting objects: 9\n');
+      expect(await actions.runGc(), isTrue);
       final lanes = git.lanesAtCall['gc']!;
       expect(lanes.repo, isTrue);
       expect(lanes.touchesTree, isFalse);
       expect(git.timeouts['gc'], GitWriter.housekeepingTimeout);
     });
 
-    test('maintenance run returns its output', () async {
-      git.responses['maintenance run'] = const GitResult(0, 'ok\n', 'x\n');
-      expect(await actions.runMaintenance(), 'ok\nx\n');
+    test('maintenance run reports that it finished', () async {
+      expect(await actions.runMaintenance(), isTrue);
+      expect(git.timeouts['maintenance run'], GitWriter.housekeepingTimeout);
     });
 
     test('refuses while a fetch holds the fetch lane', () async {
       container.read(fetchBusyProvider.notifier).state = BusyState.network(
         'Fetch',
       );
-      expect(await actions.runGc(), isNull);
+      expect(await actions.runGc(), isFalse);
       expect(git.ran, isNot(contains('gc')));
       expect(toasts(), contains('An operation is already running'));
     });
 
-    test('a failed gc returns null and toasts', () async {
+    test('a failed gc reports false and toasts', () async {
       git.responses['gc'] = const GitResult(128, '', 'fatal: gc is locked');
-      expect(await actions.runGc(), isNull);
+      expect(await actions.runGc(), isFalse);
       expect(toasts(), contains('Run gc failed'));
     });
   });

@@ -1251,30 +1251,28 @@ class RepoActions {
     }
   }
 
-  /// `git gc`. Returns its output, or null when it did not run to the end.
-  Future<String?> runGc() => _housekeeping('Run gc', _writer.gc);
+  /// `git gc`. True when it ran to the end.
+  Future<bool> runGc() => _housekeeping('Run gc', _writer.gc);
 
-  /// `git maintenance run`. Returns its output, or null when it did not run
-  /// to the end.
-  Future<String?> runMaintenance() =>
+  /// `git maintenance run`. True when it ran to the end.
+  Future<bool> runMaintenance() =>
       _housekeeping('Run maintenance', _writer.maintenanceRun);
 
   /// Holds the repository lane but leaves file saves alone: housekeeping
   /// repacks objects and refs and never touches the working tree. Refused
   /// while a fetch runs, since repacking beside a fetch that is still writing
   /// packs can drop what the fetch just brought in.
-  Future<String?> _housekeeping(
+  Future<bool> _housekeeping(
     String label,
-    Future<String> Function({GitCancel? cancel}) op,
+    Future<void> Function({GitCancel? cancel}) op,
   ) async {
-    if (_blockedByFetchOp) return null;
-    String? output;
-    await _network(
-      label,
-      (cancel) async => output = await op(cancel: cancel),
-      writesWorkingTree: false,
-    );
-    return output;
+    if (_blockedByFetchOp) return false;
+    var finished = false;
+    await _network(label, (cancel) async {
+      await op(cancel: cancel);
+      finished = true;
+    }, writesWorkingTree: false);
+    return finished;
   }
 
   /// Deletes the branch behind [rb] on its remote. No undo entry: re-pushing
