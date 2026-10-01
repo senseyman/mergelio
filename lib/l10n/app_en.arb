@@ -1641,7 +1641,6 @@
   "diffViewInline": "Inline",
   "diffViewSplit": "Split",
   "diffCouldNotLoad": "Could not load diff",
-  "diffBinaryFile": "Binary file — diff not shown",
   "lfsBadge": "LFS",
   "lfsBadgeTooltip": "Stored with Git LFS",
   "lfsCardModified": "LFS object",
@@ -2018,5 +2017,17 @@
   "@mntSizeChange": { "placeholders": { "before": { "type": "String" }, "after": { "type": "String" } } },
   "mntHeldByPrunable": "checked out in {path}, which no longer exists. Prune worktrees first.",
   "@mntHeldByPrunable": { "placeholders": { "path": { "type": "String" } } },
-  "mntShowCommit": "Show this commit in the graph"
+  "mntShowCommit": "Show this commit in the graph",
+  "bdSideBySide": "Side by side",
+  "bdSwipe": "Swipe",
+  "bdOnionSkin": "Onion skin",
+  "bdDifference": "Difference",
+  "bdBefore": "Before",
+  "bdAfter": "After",
+  "bdTooLarge": "Too large to preview",
+  "bdUnavailable": "Preview unavailable",
+  "bdCouldNotDecode": "Could not decode this image",
+  "bdNothingToShow": "Nothing to show on either side",
+  "bdHexPreview": "First {count} bytes",
+  "@bdHexPreview": { "placeholders": { "count": { "type": "int" } } }
 }

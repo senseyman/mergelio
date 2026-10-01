@@ -13,6 +13,7 @@ import '../../domain/git/models.dart';
 import '../../domain/git/stage_patch.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/diff_document.dart';
+import '../../state/binary_diff.dart';
 import '../../state/compare_target.dart';
 import '../../state/diff_target.dart';
 import '../../state/feedback.dart';
@@ -26,6 +27,7 @@ import '../insight/line_history_dialog.dart';
 import 'diff_editor.dart';
 import 'diff_metrics.dart';
 import 'diff_selection.dart';
+import 'image_diff.dart';
 import 'lfs_card.dart';
 import 'line_selection.dart';
 import 'linked_scroll.dart';
@@ -560,12 +562,14 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
                     : null,
               );
             }
-            if (doc.isBinary) {
-              return Center(
-                child: Text(
-                  l.diffBinaryFile,
-                  style: TextStyle(color: t.textFaint, fontSize: 12),
-                ),
+            final binaryFile = doc.files.where((f) => f.binary).firstOrNull;
+            if (binaryFile != null) {
+              return BinaryCompare(
+                repoPath: target.repoPath,
+                sides: binarySidesFor(target, binaryFile, staged: doc.staged),
+                // A reloaded diff is a new document; the index and disk
+                // sides are read again with it.
+                version: doc,
               );
             }
             if (doc.isEmpty) {
