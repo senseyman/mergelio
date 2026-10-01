@@ -86,14 +86,48 @@ void main() {
       );
     });
 
-    test('merged ones use -d, unmerged ones -D, on the repo lane', () async {
-      await actions.deleteBranches([_branch('a'), _branch('b', merged: false)]);
-      expect(git.ran, containsAllInOrder(['branch -d a', 'branch -D b']));
-      expect(git.lanesAtCall['branch -d a']!.repo, isTrue);
+    test('merged ones are checked against the trunk, not HEAD', () async {
+      // `branch -d` measures against HEAD or the upstream, so a branch merged
+      // into the trunk is refused whenever something else is checked out.
+      // The trunk check is made here instead, on the tip about to go.
+      await actions.deleteBranches([
+        _branch('a'),
+        _branch('b', merged: false),
+      ], trunk: 'main');
+      expect(
+        git.ran,
+        containsAllInOrder([
+          'merge-base --is-ancestor sha-a refs/heads/main',
+          'branch -D a',
+          'branch -D b',
+        ]),
+      );
+      expect(git.ran, isNot(contains('branch -d a')));
+      expect(
+        git.ran.where((c) => c.contains('is-ancestor sha-b')),
+        isEmpty,
+        reason: 'an unmerged branch was confirmed as a force delete',
+      );
+      expect(git.lanesAtCall['branch -D a']!.repo, isTrue);
+    });
+
+    test('a merged branch that moved off the trunk is kept', () async {
+      git.responses['merge-base --is-ancestor sha-a refs/heads/main'] =
+          const GitResult(1, '', '');
+      await actions.deleteBranches([
+        _branch('a'),
+        _branch('b', merged: false),
+      ], trunk: 'main');
+      expect(git.ran, isNot(contains('branch -D a')));
+      expect(git.ran, contains('branch -D b'));
+      expect(toasts(), contains('Some branches were not deleted'));
     });
 
     test('one undo entry puts every branch back at its old tip', () async {
-      await actions.deleteBranches([_branch('a'), _branch('b', merged: false)]);
+      await actions.deleteBranches([
+        _branch('a'),
+        _branch('b', merged: false),
+      ], trunk: 'main');
       final undo = container.read(undoProvider('/r').notifier);
       expect(container.read(undoProvider('/r')).past, hasLength(1));
       git.calls.clear();
@@ -102,12 +136,15 @@ void main() {
     });
 
     test('a branch git refuses is reported; the rest still go', () async {
-      git.responses['branch -d a'] = const GitResult(
+      git.responses['branch -D a'] = const GitResult(
         1,
         '',
         "error: branch 'a' not found",
       );
-      await actions.deleteBranches([_branch('a'), _branch('b', merged: false)]);
+      await actions.deleteBranches([
+        _branch('a'),
+        _branch('b', merged: false),
+      ], trunk: 'main');
       expect(git.ran, contains('branch -D b'));
       expect(toasts(), contains('Some branches were not deleted'));
       // Undo only restores what was actually deleted.
@@ -117,7 +154,7 @@ void main() {
     });
 
     test('nothing to delete runs nothing', () async {
-      await actions.deleteBranches(const []);
+      await actions.deleteBranches(const [], trunk: 'main');
       expect(git.calls, isEmpty);
     });
   });

@@ -1155,11 +1155,20 @@ class RepoActions {
     );
   }
 
-  /// Deletes several local branches as one undoable step. Merged ones go with
-  /// `-d`, so git's own check still stands; the rest need `-D`, which the
-  /// caller has already had the user confirm. A branch git refuses does not
-  /// stop the others, and undo restores exactly the ones that went.
-  Future<void> deleteBranches(List<HygieneBranch> branches) async {
+  /// Deletes several local branches as one undoable step. A branch git
+  /// refuses does not stop the others, and undo restores exactly the ones
+  /// that went.
+  ///
+  /// Every delete is `-D`. Unmerged branches need it, and the caller has had
+  /// the user confirm each by name. Merged ones were found merged into
+  /// [trunk], which `-d` cannot check: it measures against HEAD or the
+  /// upstream, and refuses a branch merged into the trunk whenever something
+  /// else is checked out. So the trunk check is repeated here on the tip
+  /// about to go, and a branch that has since moved off it is kept.
+  Future<void> deleteBranches(
+    List<HygieneBranch> branches, {
+    required String? trunk,
+  }) async {
     if (branches.isEmpty) return;
     final r = await _git.run([
       'rev-parse',
@@ -1175,8 +1184,22 @@ class RepoActions {
     Future<void> forward() async {
       for (var i = 0; i < branches.length; i++) {
         final b = branches[i];
+        if (!b.needsForce) {
+          final still =
+              trunk != null &&
+              (await _git.run([
+                'merge-base',
+                '--is-ancestor',
+                shas[i],
+                'refs/heads/$trunk',
+              ], repoPath: path)).ok;
+          if (!still) {
+            refused.add('${b.name}: no longer merged into ${trunk ?? 'HEAD'}');
+            continue;
+          }
+        }
         try {
-          await _writer.deleteBranch(b.name, force: b.needsForce);
+          await _writer.deleteBranch(b.name, force: true);
           deleted.add((b.name, shas[i]));
         } on GitException catch (e) {
           final err = e.result?.err ?? '';

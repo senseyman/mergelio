@@ -252,7 +252,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(
         git.calls,
-        containsAllInOrder(['branch -d done', 'branch -D old-work']),
+        containsAllInOrder(['branch -D done', 'branch -D old-work']),
       );
     });
 

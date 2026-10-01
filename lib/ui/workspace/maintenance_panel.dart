@@ -341,7 +341,7 @@ class _Branches extends ConsumerStatefulWidget {
 class _BranchesState extends ConsumerState<_Branches> {
   final _selected = <String>{};
 
-  Future<void> _delete(List<HygieneBranch> picked) async {
+  Future<void> _delete(List<HygieneBranch> picked, String? trunk) async {
     final l = AppLocalizations.of(context);
     final forced = [
       for (final b in picked)
@@ -362,7 +362,9 @@ class _BranchesState extends ConsumerState<_Branches> {
       confirmLabel: l.mtDeleteConfirm,
     );
     if (!ok || !mounted) return;
-    await ref.read(repoActionsProvider(widget.repoPath)).deleteBranches(picked);
+    await ref
+        .read(repoActionsProvider(widget.repoPath))
+        .deleteBranches(picked, trunk: trunk);
     if (!mounted) return;
     setState(_selected.clear);
     ref.invalidate(branchHygieneProvider(widget.repoPath));
@@ -431,7 +433,9 @@ class _BranchesState extends ConsumerState<_Branches> {
                     ),
                     FilledButton(
                       style: FilledButton.styleFrom(backgroundColor: t.danger),
-                      onPressed: picked.isEmpty ? null : () => _delete(picked),
+                      onPressed: picked.isEmpty
+                          ? null
+                          : () => _delete(picked, h.trunk),
                       child: Text(l.mtDeleteSelected(picked.length)),
                     ),
                   ],
