@@ -2954,24 +2954,24 @@ class AppLocalizationsUk extends AppLocalizations {
       'Запуск скасовано. Записані рішення збережені.';
 
   @override
-  String get mtTitle => 'Обслуговування репозиторію';
+  String get mntTitle => 'Обслуговування репозиторію';
 
   @override
-  String get mtPaletteOpen => 'Обслуговування репозиторію…';
+  String get mntPaletteOpen => 'Обслуговування репозиторію…';
 
   @override
-  String get mtStorage => 'Сховище';
+  String get mntStorage => 'Сховище';
 
   @override
-  String mtStorageTotal(String size) {
+  String mntStorageTotal(String size) {
     return 'Дані git: $size';
   }
 
   @override
-  String get mtPacks => 'Пакети';
+  String get mntPacks => 'Пакети';
 
   @override
-  String mtPackCount(int count) {
+  String mntPackCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
@@ -2983,10 +2983,10 @@ class AppLocalizationsUk extends AppLocalizations {
   }
 
   @override
-  String get mtLoose => 'Окремі об\'єкти';
+  String get mntLoose => 'Окремі об\'єкти';
 
   @override
-  String mtLooseCount(int count) {
+  String mntLooseCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
@@ -2998,88 +2998,88 @@ class AppLocalizationsUk extends AppLocalizations {
   }
 
   @override
-  String get mtLfs => 'Об\'єкти LFS';
+  String get mntLfs => 'Об\'єкти LFS';
 
   @override
-  String get mtOther => 'Інші дані git';
+  String get mntOther => 'Інші дані git';
 
   @override
-  String get mtStorageNote => 'Файли робочого дерева не враховуються.';
+  String get mntStorageNote => 'Файли робочого дерева не враховуються.';
 
   @override
-  String mtReadFailed(String error) {
+  String mntReadFailed(String error) {
     return 'Не вдалося прочитати: $error';
   }
 
   @override
-  String get mtBlobs => 'Найбільші файли в історії';
+  String get mntBlobs => 'Найбільші файли в історії';
 
   @override
-  String get mtBlobsIntro =>
+  String get mntBlobsIntro =>
       'Переглядає кожен об\'єкт в історії репозиторію. На великому репозиторії це може тривати кілька хвилин.';
 
   @override
-  String get mtScan => 'Сканувати';
+  String get mntScan => 'Сканувати';
 
   @override
-  String get mtRescan => 'Сканувати знову';
+  String get mntRescan => 'Сканувати знову';
 
   @override
-  String get mtScanning => 'Сканування історії…';
+  String get mntScanning => 'Сканування історії…';
 
   @override
-  String mtScannedAt(String when) {
+  String mntScannedAt(String when) {
     return 'Скановано $when';
   }
 
   @override
-  String get mtScanStale =>
+  String get mntScanStale =>
       'Застаріло: гілки або теги змінилися після сканування';
 
   @override
-  String mtScanFailed(String error) {
+  String mntScanFailed(String error) {
     return 'Сканування не вдалося: $error';
   }
 
   @override
-  String get mtNoBlobs => 'В історії немає файлів.';
+  String get mntNoBlobs => 'В історії немає файлів.';
 
   @override
-  String get mtNoPath => '(без шляху)';
+  String get mntNoPath => '(без шляху)';
 
   @override
-  String get mtNoCommit => 'коміт, що додав файл, не знайдено';
+  String get mntNoCommit => 'немає в історії жодної гілки чи тегу';
 
   @override
-  String get mtBranches => 'Гілки';
+  String get mntBranches => 'Гілки';
 
   @override
-  String mtMergedInto(String trunk) {
-    return 'Злиті в $trunk, або без змін 90 днів, або їхня віддалена гілка зникла.';
+  String mntMergedInto(String trunk, int days) {
+    return 'Злиті в $trunk, або без змін понад $days дн., або їхня віддалена гілка зникла.';
   }
 
   @override
-  String get mtNoBranches => 'Немає злитих чи застарілих гілок.';
+  String get mntNoBranches => 'Немає злитих чи застарілих гілок.';
 
   @override
-  String get mtTagMerged => 'злита';
+  String get mntTagMerged => 'злита';
 
   @override
-  String get mtTagStale => 'застаріла';
+  String get mntTagStale => 'застаріла';
 
   @override
-  String get mtTagGone => 'віддалена гілка зникла';
+  String get mntTagGone => 'віддалена гілка зникла';
 
   @override
-  String mtHeldBy(String path) {
+  String mntHeldBy(String path) {
     return 'відкрита в $path';
   }
 
   @override
-  String get mtSelectAll => 'Вибрати всі';
+  String get mntSelectAll => 'Вибрати всі';
 
   @override
-  String mtDeleteSelected(int count) {
+  String mntDeleteSelected(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
@@ -3091,10 +3091,10 @@ class AppLocalizationsUk extends AppLocalizations {
   }
 
   @override
-  String get mtDeleteTitle => 'Видалення гілок';
+  String get mntDeleteTitle => 'Видалення гілок';
 
   @override
-  String mtDeleteBody(int count) {
+  String mntDeleteBody(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
@@ -3106,17 +3106,17 @@ class AppLocalizationsUk extends AppLocalizations {
   }
 
   @override
-  String get mtDeleteForce =>
+  String get mntDeleteForce =>
       'Ці гілки не злиті й будуть видалені примусово. Їхні коміти залишаться доступними лише через reflog:';
 
   @override
-  String get mtDeleteConfirm => 'Видалити';
+  String get mntDeleteConfirm => 'Видалити';
 
   @override
-  String get mtWorktrees => 'Робочі дерева';
+  String get mntWorktrees => 'Робочі дерева';
 
   @override
-  String mtPrunable(int count) {
+  String mntPrunable(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
@@ -3128,16 +3128,16 @@ class AppLocalizationsUk extends AppLocalizations {
   }
 
   @override
-  String get mtNoPrunable => 'Нічого очищати.';
+  String get mntNoPrunable => 'Нічого очищати.';
 
   @override
-  String get mtPrune => 'Очистити…';
+  String get mntPrune => 'Очистити…';
 
   @override
-  String get mtReflog => 'Reflog';
+  String get mntReflog => 'Reflog';
 
   @override
-  String mtReflogExpiry(int count) {
+  String mntReflogExpiry(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
@@ -3150,40 +3150,45 @@ class AppLocalizationsUk extends AppLocalizations {
   }
 
   @override
-  String get mtHousekeeping => 'Прибирання';
+  String get mntHousekeeping => 'Прибирання';
 
   @override
-  String get mtHousekeepingHint =>
-      'Перепаковує об\'єкти й видаляє недосяжні, які git вважає застарілими. Ніколи не запускається сам.';
+  String get mntHousekeepingHint =>
+      'Перепаковує об\'єкти й видаляє недосяжні, які git вважає застарілими. Mergelio ніколи не запускає це сам.';
 
   @override
-  String get mtRunGc => 'Запустити gc';
+  String get mntRunGc => 'Запустити gc';
 
   @override
-  String get mtRunMaintenance => 'Запустити maintenance';
+  String get mntRunMaintenance => 'Запустити maintenance';
 
   @override
-  String get mtGcTitle => 'Запустити git gc?';
+  String get mntGcTitle => 'Запустити git gc?';
 
   @override
-  String get mtGcBody =>
+  String get mntGcBody =>
       'git gc перепаковує репозиторій і видаляє недосяжні об\'єкти, старші за налаштований термін. Це може тривати довго; скасувати можна з рядка стану.';
 
   @override
-  String get mtMaintenanceTitle => 'Запустити git maintenance?';
+  String get mntMaintenanceTitle => 'Запустити git maintenance?';
 
   @override
-  String get mtMaintenanceBody =>
+  String get mntMaintenanceBody =>
       'Виконує завдання обслуговування, увімкнені в налаштуваннях репозиторію (gc, якщо жодне не задано). Це може тривати довго; скасувати можна з рядка стану.';
 
   @override
-  String get mtRun => 'Запустити';
+  String get mntRun => 'Запустити';
 
   @override
-  String mtSizeChange(String before, String after) {
+  String mntSizeChange(String before, String after) {
     return 'Дані git: $before → $after';
   }
 
   @override
-  String get mtOutput => 'Вивід';
+  String mntHeldByPrunable(String path) {
+    return 'відкрита в $path, якого вже немає. Спершу очистіть робочі дерева.';
+  }
+
+  @override
+  String get mntShowCommit => 'Показати цей коміт у графі';
 }

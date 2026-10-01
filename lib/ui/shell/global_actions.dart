@@ -76,7 +76,7 @@ void openGlobalPalette(BuildContext context, WidgetRef ref) {
       await showPushDialog(context, ref, path);
     }),
     PaletteCommand(
-      l.mtPaletteOpen,
+      l.mntPaletteOpen,
       Icons.cleaning_services_outlined,
       () => showMaintenancePanel(context, path),
     ),

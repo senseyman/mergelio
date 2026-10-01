@@ -6,6 +6,7 @@ import '../../core/tokens.dart';
 import '../../domain/git/git_service.dart';
 import '../../domain/git/maintenance.dart';
 import '../../l10n/gen/app_localizations.dart';
+import '../../state/graph_selection.dart';
 import '../../state/maintenance.dart';
 import '../../state/repo_actions.dart';
 import '../../state/settings_controller.dart';
@@ -18,7 +19,7 @@ import 'worktree_dialogs.dart';
 Future<void> showMaintenancePanel(BuildContext context, String repoPath) =>
     showAppModal<void>(
       context: context,
-      title: AppLocalizations.of(context).mtTitle,
+      title: AppLocalizations.of(context).mntTitle,
       icon: Icons.cleaning_services_outlined,
       width: 760,
       body: MaintenancePanel(repoPath: repoPath),
@@ -57,27 +58,27 @@ class _MaintenancePanelState extends ConsumerState<MaintenancePanel> {
       mainAxisSize: MainAxisSize.min,
       children: [
         _Section(
-          title: l.mtStorage,
+          title: l.mntStorage,
           child: _Storage(repoPath: path),
         ),
         _Section(
-          title: l.mtBlobs,
+          title: l.mntBlobs,
           child: _Blobs(repoPath: path),
         ),
         _Section(
-          title: l.mtBranches,
+          title: l.mntBranches,
           child: _Branches(repoPath: path),
         ),
         _Section(
-          title: l.mtWorktrees,
+          title: l.mntWorktrees,
           child: _Worktrees(repoPath: path),
         ),
         _Section(
-          title: l.mtReflog,
+          title: l.mntReflog,
           child: _Reflog(repoPath: path),
         ),
         _Section(
-          title: l.mtHousekeeping,
+          title: l.mntHousekeeping,
           last: true,
           child: _Housekeeping(repoPath: path),
         ),
@@ -139,7 +140,7 @@ String _reason(Object error) {
 }
 
 Widget _failed(BuildContext context, Object error) => Text(
-  AppLocalizations.of(context).mtReadFailed(_reason(error)),
+  AppLocalizations.of(context).mntReadFailed(_reason(error)),
   style: _body(context.tokens, color: context.tokens.danger),
 );
 
@@ -161,24 +162,24 @@ class _Storage extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                l.mtStorageTotal(formatBytes(s.disk.totalBytes)),
+                l.mntStorageTotal(formatBytes(s.disk.totalBytes)),
                 style: _body(t).copyWith(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 6),
               _SizeRow(
-                label: l.mtPacks,
+                label: l.mntPacks,
                 bytes: s.disk.packBytes,
-                detail: l.mtPackCount(s.counts.packCount),
+                detail: l.mntPackCount(s.counts.packCount),
               ),
               _SizeRow(
-                label: l.mtLoose,
+                label: l.mntLoose,
                 bytes: s.disk.looseBytes,
-                detail: l.mtLooseCount(s.counts.looseCount),
+                detail: l.mntLooseCount(s.counts.looseCount),
               ),
-              _SizeRow(label: l.mtLfs, bytes: s.disk.lfsBytes),
-              _SizeRow(label: l.mtOther, bytes: s.disk.otherBytes),
+              _SizeRow(label: l.mntLfs, bytes: s.disk.lfsBytes),
+              _SizeRow(label: l.mntOther, bytes: s.disk.otherBytes),
               const SizedBox(height: 4),
-              Text(l.mtStorageNote, style: _faint(t)),
+              Text(l.mntStorageNote, style: _faint(t)),
             ],
           ),
         );
@@ -254,10 +255,10 @@ class _Blobs extends ConsumerWidget {
           runSpacing: 6,
           children: [
             if (s.scanning)
-              Text(l.mtScanning, style: _body(t))
+              Text(l.mntScanning, style: _body(t))
             else if (scannedAt != null)
               Text(
-                l.mtScannedAt(
+                l.mntScannedAt(
                   formatCommitDate(
                     scannedAt,
                     format: settings.dateFormat,
@@ -268,28 +269,28 @@ class _Blobs extends ConsumerWidget {
                 style: _body(t),
               )
             else
-              Text(l.mtBlobsIntro, style: _body(t)),
+              Text(l.mntBlobsIntro, style: _body(t)),
             if (s.scanning)
               TextButton(onPressed: ctl.cancel, child: Text(l.cancel))
             else
               OutlinedButton(
                 onPressed: ctl.scan,
-                child: Text(result == null ? l.mtScan : l.mtRescan),
+                child: Text(result == null ? l.mntScan : l.mntRescan),
               ),
           ],
         ),
         if (s.scanning) _loading(),
         if (s.stale && !s.scanning) ...[
           const SizedBox(height: 4),
-          Text(l.mtScanStale, style: _body(t, color: t.warning)),
+          Text(l.mntScanStale, style: _body(t, color: t.warning)),
         ],
         if (s.error != null) ...[
           const SizedBox(height: 4),
-          Text(l.mtScanFailed(s.error!), style: _body(t, color: t.danger)),
+          Text(l.mntScanFailed(s.error!), style: _body(t, color: t.danger)),
         ],
         if (result != null) ...[
           const SizedBox(height: 8),
-          if (result.blobs.isEmpty) Text(l.mtNoBlobs, style: _faint(t)),
+          if (result.blobs.isEmpty) Text(l.mntNoBlobs, style: _faint(t)),
           for (final b in result.blobs) _BlobRow(blob: b),
         ],
       ],
@@ -297,17 +298,17 @@ class _Blobs extends ConsumerWidget {
   }
 }
 
-class _BlobRow extends StatelessWidget {
+class _BlobRow extends ConsumerWidget {
   final BigBlob blob;
   const _BlobRow({required this.blob});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context);
     final t = context.tokens;
     final c = blob.commit;
-    final path = blob.blob.path.isEmpty ? l.mtNoPath : blob.blob.path;
-    return Padding(
+    final path = blob.blob.path.isEmpty ? l.mntNoPath : blob.blob.path;
+    final row = Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -320,23 +321,36 @@ class _BlobRow extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: Tooltip(
-              message: '$path\n${blob.blob.sha}',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(path, style: _body(t), overflow: TextOverflow.ellipsis),
-                  Text(
-                    c == null ? l.mtNoCommit : '${c.shortSha} ${c.subject}',
-                    style: _faint(t),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(path, style: _body(t), overflow: TextOverflow.ellipsis),
+                Text(
+                  c == null ? l.mntNoCommit : '${c.shortSha} ${c.subject}',
+                  style: _faint(t),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
           ),
         ],
+      ),
+    );
+    // The path and sha stay reachable however narrow the row gets.
+    final tip = '$path\n${blob.blob.sha}';
+    if (c == null) return Tooltip(message: tip, child: row);
+    return Tooltip(
+      message: '$tip\n${l.mntShowCommit}',
+      child: InkWell(
+        hoverColor: t.hover,
+        // Closes the panel, so the selection lands in a graph that can be
+        // seen. maybePop: the panel is not always on a route of its own.
+        onTap: () {
+          ref.read(selectedCommitProvider.notifier).state = c.sha;
+          Navigator.of(context).maybePop();
+        },
+        child: row,
       ),
     );
   }
@@ -360,18 +374,18 @@ class _BranchesState extends ConsumerState<_Branches> {
         if (b.needsForce) b.name,
     ];
     final body = [
-      l.mtDeleteBody(picked.length),
+      l.mntDeleteBody(picked.length),
       if (forced.isNotEmpty) ...[
         '',
-        l.mtDeleteForce,
+        l.mntDeleteForce,
         for (final n in forced) '• $n',
       ],
     ].join('\n');
     final ok = await showConfirmDialog(
       context,
-      title: l.mtDeleteTitle,
+      title: l.mntDeleteTitle,
       body: body,
-      confirmLabel: l.mtDeleteConfirm,
+      confirmLabel: l.mntDeleteConfirm,
     );
     if (!ok || !mounted) return;
     await ref
@@ -393,8 +407,18 @@ class _BranchesState extends ConsumerState<_Branches> {
           loading: _loading,
           error: (e, _) => _failed(context, e),
           data: (h) {
+            // A worktree whose directory is gone still holds its branch until
+            // it is pruned, which is the one thing that frees the branch.
+            final vanished = {
+              for (final w
+                  in ref
+                          .watch(worktreesProvider(widget.repoPath))
+                          .valueOrNull ??
+                      const [])
+                if (w.prunable) w.path,
+            };
             if (h.branches.isEmpty) {
-              return Text(l.mtNoBranches, style: _faint(t));
+              return Text(l.mntNoBranches, style: _faint(t));
             }
             final pickable = [
               for (final b in h.branches)
@@ -410,11 +434,15 @@ class _BranchesState extends ConsumerState<_Branches> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(l.mtMergedInto(h.trunk ?? '—'), style: _faint(t)),
+                Text(
+                  l.mntMergedInto(h.trunk ?? '—', staleBranchAge.inDays),
+                  style: _faint(t),
+                ),
                 const SizedBox(height: 4),
                 for (final b in h.branches)
                   _BranchRow(
                     branch: b,
+                    holderVanished: vanished.contains(b.heldBy),
                     selected: _selected.contains(b.name),
                     date: formatCommitDate(
                       b.lastCommit,
@@ -441,14 +469,14 @@ class _BranchesState extends ConsumerState<_Branches> {
                                 for (final b in pickable) b.name,
                               ]),
                             ),
-                      child: Text(l.mtSelectAll),
+                      child: Text(l.mntSelectAll),
                     ),
                     FilledButton(
                       style: FilledButton.styleFrom(backgroundColor: t.danger),
                       onPressed: picked.isEmpty
                           ? null
                           : () => _delete(picked, h.trunk),
-                      child: Text(l.mtDeleteSelected(picked.length)),
+                      child: Text(l.mntDeleteSelected(picked.length)),
                     ),
                   ],
                 ),
@@ -461,12 +489,16 @@ class _BranchesState extends ConsumerState<_Branches> {
 
 class _BranchRow extends StatelessWidget {
   final HygieneBranch branch;
+
+  /// The worktree holding [branch] no longer exists on disk.
+  final bool holderVanished;
   final bool selected;
   final String date;
   final ValueChanged<bool?>? onChanged;
 
   const _BranchRow({
     required this.branch,
+    this.holderVanished = false,
     required this.selected,
     required this.date,
     required this.onChanged,
@@ -477,10 +509,13 @@ class _BranchRow extends StatelessWidget {
     final l = AppLocalizations.of(context);
     final t = context.tokens;
     final tags = [
-      if (branch.merged) l.mtTagMerged else l.mtTagStale,
-      if (branch.gone) l.mtTagGone,
+      if (branch.merged) l.mntTagMerged else l.mntTagStale,
+      if (branch.gone) l.mntTagGone,
       date,
-      if (branch.heldBy != null) l.mtHeldBy(branch.heldBy!),
+      if (branch.heldBy != null)
+        holderVanished
+            ? l.mntHeldByPrunable(branch.heldBy!)
+            : l.mntHeldBy(branch.heldBy!),
     ];
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -541,7 +576,7 @@ class _Worktrees extends ConsumerWidget {
               runSpacing: 6,
               children: [
                 Text(
-                  prunable == 0 ? l.mtNoPrunable : l.mtPrunable(prunable),
+                  prunable == 0 ? l.mntNoPrunable : l.mntPrunable(prunable),
                   style: _body(t),
                 ),
                 if (prunable > 0)
@@ -554,7 +589,7 @@ class _Worktrees extends ConsumerWidget {
                         await actions.worktreePrune();
                       }
                     },
-                    child: Text(l.mtPrune),
+                    child: Text(l.mntPrune),
                   ),
               ],
             );
@@ -575,7 +610,7 @@ class _Reflog extends ConsumerWidget {
         .when(
           loading: _loading,
           error: (e, _) => _failed(context, e),
-          data: (n) => Text(l.mtReflogExpiry(n), style: _body(context.tokens)),
+          data: (n) => Text(l.mntReflogExpiry(n), style: _body(context.tokens)),
         );
   }
 }
@@ -602,7 +637,7 @@ class _HousekeepingState extends ConsumerState<_Housekeeping> {
       context,
       title: title,
       body: body,
-      confirmLabel: l.mtRun,
+      confirmLabel: l.mntRun,
     );
     if (!ok || !mounted) return;
     final before = ref.read(maintenanceSizeProvider(path)).valueOrNull;
@@ -621,7 +656,7 @@ class _HousekeepingState extends ConsumerState<_Housekeeping> {
       final from = formatBytes(before.disk.totalBytes);
       final to = formatBytes(after.disk.totalBytes);
       if (from == to) return;
-      setState(() => _change = l.mtSizeChange(from, to));
+      setState(() => _change = l.mntSizeChange(from, to));
     } on Object {
       // The storage section shows the read failure itself.
     }
@@ -635,7 +670,7 @@ class _HousekeepingState extends ConsumerState<_Housekeeping> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(l.mtHousekeepingHint, style: _faint(t)),
+        Text(l.mntHousekeepingHint, style: _faint(t)),
         const SizedBox(height: 8),
         Wrap(
           spacing: 10,
@@ -643,19 +678,19 @@ class _HousekeepingState extends ConsumerState<_Housekeeping> {
           children: [
             OutlinedButton(
               onPressed: () => _run(
-                title: l.mtGcTitle,
-                body: l.mtGcBody,
+                title: l.mntGcTitle,
+                body: l.mntGcBody,
                 op: (a) => a.runGc(),
               ),
-              child: Text(l.mtRunGc),
+              child: Text(l.mntRunGc),
             ),
             OutlinedButton(
               onPressed: () => _run(
-                title: l.mtMaintenanceTitle,
-                body: l.mtMaintenanceBody,
+                title: l.mntMaintenanceTitle,
+                body: l.mntMaintenanceBody,
                 op: (a) => a.runMaintenance(),
               ),
-              child: Text(l.mtRunMaintenance),
+              child: Text(l.mntRunMaintenance),
             ),
           ],
         ),

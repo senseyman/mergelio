@@ -5042,323 +5042,329 @@ abstract class AppLocalizations {
   /// **'Run cancelled. The marks recorded so far are kept.'**
   String get bisectRunCancelled;
 
-  /// No description provided for @mtTitle.
+  /// No description provided for @mntTitle.
   ///
   /// In en, this message translates to:
   /// **'Repository maintenance'**
-  String get mtTitle;
+  String get mntTitle;
 
-  /// No description provided for @mtPaletteOpen.
+  /// No description provided for @mntPaletteOpen.
   ///
   /// In en, this message translates to:
   /// **'Repository maintenance…'**
-  String get mtPaletteOpen;
+  String get mntPaletteOpen;
 
-  /// No description provided for @mtStorage.
+  /// No description provided for @mntStorage.
   ///
   /// In en, this message translates to:
   /// **'Storage'**
-  String get mtStorage;
+  String get mntStorage;
 
-  /// No description provided for @mtStorageTotal.
+  /// No description provided for @mntStorageTotal.
   ///
   /// In en, this message translates to:
   /// **'Git data: {size}'**
-  String mtStorageTotal(String size);
+  String mntStorageTotal(String size);
 
-  /// No description provided for @mtPacks.
+  /// No description provided for @mntPacks.
   ///
   /// In en, this message translates to:
   /// **'Packs'**
-  String get mtPacks;
+  String get mntPacks;
 
-  /// No description provided for @mtPackCount.
+  /// No description provided for @mntPackCount.
   ///
   /// In en, this message translates to:
   /// **'{count, plural, one{1 pack} other{{count} packs}}'**
-  String mtPackCount(int count);
+  String mntPackCount(int count);
 
-  /// No description provided for @mtLoose.
+  /// No description provided for @mntLoose.
   ///
   /// In en, this message translates to:
   /// **'Loose objects'**
-  String get mtLoose;
+  String get mntLoose;
 
-  /// No description provided for @mtLooseCount.
+  /// No description provided for @mntLooseCount.
   ///
   /// In en, this message translates to:
   /// **'{count, plural, one{1 object} other{{count} objects}}'**
-  String mtLooseCount(int count);
+  String mntLooseCount(int count);
 
-  /// No description provided for @mtLfs.
+  /// No description provided for @mntLfs.
   ///
   /// In en, this message translates to:
   /// **'LFS objects'**
-  String get mtLfs;
+  String get mntLfs;
 
-  /// No description provided for @mtOther.
+  /// No description provided for @mntOther.
   ///
   /// In en, this message translates to:
   /// **'Other git data'**
-  String get mtOther;
+  String get mntOther;
 
-  /// No description provided for @mtStorageNote.
+  /// No description provided for @mntStorageNote.
   ///
   /// In en, this message translates to:
   /// **'Files in the working tree are not counted.'**
-  String get mtStorageNote;
+  String get mntStorageNote;
 
-  /// No description provided for @mtReadFailed.
+  /// No description provided for @mntReadFailed.
   ///
   /// In en, this message translates to:
   /// **'Could not read this: {error}'**
-  String mtReadFailed(String error);
+  String mntReadFailed(String error);
 
-  /// No description provided for @mtBlobs.
+  /// No description provided for @mntBlobs.
   ///
   /// In en, this message translates to:
   /// **'Largest files in history'**
-  String get mtBlobs;
+  String get mntBlobs;
 
-  /// No description provided for @mtBlobsIntro.
+  /// No description provided for @mntBlobsIntro.
   ///
   /// In en, this message translates to:
   /// **'Scans every object in the repository\'s history. On a large repository this can take several minutes.'**
-  String get mtBlobsIntro;
+  String get mntBlobsIntro;
 
-  /// No description provided for @mtScan.
+  /// No description provided for @mntScan.
   ///
   /// In en, this message translates to:
   /// **'Scan'**
-  String get mtScan;
+  String get mntScan;
 
-  /// No description provided for @mtRescan.
+  /// No description provided for @mntRescan.
   ///
   /// In en, this message translates to:
   /// **'Rescan'**
-  String get mtRescan;
+  String get mntRescan;
 
-  /// No description provided for @mtScanning.
+  /// No description provided for @mntScanning.
   ///
   /// In en, this message translates to:
   /// **'Scanning history…'**
-  String get mtScanning;
+  String get mntScanning;
 
-  /// No description provided for @mtScannedAt.
+  /// No description provided for @mntScannedAt.
   ///
   /// In en, this message translates to:
   /// **'Scanned {when}'**
-  String mtScannedAt(String when);
+  String mntScannedAt(String when);
 
-  /// No description provided for @mtScanStale.
+  /// No description provided for @mntScanStale.
   ///
   /// In en, this message translates to:
   /// **'Out of date: branches or tags have moved since this scan'**
-  String get mtScanStale;
+  String get mntScanStale;
 
-  /// No description provided for @mtScanFailed.
+  /// No description provided for @mntScanFailed.
   ///
   /// In en, this message translates to:
   /// **'Scan failed: {error}'**
-  String mtScanFailed(String error);
+  String mntScanFailed(String error);
 
-  /// No description provided for @mtNoBlobs.
+  /// No description provided for @mntNoBlobs.
   ///
   /// In en, this message translates to:
   /// **'No files in history.'**
-  String get mtNoBlobs;
+  String get mntNoBlobs;
 
-  /// No description provided for @mtNoPath.
+  /// No description provided for @mntNoPath.
   ///
   /// In en, this message translates to:
   /// **'(no path)'**
-  String get mtNoPath;
+  String get mntNoPath;
 
-  /// No description provided for @mtNoCommit.
+  /// No description provided for @mntNoCommit.
   ///
   /// In en, this message translates to:
-  /// **'introducing commit not found'**
-  String get mtNoCommit;
+  /// **'not in the history of any branch or tag'**
+  String get mntNoCommit;
 
-  /// No description provided for @mtBranches.
+  /// No description provided for @mntBranches.
   ///
   /// In en, this message translates to:
   /// **'Branches'**
-  String get mtBranches;
+  String get mntBranches;
 
-  /// No description provided for @mtMergedInto.
+  /// No description provided for @mntMergedInto.
   ///
   /// In en, this message translates to:
-  /// **'Merged into {trunk}, or not touched for 90 days, or their upstream is gone.'**
-  String mtMergedInto(String trunk);
+  /// **'Merged into {trunk}, or not touched for {days} days, or their upstream is gone.'**
+  String mntMergedInto(String trunk, int days);
 
-  /// No description provided for @mtNoBranches.
+  /// No description provided for @mntNoBranches.
   ///
   /// In en, this message translates to:
   /// **'No merged or stale branches.'**
-  String get mtNoBranches;
+  String get mntNoBranches;
 
-  /// No description provided for @mtTagMerged.
+  /// No description provided for @mntTagMerged.
   ///
   /// In en, this message translates to:
   /// **'merged'**
-  String get mtTagMerged;
+  String get mntTagMerged;
 
-  /// No description provided for @mtTagStale.
+  /// No description provided for @mntTagStale.
   ///
   /// In en, this message translates to:
   /// **'stale'**
-  String get mtTagStale;
+  String get mntTagStale;
 
-  /// No description provided for @mtTagGone.
+  /// No description provided for @mntTagGone.
   ///
   /// In en, this message translates to:
   /// **'upstream gone'**
-  String get mtTagGone;
+  String get mntTagGone;
 
-  /// No description provided for @mtHeldBy.
+  /// No description provided for @mntHeldBy.
   ///
   /// In en, this message translates to:
   /// **'checked out in {path}'**
-  String mtHeldBy(String path);
+  String mntHeldBy(String path);
 
-  /// No description provided for @mtSelectAll.
+  /// No description provided for @mntSelectAll.
   ///
   /// In en, this message translates to:
   /// **'Select all'**
-  String get mtSelectAll;
+  String get mntSelectAll;
 
-  /// No description provided for @mtDeleteSelected.
+  /// No description provided for @mntDeleteSelected.
   ///
   /// In en, this message translates to:
   /// **'{count, plural, one{Delete 1 branch} other{Delete {count} branches}}'**
-  String mtDeleteSelected(int count);
+  String mntDeleteSelected(int count);
 
-  /// No description provided for @mtDeleteTitle.
+  /// No description provided for @mntDeleteTitle.
   ///
   /// In en, this message translates to:
   /// **'Delete branches'**
-  String get mtDeleteTitle;
+  String get mntDeleteTitle;
 
-  /// No description provided for @mtDeleteBody.
+  /// No description provided for @mntDeleteBody.
   ///
   /// In en, this message translates to:
   /// **'{count, plural, one{Delete 1 branch?} other{Delete {count} branches?}} Undo puts them back.'**
-  String mtDeleteBody(int count);
+  String mntDeleteBody(int count);
 
-  /// No description provided for @mtDeleteForce.
+  /// No description provided for @mntDeleteForce.
   ///
   /// In en, this message translates to:
   /// **'These are not merged and will be force-deleted. Their commits stay reachable only through the reflog:'**
-  String get mtDeleteForce;
+  String get mntDeleteForce;
 
-  /// No description provided for @mtDeleteConfirm.
+  /// No description provided for @mntDeleteConfirm.
   ///
   /// In en, this message translates to:
   /// **'Delete'**
-  String get mtDeleteConfirm;
+  String get mntDeleteConfirm;
 
-  /// No description provided for @mtWorktrees.
+  /// No description provided for @mntWorktrees.
   ///
   /// In en, this message translates to:
   /// **'Worktrees'**
-  String get mtWorktrees;
+  String get mntWorktrees;
 
-  /// No description provided for @mtPrunable.
+  /// No description provided for @mntPrunable.
   ///
   /// In en, this message translates to:
   /// **'{count, plural, one{1 worktree points at a missing directory} other{{count} worktrees point at missing directories}}'**
-  String mtPrunable(int count);
+  String mntPrunable(int count);
 
-  /// No description provided for @mtNoPrunable.
+  /// No description provided for @mntNoPrunable.
   ///
   /// In en, this message translates to:
   /// **'Nothing to prune.'**
-  String get mtNoPrunable;
+  String get mntNoPrunable;
 
-  /// No description provided for @mtPrune.
+  /// No description provided for @mntPrune.
   ///
   /// In en, this message translates to:
   /// **'Prune…'**
-  String get mtPrune;
+  String get mntPrune;
 
-  /// No description provided for @mtReflog.
+  /// No description provided for @mntReflog.
   ///
   /// In en, this message translates to:
   /// **'Reflog'**
-  String get mtReflog;
+  String get mntReflog;
 
-  /// No description provided for @mtReflogExpiry.
+  /// No description provided for @mntReflogExpiry.
   ///
   /// In en, this message translates to:
   /// **'{count, plural, =0{The next gc would not expire any reflog entries.} one{The next gc would expire 1 reflog entry.} other{The next gc would expire {count} reflog entries.}}'**
-  String mtReflogExpiry(int count);
+  String mntReflogExpiry(int count);
 
-  /// No description provided for @mtHousekeeping.
+  /// No description provided for @mntHousekeeping.
   ///
   /// In en, this message translates to:
   /// **'Housekeeping'**
-  String get mtHousekeeping;
+  String get mntHousekeeping;
 
-  /// No description provided for @mtHousekeepingHint.
+  /// No description provided for @mntHousekeepingHint.
   ///
   /// In en, this message translates to:
-  /// **'Repacks objects and removes unreachable ones git considers expired. Never runs on its own.'**
-  String get mtHousekeepingHint;
+  /// **'Repacks objects and removes unreachable ones git considers expired. Mergelio never runs this on its own.'**
+  String get mntHousekeepingHint;
 
-  /// No description provided for @mtRunGc.
+  /// No description provided for @mntRunGc.
   ///
   /// In en, this message translates to:
   /// **'Run gc'**
-  String get mtRunGc;
+  String get mntRunGc;
 
-  /// No description provided for @mtRunMaintenance.
+  /// No description provided for @mntRunMaintenance.
   ///
   /// In en, this message translates to:
   /// **'Run maintenance'**
-  String get mtRunMaintenance;
+  String get mntRunMaintenance;
 
-  /// No description provided for @mtGcTitle.
+  /// No description provided for @mntGcTitle.
   ///
   /// In en, this message translates to:
   /// **'Run git gc?'**
-  String get mtGcTitle;
+  String get mntGcTitle;
 
-  /// No description provided for @mtGcBody.
+  /// No description provided for @mntGcBody.
   ///
   /// In en, this message translates to:
   /// **'git gc repacks the repository and deletes unreachable objects older than its expiry settings. It can take a while and can be cancelled from the status bar.'**
-  String get mtGcBody;
+  String get mntGcBody;
 
-  /// No description provided for @mtMaintenanceTitle.
+  /// No description provided for @mntMaintenanceTitle.
   ///
   /// In en, this message translates to:
   /// **'Run git maintenance?'**
-  String get mtMaintenanceTitle;
+  String get mntMaintenanceTitle;
 
-  /// No description provided for @mtMaintenanceBody.
+  /// No description provided for @mntMaintenanceBody.
   ///
   /// In en, this message translates to:
   /// **'Runs the maintenance tasks this repository\'s config enables (gc when none are set). It can take a while and can be cancelled from the status bar.'**
-  String get mtMaintenanceBody;
+  String get mntMaintenanceBody;
 
-  /// No description provided for @mtRun.
+  /// No description provided for @mntRun.
   ///
   /// In en, this message translates to:
   /// **'Run'**
-  String get mtRun;
+  String get mntRun;
 
-  /// No description provided for @mtSizeChange.
+  /// No description provided for @mntSizeChange.
   ///
   /// In en, this message translates to:
   /// **'Git data: {before} → {after}'**
-  String mtSizeChange(String before, String after);
+  String mntSizeChange(String before, String after);
 
-  /// No description provided for @mtOutput.
+  /// No description provided for @mntHeldByPrunable.
   ///
   /// In en, this message translates to:
-  /// **'Output'**
-  String get mtOutput;
+  /// **'checked out in {path}, which no longer exists. Prune worktrees first.'**
+  String mntHeldByPrunable(String path);
+
+  /// No description provided for @mntShowCommit.
+  ///
+  /// In en, this message translates to:
+  /// **'Show this commit in the graph'**
+  String get mntShowCommit;
 }
 
 class _AppLocalizationsDelegate

@@ -10,6 +10,7 @@ import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/domain/git/maintenance.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
+import 'package:mergelio/state/graph_selection.dart';
 import 'package:mergelio/state/maintenance.dart';
 import 'package:mergelio/state/operation_journal.dart';
 import 'package:mergelio/state/repo_data.dart';
@@ -280,6 +281,20 @@ void main() {
     expect(find.text(stale), findsOneWidget);
   });
 
+  testWidgets('a largest-file row shows its commit in the graph', (
+    tester,
+  ) async {
+    await _pump(tester, _FakeGit());
+    await tester.tap(find.text('Scan'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('assets/video.mp4'));
+    await tester.pumpAndSettle();
+    final c = ProviderScope.containerOf(
+      tester.element(find.byType(MaintenancePanel)),
+    );
+    expect(c.read(selectedCommitProvider), 'c1');
+  });
+
   group('branches', () {
     testWidgets('lists merged and stale; a held branch cannot be picked', (
       tester,
@@ -294,6 +309,40 @@ void main() {
         find.byKey(const ValueKey('mt-branch-held')),
       );
       expect(held.onChanged, isNull);
+    });
+
+    testWidgets('says how old stale means, from the same threshold', (
+      tester,
+    ) async {
+      await _pump(tester, _FakeGit());
+      expect(
+        find.text(
+          'Merged into main, or not touched for ${staleBranchAge.inDays} '
+          'days, or their upstream is gone.',
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a branch held by a vanished worktree says to prune first', (
+      tester,
+    ) async {
+      final git = _FakeGit();
+      git.responses['worktree list --porcelain'] = const GitResult(
+        0,
+        'worktree /r\nHEAD 1111\nbranch refs/heads/main\n\n'
+            'worktree /wt/held\nHEAD 2222\nbranch refs/heads/held\nprunable '
+            'gitdir file points to non-existent location\n\n',
+        '',
+      );
+      await _pump(tester, git);
+      expect(
+        find.text(
+          'checked out in /wt/held, which no longer exists. '
+          'Prune worktrees first.',
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('delete confirms, names force-deleted ones, then deletes', (
