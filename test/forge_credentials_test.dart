@@ -172,6 +172,7 @@ void main() {
         'GIT_TERMINAL_PROMPT': '0',
         'GIT_ASKPASS': '',
         'SSH_ASKPASS': '',
+        'GCM_INTERACTIVE': 'never',
       });
       expect(git.timeouts.single, const Duration(seconds: 60));
     });
@@ -241,6 +242,7 @@ void main() {
         'GIT_TERMINAL_PROMPT': '0',
         'GIT_ASKPASS': '',
         'SSH_ASKPASS': '',
+        'GCM_INTERACTIVE': 'never',
       });
       expect(git.timeouts.single, const Duration(seconds: 60));
     });
@@ -266,6 +268,7 @@ void main() {
           'GIT_TERMINAL_PROMPT': '0',
           'GIT_ASKPASS': '',
           'SSH_ASKPASS': '',
+          'GCM_INTERACTIVE': 'never',
         });
         expect(git.timeouts.single, const Duration(seconds: 60));
       },

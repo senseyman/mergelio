@@ -67,10 +67,16 @@ bool _usableField(String value) {
 /// GIT_ASKPASS and SSH_ASKPASS matters as much as disabling the terminal
 /// prompt — Dart's [Process.start] merges with the parent environment, so an
 /// inherited askpass helper would otherwise still be live.
+///
+/// Git Credential Manager — the default helper in Git for Windows — ignores
+/// all three and opens its own sign-in window when it has nothing for the
+/// host, which on launch means a GitHub or GitLab login the user never asked
+/// for. GCM_INTERACTIVE=never makes it fail instead.
 const _noPromptEnv = {
   'GIT_TERMINAL_PROMPT': '0',
   'GIT_ASKPASS': '',
   'SSH_ASKPASS': '',
+  'GCM_INTERACTIVE': 'never',
 };
 
 /// [_noPromptEnv] already stops git from blocking on a terminal prompt — it
