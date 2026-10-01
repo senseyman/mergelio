@@ -36,6 +36,23 @@ void main() {
     expect(s.totalBytes, 110 + 10 + 50 + 64);
   });
 
+  test('symlinks are not followed, so linked storage is not counted', () async {
+    // An object store shared in by link belongs to whatever it points at.
+    final outside = await Directory.systemTemp.createTemp('mt_outside');
+    addTearDown(() => outside.delete(recursive: true));
+    await File(p.join(outside.path, 'shared.pack'))
+        .writeAsBytes(List.filled(1000, 0));
+    await write('objects/pack/own.pack', 10);
+    await Link(p.join(dir.path, 'objects', 'pack', 'linked.pack'))
+        .create(p.join(outside.path, 'shared.pack'));
+    await Link(p.join(dir.path, 'lfs')).create(outside.path);
+
+    final s = await measureGitDir(dir.path);
+    expect(s.packBytes, 10);
+    expect(s.lfsBytes, 0);
+    expect(s.totalBytes, 10);
+  });
+
   test('missing directories count as zero', () async {
     final s = await measureGitDir(p.join(dir.path, 'nope'));
     expect(s.totalBytes, 0);
