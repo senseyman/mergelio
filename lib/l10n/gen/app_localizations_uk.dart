@@ -2952,4 +2952,243 @@ class AppLocalizationsUk extends AppLocalizations {
   @override
   String get bisectRunCancelled =>
       'Запуск скасовано. Записані рішення збережені.';
+
+  @override
+  String get mntTitle => 'Обслуговування репозиторію';
+
+  @override
+  String get mntPaletteOpen => 'Обслуговування репозиторію…';
+
+  @override
+  String get mntStorage => 'Сховище';
+
+  @override
+  String mntStorageTotal(String size) {
+    return 'Дані git: $size';
+  }
+
+  @override
+  String get mntPacks => 'Пакети';
+
+  @override
+  String mntPackCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count пакетів',
+      few: '$count пакети',
+      one: '$count пакет',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get mntLoose => 'Окремі об\'єкти';
+
+  @override
+  String mntLooseCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count об\'єктів',
+      few: '$count об\'єкти',
+      one: '$count об\'єкт',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get mntLfs => 'Об\'єкти LFS';
+
+  @override
+  String get mntOther => 'Інші дані git';
+
+  @override
+  String get mntStorageNote => 'Файли робочого дерева не враховуються.';
+
+  @override
+  String mntReadFailed(String error) {
+    return 'Не вдалося прочитати: $error';
+  }
+
+  @override
+  String get mntBlobs => 'Найбільші файли в історії';
+
+  @override
+  String get mntBlobsIntro =>
+      'Переглядає кожен об\'єкт в історії репозиторію. На великому репозиторії це може тривати кілька хвилин.';
+
+  @override
+  String get mntScan => 'Сканувати';
+
+  @override
+  String get mntRescan => 'Сканувати знову';
+
+  @override
+  String get mntScanning => 'Сканування історії…';
+
+  @override
+  String mntScannedAt(String when) {
+    return 'Скановано $when';
+  }
+
+  @override
+  String get mntScanStale =>
+      'Застаріло: гілки або теги змінилися після сканування';
+
+  @override
+  String mntScanFailed(String error) {
+    return 'Сканування не вдалося: $error';
+  }
+
+  @override
+  String get mntNoBlobs => 'В історії немає файлів.';
+
+  @override
+  String get mntNoPath => '(без шляху)';
+
+  @override
+  String get mntNoCommit => 'немає в історії жодної гілки чи тегу';
+
+  @override
+  String get mntBranches => 'Гілки';
+
+  @override
+  String mntMergedInto(String trunk, int days) {
+    return 'Злиті в $trunk, або без змін понад $days дн., або їхня віддалена гілка зникла.';
+  }
+
+  @override
+  String get mntNoBranches => 'Немає злитих чи застарілих гілок.';
+
+  @override
+  String get mntTagMerged => 'злита';
+
+  @override
+  String get mntTagStale => 'застаріла';
+
+  @override
+  String get mntTagGone => 'віддалена гілка зникла';
+
+  @override
+  String mntHeldBy(String path) {
+    return 'відкрита в $path';
+  }
+
+  @override
+  String get mntSelectAll => 'Вибрати всі';
+
+  @override
+  String mntDeleteSelected(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Видалити $count гілок',
+      few: 'Видалити $count гілки',
+      one: 'Видалити $count гілку',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get mntDeleteTitle => 'Видалення гілок';
+
+  @override
+  String mntDeleteBody(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Видалити $count гілок?',
+      few: 'Видалити $count гілки?',
+      one: 'Видалити $count гілку?',
+    );
+    return '$_temp0 Скасування поверне їх.';
+  }
+
+  @override
+  String get mntDeleteForce =>
+      'Ці гілки не злиті й будуть видалені примусово. Їхні коміти залишаться доступними лише через reflog:';
+
+  @override
+  String get mntDeleteConfirm => 'Видалити';
+
+  @override
+  String get mntWorktrees => 'Робочі дерева';
+
+  @override
+  String mntPrunable(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count робочих дерев вказують на відсутні каталоги',
+      few: '$count робочі дерева вказують на відсутні каталоги',
+      one: '$count робоче дерево вказує на відсутній каталог',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get mntNoPrunable => 'Нічого очищати.';
+
+  @override
+  String get mntPrune => 'Очистити…';
+
+  @override
+  String get mntReflog => 'Reflog';
+
+  @override
+  String mntReflogExpiry(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Наступний gc видалить $count записів reflog.',
+      few: 'Наступний gc видалить $count записи reflog.',
+      one: 'Наступний gc видалить $count запис reflog.',
+      zero: 'Наступний gc не видалить жодного запису reflog.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get mntHousekeeping => 'Прибирання';
+
+  @override
+  String get mntHousekeepingHint =>
+      'Перепаковує об\'єкти й видаляє недосяжні, які git вважає застарілими. Mergelio ніколи не запускає це сам.';
+
+  @override
+  String get mntRunGc => 'Запустити gc';
+
+  @override
+  String get mntRunMaintenance => 'Запустити maintenance';
+
+  @override
+  String get mntGcTitle => 'Запустити git gc?';
+
+  @override
+  String get mntGcBody =>
+      'git gc перепаковує репозиторій і видаляє недосяжні об\'єкти, старші за налаштований термін. Це може тривати довго; скасувати можна з рядка стану.';
+
+  @override
+  String get mntMaintenanceTitle => 'Запустити git maintenance?';
+
+  @override
+  String get mntMaintenanceBody =>
+      'Виконує завдання обслуговування, увімкнені в налаштуваннях репозиторію (gc, якщо жодне не задано). Це може тривати довго; скасувати можна з рядка стану.';
+
+  @override
+  String get mntRun => 'Запустити';
+
+  @override
+  String mntSizeChange(String before, String after) {
+    return 'Дані git: $before → $after';
+  }
+
+  @override
+  String mntHeldByPrunable(String path) {
+    return 'відкрита в $path, якого вже немає. Спершу очистіть робочі дерева.';
+  }
+
+  @override
+  String get mntShowCommit => 'Показати цей коміт у графі';
 }

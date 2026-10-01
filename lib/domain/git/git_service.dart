@@ -45,11 +45,14 @@ class GitCancelledException extends GitException {
   GitCancelledException(super.message);
 }
 
-/// Handle on a running git command. [cancel] kills the child, so an operation
-/// stalled on an unreachable remote can be given up on immediately instead of
-/// holding its lane until the timeout runs out.
+/// Handle on running git commands. [cancel] kills the children, so an
+/// operation stalled on an unreachable remote can be given up on immediately
+/// instead of holding its lane until the timeout runs out.
+///
+/// One handle may cover several commands, one after another or at once: a
+/// cancel reaches every child still running.
 class GitCancel {
-  Process? _proc;
+  final _procs = <Process>{};
   var _cancelled = false;
 
   bool get isCancelled => _cancelled;
@@ -72,14 +75,21 @@ class GitCancel {
   /// a stray test process.
   void cancel() {
     _cancelled = true;
-    _proc?.kill(ProcessSignal.sigkill);
+    for (final p in _procs) {
+      p.kill(ProcessSignal.sigkill);
+    }
   }
 
-  /// Binds the child once it exists. A cancel that arrived while the process
-  /// was still starting applies the moment it does.
-  void _attach(Process proc) {
-    _proc = proc;
-    if (_cancelled) proc.kill(ProcessSignal.sigkill);
+  /// Binds a child once it exists. A cancel that arrived while the process
+  /// was still starting applies the moment it does. A child is let go when it
+  /// exits, so a handle reused for many commands does not hold on to them.
+  void attach(Process proc) {
+    if (_cancelled) {
+      proc.kill(ProcessSignal.sigkill);
+      return;
+    }
+    _procs.add(proc);
+    unawaited(proc.exitCode.then((_) => _procs.remove(proc), onError: (_) {}));
   }
 }
 
@@ -320,7 +330,7 @@ class SystemGitService implements GitService {
       );
     }
 
-    cancel?._attach(proc);
+    cancel?.attach(proc);
 
     // A git child is normally given nothing, so the pipe closes at once: it
     // releases a descriptor early and stops a command that would read stdin

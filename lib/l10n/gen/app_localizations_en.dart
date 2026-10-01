@@ -2922,4 +2922,237 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get bisectRunCancelled =>
       'Run cancelled. The marks recorded so far are kept.';
+
+  @override
+  String get mntTitle => 'Repository maintenance';
+
+  @override
+  String get mntPaletteOpen => 'Repository maintenance…';
+
+  @override
+  String get mntStorage => 'Storage';
+
+  @override
+  String mntStorageTotal(String size) {
+    return 'Git data: $size';
+  }
+
+  @override
+  String get mntPacks => 'Packs';
+
+  @override
+  String mntPackCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count packs',
+      one: '1 pack',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get mntLoose => 'Loose objects';
+
+  @override
+  String mntLooseCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count objects',
+      one: '1 object',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get mntLfs => 'LFS objects';
+
+  @override
+  String get mntOther => 'Other git data';
+
+  @override
+  String get mntStorageNote => 'Files in the working tree are not counted.';
+
+  @override
+  String mntReadFailed(String error) {
+    return 'Could not read this: $error';
+  }
+
+  @override
+  String get mntBlobs => 'Largest files in history';
+
+  @override
+  String get mntBlobsIntro =>
+      'Scans every object in the repository\'s history. On a large repository this can take several minutes.';
+
+  @override
+  String get mntScan => 'Scan';
+
+  @override
+  String get mntRescan => 'Rescan';
+
+  @override
+  String get mntScanning => 'Scanning history…';
+
+  @override
+  String mntScannedAt(String when) {
+    return 'Scanned $when';
+  }
+
+  @override
+  String get mntScanStale =>
+      'Out of date: branches or tags have moved since this scan';
+
+  @override
+  String mntScanFailed(String error) {
+    return 'Scan failed: $error';
+  }
+
+  @override
+  String get mntNoBlobs => 'No files in history.';
+
+  @override
+  String get mntNoPath => '(no path)';
+
+  @override
+  String get mntNoCommit => 'not in the history of any branch or tag';
+
+  @override
+  String get mntBranches => 'Branches';
+
+  @override
+  String mntMergedInto(String trunk, int days) {
+    return 'Merged into $trunk, or not touched for $days days, or their upstream is gone.';
+  }
+
+  @override
+  String get mntNoBranches => 'No merged or stale branches.';
+
+  @override
+  String get mntTagMerged => 'merged';
+
+  @override
+  String get mntTagStale => 'stale';
+
+  @override
+  String get mntTagGone => 'upstream gone';
+
+  @override
+  String mntHeldBy(String path) {
+    return 'checked out in $path';
+  }
+
+  @override
+  String get mntSelectAll => 'Select all';
+
+  @override
+  String mntDeleteSelected(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Delete $count branches',
+      one: 'Delete 1 branch',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get mntDeleteTitle => 'Delete branches';
+
+  @override
+  String mntDeleteBody(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Delete $count branches?',
+      one: 'Delete 1 branch?',
+    );
+    return '$_temp0 Undo puts them back.';
+  }
+
+  @override
+  String get mntDeleteForce =>
+      'These are not merged and will be force-deleted. Their commits stay reachable only through the reflog:';
+
+  @override
+  String get mntDeleteConfirm => 'Delete';
+
+  @override
+  String get mntWorktrees => 'Worktrees';
+
+  @override
+  String mntPrunable(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count worktrees point at missing directories',
+      one: '1 worktree points at a missing directory',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get mntNoPrunable => 'Nothing to prune.';
+
+  @override
+  String get mntPrune => 'Prune…';
+
+  @override
+  String get mntReflog => 'Reflog';
+
+  @override
+  String mntReflogExpiry(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'The next gc would expire $count reflog entries.',
+      one: 'The next gc would expire 1 reflog entry.',
+      zero: 'The next gc would not expire any reflog entries.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get mntHousekeeping => 'Housekeeping';
+
+  @override
+  String get mntHousekeepingHint =>
+      'Repacks objects and removes unreachable ones git considers expired. Mergelio never runs this on its own.';
+
+  @override
+  String get mntRunGc => 'Run gc';
+
+  @override
+  String get mntRunMaintenance => 'Run maintenance';
+
+  @override
+  String get mntGcTitle => 'Run git gc?';
+
+  @override
+  String get mntGcBody =>
+      'git gc repacks the repository and deletes unreachable objects older than its expiry settings. It can take a while and can be cancelled from the status bar.';
+
+  @override
+  String get mntMaintenanceTitle => 'Run git maintenance?';
+
+  @override
+  String get mntMaintenanceBody =>
+      'Runs the maintenance tasks this repository\'s config enables (gc when none are set). It can take a while and can be cancelled from the status bar.';
+
+  @override
+  String get mntRun => 'Run';
+
+  @override
+  String mntSizeChange(String before, String after) {
+    return 'Git data: $before → $after';
+  }
+
+  @override
+  String mntHeldByPrunable(String path) {
+    return 'checked out in $path, which no longer exists. Prune worktrees first.';
+  }
+
+  @override
+  String get mntShowCommit => 'Show this commit in the graph';
 }

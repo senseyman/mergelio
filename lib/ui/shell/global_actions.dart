@@ -13,6 +13,7 @@ import '../../state/search.dart';
 import '../../state/workspace.dart';
 import '../palette/command_palette.dart';
 import '../workspace/branch_switch.dart';
+import '../workspace/maintenance_panel.dart';
 import '../workspace/remote_dialog.dart';
 import 'lfs_prune_flow.dart';
 import 'lfs_push_guard.dart';
@@ -74,6 +75,11 @@ void openGlobalPalette(BuildContext context, WidgetRef ref) {
       if (!context.mounted) return;
       await showPushDialog(context, ref, path);
     }),
+    PaletteCommand(
+      l.mntPaletteOpen,
+      Icons.cleaning_services_outlined,
+      () => showMaintenancePanel(context, path),
+    ),
     PaletteCommand(
       l.tbGlobalSearch,
       Icons.search,
