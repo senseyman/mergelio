@@ -67,15 +67,16 @@ class _FakeGit implements GitService {
       'sha-done\nsha-old\n',
       '',
     ),
-    'cat-file --batch-check=$blobBatchFormat': GitResult(
+    'cat-file --batch-all-objects --batch-check=$allObjectsFormat': GitResult(
       0,
-      'blob $_bigSha 5242880 assets/video.mp4\n',
+      'blob $_bigSha 5242880\n',
       '',
     ),
-    'log --all --reverse --format=$introducingCommitFormat '
+    'log --all --reverse --format=$blobOriginFormat --name-only '
         '--find-object=$_bigSha': const GitResult(
       0,
-      'c1\x1fc1abc\x1f2026-01-01T00:00:00Z\x1fadd the demo video\n',
+      'c1\x1fc1abc\x1f2026-01-01T00:00:00Z\x1fadd the demo video\n'
+          '\nassets/video.mp4\n',
       '',
     ),
     'gc': const GitResult(0, '', 'Counting objects: 42, done.\n'),
@@ -181,7 +182,7 @@ void main() {
   ) async {
     final git = _FakeGit();
     await _pump(tester, git);
-    expect(git.calls.where((c) => c.startsWith('rev-list')), isEmpty);
+    expect(git.calls.where((c) => c.startsWith('cat-file')), isEmpty);
 
     await tester.tap(find.text('Scan'));
     await tester.pumpAndSettle();

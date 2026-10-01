@@ -43,6 +43,7 @@ class _FakeGit implements GitService {
 }
 
 const _refsKey = 'for-each-ref --format=%(objectname) %(refname)';
+const _listKey = 'cat-file --batch-all-objects --batch-check=$allObjectsFormat';
 
 void main() {
   late _FakeGit git;
@@ -53,9 +54,11 @@ void main() {
     git = _FakeGit();
     kv = InMemoryKeyValueStore();
     git.responses[_refsKey] = const GitResult(0, 'a refs/heads/main\n', '');
-    git.responses['cat-file --batch-check=$blobBatchFormat'] = GitResult(
+    git.responses[_listKey] = GitResult(0, 'blob ${'b' * 40} 99\n', '');
+    git.responses['log --all --reverse --format=$blobOriginFormat '
+        '--name-only --find-object=${'b' * 40}'] = const GitResult(
       0,
-      'blob ${'b' * 40} 99 big.bin\n',
+      'c\x1fc\x1f2026-01-01T00:00:00Z\x1fs\n\nbig.bin\n',
       '',
     );
     container = ProviderContainer(
@@ -113,7 +116,7 @@ void main() {
     await settle();
     expect(state().result!.blobs.single.blob.path, 'p');
     expect(state().stale, isFalse);
-    expect(git.calls.where((c) => c.startsWith('rev-list')), isEmpty);
+    expect(git.calls.where((c) => c.startsWith('cat-file')), isEmpty);
   });
 
   test('a cached scan from other refs is marked stale', () async {
@@ -145,12 +148,12 @@ void main() {
   test('cancel stops a running scan and keeps the old result', () async {
     await ctl().scan();
     final before = state().result;
-    git.gates['rev-list --objects --all'] = Completer<void>();
+    git.gates[_listKey] = Completer<void>();
     final running = ctl().scan();
     await settle();
     expect(state().scanning, isTrue);
     ctl().cancel();
-    git.gates['rev-list --objects --all']!.complete();
+    git.gates[_listKey]!.complete();
     await running;
     expect(state().scanning, isFalse);
     expect(state().error, isNull);
@@ -158,24 +161,17 @@ void main() {
   });
 
   test('a second scan while one runs is ignored', () async {
-    git.gates['rev-list --objects --all'] = Completer<void>();
+    git.gates[_listKey] = Completer<void>();
     final first = ctl().scan();
     await settle();
     await ctl().scan();
-    git.gates['rev-list --objects --all']!.complete();
+    git.gates[_listKey]!.complete();
     await first;
-    expect(
-      git.calls.where((c) => c == 'rev-list --objects --all'),
-      hasLength(1),
-    );
+    expect(git.calls.where((c) => c == _listKey), hasLength(1));
   });
 
   test('a failed scan reports git stderr', () async {
-    git.responses['rev-list --objects --all'] = const GitResult(
-      128,
-      '',
-      'fatal: bad object',
-    );
+    git.responses[_listKey] = const GitResult(128, '', 'fatal: bad object');
     await ctl().scan();
     expect(state().scanning, isFalse);
     expect(state().error, 'fatal: bad object');

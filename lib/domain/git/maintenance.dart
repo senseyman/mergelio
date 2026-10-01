@@ -71,51 +71,56 @@ class BlobEntry {
   );
 }
 
-/// The format [parseBlobBatch] reads, handed to `cat-file --batch-check`.
-/// `%(rest)` carries the path `rev-list --objects` printed after the sha.
-const blobBatchFormat = '%(objecttype) %(objectname) %(objectsize) %(rest)';
+/// The format [topBlobs] reads, for `cat-file --batch-all-objects
+/// --batch-check`. No path: git lists the object store itself, which is far
+/// cheaper than walking history for names, and paths are found afterwards for
+/// the few blobs that make the list.
+const allObjectsFormat = '%(objecttype) %(objectname) %(objectsize)';
 
-/// Blobs from `rev-list --objects --all | cat-file --batch-check`. rev-list
-/// can name one blob at several paths; the first is kept, since which one is
-/// "the" path of shared content is arbitrary anyway.
-List<BlobEntry> parseBlobBatch(String out) {
-  final seen = <String>{};
-  final blobs = <BlobEntry>[];
-  for (final line in const LineSplitter().convert(out)) {
-    if (!line.startsWith('blob ')) continue;
-    final shaEnd = line.indexOf(' ', 5);
-    if (shaEnd < 0) continue;
-    final sizeEnd = line.indexOf(' ', shaEnd + 1);
-    final size = int.tryParse(
-      line.substring(shaEnd + 1, sizeEnd < 0 ? line.length : sizeEnd),
-    );
-    if (size == null) continue;
-    final sha = line.substring(5, shaEnd);
-    if (!seen.add(sha)) continue;
-    blobs.add(
-      BlobEntry(
-        sha: sha,
-        size: size,
-        path: sizeEnd < 0 ? '' : line.substring(sizeEnd + 1),
-      ),
-    );
-  }
-  return blobs;
-}
+final _objectName = RegExp(r'^(?:[0-9a-f]{40}|[0-9a-f]{64})$');
 
-/// The [n] largest blobs in [batch], largest first. Equal sizes order by path
-/// so a rescan of the same history lists them the same way.
+/// The [n] largest blobs in [batch], largest first; [BlobEntry.path] is left
+/// empty. Equal sizes order by sha, so a rescan of the same objects lists
+/// them the same way.
+///
+/// Holds at most [n] entries however many objects the listing has: a large
+/// repository has millions, and a list of all of them only to keep 25 would
+/// cost more than the listing itself. Lines that are not a blob, an object
+/// name and a size are skipped.
 List<BlobEntry> topBlobs(String batch, int n) {
-  final blobs = parseBlobBatch(batch)
-    ..sort((a, b) {
-      final bySize = b.size.compareTo(a.size);
-      return bySize != 0 ? bySize : a.path.compareTo(b.path);
-    });
-  return blobs.take(n).toList();
+  if (n <= 0) return const [];
+  // Kept sorted, largest first.
+  final top = <BlobEntry>[];
+  bool before(BlobEntry a, BlobEntry b) =>
+      a.size != b.size ? a.size > b.size : a.sha.compareTo(b.sha) < 0;
+  var start = 0;
+  while (start < batch.length) {
+    var end = batch.indexOf('\n', start);
+    if (end < 0) end = batch.length;
+    final lineStart = start;
+    start = end + 1;
+    if (!batch.startsWith('blob ', lineStart)) continue;
+    final shaEnd = batch.indexOf(' ', lineStart + 5);
+    if (shaEnd < 0 || shaEnd >= end) continue;
+    final size = int.tryParse(batch.substring(shaEnd + 1, end).trim());
+    if (size == null) continue;
+    if (top.length == n && size < top.last.size) continue;
+    final sha = batch.substring(lineStart + 5, shaEnd);
+    if (!_objectName.hasMatch(sha)) continue;
+    final entry = BlobEntry(sha: sha, size: size, path: '');
+    if (top.length == n && !before(entry, top.last)) continue;
+    var i = top.length;
+    while (i > 0 && before(entry, top[i - 1])) {
+      i--;
+    }
+    top.insert(i, entry);
+    if (top.length > n) top.removeLast();
+  }
+  return top;
 }
 
-/// The log format [parseIntroducingCommit] reads.
-const introducingCommitFormat = '%H%x1f%h%x1f%aI%x1f%s';
+/// The log format [parseBlobOrigin] reads, used with `--name-only`.
+const blobOriginFormat = '%H%x1f%h%x1f%aI%x1f%s';
 
 /// The commit that first brought a blob into history.
 class IntroducingCommit {
@@ -149,23 +154,37 @@ class IntroducingCommit {
       );
 }
 
-/// First line of `log --reverse --find-object=<sha>`: the oldest commit that
-/// touched the blob, which is the one that added it.
-IntroducingCommit? parseIntroducingCommit(String out) {
-  final line = const LineSplitter().convert(out).firstOrNull;
-  if (line == null) return null;
-  final f = line.split('\x1f');
-  if (f.length < 4) return null;
-  return IntroducingCommit(
-    sha: f[0],
-    shortSha: f[1],
-    date: f[2],
-    subject: f.sublist(3).join('\x1f'),
+/// The first record of `log --reverse --name-only --find-object=<sha>`: the
+/// oldest commit that touched the blob, which is the one that added it, and
+/// the path it added it at. `--find-object` narrows the listed paths to the
+/// ones holding that blob. No commit and an empty path when nothing on any
+/// ref reaches it.
+({IntroducingCommit? commit, String path}) parseBlobOrigin(String out) {
+  final lines = const LineSplitter().convert(out);
+  final f = lines.isEmpty ? const <String>[] : lines.first.split('\x1f');
+  if (f.length < 4) return (commit: null, path: '');
+  var path = '';
+  for (final line in lines.skip(1)) {
+    if (line.contains('\x1f')) break; // the next commit's header
+    if (line.isNotEmpty) {
+      path = line;
+      break;
+    }
+  }
+  return (
+    commit: IntroducingCommit(
+      sha: f[0],
+      shortSha: f[1],
+      date: f[2],
+      subject: f.sublist(3).join('\x1f'),
+    ),
+    path: path,
   );
 }
 
-/// A large blob and where it came from. [commit] is null when no commit on
-/// any ref could be found for it.
+/// A large blob and where it came from. [commit] is null, and the path
+/// empty, when no commit on any ref reaches it — an object only a reflog, a
+/// stash or nothing at all still holds, which takes the space all the same.
 class BigBlob {
   final BlobEntry blob;
   final IntroducingCommit? commit;
@@ -427,8 +446,8 @@ class BranchHygiene {
   const BranchHygiene({required this.trunk, required this.branches});
 }
 
-/// Listings above this size are sorted on a background isolate. Below it the
-/// copy to the isolate costs more than the sort.
+/// Listings above this size are scanned on a background isolate. Below it,
+/// copying the listing there costs more than the scan.
 const _offThreadBatchChars = 1 << 20;
 
 /// The read side of the maintenance panel. Nothing here changes the
@@ -447,14 +466,7 @@ class MaintenanceReader {
     List<String> args, {
     Duration? timeout,
     GitCancel? cancel,
-    String? stdin,
-  }) => git.run(
-    args,
-    repoPath: repoPath,
-    timeout: timeout,
-    cancel: cancel,
-    stdin: stdin,
-  );
+  }) => git.run(args, repoPath: repoPath, timeout: timeout, cancel: cancel);
 
   Future<String> _out(List<String> args, String what) async {
     final r = await _run(args);
@@ -549,42 +561,36 @@ class MaintenanceReader {
     GitCancel? cancel,
   }) async {
     final fingerprint = await currentRefsFingerprint();
-    Future<String> step(List<String> args, String what, {String? stdin}) async {
-      final r = await _run(
-        args,
-        timeout: scanTimeout,
-        cancel: cancel,
-        stdin: stdin,
-      );
+    Future<String> step(List<String> args, String what) async {
+      final r = await _run(args, timeout: scanTimeout, cancel: cancel);
       if (!r.ok) throw GitException(what, r);
       return r.stdout;
     }
 
-    final listing = await step([
-      'rev-list',
-      '--objects',
-      '--all',
-    ], 'git rev-list --objects');
-    final batch = await step(
-      ['cat-file', '--batch-check=$blobBatchFormat'],
-      'git cat-file --batch-check',
-      stdin: listing,
-    );
+    final batch = await step([
+      'cat-file',
+      '--batch-all-objects',
+      '--batch-check=$allObjectsFormat',
+    ], 'git cat-file --batch-all-objects');
     final largest = batch.length > _offThreadBatchChars
         ? await Isolate.run(() => topBlobs(batch, top))
         : topBlobs(batch, top);
     final blobs = await Future.wait([
       for (final b in largest)
-        step(
-          [
-            'log',
-            '--all',
-            '--reverse',
-            '--format=$introducingCommitFormat',
-            '--find-object=${b.sha}',
-          ],
-          'git log --find-object',
-        ).then((out) => BigBlob(b, parseIntroducingCommit(out))),
+        step([
+          'log',
+          '--all',
+          '--reverse',
+          '--format=$blobOriginFormat',
+          '--name-only',
+          '--find-object=${b.sha}',
+        ], 'git log --find-object').then((out) {
+          final origin = parseBlobOrigin(out);
+          return BigBlob(
+            BlobEntry(sha: b.sha, size: b.size, path: origin.path),
+            origin.commit,
+          );
+        }),
     ]);
     return BlobScan(
       scannedAt: now.toUtc().toIso8601String(),

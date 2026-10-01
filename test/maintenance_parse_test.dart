@@ -25,48 +25,83 @@ void main() {
     });
   });
 
-  group('parseBlobBatch / topBlobs', () {
-    const batch =
-        'commit e2822a0e18f3703238928eea709b705282a43051 208 \n'
-        'tree 718ba0fe7b3d70ccfb24ff59840e44c2cfd8b0c6 70 \n'
-        'blob ce013625030ba8dba906f756967f9e9ca394464a 6 a b.txt\n'
-        'blob 3553ce4cfe647ba6daa9472f3c792b7985b5e8b2 5000 big.bin\n'
-        'blob 3553ce4cfe647ba6daa9472f3c792b7985b5e8b2 5000 copy/big.bin\n'
-        'blob 1111111111111111111111111111111111111111 900 \n'
-        'tree 4b825dc642cb6eb9a060e54bf8d69288fbee4904 0 \n';
+  group('topBlobs', () {
+    final a = 'a' * 40, b = 'b' * 40, c = 'c' * 40, d = 'd' * 40;
+    final batch =
+        'commit ${'e' * 40} 208\n'
+        'tree ${'f' * 40} 70\n'
+        'blob $a 6\n'
+        'blob $b 5000\n'
+        'blob $c 900\n'
+        'tree ${'0' * 40} 0\n'
+        'blob $d 900\n';
 
-    test('keeps blobs only, first path per sha, spaces in paths', () {
-      final blobs = parseBlobBatch(batch);
-      expect(blobs.map((b) => b.path), ['a b.txt', 'big.bin', '']);
-      expect(blobs[1].size, 5000);
-      expect(blobs[1].sha, '3553ce4cfe647ba6daa9472f3c792b7985b5e8b2');
-    });
-
-    test('topBlobs sorts by size and caps at n', () {
+    test('keeps the largest blobs only, biggest first', () {
       final top = topBlobs(batch, 2);
-      expect(top.map((b) => b.size), [5000, 900]);
+      expect(top.map((x) => x.size), [5000, 900]);
+      expect(top.first.sha, b);
+      expect(top.every((x) => x.path.isEmpty), isTrue);
     });
 
-    test('ties order by path so the list is stable', () {
-      final top = topBlobs('blob ${'a' * 40} 10 z\nblob ${'b' * 40} 10 a\n', 5);
-      expect(top.map((b) => b.path), ['a', 'z']);
+    test('equal sizes order by sha so a rescan lists them the same way', () {
+      expect(topBlobs(batch, 3).map((x) => x.sha), [b, c, d]);
     });
 
-    test('malformed lines are skipped', () {
-      expect(parseBlobBatch('blob abc\nblob ${'c' * 40} nope p\n'), isEmpty);
+    test('asking for more than there are returns them all', () {
+      expect(topBlobs(batch, 10), hasLength(4));
+      expect(topBlobs('', 3), isEmpty);
+      expect(topBlobs(batch, 0), isEmpty);
+    });
+
+    test('lines that are not a blob, a sha and a size are skipped', () {
+      // A sha that is not hex, a short one, a size that is not a number,
+      // and a sha-256 object name, which is kept.
+      final out = topBlobs(
+        'blob ${'z' * 40} 10\n'
+        'blob abc 10\n'
+        'blob ${'c' * 40} nope\n'
+        'blob ${'9' * 64} 7\n'
+        'blob\n',
+        5,
+      );
+      expect(out.map((x) => x.sha), ['9' * 64]);
     });
   });
 
-  test('parseIntroducingCommit reads the first line', () {
-    final c = parseIntroducingCommit(
-      'e2822a0\x1fe2822a0\x1f2026-09-30T22:16:18+01:00\x1fadd files\n'
-      'ffff\x1fffff\x1f2026-10-01T00:00:00+01:00\x1fremove\n',
-    );
-    expect(c!.sha, 'e2822a0');
-    expect(c.subject, 'add files');
-    expect(c.date, '2026-09-30T22:16:18+01:00');
-    expect(parseIntroducingCommit(''), isNull);
-    expect(parseIntroducingCommit('only\x1ftwo'), isNull);
+  group('parseBlobOrigin', () {
+    test('reads the oldest commit and the path it added the blob at', () {
+      final o = parseBlobOrigin(
+        'e2822a0\x1fe2822a0\x1f2026-09-30T22:16:18+01:00\x1fadd files\n'
+        '\n'
+        'assets/big file.bin\n'
+        'ffff\x1fffff\x1f2026-10-01T00:00:00+01:00\x1fmove\n'
+        '\n'
+        'other/big.bin\n',
+      );
+      expect(o.commit!.sha, 'e2822a0');
+      expect(o.commit!.subject, 'add files');
+      expect(o.commit!.date, '2026-09-30T22:16:18+01:00');
+      expect(o.path, 'assets/big file.bin');
+    });
+
+    test('a subject holding the separator survives', () {
+      final o = parseBlobOrigin('s\x1fs\x1fd\x1fa\x1fb\n\np\n');
+      expect(o.commit!.subject, 'a\x1fb');
+      expect(o.path, 'p');
+    });
+
+    test('nothing found means no commit and no path', () {
+      final o = parseBlobOrigin('');
+      expect(o.commit, isNull);
+      expect(o.path, '');
+      expect(parseBlobOrigin('only\x1ftwo').commit, isNull);
+    });
+
+    test('a commit with no path line still names the commit', () {
+      final o = parseBlobOrigin('s\x1fs\x1fd\x1fsubj\n');
+      expect(o.commit!.subject, 'subj');
+      expect(o.path, '');
+    });
   });
 
   test('countReflogExpiry counts would-prune lines only', () {

@@ -146,52 +146,66 @@ void main() {
   });
 
   group('scanBlobs', () {
-    const listing = 'c1\naaaa big.bin\nbbbb small.txt\n';
-    const shaA = 'a';
+    final shaA = 'a' * 40, shaB = 'b' * 40;
+    const listKey =
+        'cat-file --batch-all-objects --batch-check=$allObjectsFormat';
+    String logKey(String sha) =>
+        'log --all --reverse --format=$blobOriginFormat --name-only '
+        '--find-object=$sha';
+
     setUp(() {
       git.responses['for-each-ref --format=%(objectname) %(refname)'] =
           const GitResult(0, 'x refs/heads/main\n', '');
-      git.responses['rev-list --objects --all'] = const GitResult(
+      git.responses[listKey] = GitResult(
         0,
-        listing,
+        'commit ${'c' * 40} 200\n'
+            'blob $shaA 5000\n'
+            'blob $shaB 6\n',
         '',
       );
-      git.responses['cat-file --batch-check=$blobBatchFormat'] = GitResult(
+      git.responses[logKey(shaA)] = const GitResult(
         0,
-        'commit c1 200 \n'
-            'blob ${shaA * 40} 5000 big.bin\n'
-            'blob ${'b' * 40} 6 small.txt\n',
-        '',
-      );
-      git.responses['log --all --reverse --format=$introducingCommitFormat '
-          '--find-object=${shaA * 40}'] = const GitResult(
-        0,
-        'c1\x1fc\x1f2026-01-01T00:00:00Z\x1fadd big\n',
+        'c1\x1fc\x1f2026-01-01T00:00:00Z\x1fadd big\n\nbig.bin\n',
         '',
       );
     });
 
-    test('pipes the listing into cat-file and finds each origin', () async {
-      final scan = await reader.scanBlobs(
-        top: 1,
-        now: DateTime.utc(2026, 9, 30, 12),
-      );
-      expect(git.stdins['cat-file --batch-check=$blobBatchFormat'], listing);
-      expect(scan.blobs.single.blob.path, 'big.bin');
-      expect(scan.blobs.single.commit!.subject, 'add big');
-      expect(scan.fingerprint, refsFingerprint('x refs/heads/main\n'));
-      expect(scan.scannedAt, '2026-09-30T12:00:00.000Z');
-    });
+    test(
+      'lists every object once, then finds where the winners came from',
+      () async {
+        final scan = await reader.scanBlobs(
+          top: 1,
+          now: DateTime.utc(2026, 9, 30, 12),
+        );
+        // No object listing is piped through the app: git enumerates the
+        // object store itself.
+        expect(git.calls.where((c) => c.first == 'rev-list'), isEmpty);
+        expect(git.stdins[listKey], isNull);
+        expect(scan.blobs.single.blob.sha, shaA);
+        expect(scan.blobs.single.blob.path, 'big.bin');
+        expect(scan.blobs.single.commit!.subject, 'add big');
+        // Only the winner is looked up.
+        expect(git.calls.where((c) => c.first == 'log'), hasLength(1));
+        expect(scan.fingerprint, refsFingerprint('x refs/heads/main\n'));
+        expect(scan.scannedAt, '2026-09-30T12:00:00.000Z');
+      },
+    );
+
+    test(
+      'a blob no commit reaches keeps its size, without path or commit',
+      () async {
+        final scan = await reader.scanBlobs(top: 2, now: DateTime.utc(2026));
+        final orphan = scan.blobs.last;
+        expect(orphan.blob.sha, shaB);
+        expect(orphan.blob.path, '');
+        expect(orphan.commit, isNull);
+      },
+    );
 
     test('passes a long timeout and the cancel handle to every step', () async {
       final cancel = GitCancel();
       await reader.scanBlobs(top: 2, now: DateTime.utc(2026), cancel: cancel);
-      for (final key in [
-        'rev-list --objects --all',
-        'cat-file --batch-check=$blobBatchFormat',
-        'log --all --reverse --format=$introducingCommitFormat '
-            '--find-object=${shaA * 40}',
-      ]) {
+      for (final key in [listKey, logKey(shaA), logKey(shaB)]) {
         expect(git.timeouts[key], MaintenanceReader.scanTimeout, reason: key);
         expect(git.cancels[key], same(cancel), reason: key);
       }
@@ -206,11 +220,7 @@ void main() {
     });
 
     test('a failed listing throws', () async {
-      git.responses['rev-list --objects --all'] = const GitResult(
-        128,
-        '',
-        'bad',
-      );
+      git.responses[listKey] = const GitResult(128, '', 'bad');
       expect(
         reader.scanBlobs(top: 1, now: DateTime.utc(2026)),
         throwsA(isA<GitException>()),
