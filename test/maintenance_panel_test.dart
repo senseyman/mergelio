@@ -12,6 +12,8 @@ import 'package:mergelio/domain/git/maintenance.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/state/maintenance.dart';
 import 'package:mergelio/state/operation_journal.dart';
+import 'package:mergelio/state/repo_data.dart';
+import 'package:mergelio/domain/git/models.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
 import 'package:mergelio/ui/workspace/maintenance_panel.dart';
@@ -121,6 +123,7 @@ Future<void> _pump(
   _FakeGit git, {
   KeyValueStore? kv,
   double width = 900,
+  List<Override> extra = const [],
 }) async {
   tester.view.physicalSize = Size(width, 2400);
   tester.view.devicePixelRatio = 1;
@@ -133,6 +136,7 @@ Future<void> _pump(
         maintenanceClockProvider.overrideWithValue(() => _now),
         // The real one walks the git directory on disk.
         maintenanceSizeProvider.overrideWith((ref, path) async => _size),
+        ...extra,
         settingsProvider.overrideWith(
           (_) => SettingsController(
             InMemorySettingsRepository(),
@@ -215,6 +219,49 @@ void main() {
       find.text('Out of date: branches or tags have moved since this scan'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('a scan goes out of date while the panel is open', (
+    tester,
+  ) async {
+    final kv = InMemoryKeyValueStore();
+    await kv.put(
+      'maintenance:blobs:/r',
+      jsonEncode(
+        BlobScan(
+          scannedAt: '2026-09-01T00:00:00.000Z',
+          fingerprint: refsFingerprint(_refs),
+          blobs: const [],
+        ).toJson(),
+      ),
+    );
+    final branches = StateProvider<List<Branch>>(
+      (ref) => const [Branch(name: 'main', tip: '1')],
+    );
+    final git = _FakeGit();
+    await _pump(
+      tester,
+      git,
+      kv: kv,
+      extra: [
+        repoDataProvider.overrideWith(
+          (ref, path) async => RepoData(branches: ref.watch(branches)),
+        ),
+      ],
+    );
+    const stale = 'Out of date: branches or tags have moved since this scan';
+    expect(find.text(stale), findsNothing);
+
+    // A commit lands while the panel is open.
+    git.responses['for-each-ref --format=%(objectname) %(refname)'] =
+        const GitResult(0, 'b refs/heads/main\n', '');
+    ProviderScope.containerOf(tester.element(find.byType(MaintenancePanel)))
+        .read(branches.notifier)
+        .state = const [
+      Branch(name: 'main', tip: '2'),
+    ];
+    await tester.pumpAndSettle();
+    expect(find.text(stale), findsOneWidget);
   });
 
   group('branches', () {

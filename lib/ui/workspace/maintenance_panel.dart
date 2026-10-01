@@ -37,13 +37,14 @@ class _MaintenancePanelState extends ConsumerState<MaintenancePanel> {
   @override
   void initState() {
     super.initState();
-    // A cached scan kept from earlier in the session may have gone out of
-    // date since; its controller only checked when it first loaded.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        ref.read(blobScanProvider(widget.repoPath).notifier).recheck();
-      }
-    });
+    // A shown scan goes out of date when any ref moves: on open, since it may
+    // have been taken earlier in the session, and again each time the refs
+    // move while the panel is up.
+    ref.listenManual(
+      maintenanceRefsKeyProvider(widget.repoPath),
+      (_, _) => ref.read(blobScanProvider(widget.repoPath).notifier).recheck(),
+      fireImmediately: true,
+    );
   }
 
   @override
