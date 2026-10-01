@@ -3178,9 +3178,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bdUnavailable => 'Preview unavailable';
 
   @override
-  String get bdCouldNotDecode => 'Could not decode this image';
-
-  @override
   String get bdNothingToShow => 'Nothing to show on either side';
 
   @override

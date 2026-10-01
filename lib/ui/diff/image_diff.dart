@@ -89,7 +89,7 @@ class BinaryCompare extends ConsumerWidget {
       after: afterLabel ?? l.bdAfter,
     );
     final sizes = sizeSummary(a?.size, b?.size);
-    return switch (binaryPreviewKind(a, b)) {
+    final preview = switch (binaryPreviewKind(a, b)) {
       BinaryPreviewKind.empty => note(l.bdNothingToShow),
       BinaryPreviewKind.tooLarge => note(l.bdTooLarge, sizes),
       BinaryPreviewKind.image => ImageCompareView(
@@ -105,8 +105,20 @@ class BinaryCompare extends ConsumerWidget {
         labels: labels,
       ),
     };
+    // A sheet dragged short gets a scrolling preview at a usable height
+    // rather than one squeezed into overflow.
+    return LayoutBuilder(
+      builder: (context, box) => box.maxHeight >= _minPreviewHeight
+          ? preview
+          : SingleChildScrollView(
+              child: SizedBox(height: _minPreviewHeight, child: preview),
+            ),
+    );
   }
 }
+
+/// Room the mode bar, an image and the slider need together.
+const _minPreviewHeight = 160.0;
 
 typedef SideLabels = ({String before, String after});
 
@@ -168,9 +180,20 @@ class _ImageCompareViewState extends State<ImageCompareView> {
     super.dispose();
   }
 
-  static Future<ui.Image?> _image(Uint8List? bytes) async {
+  /// [bytes] decoded with each side shrunk by [factor]; null when there is no
+  /// such side.
+  static Future<ui.Image?> _image(Uint8List? bytes, double factor) async {
     if (bytes == null) return null;
-    final codec = await ui.instantiateImageCodec(bytes);
+    final size = imageDimensions(bytes);
+    final codec = await ui.instantiateImageCodec(
+      bytes,
+      targetWidth: factor < 1 && size != null
+          ? math.max(1, (size.width * factor).round())
+          : null,
+      targetHeight: factor < 1 && size != null
+          ? math.max(1, (size.height * factor).round())
+          : null,
+    );
     try {
       // An animation previews as its first frame.
       return (await codec.getNextFrame()).image;
@@ -181,34 +204,48 @@ class _ImageCompareViewState extends State<ImageCompareView> {
 
   Future<void> _decode() async {
     final gen = ++_generation;
-    try {
-      final images = await Future.wait([
-        _image(widget.before),
-        _image(widget.after),
-      ]);
-      if (gen != _generation || !mounted) {
-        for (final i in images) {
-          i?.dispose();
-        }
-        return;
+    final factor = decodeScale([
+      for (final b in [widget.before, widget.after])
+        if (b != null) ?imageDimensions(b),
+    ]);
+    // Each side settles on its own, so one that fails cannot strand the other
+    // undisposed.
+    var failed = false;
+    Future<ui.Image?> side(Uint8List? bytes) =>
+        _image(bytes, factor).catchError((Object _) {
+          failed = true;
+          return null;
+        });
+    final images = await Future.wait([side(widget.before), side(widget.after)]);
+    if (gen != _generation || !mounted) {
+      for (final i in images) {
+        i?.dispose();
       }
-      setState(() {
-        _before?.dispose();
-        _after?.dispose();
-        _before = images[0];
-        _after = images[1];
-        _failed = false;
-      });
-    } on Object {
-      if (gen == _generation && mounted) setState(() => _failed = true);
+      return;
     }
+    setState(() {
+      _before?.dispose();
+      _after?.dispose();
+      _before = images[0];
+      _after = images[1];
+      _failed = failed;
+    });
   }
 
   bool get _both => widget.before != null && widget.after != null;
 
   @override
   Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context);
+    // Looked like an image, but is not one the codec can read: the bytes are
+    // still worth seeing.
+    if (_failed) {
+      return HexCompareView(
+        before: widget.before,
+        after: widget.after,
+        sizes: widget.sizes,
+        labels: widget.labels,
+      );
+    }
     final t = context.tokens;
     final dims = dimensionSummary(
       widget.before == null ? null : imageDimensions(widget.before!),
@@ -241,7 +278,7 @@ class _ImageCompareViewState extends State<ImageCompareView> {
             ],
           ),
         ),
-        Expanded(child: _body(l, t)),
+        Expanded(child: _body(t)),
         if (slider)
           SizedBox(
             height: 32,
@@ -254,15 +291,7 @@ class _ImageCompareViewState extends State<ImageCompareView> {
     );
   }
 
-  Widget _body(AppLocalizations l, AppTokens t) {
-    if (_failed) {
-      return Center(
-        child: Text(
-          l.bdCouldNotDecode,
-          style: TextStyle(color: t.textFaint, fontSize: 12),
-        ),
-      );
-    }
+  Widget _body(AppTokens t) {
     final ready =
         (widget.before == null || _before != null) &&
         (widget.after == null || _after != null);
@@ -359,7 +388,7 @@ class _ImageCompareViewState extends State<ImageCompareView> {
       height: h,
       child: CustomPaint(
         size: Size(w, h),
-        painter: _OverlayPainter(
+        painter: ImageOverlayPainter(
           before: a,
           after: b,
           scale: scale,
@@ -413,7 +442,7 @@ class _Framed extends StatelessWidget {
   );
 }
 
-class _OverlayPainter extends CustomPainter {
+class ImageOverlayPainter extends CustomPainter {
   final ui.Image before;
   final ui.Image after;
   final double scale;
@@ -422,7 +451,7 @@ class _OverlayPainter extends CustomPainter {
   final Color divider;
   final FilterQuality quality;
 
-  _OverlayPainter({
+  ImageOverlayPainter({
     required this.before,
     required this.after,
     required this.scale,
@@ -479,7 +508,7 @@ class _OverlayPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_OverlayPainter old) =>
+  bool shouldRepaint(ImageOverlayPainter old) =>
       old.before != before ||
       old.after != after ||
       old.scale != scale ||

@@ -5408,12 +5408,6 @@ abstract class AppLocalizations {
   /// **'Preview unavailable'**
   String get bdUnavailable;
 
-  /// No description provided for @bdCouldNotDecode.
-  ///
-  /// In en, this message translates to:
-  /// **'Could not decode this image'**
-  String get bdCouldNotDecode;
-
   /// No description provided for @bdNothingToShow.
   ///
   /// In en, this message translates to:

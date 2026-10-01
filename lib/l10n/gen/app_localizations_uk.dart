@@ -3214,9 +3214,6 @@ class AppLocalizationsUk extends AppLocalizations {
   String get bdUnavailable => 'Перегляд недоступний';
 
   @override
-  String get bdCouldNotDecode => 'Не вдалося декодувати зображення';
-
-  @override
   String get bdNothingToShow => 'Немає вмісту з жодного боку';
 
   @override

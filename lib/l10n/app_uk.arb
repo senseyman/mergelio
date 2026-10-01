@@ -1081,7 +1081,6 @@
   "bdAfter": "Після",
   "bdTooLarge": "Завеликий для перегляду",
   "bdUnavailable": "Перегляд недоступний",
-  "bdCouldNotDecode": "Не вдалося декодувати зображення",
   "bdNothingToShow": "Немає вмісту з жодного боку",
   "bdHexPreview": "Перші {count} байтів"
 }

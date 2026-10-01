@@ -62,9 +62,27 @@ void main() {
         ImageFormat.webp,
       );
       expect(
-        sniffImageFormat([...'BM'.codeUnits, ...List.filled(30, 0)]),
+        sniffImageFormat([
+          ...'BM'.codeUnits,
+          ...List.filled(12, 0),
+          ..._le32(40),
+          ...List.filled(16, 0),
+        ]),
         ImageFormat.bmp,
       );
+    });
+
+    test('a file that merely starts with BM is not taken for a bitmap', () {
+      // A bitmap's info header declares one of a few known sizes.
+      final notBmp = [...'BM'.codeUnits, ...List.filled(30, 0x41)];
+      expect(sniffImageFormat(notBmp), isNull);
+      final bmp = [
+        ...'BM'.codeUnits,
+        ...List.filled(12, 0),
+        ..._le32(124),
+        ...List.filled(16, 0),
+      ];
+      expect(sniffImageFormat(bmp), ImageFormat.bmp);
     });
 
     test('a RIFF container that is not WebP is not an image', () {
@@ -143,6 +161,40 @@ void main() {
         0xff, 0xc0, 0x00, 0x0b, 0x08, 0x00, 0x10, 0x00, 0x20, 0x03,
       ];
       expect(imageDimensions(jpeg), (width: 32, height: 16));
+    });
+
+    test('JPEG fill bytes before a marker are skipped', () {
+      final jpeg = [
+        0xff,
+        0xd8,
+        0xff,
+        0xff,
+        0xff,
+        0xc0,
+        0x00,
+        0x0b,
+        0x08,
+        0x00,
+        0x02,
+        0x00,
+        0x03,
+        0x03,
+      ];
+      expect(imageDimensions(jpeg), (width: 3, height: 2));
+    });
+
+    test('WebP lossy ignores the scale bits on the width too', () {
+      final vp8 = [
+        0,
+        0,
+        0,
+        0x9d,
+        0x01,
+        0x2a,
+        ..._le16(400 | (2 << 14)),
+        ..._le16(300),
+      ];
+      expect(imageDimensions(_riff('VP8 ', vp8)), (width: 400, height: 300));
     });
 
     test('truncated or unknown input gives null rather than throwing', () {
@@ -301,6 +353,27 @@ void main() {
     test('nothing to fit, or no room, is scale 1 or 0', () {
       expect(sharedScale(100, 100, const []), 1);
       expect(sharedScale(0, 100, [(width: 2, height: 2)]), 0);
+    });
+  });
+
+  group('decodeScale', () {
+    test('images within the pixel budget decode at full size', () {
+      expect(decodeScale([(width: 4000, height: 3000)]), 1);
+      expect(decodeScale(const []), 1);
+    });
+
+    test('one factor shrinks every side so the largest fits the budget', () {
+      final f = decodeScale([
+        (width: 16384, height: 16384),
+        (width: 100, height: 100),
+      ]);
+      expect(16384 * f, lessThanOrEqualTo(maxDecodeExtent));
+      expect(16384 * f, greaterThan(maxDecodeExtent - 1));
+    });
+
+    test('a long thin image is bounded by its long side', () {
+      final f = decodeScale([(width: 100, height: 60000)]);
+      expect(60000 * f, lessThanOrEqualTo(maxDecodeExtent));
     });
   });
 }

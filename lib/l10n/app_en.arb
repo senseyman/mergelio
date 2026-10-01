@@ -2026,7 +2026,6 @@
   "bdAfter": "After",
   "bdTooLarge": "Too large to preview",
   "bdUnavailable": "Preview unavailable",
-  "bdCouldNotDecode": "Could not decode this image",
   "bdNothingToShow": "Nothing to show on either side",
   "bdHexPreview": "First {count} bytes",
   "@bdHexPreview": { "placeholders": { "count": { "type": "int" } } }

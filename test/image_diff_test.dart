@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,6 +13,7 @@ import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/domain/git/lfs.dart' show formatLfsSize;
 import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/state/binary_diff.dart';
+import 'package:mergelio/state/diff_document.dart';
 import 'package:mergelio/state/diff_target.dart';
 import 'package:mergelio/state/lfs.dart';
 import 'package:mergelio/state/settings.dart';
@@ -230,10 +232,218 @@ void main() {
     expect(find.text('Binary file — diff not shown'), findsNothing);
     expect(find.text('Swipe'), findsOneWidget);
   });
+
+  testWidgets('index and disk sides are read again for a new version; '
+      'revisions are not', (tester) async {
+    final asked = <BlobRequest>[];
+    Widget at(Object v) => ProviderScope(
+      overrides: [
+        blobProvider.overrideWith((ref, req) async {
+          asked.add(req);
+          return _load(_png);
+        }),
+      ],
+      child: MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        theme: ThemeData(extensions: [AppTokens.dark()]),
+        home: Scaffold(
+          body: BinaryCompare(
+            repoPath: '/r',
+            sides: (before: _before, after: const IndexBlob('a.png')),
+            version: v,
+          ),
+        ),
+      ),
+    );
+    final v1 = Object(), v2 = Object();
+    await tester.pumpWidget(at(v1));
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(at(v2));
+    await tester.pumpAndSettle();
+    expect(asked.where((r) => r.ref == _before).map((r) => r.version), [null]);
+    expect(asked.where((r) => r.ref is IndexBlob).map((r) => r.version), [
+      same(v1),
+      same(v2),
+    ]);
+  });
+
+  testWidgets('the sheet reads the side the document shows, and reads the '
+      'disk again when the diff reloads', (tester) async {
+    tester.view.physicalSize = const Size(1200, 600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final asked = <BlobRef>[];
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gitServiceProvider.overrideWithValue(_BinaryDiffGit(staged: false)),
+          settingsProvider.overrideWith(
+            (ref) => SettingsController(
+              InMemorySettingsRepository(),
+              const AppSettings(),
+            ),
+          ),
+          lfsPathsProvider.overrideWith((ref, q) async => const <String>{}),
+          blobProvider.overrideWith((ref, req) async {
+            asked.add(req.ref);
+            return _load(_png);
+          }),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          theme: ThemeData(extensions: [AppTokens.dark()]),
+          home: const Scaffold(
+            body: SizedBox(height: 400, child: DiffSheet(availableHeight: 400)),
+          ),
+        ),
+      ),
+    );
+    final c = ProviderScope.containerOf(tester.element(find.byType(DiffSheet)));
+    // Asks for the staged side, but nothing is staged: the sheet falls back to
+    // the unstaged change, and the preview must follow it.
+    const target = DiffTarget(repoPath: '/r', path: 'a.png', staged: true);
+    c.read(diffTargetProvider.notifier).state = target;
+    await tester.pumpAndSettle();
+    expect(
+      asked,
+      unorderedEquals(const [IndexBlob('a.png'), WorktreeBlob('a.png')]),
+    );
+
+    asked.clear();
+    c.invalidate(diffDocumentProvider(target));
+    await tester.pumpAndSettle();
+    expect(
+      asked,
+      unorderedEquals(const [IndexBlob('a.png'), WorktreeBlob('a.png')]),
+    );
+  });
+
+  testWidgets('a sheet dragged short does not overflow in any mode', (
+    tester,
+  ) async {
+    for (final height in [60.0, 110.0]) {
+      for (final blobs in [
+        {_before: _load(_png), _after: _load(_png)},
+        {
+          _before: _load(List.generate(300, (i) => i % 256)),
+          _after: _load(List.generate(200, (i) => i % 256)),
+        },
+      ]) {
+        await tester.pumpWidget(
+          _app(
+            SizedBox(height: height, child: _compare()),
+            blobs: blobs,
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull, reason: 'height $height');
+        for (final mode in ['Swipe', 'Onion skin', 'Difference']) {
+          final f = find.text(mode);
+          if (f.evaluate().isEmpty) continue;
+          await tester.tap(f, warnIfMissed: false);
+          await tester.pumpAndSettle();
+          expect(tester.takeException(), isNull, reason: '$mode at $height');
+        }
+      }
+    }
+  });
+
+  testWidgets('bytes that look like an image but do not decode fall back to '
+      'hex', (tester) async {
+    final broken = [..._png.sublist(0, 24), ...List.filled(40, 7)];
+    await tester.pumpWidget(
+      _app(_compare(), blobs: {_before: _load(broken), _after: _load(broken)}),
+    );
+    await tester.pumpAndSettle();
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 200)),
+    );
+    await tester.pumpAndSettle();
+    expect(find.textContaining('First 64 bytes'), findsOneWidget);
+  });
+
+  group('ImageOverlayPainter', () {
+    Future<ui.Image> solid(Color c) async {
+      final rec = ui.PictureRecorder();
+      Canvas(rec).drawRect(const Rect.fromLTWH(0, 0, 2, 2), Paint()..color = c);
+      return rec.endRecording().toImage(2, 2);
+    }
+
+    Future<List<int>> paintPixels(ImageOverlayPainter painter) async {
+      final rec = ui.PictureRecorder();
+      painter.paint(Canvas(rec), const Size(2, 2));
+      final img = await rec.endRecording().toImage(2, 2);
+      final data = await img.toByteData();
+      return data!.buffer.asUint8List().toList();
+    }
+
+    const red = Color(0xFFFF0000), blue = Color(0xFF0000FF);
+    List<int> px(Color c) => [
+      for (var i = 0; i < 4; i++) ...[
+        (c.r * 255).round(),
+        (c.g * 255).round(),
+        (c.b * 255).round(),
+        255,
+      ],
+    ];
+
+    ImageOverlayPainter make(
+      ui.Image a,
+      ui.Image b,
+      ImageCompareMode mode,
+      double mix,
+    ) => ImageOverlayPainter(
+      before: a,
+      after: b,
+      scale: 1,
+      mode: mode,
+      mix: mix,
+      divider: const Color(0x00000000),
+      quality: FilterQuality.none,
+    );
+
+    testWidgets('difference cancels identical pixels to black', (t) async {
+      await t.runAsync(() async {
+        final a = await solid(red), b = await solid(red);
+        expect(
+          await paintPixels(make(a, b, ImageCompareMode.difference, 0)),
+          px(const Color(0xFF000000)),
+        );
+      });
+    });
+
+    testWidgets('swipe and onion skin move between the two sides', (t) async {
+      await t.runAsync(() async {
+        final a = await solid(red), b = await solid(blue);
+        expect(
+          await paintPixels(make(a, b, ImageCompareMode.swipe, 1)),
+          px(red),
+        );
+        expect(
+          await paintPixels(make(a, b, ImageCompareMode.swipe, 0)),
+          px(blue),
+        );
+        expect(
+          await paintPixels(make(a, b, ImageCompareMode.onionSkin, 0)),
+          px(red),
+        );
+        expect(
+          await paintPixels(make(a, b, ImageCompareMode.onionSkin, 1)),
+          px(blue),
+        );
+      });
+    });
+  });
 }
 
-/// Answers every diff with one changed binary file.
+/// Answers diffs with one changed binary file; with [staged] false the
+/// index side (`--cached`) has nothing.
 class _BinaryDiffGit implements GitService {
+  final bool staged;
+  _BinaryDiffGit({this.staged = true});
+
   @override
   Future<GitResult> run(
     List<String> args, {
@@ -243,6 +453,7 @@ class _BinaryDiffGit implements GitService {
     GitCancel? cancel,
     String? stdin,
   }) async {
+    if (!staged && args.contains('--cached')) return const GitResult(0, '', '');
     if (args.first == 'show' || args.first == 'diff') {
       return const GitResult(0, '''
 diff --git a/a.png b/a.png

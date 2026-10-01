@@ -33,6 +33,10 @@ bool _startsWith(List<int> bytes, List<int> prefix, [int at = 0]) {
 
 const _pngMagic = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 final _riff = 'RIFF'.codeUnits;
+
+/// Sizes a bitmap's info header can declare. Two bytes of `BM` are common
+/// enough at the start of other files that they alone prove nothing.
+const _bmpInfoSizes = {12, 40, 52, 56, 64, 108, 124};
 final _webp = 'WEBP'.codeUnits;
 
 /// The image format [bytes] open with, or null when they are not one of
@@ -49,7 +53,9 @@ ImageFormat? sniffImageFormat(List<int> bytes) {
   if (_startsWith(bytes, _riff) && _startsWith(bytes, _webp, 8)) {
     return ImageFormat.webp;
   }
-  if (_startsWith(bytes, 'BM'.codeUnits) && bytes.length >= 26) {
+  if (_startsWith(bytes, 'BM'.codeUnits) &&
+      bytes.length >= 26 &&
+      _bmpInfoSizes.contains(_le32(bytes, 14))) {
     return ImageFormat.bmp;
   }
   return null;
@@ -74,6 +80,11 @@ ImageSize? imageDimensions(List<int> bytes) {
             ? null
             : (width: _be32(bytes, 16), height: _be32(bytes, 20)),
       ImageFormat.gif => (width: _le16(bytes, 6), height: _le16(bytes, 8)),
+      // The oldest header holds 16-bit sizes; every later one 32-bit signed.
+      ImageFormat.bmp when _le32(bytes, 14) == 12 => (
+        width: _le16(bytes, 18),
+        height: _le16(bytes, 20),
+      ),
       ImageFormat.bmp => (
         width: _le32(bytes, 18).toSigned(32).abs(),
         height: _le32(bytes, 22).toSigned(32).abs(),
@@ -210,6 +221,22 @@ String? dimensionSummary(ImageSize? before, ImageSize? after) {
   return before == after ? fmt(before) : '${fmt(before)} → ${fmt(after)}';
 }
 
+/// Longest side, in pixels, an image is decoded at. The byte cap bounds
+/// what is read, not what it decodes to: a small file can hold a huge,
+/// flat image, and each decoded pixel costs four bytes.
+const maxDecodeExtent = 4096;
+
+/// One factor to decode every image in [sizes] by, so the largest side of
+/// any fits [maxDecodeExtent]. Shared, so the sides still compare at one
+/// scale. 1 when everything fits.
+double decodeScale(List<ImageSize> sizes) {
+  var longest = 0;
+  for (final s in sizes) {
+    longest = [longest, s.width, s.height].reduce((a, b) => a > b ? a : b);
+  }
+  return longest > maxDecodeExtent ? maxDecodeExtent / longest : 1;
+}
+
 /// Upper bound on how far a small image is enlarged to fill the view.
 const maxPreviewScale = 8.0;
 
@@ -340,7 +367,13 @@ class BlobReader {
     if (!await file.exists() || !isInsideRepo(repoPath, full)) return null;
     final size = await file.length();
     if (size > maxBytes) return BlobLoad(size: size);
-    final data = await file.readAsBytes();
+    // Bounded too: the file can grow between being sized and being read.
+    final out = BytesBuilder(copy: false);
+    await for (final chunk in file.openRead(0, maxBytes + 1)) {
+      out.add(chunk);
+    }
+    if (out.length > maxBytes) return BlobLoad(size: out.length);
+    final data = out.takeBytes();
     return BlobLoad(size: data.length, bytes: data);
   }
 }
