@@ -826,7 +826,6 @@
   "diffViewInline": "Суцільно",
   "diffViewSplit": "Поруч",
   "diffCouldNotLoad": "Не вдалося завантажити зміни",
-  "diffBinaryFile": "Двійковий файл — зміни не показано",
   "lfsBadge": "LFS",
   "lfsBadgeTooltip": "Зберігається через Git LFS",
   "lfsCardModified": "Об'єкт LFS",
@@ -1073,5 +1072,15 @@
   "mntRun": "Запустити",
   "mntSizeChange": "Дані git: {before} → {after}",
   "mntHeldByPrunable": "відкрита в {path}, якого вже немає. Спершу очистіть робочі дерева.",
-  "mntShowCommit": "Показати цей коміт у графі"
+  "mntShowCommit": "Показати цей коміт у графі",
+  "bdSideBySide": "Поруч",
+  "bdSwipe": "Шторка",
+  "bdOnionSkin": "Накладання",
+  "bdDifference": "Різниця",
+  "bdBefore": "До",
+  "bdAfter": "Після",
+  "bdTooLarge": "Завеликий для перегляду",
+  "bdUnavailable": "Перегляд недоступний",
+  "bdNothingToShow": "Немає вмісту з жодного боку",
+  "bdHexPreview": "Перші {count} байтів"
 }

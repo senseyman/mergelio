@@ -1902,7 +1902,8 @@ class RepoActions {
       return ConflictFile(path: f.path, parts: const [], kind: kind);
     }
     // Sniff a prefix first: a binary conflict can be a very large file, and
-    // its content is never shown, only chosen between.
+    // it is never parsed as text — its preview reads the index stages, under
+    // their own size cap.
     final handle = await file.open();
     final List<int> bytes;
     try {

@@ -2305,9 +2305,6 @@ class AppLocalizationsUk extends AppLocalizations {
   String get diffCouldNotLoad => 'Не вдалося завантажити зміни';
 
   @override
-  String get diffBinaryFile => 'Двійковий файл — зміни не показано';
-
-  @override
   String get lfsBadge => 'LFS';
 
   @override
@@ -3191,4 +3188,36 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get mntShowCommit => 'Показати цей коміт у графі';
+
+  @override
+  String get bdSideBySide => 'Поруч';
+
+  @override
+  String get bdSwipe => 'Шторка';
+
+  @override
+  String get bdOnionSkin => 'Накладання';
+
+  @override
+  String get bdDifference => 'Різниця';
+
+  @override
+  String get bdBefore => 'До';
+
+  @override
+  String get bdAfter => 'Після';
+
+  @override
+  String get bdTooLarge => 'Завеликий для перегляду';
+
+  @override
+  String get bdUnavailable => 'Перегляд недоступний';
+
+  @override
+  String get bdNothingToShow => 'Немає вмісту з жодного боку';
+
+  @override
+  String bdHexPreview(int count) {
+    return 'Перші $count байтів';
+  }
 }

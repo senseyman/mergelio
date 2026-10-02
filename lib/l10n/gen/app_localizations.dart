@@ -4004,12 +4004,6 @@ abstract class AppLocalizations {
   /// **'Could not load diff'**
   String get diffCouldNotLoad;
 
-  /// No description provided for @diffBinaryFile.
-  ///
-  /// In en, this message translates to:
-  /// **'Binary file — diff not shown'**
-  String get diffBinaryFile;
-
   /// No description provided for @lfsBadge.
   ///
   /// In en, this message translates to:
@@ -5365,6 +5359,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Show this commit in the graph'**
   String get mntShowCommit;
+
+  /// No description provided for @bdSideBySide.
+  ///
+  /// In en, this message translates to:
+  /// **'Side by side'**
+  String get bdSideBySide;
+
+  /// No description provided for @bdSwipe.
+  ///
+  /// In en, this message translates to:
+  /// **'Swipe'**
+  String get bdSwipe;
+
+  /// No description provided for @bdOnionSkin.
+  ///
+  /// In en, this message translates to:
+  /// **'Onion skin'**
+  String get bdOnionSkin;
+
+  /// No description provided for @bdDifference.
+  ///
+  /// In en, this message translates to:
+  /// **'Difference'**
+  String get bdDifference;
+
+  /// No description provided for @bdBefore.
+  ///
+  /// In en, this message translates to:
+  /// **'Before'**
+  String get bdBefore;
+
+  /// No description provided for @bdAfter.
+  ///
+  /// In en, this message translates to:
+  /// **'After'**
+  String get bdAfter;
+
+  /// No description provided for @bdTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Too large to preview'**
+  String get bdTooLarge;
+
+  /// No description provided for @bdUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview unavailable'**
+  String get bdUnavailable;
+
+  /// No description provided for @bdNothingToShow.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to show on either side'**
+  String get bdNothingToShow;
+
+  /// No description provided for @bdHexPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'First {count} bytes'**
+  String bdHexPreview(int count);
 }
 
 class _AppLocalizationsDelegate

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../domain/git/diff.dart';
 import '../domain/git/git_providers.dart';
 import '../domain/git/git_reader.dart';
+import '../domain/git/models.dart';
 import 'compare_target.dart';
 import 'diff_target.dart';
 
@@ -22,6 +23,13 @@ class DiffDoc {
   bool get isEmpty => files.every((f) => f.hunks.isEmpty && !f.binary);
   bool get isBinary => files.any((f) => f.binary);
 }
+
+/// Whether [files] hold anything to show. A rename counts even with no
+/// content change: it is a change, and treating it as nothing would fall
+/// through to showing the new name as an untracked, wholly added file.
+bool _hasChange(List<FileDiff> files) => files.any(
+  (f) => f.hunks.isNotEmpty || f.binary || f.status == GitChange.renamed,
+);
 
 /// Loads and parses the diff for [target]. For the working tree it shows the
 /// side selected by [DiffTarget.staged]; a commit diff is read-only.
@@ -76,9 +84,13 @@ final diffDocumentProvider = FutureProvider.family
       // the unstaged branch when nothing is staged (e.g. a stale target).
       if (target.staged) {
         final onlyStaged = parseUnifiedDiff(
-          await reader.stagedDiff(target.path, context: ctx),
+          await reader.stagedDiff(
+            target.path,
+            context: ctx,
+            origPath: target.origPath,
+          ),
         );
-        if (onlyStaged.any((f) => f.hunks.isNotEmpty || f.binary)) {
+        if (_hasChange(onlyStaged)) {
           return DiffDoc(files: onlyStaged, editable: true, staged: true);
         }
       }
@@ -86,13 +98,17 @@ final diffDocumentProvider = FutureProvider.family
       final unstaged = parseUnifiedDiff(
         await reader.workingDiff(target.path, context: ctx),
       );
-      if (unstaged.any((f) => f.hunks.isNotEmpty || f.binary)) {
+      if (_hasChange(unstaged)) {
         return DiffDoc(files: unstaged, editable: true, staged: false);
       }
       final staged = parseUnifiedDiff(
-        await reader.stagedDiff(target.path, context: ctx),
+        await reader.stagedDiff(
+          target.path,
+          context: ctx,
+          origPath: target.origPath,
+        ),
       );
-      if (staged.any((f) => f.hunks.isNotEmpty || f.binary)) {
+      if (_hasChange(staged)) {
         return DiffDoc(files: staged, editable: true, staged: true);
       }
       // No tracked diff: an untracked file shows its content as additions.

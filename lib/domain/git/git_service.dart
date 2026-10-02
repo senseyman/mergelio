@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import '../../core/concurrency.dart';
 import '../../core/logging.dart';
@@ -215,6 +216,22 @@ abstract class GitService {
   Future<bool> isRepository(String path);
 }
 
+/// Runs git for output that is not text. [GitService.run] decodes stdout as
+/// UTF-8, which mangles a blob's bytes; this hands them back untouched.
+abstract interface class GitBytesRunner {
+  /// Raw stdout of git [args], or null when git exits non-zero or writes more
+  /// than [maxBytes] — in which case it is killed rather than read to the end.
+  /// [maxBytes] is required: the point of this channel is content that may be
+  /// large, so there is no unbounded default. Fails the way [GitService.run]
+  /// does when git cannot run at all.
+  Future<Uint8List?> runBytes(
+    List<String> args, {
+    String? repoPath,
+    Duration? timeout,
+    required int maxBytes,
+  });
+}
+
 /// Process-wide cap on concurrent git subprocesses.
 ///
 /// The file-descriptor limit is a property of the process, not of any one
@@ -223,7 +240,7 @@ abstract class GitService {
 /// keeping every core busy.
 final ConcurrencyGate _sharedGitGate = ConcurrencyGate(12);
 
-class SystemGitService implements GitService {
+class SystemGitService implements GitService, GitBytesRunner {
   /// Path to the git executable, or null to discover one. Tests pass a stand-in
   /// binary; the app leaves it unset.
   final String? gitBinary;
@@ -276,6 +293,92 @@ class SystemGitService implements GitService {
     return (gate ?? _sharedGitGate).run(
       () => _spawn(args, repoPath, timeout, environment, cancel, stdin),
     );
+  }
+
+  @override
+  Future<Uint8List?> runBytes(
+    List<String> args, {
+    String? repoPath,
+    Duration? timeout,
+    required int maxBytes,
+  }) {
+    return (gate ?? _sharedGitGate).run(() async {
+      final started = DateTime.now();
+      final inFlight = (gate ?? _sharedGitGate).inFlight;
+      final Process proc;
+      try {
+        proc = await Process.start(
+          _binary,
+          args,
+          workingDirectory: repoPath,
+          environment: _childEnvironment(null),
+          runInShell: false,
+        );
+      } on ProcessException catch (e) {
+        // As in [run]: a working directory that is gone is not git's fault.
+        final cwdIsGone = repoPath != null && !Directory(repoPath).existsSync();
+        final detail =
+            'failed to run git ${redactedGitArgs(args)}: ${e.message}';
+        if (cwdIsGone) throw GitException(detail);
+        throw GitUnavailableException(
+          '${missingGitMessage(Platform.operatingSystem)} '
+          '(tried `$_binary`: ${e.message})',
+        );
+      }
+      unawaited(proc.stdin.close().catchError((_) {}));
+      // Stderr is read eagerly so a chatty child never blocks on a full pipe,
+      // and kept for telling a broken toolchain from a missing blob.
+      final stderrFuture = proc.stderr
+          .transform(const Utf8Decoder(allowMalformed: true))
+          .join();
+      unawaited(stderrFuture.catchError((Object _) => ''));
+
+      final out = BytesBuilder(copy: false);
+      var overCap = false;
+      final collected = proc.stdout
+          .takeWhile((chunk) {
+            out.add(chunk);
+            overCap = out.length > maxBytes;
+            return !overCap;
+          })
+          .drain<void>()
+          .catchError((_) {});
+
+      try {
+        await collected.timeout(timeout ?? defaultTimeout);
+        if (overCap) {
+          proc.kill(ProcessSignal.sigkill);
+          // Reaped, as on timeout, so the pid is not left a zombie.
+          await proc.exitCode.timeout(
+            const Duration(seconds: 2),
+            onTimeout: () => -1,
+          );
+          _record(args, repoPath, started, inFlight, bytes: out.length);
+          return null;
+        }
+        final exitCode = await proc.exitCode.timeout(timeout ?? defaultTimeout);
+        _record(args, repoPath, started, inFlight, bytes: out.length);
+        if (exitCode == 0) return out.takeBytes();
+        final stderr = await stderrFuture.timeout(
+          const Duration(seconds: 2),
+          onTimeout: () => '',
+        );
+        final broken = toolchainFailure(exitCode, stderr);
+        if (broken != null) throw GitUnavailableException(broken);
+        return null;
+      } on TimeoutException {
+        proc.kill(ProcessSignal.sigkill);
+        await proc.exitCode.timeout(
+          const Duration(seconds: 2),
+          onTimeout: () => -1,
+        );
+        _record(args, repoPath, started, inFlight, timedOut: true);
+        throw GitException(
+          'git ${redactedGitArgs(args)} timed out after '
+          '${(timeout ?? defaultTimeout).inSeconds}s',
+        );
+      }
+    });
   }
 
   /// [environment] with PATH extended so git finds the helpers installed

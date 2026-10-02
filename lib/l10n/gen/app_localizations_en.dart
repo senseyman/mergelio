@@ -2291,9 +2291,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get diffCouldNotLoad => 'Could not load diff';
 
   @override
-  String get diffBinaryFile => 'Binary file — diff not shown';
-
-  @override
   String get lfsBadge => 'LFS';
 
   @override
@@ -3155,4 +3152,36 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mntShowCommit => 'Show this commit in the graph';
+
+  @override
+  String get bdSideBySide => 'Side by side';
+
+  @override
+  String get bdSwipe => 'Swipe';
+
+  @override
+  String get bdOnionSkin => 'Onion skin';
+
+  @override
+  String get bdDifference => 'Difference';
+
+  @override
+  String get bdBefore => 'Before';
+
+  @override
+  String get bdAfter => 'After';
+
+  @override
+  String get bdTooLarge => 'Too large to preview';
+
+  @override
+  String get bdUnavailable => 'Preview unavailable';
+
+  @override
+  String get bdNothingToShow => 'Nothing to show on either side';
+
+  @override
+  String bdHexPreview(int count) {
+    return 'First $count bytes';
+  }
 }

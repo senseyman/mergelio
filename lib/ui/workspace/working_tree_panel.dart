@@ -166,7 +166,12 @@ class WorkingTreePanel extends ConsumerWidget {
                           onBulk: actions.unstageAll,
                           bulkLabel: l.wtpUnstageAll,
                           onToggle: (f) => actions.unstageFile(f.path),
-                          onOpen: (f) => _open(ref, f.path, staged: true),
+                          onOpen: (f) => _open(
+                            ref,
+                            f.path,
+                            staged: true,
+                            origPath: f.origPath,
+                          ),
                           onDiscard: (f) =>
                               _confirmDiscardFile(ref, context, repoPath, f),
                           trackItems: trackItems,
@@ -191,12 +196,19 @@ class WorkingTreePanel extends ConsumerWidget {
     );
   }
 
-  void _open(WidgetRef ref, String path, {required bool staged}) =>
-      ref.read(diffTargetProvider.notifier).state = DiffTarget(
-        repoPath: repoPath,
-        path: path,
-        staged: staged,
-      );
+  /// [origPath] names where a staged rename came from; without it git sees
+  /// only the new name and reports the file as added.
+  void _open(
+    WidgetRef ref,
+    String path, {
+    required bool staged,
+    String? origPath,
+  }) => ref.read(diffTargetProvider.notifier).state = DiffTarget(
+    repoPath: repoPath,
+    path: path,
+    staged: staged,
+    origPath: origPath,
+  );
 }
 
 /// Sits above the file lists while git is still in the middle of an operation

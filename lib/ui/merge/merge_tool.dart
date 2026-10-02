@@ -9,10 +9,12 @@ import '../../domain/git/diff.dart';
 import '../../domain/git/models.dart';
 import '../../domain/text_tabs.dart';
 import '../../l10n/gen/app_localizations.dart';
+import '../../state/binary_diff.dart';
 import '../../state/merge_session.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
 import '../../state/workspace.dart';
+import '../diff/image_diff.dart';
 
 /// Full-panel conflict resolver shown while a [MergeSession] is active. Lists
 /// conflicted files, shows each conflict's ours/theirs with Accept buttons and
@@ -130,6 +132,7 @@ class _MergeToolState extends ConsumerState<MergeTool> {
                     Container(width: 1, color: t.border),
                     Expanded(
                       child: _ConflictView(
+                        repoPath: widget.repoPath,
                         file: file,
                         oursLabel: into == null
                             ? l.mtCurrent
@@ -294,12 +297,14 @@ class _FileList extends StatelessWidget {
 }
 
 class _ConflictView extends StatelessWidget {
+  final String repoPath;
   final ConflictFile file;
   final String oursLabel;
   final String theirsLabel;
   final void Function(int hunk, Resolution r, {List<String>? lines}) onResolve;
   final ValueChanged<FileResolution> onResolveFile;
   const _ConflictView({
+    required this.repoPath,
     required this.file,
     required this.oursLabel,
     required this.theirsLabel,
@@ -313,7 +318,15 @@ class _ConflictView extends StatelessWidget {
     if (file.wholeFile) {
       return ListView(
         padding: const EdgeInsets.all(12),
-        children: [_WholeFileCard(file: file, onChoose: onResolveFile)],
+        children: [
+          _WholeFileCard(
+            repoPath: repoPath,
+            file: file,
+            oursLabel: oursLabel,
+            theirsLabel: theirsLabel,
+            onChoose: onResolveFile,
+          ),
+        ],
       );
     }
     return ListView(
@@ -349,9 +362,18 @@ class _ConflictView extends StatelessWidget {
 /// settled with one choice — and a side that deleted the path is not offered,
 /// since it has no content to keep.
 class _WholeFileCard extends StatelessWidget {
+  final String repoPath;
   final ConflictFile file;
+  final String oursLabel;
+  final String theirsLabel;
   final ValueChanged<FileResolution> onChoose;
-  const _WholeFileCard({required this.file, required this.onChoose});
+  const _WholeFileCard({
+    required this.repoPath,
+    required this.file,
+    required this.oursLabel,
+    required this.theirsLabel,
+    required this.onChoose,
+  });
 
   /// Why there is nothing to merge line by line. Which side did what comes
   /// first: it is the more specific fact, and the one that explains why a
@@ -405,6 +427,24 @@ class _WholeFileCard extends StatelessWidget {
               _reason(l),
               style: TextStyle(color: t.textMuted, fontSize: 12.5),
             ),
+            // Binary content cannot be read as text, so each side is shown
+            // as itself to choose between.
+            if (file.binary) ...[
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 300,
+                child: BinaryCompare(
+                  repoPath: repoPath,
+                  sides: conflictSidesFor(
+                    file.path,
+                    hasOurs: file.kind.hasOurs,
+                    hasTheirs: file.kind.hasTheirs,
+                  ),
+                  beforeLabel: oursLabel,
+                  afterLabel: theirsLabel,
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             Wrap(
               spacing: 8,

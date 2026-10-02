@@ -506,16 +506,20 @@ class GitReader {
     return r.stdout;
   }
 
-  /// Unified diff of the staged changes to [path] (index vs HEAD). See
-  /// [workingDiff] for [context].
-  Future<String> stagedDiff(String path, {int? context}) async {
+  /// Unified diff of the staged changes to [path] (index vs HEAD). Pass
+  /// [origPath] for a staged rename. See [workingDiff] for [context].
+  Future<String> stagedDiff(
+    String path, {
+    int? context,
+    String? origPath,
+  }) async {
     final r = await _run([
       'diff',
       '--no-color',
       '--cached',
       ..._contextArgs(context),
       '--',
-      path,
+      ..._renamePathspec(path, origPath),
     ]);
     if (!r.ok) throw GitException('git diff --cached failed', r);
     return r.stdout;
