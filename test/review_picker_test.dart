@@ -67,10 +67,9 @@ void main() {
           supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: Consumer(
+              // Nothing here has read the worktrees: the picker has to wait
+              // for them itself.
               builder: (context, ref, _) {
-                // Warm the providers the picker reads synchronously.
-                ref.watch(repoDataProvider('/r'));
-                ref.watch(worktreesProvider('/r'));
                 return TextButton(
                   onPressed: () async => results.add(
                     await showReviewPicker(context, ref, repoPath: '/r'),

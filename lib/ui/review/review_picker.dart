@@ -20,10 +20,22 @@ Future<ReviewTarget?> showReviewPicker(
   WidgetRef ref, {
   required String repoPath,
   ReviewTarget? initial,
-}) {
+}) async {
+  // Nothing may have asked for the worktrees yet; wait for them rather than
+  // offering a list that silently lacks them. Either read failing only costs
+  // suggestions — any revision can still be typed.
+  Future<T?> orNull<T>(Future<T> f) async {
+    try {
+      return await f;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  final data = await orNull(ref.read(repoDataProvider(repoPath).future));
+  final worktrees = await orNull(ref.read(worktreesProvider(repoPath).future));
+  if (!context.mounted) return null;
   final l = AppLocalizations.of(context);
-  final data = ref.read(repoDataProvider(repoPath)).valueOrNull;
-  final worktrees = ref.read(worktreesProvider(repoPath)).valueOrNull;
   final choices = reviewRefChoices(
     repoPath: repoPath,
     branches: data?.branches ?? const [],

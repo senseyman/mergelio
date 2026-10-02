@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mergelio/domain/git/diff.dart';
 import 'package:mergelio/domain/git/git_reader.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/domain/git/git_writer.dart';
@@ -105,6 +106,28 @@ void main() {
     expect(raw, contains('diff --git a/a.txt b/a.txt'));
     expect(raw, contains('diff --git a/b.txt b/b.txt'));
     expect(raw, isNot(contains('m.txt')));
+  });
+
+  test('rangeDiff names every file the way compareFiles does', () async {
+    await g(['checkout', '-q', 'feature']);
+    await commit('a b.txt', 'space\n', 'space');
+    await commit('caf\u00e9.txt', 'accent\n', 'accent');
+    await commit('tab\tname.txt', 'tab\n', 'tab');
+    await File('${repo.path}/caf\u00e9.txt').delete();
+    await g(['add', '-A']);
+    await g(['commit', '-q', '-m', 'drop accent']);
+    await commit('d\u00e9j\u00e0.txt', 'x\n', 'again');
+    final mb = await reader.mergeBase('main', 'feature');
+    final listed = {
+      for (final f in await reader.compareFiles(mb!, 'feature')) f.path,
+    };
+    final parsed = {
+      for (final f in parseUnifiedDiff(await reader.rangeDiff(mb, 'feature')))
+        f.path,
+    };
+    expect(listed, contains('a b.txt'));
+    expect(listed, contains('tab\tname.txt'));
+    expect(parsed, listed);
   });
 
   test('blame and file history read the given revision', () async {
