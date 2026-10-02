@@ -152,6 +152,10 @@ class _ImageCompareViewState extends State<ImageCompareView> {
   var _mix = 0.5;
 
   ui.Image? _before, _after;
+
+  /// Header sizes of the two sides, read once per set of bytes: a JPEG's is
+  /// found by walking its segments, too much to redo on every slider drag.
+  ImageSize? _beforeSize, _afterSize;
   var _failed = false;
 
   /// Bumped per decode so a slow one for old bytes cannot land late.
@@ -180,11 +184,14 @@ class _ImageCompareViewState extends State<ImageCompareView> {
     super.dispose();
   }
 
-  /// [bytes] decoded with each side shrunk by [factor]; null when there is no
-  /// such side.
-  static Future<ui.Image?> _image(Uint8List? bytes, double factor) async {
+  /// [bytes], whose header gave [size], decoded with each side shrunk by
+  /// [factor]; null when there is no such side.
+  static Future<ui.Image?> _image(
+    Uint8List? bytes,
+    ImageSize? size,
+    double factor,
+  ) async {
     if (bytes == null) return null;
-    final size = imageDimensions(bytes);
     final codec = await ui.instantiateImageCodec(
       bytes,
       targetWidth: factor < 1 && size != null
@@ -204,19 +211,23 @@ class _ImageCompareViewState extends State<ImageCompareView> {
 
   Future<void> _decode() async {
     final gen = ++_generation;
-    final factor = decodeScale([
-      for (final b in [widget.before, widget.after])
-        if (b != null) ?imageDimensions(b),
-    ]);
+    _beforeSize = widget.before == null
+        ? null
+        : imageDimensions(widget.before!);
+    _afterSize = widget.after == null ? null : imageDimensions(widget.after!);
+    final factor = decodeScale([?_beforeSize, ?_afterSize]);
     // Each side settles on its own, so one that fails cannot strand the other
     // undisposed.
     var failed = false;
-    Future<ui.Image?> side(Uint8List? bytes) =>
-        _image(bytes, factor).catchError((Object _) {
+    Future<ui.Image?> side(Uint8List? bytes, ImageSize? size) =>
+        _image(bytes, size, factor).catchError((Object _) {
           failed = true;
           return null;
         });
-    final images = await Future.wait([side(widget.before), side(widget.after)]);
+    final images = await Future.wait([
+      side(widget.before, _beforeSize),
+      side(widget.after, _afterSize),
+    ]);
     if (gen != _generation || !mounted) {
       for (final i in images) {
         i?.dispose();
@@ -247,10 +258,7 @@ class _ImageCompareViewState extends State<ImageCompareView> {
       );
     }
     final t = context.tokens;
-    final dims = dimensionSummary(
-      widget.before == null ? null : imageDimensions(widget.before!),
-      widget.after == null ? null : imageDimensions(widget.after!),
-    );
+    final dims = dimensionSummary(_beforeSize, _afterSize);
     final summary = [?dims, widget.sizes].join(' · ');
     final slider =
         _both &&
@@ -461,14 +469,24 @@ class ImageOverlayPainter extends CustomPainter {
     required this.quality,
   });
 
-  void _draw(Canvas canvas, ui.Image image, Paint paint) {
+  /// Draws [image] centred in [size], as the side-by-side cells place it.
+  /// A side that changed size then differs evenly around its edges rather
+  /// than only along the right and bottom, and in difference mode the pixels
+  /// that line up are the ones compared.
+  void _draw(Canvas canvas, Size size, ui.Image image, Paint paint) {
     final src = Rect.fromLTWH(
       0,
       0,
       image.width.toDouble(),
       image.height.toDouble(),
     );
-    final dst = Rect.fromLTWH(0, 0, image.width * scale, image.height * scale);
+    final w = image.width * scale, h = image.height * scale;
+    final dst = Rect.fromLTWH(
+      ((size.width - w) / 2).roundToDouble(),
+      ((size.height - h) / 2).roundToDouble(),
+      w,
+      h,
+    );
     canvas.drawImageRect(image, src, dst, paint..filterQuality = quality);
   }
 
@@ -479,11 +497,11 @@ class ImageOverlayPainter extends CustomPainter {
     switch (mode) {
       case ImageCompareMode.swipe:
         // Before on the left of the divider, after on the right.
-        _draw(canvas, before, Paint());
+        _draw(canvas, size, before, Paint());
         final x = size.width * mix;
         canvas.save();
         canvas.clipRect(Rect.fromLTRB(x, 0, size.width, size.height));
-        _draw(canvas, after, Paint());
+        _draw(canvas, size, after, Paint());
         canvas.restore();
         canvas.drawLine(
           Offset(x, 0),
@@ -493,15 +511,15 @@ class ImageOverlayPainter extends CustomPainter {
             ..strokeWidth = 1.5,
         );
       case ImageCompareMode.onionSkin:
-        _draw(canvas, before, Paint());
+        _draw(canvas, size, before, Paint());
         canvas.saveLayer(whole, Paint()..color = Color.fromRGBO(0, 0, 0, mix));
-        _draw(canvas, after, Paint());
+        _draw(canvas, size, after, Paint());
         canvas.restore();
       case ImageCompareMode.difference:
         // Unchanged pixels cancel to black; anything that changed lights up.
         canvas.drawRect(whole, Paint()..color = const Color(0xFF000000));
-        _draw(canvas, before, Paint());
-        _draw(canvas, after, Paint()..blendMode = BlendMode.difference);
+        _draw(canvas, size, before, Paint());
+        _draw(canvas, size, after, Paint()..blendMode = BlendMode.difference);
       case ImageCompareMode.sideBySide:
         break;
     }
@@ -543,20 +561,26 @@ class _ModeToggle extends StatelessWidget {
         child: Wrap(
           children: [
             for (final m in ImageCompareMode.values)
-              InkWell(
-                onTap: () => onChanged(m),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  color: m == mode ? t.active : null,
-                  child: Text(
-                    label(m),
-                    style: TextStyle(
-                      color: m == mode ? t.textPrimary : t.textFaint,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
+              // Colour alone marks the current mode; a screen reader needs it
+              // said.
+              Semantics(
+                button: true,
+                selected: m == mode,
+                child: InkWell(
+                  onTap: () => onChanged(m),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    color: m == mode ? t.active : null,
+                    child: Text(
+                      label(m),
+                      style: TextStyle(
+                        color: m == mode ? t.textPrimary : t.textFaint,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),
@@ -676,7 +700,8 @@ class _HexColumn extends StatelessWidget {
                                 ),
                               // Short last row: pad so the text column lines up.
                               TextSpan(
-                                text: ' ${'   ' * (16 - row.hex.length)}',
+                                text:
+                                    ' ${'   ' * (hexBytesPerRow - row.hex.length)}',
                                 style: code,
                               ),
                               TextSpan(text: row.ascii, style: faint),

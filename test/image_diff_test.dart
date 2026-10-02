@@ -73,6 +73,31 @@ void main() {
     expect(find.byType(Slider), findsNothing);
   });
 
+  testWidgets('the mode toggle tells assistive tech which mode is current', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    await tester.pumpWidget(
+      _app(_compare(), blobs: {_before: _load(_png), _after: _load(_png)}),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      tester.getSemantics(find.text('Side by side')),
+      isSemantics(isButton: true, isSelected: true),
+    );
+    expect(
+      tester.getSemantics(find.text('Swipe')),
+      isSemantics(isButton: true, isSelected: false),
+    );
+    await tester.tap(find.text('Swipe'));
+    await tester.pumpAndSettle();
+    expect(
+      tester.getSemantics(find.text('Swipe')),
+      isSemantics(isSelected: true),
+    );
+    handle.dispose();
+  });
+
   testWidgets('swipe and onion skin each bring a slider; difference does not', (
     tester,
   ) async {
@@ -365,16 +390,21 @@ void main() {
   });
 
   group('ImageOverlayPainter', () {
-    Future<ui.Image> solid(Color c) async {
+    Future<ui.Image> solid(Color c, {int width = 2}) async {
       final rec = ui.PictureRecorder();
-      Canvas(rec).drawRect(const Rect.fromLTWH(0, 0, 2, 2), Paint()..color = c);
-      return rec.endRecording().toImage(2, 2);
+      Canvas(
+        rec,
+      ).drawRect(Rect.fromLTWH(0, 0, width.toDouble(), 2), Paint()..color = c);
+      return rec.endRecording().toImage(width, 2);
     }
 
-    Future<List<int>> paintPixels(ImageOverlayPainter painter) async {
+    Future<List<int>> paintPixels(
+      ImageOverlayPainter painter, {
+      int width = 2,
+    }) async {
       final rec = ui.PictureRecorder();
-      painter.paint(Canvas(rec), const Size(2, 2));
-      final img = await rec.endRecording().toImage(2, 2);
+      painter.paint(Canvas(rec), Size(width.toDouble(), 2));
+      final img = await rec.endRecording().toImage(width, 2);
       final data = await img.toByteData();
       return data!.buffer.asUint8List().toList();
     }
@@ -411,6 +441,24 @@ void main() {
           await paintPixels(make(a, b, ImageCompareMode.difference, 0)),
           px(const Color(0xFF000000)),
         );
+      });
+    });
+
+    testWidgets('images of different sizes are compared centred, so a wider '
+        'image differs at both edges alike', (t) async {
+      await t.runAsync(() async {
+        final narrow = await solid(red), wide = await solid(red, width: 4);
+        final out = await paintPixels(
+          make(narrow, wide, ImageCompareMode.difference, 0),
+          width: 4,
+        );
+        // Row 0: x = 0 and 3 sit outside the narrow image, so only the wide one
+        // is there and shows; x = 1 and 2 overlap and cancel to black.
+        List<int> at(int x) => out.sublist(x * 4, x * 4 + 3);
+        expect(at(0), [255, 0, 0]);
+        expect(at(1), [0, 0, 0]);
+        expect(at(2), [0, 0, 0]);
+        expect(at(3), [255, 0, 0]);
       });
     });
 

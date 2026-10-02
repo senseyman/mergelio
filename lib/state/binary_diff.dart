@@ -18,7 +18,10 @@ BinarySides binarySidesFor(
   FileDiff file, {
   required bool staged,
 }) {
-  final oldPath = file.oldPath ?? target.origPath ?? file.path;
+  // Only the parsed diff knows whether this side is a rename: the target's
+  // old name belongs to the staged side, and the unstaged side reads the
+  // index, which already holds the new name.
+  final oldPath = file.oldPath ?? file.path;
   final added = file.status == GitChange.added;
   final deleted = file.status == GitChange.deleted;
 

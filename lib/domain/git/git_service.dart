@@ -221,11 +221,14 @@ abstract class GitService {
 abstract interface class GitBytesRunner {
   /// Raw stdout of git [args], or null when git exits non-zero or writes more
   /// than [maxBytes] — in which case it is killed rather than read to the end.
+  /// [maxBytes] is required: the point of this channel is content that may be
+  /// large, so there is no unbounded default. Fails the way [GitService.run]
+  /// does when git cannot run at all.
   Future<Uint8List?> runBytes(
     List<String> args, {
     String? repoPath,
     Duration? timeout,
-    int? maxBytes,
+    required int maxBytes,
   });
 }
 
@@ -297,7 +300,7 @@ class SystemGitService implements GitService, GitBytesRunner {
     List<String> args, {
     String? repoPath,
     Duration? timeout,
-    int? maxBytes,
+    required int maxBytes,
   }) {
     return (gate ?? _sharedGitGate).run(() async {
       final started = DateTime.now();
@@ -312,21 +315,30 @@ class SystemGitService implements GitService, GitBytesRunner {
           runInShell: false,
         );
       } on ProcessException catch (e) {
+        // As in [run]: a working directory that is gone is not git's fault.
+        final cwdIsGone = repoPath != null && !Directory(repoPath).existsSync();
+        final detail =
+            'failed to run git ${redactedGitArgs(args)}: ${e.message}';
+        if (cwdIsGone) throw GitException(detail);
         throw GitUnavailableException(
           '${missingGitMessage(Platform.operatingSystem)} '
           '(tried `$_binary`: ${e.message})',
         );
       }
       unawaited(proc.stdin.close().catchError((_) {}));
-      // Stderr is drained so a chatty child never blocks on a full pipe.
-      unawaited(proc.stderr.drain<void>().catchError((_) {}));
+      // Stderr is read eagerly so a chatty child never blocks on a full pipe,
+      // and kept for telling a broken toolchain from a missing blob.
+      final stderrFuture = proc.stderr
+          .transform(const Utf8Decoder(allowMalformed: true))
+          .join();
+      unawaited(stderrFuture.catchError((Object _) => ''));
 
       final out = BytesBuilder(copy: false);
       var overCap = false;
       final collected = proc.stdout
           .takeWhile((chunk) {
             out.add(chunk);
-            overCap = maxBytes != null && out.length > maxBytes;
+            overCap = out.length > maxBytes;
             return !overCap;
           })
           .drain<void>()
@@ -346,7 +358,14 @@ class SystemGitService implements GitService, GitBytesRunner {
         }
         final exitCode = await proc.exitCode.timeout(timeout ?? defaultTimeout);
         _record(args, repoPath, started, inFlight, bytes: out.length);
-        return exitCode == 0 ? out.takeBytes() : null;
+        if (exitCode == 0) return out.takeBytes();
+        final stderr = await stderrFuture.timeout(
+          const Duration(seconds: 2),
+          onTimeout: () => '',
+        );
+        final broken = toolchainFailure(exitCode, stderr);
+        if (broken != null) throw GitUnavailableException(broken);
+        return null;
       } on TimeoutException {
         proc.kill(ProcessSignal.sigkill);
         await proc.exitCode.timeout(

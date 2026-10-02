@@ -67,6 +67,19 @@ void main() {
     expect(s.after, const WorktreeBlob('a.png'));
   });
 
+  test('the unstaged side of a staged rename reads the index under its new '
+      'name', () {
+    // The index already holds the file as new.png; the old name only means
+    // something on the staged side.
+    const t = DiffTarget(repoPath: _repo, path: 'new.png', origPath: 'old.png');
+    final s = binarySidesFor(
+      t,
+      _file(GitChange.modified, path: 'new.png'),
+      staged: false,
+    );
+    expect(s.before, const IndexBlob('new.png'));
+  });
+
   test('an untracked file has only the file on disk', () {
     const t = DiffTarget(repoPath: _repo, path: 'a.png');
     final s = binarySidesFor(t, _file(GitChange.added), staged: false);

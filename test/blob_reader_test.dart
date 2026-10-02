@@ -36,11 +36,11 @@ void main() {
   tearDown(() => dir.delete(recursive: true));
 
   test('runBytes returns stdout byte for byte', () async {
-    final out = await svc.runBytes([
-      'cat-file',
-      'blob',
-      'HEAD:a.bin',
-    ], repoPath: dir.path);
+    final out = await svc.runBytes(
+      ['cat-file', 'blob', 'HEAD:a.bin'],
+      repoPath: dir.path,
+      maxBytes: 1 << 20,
+    );
     expect(out, allBytes);
   });
 
@@ -54,11 +54,11 @@ void main() {
   });
 
   test('runBytes is null when git fails', () async {
-    final out = await svc.runBytes([
-      'cat-file',
-      'blob',
-      'HEAD:missing',
-    ], repoPath: dir.path);
+    final out = await svc.runBytes(
+      ['cat-file', 'blob', 'HEAD:missing'],
+      repoPath: dir.path,
+      maxBytes: 1 << 20,
+    );
     expect(out, isNull);
   });
 
@@ -107,5 +107,39 @@ void main() {
     expect(await reader().read(WorktreeBlob('${outside.path}/secret')), isNull);
     await Link('${dir.path}/link').create('${outside.path}/secret');
     expect(await reader().read(const WorktreeBlob('link')), isNull);
+  });
+
+  group('runBytes failures say what went wrong', () {
+    test('a repository directory that is gone is not blamed on git', () async {
+      await expectLater(
+        svc.runBytes(
+          ['cat-file', 'blob', 'HEAD:a.bin'],
+          repoPath: '${dir.path}/gone',
+          maxBytes: 100,
+        ),
+        throwsA(
+          isA<GitException>().having(
+            (e) => e is GitUnavailableException,
+            'blames git',
+            isFalse,
+          ),
+        ),
+      );
+    });
+
+    test(
+      'a broken toolchain is reported, not taken for a missing blob',
+      () async {
+        const shim = SystemGitService(gitBinary: '/bin/sh');
+        await expectLater(
+          shim.runBytes([
+            '-c',
+            r'echo "xcrun: error: invalid active developer path" >&2; exit 1',
+          ], maxBytes: 100),
+          throwsA(isA<GitUnavailableException>()),
+        );
+      },
+      skip: Platform.isWindows ? 'no `/bin/sh` on Windows' : false,
+    );
   });
 }

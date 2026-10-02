@@ -137,6 +137,30 @@ void main() {
     expect(container.read(diffTargetProvider)?.staged, isTrue);
   });
 
+  testWidgets('a staged rename opens with its old name, so the diff pairs '
+      'the two', (tester) async {
+    await tester.pumpWidget(
+      _harness(
+        _FakeGit(),
+        const RepoData(
+          working: [
+            WorkingFile(
+              path: 'new.png',
+              origPath: 'old.png',
+              index: GitChange.renamed,
+            ),
+          ],
+        ),
+      ),
+    );
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(WorkingTreePanel)),
+    );
+    await tester.tap(find.textContaining('new.png').first);
+    await tester.pump();
+    expect(container.read(diffTargetProvider)?.origPath, 'old.png');
+  });
+
   testWidgets('unstaged row opens the unstaged side', (tester) async {
     await tester.pumpWidget(
       _harness(_FakeGit(), const RepoData(working: [_unstaged])),

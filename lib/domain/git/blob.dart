@@ -160,19 +160,23 @@ class HexRow {
   });
 }
 
-/// The first [limit] bytes of [bytes] as rows of [perRow]. With [compareTo]
+/// Bytes on one hex preview row.
+const hexBytesPerRow = 16;
+
+/// The first [limit] bytes of [bytes] as rows of [hexBytesPerRow]. With [compareTo]
 /// each byte is marked where that side differs.
 List<HexRow> hexRows(
   Uint8List bytes, {
   Uint8List? compareTo,
   int limit = hexPreviewBytes,
-  int perRow = 16,
 }) {
   final end = bytes.length < limit ? bytes.length : limit;
   return [
-    for (var start = 0; start < end; start += perRow)
+    for (var start = 0; start < end; start += hexBytesPerRow)
       () {
-        final stop = start + perRow < end ? start + perRow : end;
+        final stop = start + hexBytesPerRow < end
+            ? start + hexBytesPerRow
+            : end;
         final slice = bytes.sublist(start, stop);
         return HexRow(
           offset: start,

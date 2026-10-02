@@ -32,7 +32,7 @@ class _BytesGit implements GitService, GitBytesRunner {
     List<String> args, {
     String? repoPath,
     Duration? timeout,
-    int? maxBytes,
+    required int maxBytes,
   }) async => blobs[args.last];
 
   @override
