@@ -3220,4 +3220,70 @@ class AppLocalizationsUk extends AppLocalizations {
   String bdHexPreview(int count) {
     return 'Перші $count байтів';
   }
+
+  @override
+  String get stTitle => 'СХОВАНКА';
+
+  @override
+  String stBase(String sha) {
+    return 'Створено на $sha';
+  }
+
+  @override
+  String get stUntrackedFiles => 'НЕВІДСТЕЖУВАНІ ФАЙЛИ';
+
+  @override
+  String get stNoChanges => 'Ця схованка не містить змін';
+
+  @override
+  String get stCouldNotRead => 'Не вдалося прочитати схованку';
+
+  @override
+  String get stRename => 'Перейменувати';
+
+  @override
+  String get stRenameMenu => 'Перейменувати…';
+
+  @override
+  String stRenameTitle(String ref) {
+    return 'Перейменувати $ref';
+  }
+
+  @override
+  String get stRenameLabel => 'Повідомлення';
+
+  @override
+  String get stBranch => 'Гілка…';
+
+  @override
+  String get stBranchMenu => 'Гілка зі схованки…';
+
+  @override
+  String stBranchTitle(String ref) {
+    return 'Гілка з $ref';
+  }
+
+  @override
+  String get stBranchLabel => 'Назва нової гілки';
+
+  @override
+  String get stBranchConfirm => 'Створити гілку';
+
+  @override
+  String get stApplyFile => 'Застосувати до робочого дерева';
+
+  @override
+  String get stApplyHunk => 'Застосувати блок';
+
+  @override
+  String get ropKeepIndex => 'Залишити проіндексовані зміни на місці';
+
+  @override
+  String get ropIncludeUntracked => 'Включити невідстежувані файли';
+
+  @override
+  String get ropStashFiles => 'Файли для схову';
+
+  @override
+  String get ropNothingToStash => 'Нічого ховати';
 }

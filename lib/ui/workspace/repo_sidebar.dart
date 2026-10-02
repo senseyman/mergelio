@@ -28,6 +28,7 @@ import 'forge_section.dart';
 import 'reflog_section.dart';
 import 'remote_dialog.dart';
 import 'sidebar_section.dart';
+import 'stash_panel.dart';
 import 'worktrees_section.dart';
 
 /// Left panel for the active repo: Branches (folder-grouped) · Remotes · Tags ·
@@ -1141,19 +1142,20 @@ Future<void> _stashMenu(
         onTap: () => actions.stashApply(stash.ref),
         child: Text(l.apply, style: const TextStyle(fontSize: 13)),
       ),
+      PopupMenuItem(
+        height: 34,
+        onTap: () => promptStashBranch(context, actions, stash),
+        child: Text(l.stBranchMenu, style: const TextStyle(fontSize: 13)),
+      ),
+      PopupMenuItem(
+        height: 34,
+        onTap: () => promptStashRename(context, actions, stash),
+        child: Text(l.stRenameMenu, style: const TextStyle(fontSize: 13)),
+      ),
       const PopupMenuDivider(),
       PopupMenuItem(
         height: 34,
-        onTap: () async {
-          final ok = await confirmDestructive(
-            ref,
-            context,
-            title: l.sbDropStashTitle(stash.ref),
-            body: l.sbDropStashBody,
-            confirmLabel: l.sbDrop,
-          );
-          if (ok) await actions.stashDrop(stash.ref);
-        },
+        onTap: () => confirmStashDrop(context, ref, actions, stash),
         child: Text(l.sbDrop, style: TextStyle(fontSize: 13, color: t.danger)),
       ),
     ],

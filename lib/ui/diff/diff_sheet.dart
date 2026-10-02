@@ -11,6 +11,7 @@ import '../../domain/text_tabs.dart';
 import '../../domain/git/line_history.dart';
 import '../../domain/git/models.dart';
 import '../../domain/git/stage_patch.dart';
+import '../../domain/git/stash.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/binary_diff.dart';
 import '../../state/diff_document.dart';
@@ -608,6 +609,14 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
               }
             }
 
+            Future<void> applyFromStash(FileDiff file, int hunkIndex) async {
+              final patch = buildStagePatch(file, hunkIndex);
+              if (patch == null) return;
+              await ref
+                  .read(repoActionsProvider(target.repoPath))
+                  .applyStashPatch(patch);
+            }
+
             /// The working-tree entry for [path] when git is not tracking it,
             /// null otherwise — discarding differs for the two.
             WorkingFile? untrackedFile(String path) {
@@ -756,6 +765,11 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
               child: child,
             );
 
+            // A stash read against its base offers its hunks to the working
+            // tree instead of the index.
+            bool stashHunks(FileDiff f) =>
+                target.fromStash && canApplyStashHunks(f);
+
             Widget headerRow(
               _DiffItem it, {
               bool showActions = true,
@@ -765,10 +779,14 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
               // a "stage hunk" there would silently act on the entire file.
               // Line-level staging still applies.
               header: it.file.hunks[it.hunkIndex].header,
-              editable: doc.editable && !target.wholeFile,
+              editable:
+                  (doc.editable || stashHunks(it.file)) && !target.wholeFile,
               staged: doc.staged,
-              onStage: () => apply(it.file, it.hunkIndex, null),
-              onDiscard: doc.staged || target.wholeFile
+              actionLabel: stashHunks(it.file) ? l.stApplyHunk : null,
+              onStage: stashHunks(it.file)
+                  ? () => applyFromStash(it.file, it.hunkIndex)
+                  : () => apply(it.file, it.hunkIndex, null),
+              onDiscard: stashHunks(it.file) || doc.staged || target.wholeFile
                   ? null
                   : () => discard(it.file, it.hunkIndex),
               showActions: showActions,
@@ -997,6 +1015,9 @@ class _HunkHeaderRow extends StatelessWidget {
   final VoidCallback onStage;
   final VoidCallback? onDiscard;
 
+  /// Replaces the stage/unstage wording when the hunk goes somewhere else.
+  final String? actionLabel;
+
   /// Split view draws the marker in the left column and the buttons in the
   /// right one, so each side takes only its half of the header. Inline shows
   /// both.
@@ -1008,6 +1029,7 @@ class _HunkHeaderRow extends StatelessWidget {
     required this.staged,
     required this.onStage,
     this.onDiscard,
+    this.actionLabel,
     this.showActions = true,
     this.showMarker = true,
   });
@@ -1025,7 +1047,8 @@ class _HunkHeaderRow extends StatelessWidget {
       child: SelectionContainer.disabled(
         child: LayoutBuilder(
           builder: (context, box) {
-            final stageLabel = staged ? l.diffUnstageHunk : l.diffStageHunk;
+            final stageLabel =
+                actionLabel ?? (staged ? l.diffUnstageHunk : l.diffStageHunk);
             final hasActions = editable && showActions;
             // Every hunk action as a button, when they fit beside the marker.
             final full = Row(

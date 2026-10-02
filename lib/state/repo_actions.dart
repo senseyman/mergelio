@@ -18,6 +18,7 @@ import '../domain/git/lfs.dart';
 import '../domain/git/maintenance.dart';
 import '../domain/git/models.dart';
 import '../domain/git/rebase_plan.dart';
+import '../domain/git/stash.dart';
 import 'bisect.dart';
 import 'feedback.dart';
 import 'forge_refresh.dart';
@@ -1120,7 +1121,9 @@ class RepoActions {
   }) async {
     String? ref;
     if ((await _out(['status', '--porcelain'])).isNotEmpty) {
-      await _writer.stashPush(message: 'auto-stash before switch');
+      await _writer.stashPush(
+        const StashPushOptions(message: 'auto-stash before switch'),
+      );
       ref = 'stash@{0}';
     }
     await _writer.checkout(
@@ -1637,7 +1640,9 @@ class RepoActions {
   Future<String?> _resetPreservingWork(String sha) async {
     String? ref;
     if ((await _out(['status', '--porcelain'])).isNotEmpty) {
-      await _writer.stashPush(message: 'auto-stash before reset');
+      await _writer.stashPush(
+        const StashPushOptions(message: 'auto-stash before reset'),
+      );
       ref = 'stash@{0}';
     }
     await _writer.resetHard(sha);
@@ -1661,18 +1666,83 @@ class RepoActions {
         writesWorkingTree: false,
       );
 
-  Future<void> stashPush({String? message, bool stagedOnly = false}) async {
+  Future<void> stashPush([
+    StashPushOptions options = const StashPushOptions(),
+  ]) async {
     if (_blockedByRepoOp) return;
     try {
-      await _timed(
-        'Stash push',
-        () => _writer.stashPush(message: message, stagedOnly: stagedOnly),
-      );
+      await _timed('Stash push', () => _writer.stashPush(options));
       _refresh();
     } on GitException catch (e) {
       _toastErr('Stash', e);
     }
   }
+
+  /// Turns stash [ref] into branch [name], made at the commit the stash was
+  /// taken on, so it always applies cleanly there.
+  Future<void> stashBranch(String name, String ref) async {
+    if (_blockedByRepoOp) return;
+    try {
+      await _timed(
+        'Branch $name from $ref',
+        () => _writer.stashBranch(name, ref),
+      );
+      _refresh();
+    } on GitException catch (e) {
+      // A refused checkout can still have created the branch; show that.
+      _refresh();
+      _toastErr('Branch from stash', e);
+    }
+  }
+
+  Future<void> stashRename(String ref, String message) async {
+    if (_blockedByRepoOp) return;
+    try {
+      await _timed('Rename $ref', () => _writer.stashRename(ref, message));
+      _refresh();
+    } on GitException catch (e) {
+      _refresh();
+      _toastErr('Rename stash', e);
+    }
+  }
+
+  /// Brings one file of stash [sha] back into the working tree, leaving the
+  /// index and the stash itself alone. Undo takes the change back out.
+  Future<void> applyStashFile(
+    String sha,
+    StashContents contents, {
+    required String path,
+    String? origPath,
+    bool untracked = false,
+  }) async {
+    if (_blockedByRepoOp) return;
+    final label = 'Apply $path from stash';
+    final String patch;
+    try {
+      patch = await GitReader(_git, this.path).stashFilePatch(
+        sha,
+        contents,
+        path: path,
+        origPath: origPath,
+        untracked: untracked,
+      );
+    } on GitException catch (e) {
+      _toastErr(label, e);
+      return;
+    }
+    await applyStashPatch(patch, label: label);
+  }
+
+  /// Lays [patch], taken from a stash, onto the working tree. Undoable.
+  Future<void> applyStashPatch(
+    String patch, {
+    String label = 'Apply hunk from stash',
+  }) => _undoable(
+    label,
+    () => _writer.applyToWorktree(patch),
+    undo: () => _writer.applyToWorktree(patch, reverse: true),
+    redo: () => _writer.applyToWorktree(patch),
+  );
 
   Future<void> stashApply(String ref) async {
     if (_blockedByRepoOp) return;

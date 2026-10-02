@@ -8,7 +8,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// unstaged (working tree vs index). Ignored for commit diffs. [wholeFile]
 /// widens the diff to every line of the file instead of just the changed
 /// regions. [origPath] names where a renamed file came from, so the diff can
-/// be asked for both of its names.
+/// be asked for both of its names. [fromStash] marks a comparison as a
+/// stash read against its base, whose hunks can be applied to the working tree.
 class DiffTarget {
   final String repoPath;
   final String path;
@@ -17,6 +18,7 @@ class DiffTarget {
   final String? origPath;
   final bool staged;
   final bool wholeFile;
+  final bool fromStash;
   const DiffTarget({
     required this.repoPath,
     required this.path,
@@ -25,6 +27,7 @@ class DiffTarget {
     this.origPath,
     this.staged = false,
     this.wholeFile = false,
+    this.fromStash = false,
   });
 
   bool get isWorkingTree => commitSha == null;
@@ -41,6 +44,7 @@ class DiffTarget {
     origPath: origPath,
     staged: staged,
     wholeFile: wholeFile,
+    fromStash: fromStash,
   );
 
   /// The same target shown as the whole file, or only its changed regions.
@@ -52,6 +56,7 @@ class DiffTarget {
     origPath: origPath,
     staged: staged,
     wholeFile: wholeFile,
+    fromStash: fromStash,
   );
 
   @override
@@ -63,7 +68,8 @@ class DiffTarget {
       other.baseRev == baseRev &&
       other.origPath == origPath &&
       other.staged == staged &&
-      other.wholeFile == wholeFile;
+      other.wholeFile == wholeFile &&
+      other.fromStash == fromStash;
 
   @override
   int get hashCode => Object.hash(
@@ -74,6 +80,7 @@ class DiffTarget {
     origPath,
     staged,
     wholeFile,
+    fromStash,
   );
 }
 
