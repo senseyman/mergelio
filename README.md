@@ -129,6 +129,11 @@ change never needs a second window.*
   syntax colouring. Long lines scroll sideways instead of being cut off, and in
   split view each column scrolls on its own — a new file's empty left half no
   longer crowds out the additions.
+- **Image and binary diffs.** A changed PNG, JPEG, GIF, WebP or BMP is shown
+  both ways at one scale: side by side, swipe, onion skin, or difference. A
+  summary line gives the dimension and byte-size changes. Other binaries get a
+  hex view of their opening bytes with the changed bytes marked. Files over
+  32 MiB show their size only and are never loaded. SVG keeps its text diff.
 - Expand any diff to the **whole file** instead of just the changed regions, and
   collapse it back — one toggle in the diff header.
 - Select and copy diff text — line numbers, change markers, hunk headers and the
@@ -216,6 +221,8 @@ change never needs a second window.*
 
 - Three-zone conflict resolution (ours / result / theirs) with word-level diff
   and gated completion — you cannot resolve a merge with conflicts left behind.
+- A binary conflict previews both versions — images and hex, as in the diff
+  sheet — above the keep-mine / keep-theirs / delete choice.
 - Resolving only stages the result. Nothing is committed behind your back: you
   review the staged files, then commit the merge yourself or continue the paused
   rebase / cherry-pick / revert from the working-tree panel.
