@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/domain/git/git_reader.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/domain/git/git_writer.dart';
+import 'package:mergelio/domain/git/stash.dart';
 
 void main() {
   late Directory dir;
@@ -135,7 +136,9 @@ void main() {
     await g(['add', 'staged.txt']);
     await File('${dir.path}/a.txt').writeAsString('unstaged\n');
 
-    await writer().stashPush(message: 'only staged', stagedOnly: true);
+    await writer().stashPush(
+      const StashPushOptions(message: 'only staged', stagedOnly: true),
+    );
 
     // The staged file went into the stash; the unstaged edit survived.
     expect(File('${dir.path}/staged.txt').existsSync(), isFalse);
@@ -145,7 +148,7 @@ void main() {
 
   test('stash push, apply and drop with re-store', () async {
     await File('${dir.path}/a.txt').writeAsString('dirty\n');
-    await writer().stashPush(message: 'wip');
+    await writer().stashPush(const StashPushOptions(message: 'wip'));
     expect(await reader().stashes(), isNotEmpty);
     // Working tree clean after stashing.
     expect(await reader().status(), isEmpty);

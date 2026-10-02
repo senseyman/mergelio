@@ -21,6 +21,7 @@ import 'lfs_locks_section.dart';
 import 'compare_details.dart';
 import 'panel_placeholder.dart';
 import 'repo_sidebar.dart';
+import 'stash_panel.dart';
 import 'working_tree_panel.dart';
 import '../../l10n/gen/app_localizations.dart';
 
@@ -135,6 +136,10 @@ class RightPanel extends ConsumerWidget {
 
     if (path != null && selected != null && selected != wipSelection) {
       final data = ref.watch(repoDataProvider(path)).valueOrNull;
+      // A stash is a commit too, but what it is for is getting the work back,
+      // so it gets its own panel rather than a commit's details.
+      final stash = data?.stashes.where((s) => s.sha == selected).firstOrNull;
+      if (stash != null) return StashPanel(repoPath: path, stash: stash);
       Commit? commit;
       if (data != null) {
         for (final c in data.commits) {

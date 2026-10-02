@@ -3184,4 +3184,70 @@ class AppLocalizationsEn extends AppLocalizations {
   String bdHexPreview(int count) {
     return 'First $count bytes';
   }
+
+  @override
+  String get stTitle => 'STASH';
+
+  @override
+  String stBase(String sha) {
+    return 'Made on $sha';
+  }
+
+  @override
+  String get stUntrackedFiles => 'UNTRACKED FILES';
+
+  @override
+  String get stNoChanges => 'This stash holds no changes';
+
+  @override
+  String get stCouldNotRead => 'Could not read the stash';
+
+  @override
+  String get stRename => 'Rename';
+
+  @override
+  String get stRenameMenu => 'Rename…';
+
+  @override
+  String stRenameTitle(String ref) {
+    return 'Rename $ref';
+  }
+
+  @override
+  String get stRenameLabel => 'Message';
+
+  @override
+  String get stBranch => 'Branch…';
+
+  @override
+  String get stBranchMenu => 'Branch from stash…';
+
+  @override
+  String stBranchTitle(String ref) {
+    return 'Branch from $ref';
+  }
+
+  @override
+  String get stBranchLabel => 'New branch name';
+
+  @override
+  String get stBranchConfirm => 'Create branch';
+
+  @override
+  String get stApplyFile => 'Apply to working tree';
+
+  @override
+  String get stApplyHunk => 'Apply hunk';
+
+  @override
+  String get ropKeepIndex => 'Keep staged changes in place';
+
+  @override
+  String get ropIncludeUntracked => 'Include untracked files';
+
+  @override
+  String get ropStashFiles => 'Files to stash';
+
+  @override
+  String get ropNothingToStash => 'Nothing to stash';
 }

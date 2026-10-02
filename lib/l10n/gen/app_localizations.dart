@@ -5419,6 +5419,126 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'First {count} bytes'**
   String bdHexPreview(int count);
+
+  /// No description provided for @stTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'STASH'**
+  String get stTitle;
+
+  /// No description provided for @stBase.
+  ///
+  /// In en, this message translates to:
+  /// **'Made on {sha}'**
+  String stBase(String sha);
+
+  /// No description provided for @stUntrackedFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'UNTRACKED FILES'**
+  String get stUntrackedFiles;
+
+  /// No description provided for @stNoChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'This stash holds no changes'**
+  String get stNoChanges;
+
+  /// No description provided for @stCouldNotRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read the stash'**
+  String get stCouldNotRead;
+
+  /// No description provided for @stRename.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename'**
+  String get stRename;
+
+  /// No description provided for @stRenameMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename…'**
+  String get stRenameMenu;
+
+  /// No description provided for @stRenameTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename {ref}'**
+  String stRenameTitle(String ref);
+
+  /// No description provided for @stRenameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Message'**
+  String get stRenameLabel;
+
+  /// No description provided for @stBranch.
+  ///
+  /// In en, this message translates to:
+  /// **'Branch…'**
+  String get stBranch;
+
+  /// No description provided for @stBranchMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Branch from stash…'**
+  String get stBranchMenu;
+
+  /// No description provided for @stBranchTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Branch from {ref}'**
+  String stBranchTitle(String ref);
+
+  /// No description provided for @stBranchLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'New branch name'**
+  String get stBranchLabel;
+
+  /// No description provided for @stBranchConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Create branch'**
+  String get stBranchConfirm;
+
+  /// No description provided for @stApplyFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply to working tree'**
+  String get stApplyFile;
+
+  /// No description provided for @stApplyHunk.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply hunk'**
+  String get stApplyHunk;
+
+  /// No description provided for @ropKeepIndex.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep staged changes in place'**
+  String get ropKeepIndex;
+
+  /// No description provided for @ropIncludeUntracked.
+  ///
+  /// In en, this message translates to:
+  /// **'Include untracked files'**
+  String get ropIncludeUntracked;
+
+  /// No description provided for @ropStashFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Files to stash'**
+  String get ropStashFiles;
+
+  /// No description provided for @ropNothingToStash.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to stash'**
+  String get ropNothingToStash;
 }
 
 class _AppLocalizationsDelegate

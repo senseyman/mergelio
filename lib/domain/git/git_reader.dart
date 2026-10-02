@@ -5,6 +5,7 @@ import 'git_service.dart';
 import 'line_history.dart';
 import 'models.dart';
 import 'reflog.dart';
+import 'stash.dart';
 import 'worktree.dart';
 
 /// Context-line count that makes git emit every unchanged line of a file, so
@@ -307,6 +308,76 @@ class GitReader {
       );
     }
     return out;
+  }
+
+  /// Everything stash [sha] would bring back. A stash commit's first parent is
+  /// the commit it was made on, so its tracked changes are the diff against
+  /// that; a third parent, present only when untracked files were included,
+  /// is a root commit holding exactly those files.
+  Future<StashContents> stashContents(String sha) async {
+    final base = await _run(['rev-parse', '--verify', '-q', '$sha^1']);
+    if (!base.ok) throw GitException('git rev-parse failed', base);
+    final third = await _run(['rev-parse', '--verify', '-q', '$sha^3']);
+    final untrackedSha = third.ok && third.out.isNotEmpty ? third.out : null;
+    var untracked = const <String>[];
+    if (untrackedSha != null) {
+      final r = await _run([
+        'ls-tree',
+        '-r',
+        '-z',
+        '--name-only',
+        untrackedSha,
+      ]);
+      if (!r.ok) throw GitException('git ls-tree failed', r);
+      untracked = [
+        for (final p in r.stdout.split(_rs))
+          if (p.isNotEmpty) p,
+      ];
+    }
+    return StashContents(
+      baseSha: base.out,
+      untrackedSha: untrackedSha,
+      files: await compareFiles(base.out, sha),
+      untracked: untracked,
+    );
+  }
+
+  /// A patch that `git apply` can lay onto the working tree to bring back
+  /// one file of stash [sha], read with [contents]. Binary content is included
+  /// so an image or archive comes back whole. [untracked] picks the file from
+  /// the stash's untracked set; [origPath] names a rename's old side.
+  Future<String> stashFilePatch(
+    String sha,
+    StashContents contents, {
+    required String path,
+    String? origPath,
+    bool untracked = false,
+  }) async {
+    if (untracked && contents.untrackedSha == null) {
+      throw GitException('Stash has no untracked files');
+    }
+    final r = untracked
+        ? await _run([
+            'show',
+            '--no-color',
+            '--binary',
+            '--format=',
+            contents.untrackedSha!,
+            '--',
+            path,
+          ])
+        : await _run([
+            'diff',
+            '--no-color',
+            '--binary',
+            '--find-renames',
+            contents.baseSha,
+            sha,
+            '--',
+            ..._renamePathspec(path, origPath),
+          ]);
+    if (!r.ok) throw GitException('git diff failed', r);
+    return r.stdout;
   }
 
   /// Where HEAD has pointed and what moved it there, newest entry first.

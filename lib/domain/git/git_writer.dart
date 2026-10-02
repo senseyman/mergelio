@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'askpass.dart';
 import 'commit_message.dart';
 import 'git_service.dart';
+import 'stash.dart';
 
 /// The flag [shell] wants in front of a command string.
 ///
@@ -878,14 +879,36 @@ class GitWriter {
 
   // --- Stash ops ------------------------------------------------------------
 
-  /// [stagedOnly] stashes only what is in the index (`--staged`), leaving
-  /// unstaged work in the tree.
-  Future<void> stashPush({String? message, bool stagedOnly = false}) => _ok([
-    'stash',
-    'push',
-    if (stagedOnly) '--staged',
-    if (message != null) ...['-m', message],
-  ], 'git stash push');
+  /// Shelves uncommitted work as [options] describes; see [stashPushArgs].
+  Future<void> stashPush([
+    StashPushOptions options = const StashPushOptions(),
+  ]) => _ok(stashPushArgs(options), 'git stash push');
+
+  /// Creates branch [name] at the commit stash [ref] was made on, checks it
+  /// out and applies the stash there, dropping it once it applies cleanly.
+  Future<void> stashBranch(String name, String ref) =>
+      _ok(['stash', 'branch', name, ref], 'git stash branch');
+
+  /// Gives stash [ref] a new [message]. Git has no rename, so the same stash
+  /// commit is stored again under the new message and the old entry dropped.
+  ///
+  /// Storing comes first: the new entry lands at `stash@{0}` and pushes the
+  /// old one down by one, which is dropped only after checking it still holds
+  /// the same commit. A failure part-way leaves a duplicate, never a loss. The
+  /// renamed stash moves to the top of the list.
+  Future<void> stashRename(String ref, String message) async {
+    final index = stashIndexOf(ref);
+    if (index == null) throw GitException('Not a stash entry: $ref');
+    final sha = (await _run(['rev-parse', '--verify', '-q', ref])).out;
+    if (sha.isEmpty) throw GitException('No such stash: $ref');
+    await _ok(['stash', 'store', '-m', message, sha], 'git stash store');
+    final shifted = stashRefAt(index + 1);
+    final now = (await _run(['rev-parse', '--verify', '-q', shifted])).out;
+    if (now != sha) {
+      throw GitException('Stash list changed while renaming; kept both');
+    }
+    await _ok(['stash', 'drop', '-q', shifted], 'git stash drop');
+  }
 
   Future<void> stashApply(String ref) =>
       _ok(['stash', 'apply', ref], 'git stash apply');

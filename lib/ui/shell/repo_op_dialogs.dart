@@ -5,6 +5,7 @@ import '../../core/theme.dart';
 import '../../core/tokens.dart';
 import '../../domain/git/git_writer.dart';
 import '../../domain/git/models.dart';
+import '../../domain/git/stash.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
@@ -206,7 +207,8 @@ class _TagBodyState extends ConsumerState<_TagBody> {
   }
 }
 
-/// Stash dialog: optional message + "only staged changes" toggle.
+/// Stash dialog: optional message, which files to take, and how: only the
+/// staged changes, keeping the index in place, or including untracked files.
 Future<void> showStashDialog(
   BuildContext context,
   WidgetRef ref,
@@ -686,6 +688,22 @@ class _StashBody extends ConsumerStatefulWidget {
 class _StashBodyState extends ConsumerState<_StashBody> {
   final _message = TextEditingController();
   bool _stagedOnly = false;
+  bool _keepIndex = false;
+  bool _includeUntracked = false;
+
+  /// Paths the user unticked. Kept as exclusions so a file that appears while
+  /// the dialog is open — or one revealed by including untracked files — starts
+  /// out ticked, like everything else.
+  final _excluded = <String>{};
+
+  StashPushOptions _options({List<String> exclude = const []}) =>
+      StashPushOptions(
+        message: _message.text.trim().isEmpty ? null : _message.text.trim(),
+        stagedOnly: _stagedOnly,
+        keepIndex: _keepIndex,
+        includeUntracked: _includeUntracked,
+        exclude: exclude,
+      );
 
   @override
   void dispose() {
@@ -697,6 +715,33 @@ class _StashBodyState extends ConsumerState<_StashBody> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final t = context.tokens;
+    final working =
+        ref.watch(repoDataProvider(widget.repoPath)).valueOrNull?.working ??
+        const <WorkingFile>[];
+    final candidates = stashCandidates(working, _options());
+    final selected = {
+      for (final f in candidates)
+        if (!_excluded.contains(f.path)) f.path,
+    };
+
+    Widget option(String label, bool value, ValueChanged<bool>? onChanged) =>
+        CheckboxListTile(
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          controlAffinity: ListTileControlAffinity.leading,
+          title: Text(
+            label,
+            style: TextStyle(
+              color: onChanged == null ? t.textFaint : t.textPrimary,
+              fontSize: 13,
+            ),
+          ),
+          value: value,
+          onChanged: onChanged == null
+              ? null
+              : (v) => setState(() => onChanged(v ?? false)),
+        );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
@@ -717,16 +762,61 @@ class _StashBodyState extends ConsumerState<_StashBody> {
             ),
           ),
         ),
-        CheckboxListTile(
-          dense: true,
-          contentPadding: EdgeInsets.zero,
-          controlAffinity: ListTileControlAffinity.leading,
-          title: Text(
-            l.ropOnlyStaged,
-            style: TextStyle(color: t.textPrimary, fontSize: 13),
-          ),
-          value: _stagedOnly,
-          onChanged: (v) => setState(() => _stagedOnly = v ?? false),
+        option(l.ropOnlyStaged, _stagedOnly, (v) => _stagedOnly = v),
+        // Git refuses untracked files beside --staged, and keeping the index
+        // means nothing when only the index is being stashed.
+        option(
+          l.ropKeepIndex,
+          _keepIndex && !_stagedOnly,
+          _stagedOnly ? null : (v) => _keepIndex = v,
+        ),
+        option(
+          l.ropIncludeUntracked,
+          _includeUntracked && !_stagedOnly,
+          _stagedOnly ? null : (v) => _includeUntracked = v,
+        ),
+        const SizedBox(height: 6),
+        Text(
+          l.ropStashFiles,
+          style: TextStyle(color: t.textMuted, fontSize: 12),
+        ),
+        const SizedBox(height: 4),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 220),
+          child: candidates.isEmpty
+              ? Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    l.ropNothingToStash,
+                    style: TextStyle(color: t.textFaint, fontSize: 12),
+                  ),
+                )
+              : ListView(
+                  shrinkWrap: true,
+                  children: [
+                    for (final f in candidates)
+                      CheckboxListTile(
+                        dense: true,
+                        visualDensity: VisualDensity.compact,
+                        contentPadding: EdgeInsets.zero,
+                        controlAffinity: ListTileControlAffinity.leading,
+                        title: Text(
+                          f.path,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: t.textPrimary,
+                            fontSize: 12.5,
+                          ),
+                        ),
+                        value: selected.contains(f.path),
+                        onChanged: (v) => setState(
+                          () => v == true
+                              ? _excluded.remove(f.path)
+                              : _excluded.add(f.path),
+                        ),
+                      ),
+                  ],
+                ),
         ),
         const SizedBox(height: 10),
         Row(
@@ -738,15 +828,20 @@ class _StashBodyState extends ConsumerState<_StashBody> {
             ),
             const SizedBox(width: 8),
             FilledButton(
-              onPressed: () {
-                final actions = ref.read(repoActionsProvider(widget.repoPath));
-                final msg = _message.text.trim();
-                Navigator.of(context).pop();
-                actions.stashPush(
-                  message: msg.isEmpty ? null : msg,
-                  stagedOnly: _stagedOnly,
-                );
-              },
+              // Ticking nothing leaves git nothing to stash; say so by
+              // refusing rather than by a failure toast.
+              onPressed: selected.isEmpty
+                  ? null
+                  : () {
+                      final actions = ref.read(
+                        repoActionsProvider(widget.repoPath),
+                      );
+                      final options = _options(
+                        exclude: stashExclusions(candidates, selected),
+                      );
+                      Navigator.of(context).pop();
+                      actions.stashPush(options);
+                    },
               child: Text(l.ropStash),
             ),
           ],

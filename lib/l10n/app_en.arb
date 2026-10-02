@@ -2028,5 +2028,46 @@
   "bdUnavailable": "Preview unavailable",
   "bdNothingToShow": "Nothing to show on either side",
   "bdHexPreview": "First {count} bytes",
-  "@bdHexPreview": { "placeholders": { "count": { "type": "int" } } }
+  "@bdHexPreview": { "placeholders": { "count": { "type": "int" } } },
+  "stTitle": "STASH",
+  "stBase": "Made on {sha}",
+  "@stBase": {
+    "placeholders": {
+      "sha": {
+        "type": "String"
+      }
+    }
+  },
+  "stUntrackedFiles": "UNTRACKED FILES",
+  "stNoChanges": "This stash holds no changes",
+  "stCouldNotRead": "Could not read the stash",
+  "stRename": "Rename",
+  "stRenameMenu": "Rename…",
+  "stRenameTitle": "Rename {ref}",
+  "@stRenameTitle": {
+    "placeholders": {
+      "ref": {
+        "type": "String"
+      }
+    }
+  },
+  "stRenameLabel": "Message",
+  "stBranch": "Branch…",
+  "stBranchMenu": "Branch from stash…",
+  "stBranchTitle": "Branch from {ref}",
+  "@stBranchTitle": {
+    "placeholders": {
+      "ref": {
+        "type": "String"
+      }
+    }
+  },
+  "stBranchLabel": "New branch name",
+  "stBranchConfirm": "Create branch",
+  "stApplyFile": "Apply to working tree",
+  "stApplyHunk": "Apply hunk",
+  "ropKeepIndex": "Keep staged changes in place",
+  "ropIncludeUntracked": "Include untracked files",
+  "ropStashFiles": "Files to stash",
+  "ropNothingToStash": "Nothing to stash"
 }
