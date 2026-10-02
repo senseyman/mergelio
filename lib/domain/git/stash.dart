@@ -14,15 +14,15 @@ class StashPushOptions {
   final bool keepIndex;
   final bool includeUntracked;
 
-  /// Repo-relative paths to stash; empty takes every candidate.
-  final List<String> paths;
+  /// Repo-relative paths to leave out; empty takes every candidate.
+  final List<String> exclude;
 
   const StashPushOptions({
     this.message,
     this.stagedOnly = false,
     this.keepIndex = false,
     this.includeUntracked = false,
-    this.paths = const [],
+    this.exclude = const [],
   });
 }
 
@@ -49,8 +49,12 @@ class StashContents {
   });
 }
 
-/// Arguments for `git stash push` under [o]. Paths are passed as literal
-/// pathspecs so a file named `*.md` stashes that file, not every markdown one.
+/// Arguments for `git stash push` under [o].
+///
+/// A partial stash names what to leave out rather than what to take: git
+/// refuses a pathspec naming a file the index no longer has, which is the old
+/// side of every staged rename, while an exclusion need not match anything.
+/// Paths are literal so `*.md` means that one file, not every markdown file.
 List<String> stashPushArgs(StashPushOptions o) => [
   'stash',
   'push',
@@ -58,7 +62,11 @@ List<String> stashPushArgs(StashPushOptions o) => [
   if (o.keepIndex && !o.stagedOnly) '--keep-index',
   if (o.includeUntracked && !o.stagedOnly) '--include-untracked',
   if (o.message != null) ...['-m', o.message!],
-  if (o.paths.isNotEmpty) ...['--', for (final p in o.paths) ':(literal)$p'],
+  if (o.exclude.isNotEmpty) ...[
+    '--',
+    ':/',
+    for (final p in o.exclude) ':(exclude,literal)$p',
+  ],
 ];
 
 /// The files of [working] a push under [o] could take: what is staged when
@@ -75,25 +83,22 @@ List<WorkingFile> stashCandidates(
       f,
 ];
 
-/// The pathspec that stashes only [selected] out of [candidates]: empty when
-/// the selection covers every candidate, so a plain push does the same job.
-/// A rename names both of its paths, or git would stash half of the move.
+/// The paths to exclude so a push takes only [selected] out of [candidates]:
+/// empty when everything is selected. An unselected rename excludes both of
+/// its paths, or git would stash half of the move.
 ///
-/// An empty [selected] also yields an empty pathspec; callers must refuse to
-/// push with nothing selected rather than stash everything.
-List<String> stashPathspec(List<WorkingFile> candidates, Set<String> selected) {
-  final chosen = [
-    for (final f in candidates)
-      if (selected.contains(f.path)) f,
-  ];
-  if (chosen.length == candidates.length) return const [];
-  return [
-    for (final f in chosen) ...[
+/// An empty [selected] excludes every candidate, which leaves git nothing to
+/// stash; callers should refuse to push instead.
+List<String> stashExclusions(
+  List<WorkingFile> candidates,
+  Set<String> selected,
+) => [
+  for (final f in candidates)
+    if (!selected.contains(f.path)) ...[
       if (f.origPath != null && f.origPath != f.path) f.origPath!,
       f.path,
     ],
-  ];
-}
+];
 
 final _stashRef = RegExp(r'^stash@\{(\d+)\}$');
 

@@ -70,13 +70,14 @@ void main() {
         message: 'm',
         keepIndex: true,
         includeUntracked: true,
-        paths: ['a'],
+        exclude: ['a'],
       ),
     );
     expect(
       git.ran,
       contains(
-        'stash push --keep-index --include-untracked -m m -- :(literal)a',
+        'stash push --keep-index --include-untracked -m m -- :/ '
+        ':(exclude,literal)a',
       ),
     );
   });
@@ -161,21 +162,23 @@ void main() {
   test('applyStashFile toasts when the patch does not apply', () async {
     git.responses['diff --no-color --binary --find-renames base sha -- a.txt'] =
         const GitResult(0, 'diff --git a/a.txt b/a.txt\n', '');
-    final failing = _FailingApplyGit(git);
-    container.dispose();
-    container = ProviderContainer(
+    // Its own container, disposed with the test, so the refresh the failed
+    // apply schedules is cancelled rather than left to fire later.
+    final failing = ProviderContainer(
       overrides: [
-        gitServiceProvider.overrideWithValue(failing),
+        gitServiceProvider.overrideWithValue(_FailingApplyGit(git)),
         kvStoreProvider.overrideWithValue(InMemoryKeyValueStore()),
       ],
     );
-    actions = container.read(repoActionsProvider('/r'));
+    addTearDown(failing.dispose);
 
-    await actions.applyStashFile('sha', contents, path: 'a.txt');
+    await failing
+        .read(repoActionsProvider('/r'))
+        .applyStashFile('sha', contents, path: 'a.txt');
     expect([
-      for (final t in container.read(toastProvider)) t.title,
+      for (final t in failing.read(toastProvider)) t.title,
     ], contains('Apply a.txt from stash failed'));
-    expect(container.read(undoProvider('/r')).canUndo, isFalse);
+    expect(failing.read(undoProvider('/r')).canUndo, isFalse);
   });
 
   test('applyStashPatch applies a hunk to the worktree, undoably', () async {

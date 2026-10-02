@@ -696,13 +696,13 @@ class _StashBodyState extends ConsumerState<_StashBody> {
   /// out ticked, like everything else.
   final _excluded = <String>{};
 
-  StashPushOptions _options({List<String> paths = const []}) =>
+  StashPushOptions _options({List<String> exclude = const []}) =>
       StashPushOptions(
         message: _message.text.trim().isEmpty ? null : _message.text.trim(),
         stagedOnly: _stagedOnly,
         keepIndex: _keepIndex,
         includeUntracked: _includeUntracked,
-        paths: paths,
+        exclude: exclude,
       );
 
   @override
@@ -828,8 +828,8 @@ class _StashBodyState extends ConsumerState<_StashBody> {
             ),
             const SizedBox(width: 8),
             FilledButton(
-              // An empty pathspec would stash everything, the opposite of a
-              // selection that ticks nothing.
+              // Ticking nothing leaves git nothing to stash; say so by
+              // refusing rather than by a failure toast.
               onPressed: selected.isEmpty
                   ? null
                   : () {
@@ -837,7 +837,7 @@ class _StashBodyState extends ConsumerState<_StashBody> {
                         repoActionsProvider(widget.repoPath),
                       );
                       final options = _options(
-                        paths: stashPathspec(candidates, selected),
+                        exclude: stashExclusions(candidates, selected),
                       );
                       Navigator.of(context).pop();
                       actions.stashPush(options);

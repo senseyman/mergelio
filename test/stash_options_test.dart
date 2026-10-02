@@ -37,14 +37,18 @@ void main() {
       );
     });
 
-    test('paths go after -- as literal pathspecs', () {
-      expect(stashPushArgs(const StashPushOptions(paths: ['a.txt', '*.md'])), [
-        'stash',
-        'push',
-        '--',
-        ':(literal)a.txt',
-        ':(literal)*.md',
-      ]);
+    test('exclusions keep the rest of the repo, matched literally', () {
+      expect(
+        stashPushArgs(const StashPushOptions(exclude: ['a.txt', '*.md'])),
+        [
+          'stash',
+          'push',
+          '--',
+          ':/',
+          ':(exclude,literal)a.txt',
+          ':(exclude,literal)*.md',
+        ],
+      );
     });
   });
 
@@ -87,7 +91,7 @@ void main() {
     });
   });
 
-  group('stashPathspec', () {
+  group('stashExclusions', () {
     const a = WorkingFile(path: 'a', worktree: GitChange.modified);
     const b = WorkingFile(path: 'b', worktree: GitChange.modified);
     const moved = WorkingFile(
@@ -96,20 +100,20 @@ void main() {
       index: GitChange.renamed,
     );
 
-    test('selecting every candidate needs no pathspec', () {
-      expect(stashPathspec([a, b], {'a', 'b'}), isEmpty);
+    test('selecting every candidate excludes nothing', () {
+      expect(stashExclusions([a, b], {'a', 'b'}), isEmpty);
     });
 
-    test('a subset names only the chosen paths', () {
-      expect(stashPathspec([a, b], {'b'}), ['b']);
+    test('an unticked file is excluded', () {
+      expect(stashExclusions([a, b], {'b'}), ['a']);
     });
 
-    test('a rename names both sides so the pair moves together', () {
-      expect(stashPathspec([a, moved], {'new'}), ['old', 'new']);
+    test('an unticked rename excludes both sides so the move stays whole', () {
+      expect(stashExclusions([a, moved], {'a'}), ['old', 'new']);
     });
 
-    test('a selection no longer among the candidates is ignored', () {
-      expect(stashPathspec([a, b], {'a', 'gone'}), ['a']);
+    test('a ticked rename is not named at all', () {
+      expect(stashExclusions([a, moved], {'new'}), ['a']);
     });
   });
 

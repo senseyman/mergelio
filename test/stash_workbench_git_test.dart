@@ -153,28 +153,50 @@ void main() {
   });
 
   group('stashPush options', () {
-    test('a pathspec stashes only the named file', () async {
+    test('an exclusion leaves that file behind', () async {
       await write('a.txt', 'A\n');
       await write('b.txt', 'B\n');
 
-      await writer().stashPush(const StashPushOptions(paths: ['b.txt']));
+      await writer().stashPush(const StashPushOptions(exclude: ['a.txt']));
 
       expect(await read('a.txt'), 'A\n');
       expect(await read('b.txt'), 'b\n');
       expect(await out(['stash', 'list']), isNotEmpty);
     });
 
-    test('a pathspec with glob characters is taken literally', () async {
+    test('an exclusion with glob characters is taken literally', () async {
       await write('*.txt', 'star\n');
       await g(['add', '*.txt']);
       await g(['commit', '-q', '-m', 'star']);
       await write('*.txt', 'STAR\n');
       await write('a.txt', 'A\n');
 
-      await writer().stashPush(const StashPushOptions(paths: ['*.txt']));
+      await writer().stashPush(const StashPushOptions(exclude: ['*.txt']));
 
-      expect(await read('*.txt'), 'star\n');
-      expect(await read('a.txt'), 'A\n', reason: 'not matched by a glob');
+      expect(await read('*.txt'), 'STAR\n', reason: 'excluded');
+      expect(await read('a.txt'), 'one\ntwo\nthree\n', reason: 'not a glob');
+    });
+
+    test('a staged rename next to an excluded file goes whole', () async {
+      await g(['mv', 'a.txt', 'moved.txt']);
+      await write('b.txt', 'B\n');
+
+      await writer().stashPush(const StashPushOptions(exclude: ['b.txt']));
+
+      expect(await status(), ' M b.txt\n');
+      expect(await read('a.txt'), 'one\ntwo\nthree\n');
+    });
+
+    test('an excluded staged rename stays whole', () async {
+      await g(['mv', 'a.txt', 'moved.txt']);
+      await write('b.txt', 'B\n');
+
+      await writer().stashPush(
+        const StashPushOptions(exclude: ['a.txt', 'moved.txt']),
+      );
+
+      expect(await status(), 'R  a.txt -> moved.txt\n');
+      expect(await read('b.txt'), 'b\n');
     });
 
     test('keep-index leaves the staged change in place', () async {

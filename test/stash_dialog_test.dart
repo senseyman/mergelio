@@ -96,7 +96,7 @@ void main() {
     expect(find.text('new.txt'), findsOneWidget);
   });
 
-  testWidgets('everything checked stashes without a pathspec', (tester) async {
+  testWidgets('everything ticked stashes without a pathspec', (tester) async {
     final git = await _open(tester);
     await tester.tap(_stashButton());
     await tester.pumpAndSettle();
@@ -109,7 +109,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(_stashButton());
     await tester.pumpAndSettle();
-    expect(git.pushes, ['stash push -- :(literal)edited.txt']);
+    expect(git.pushes, ['stash push -- :/ :(exclude,literal)staged.txt']);
   });
 
   testWidgets('keep-index and untracked are passed through', (tester) async {
