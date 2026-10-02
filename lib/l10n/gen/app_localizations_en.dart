@@ -3250,4 +3250,191 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ropNothingToStash => 'Nothing to stash';
+
+  @override
+  String get rvTitle => 'REVIEW';
+
+  @override
+  String get rvPickTitle => 'Review branches';
+
+  @override
+  String get rvBase => 'Base';
+
+  @override
+  String get rvHead => 'Head';
+
+  @override
+  String get rvSideHint => 'Branch, tag, remote branch or commit';
+
+  @override
+  String get rvWorktreeNote =>
+      'A worktree is read at its last commit; its uncommitted edits are not part of the review.';
+
+  @override
+  String rvNotACommit(String ref) {
+    return '\"$ref\" is not a commit in this repository';
+  }
+
+  @override
+  String get rvOpen => 'Open review';
+
+  @override
+  String get rvSwap => 'Swap base and head';
+
+  @override
+  String get rvChangeSides => 'Change sides';
+
+  @override
+  String get rvModeThreeDot => 'Since branch point';
+
+  @override
+  String get rvModeTwoDot => 'Tip to tip';
+
+  @override
+  String rvThreeDotCaption(String range, String head, String base) {
+    return '$range: what $head changed since it branched from $base, as a pull request shows it.';
+  }
+
+  @override
+  String rvTwoDotCaption(String range, String base, String head) {
+    return '$range: every difference between the tips of $base and $head, including changes made only on $base.';
+  }
+
+  @override
+  String rvAheadBehind(String head, int ahead, int behind, String base) {
+    return '$head is $ahead ahead, $behind behind $base';
+  }
+
+  @override
+  String rvFileCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count files',
+      one: '1 file',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String rvViewedCount(int viewed, int total) {
+    return '$viewed of $total viewed';
+  }
+
+  @override
+  String get rvViewed => 'Viewed';
+
+  @override
+  String rvCommits(int count) {
+    return 'COMMITS ($count)';
+  }
+
+  @override
+  String rvCommitsTruncated(int count) {
+    return 'Showing the newest $count';
+  }
+
+  @override
+  String get rvNoCommits => 'Head has no commits that base lacks';
+
+  @override
+  String get rvFiles => 'FILES';
+
+  @override
+  String rvNoMergeBase(String base, String head) {
+    return '$base and $head share no history, so there is no branch point to read from. Tip to tip still shows how they differ.';
+  }
+
+  @override
+  String get rvUseTwoDot => 'Show tip to tip';
+
+  @override
+  String get rvNoChanges => 'No file changes';
+
+  @override
+  String get rvCouldNotRead => 'Could not read the review';
+
+  @override
+  String get rvCouldNotReadFile => 'Could not read this file\'s diff';
+
+  @override
+  String get rvCollapseAll => 'Collapse all';
+
+  @override
+  String get rvExpandAll => 'Expand all';
+
+  @override
+  String rvLargeDiff(int count) {
+    return 'Large diff ($count lines). Expand to show it.';
+  }
+
+  @override
+  String get rvBinary =>
+      'Binary or LFS file. Open it in the diff viewer to compare.';
+
+  @override
+  String get rvNoContentChange => 'Renamed without content changes';
+
+  @override
+  String get rvOpenInDiff => 'Open in diff viewer';
+
+  @override
+  String get rvFileHistoryAtHead => 'File history at head';
+
+  @override
+  String get rvBlameAtHead => 'Blame at head';
+
+  @override
+  String get rvExport => 'Export patches';
+
+  @override
+  String get rvSavePatches => 'Save as patch files…';
+
+  @override
+  String get rvCopyPatch => 'Copy as patch';
+
+  @override
+  String rvPatchesSaved(int count, String dir) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Saved $count patches to $dir',
+      one: 'Saved 1 patch to $dir',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get rvPatchCopied => 'Patch copied';
+
+  @override
+  String get rvExportFailed => 'Could not export patches';
+
+  @override
+  String rvOpenPr(int number) {
+    return 'Open PR #$number';
+  }
+
+  @override
+  String rvOpenMr(int number) {
+    return 'Open MR !$number';
+  }
+
+  @override
+  String get rvKindBranch => 'branch';
+
+  @override
+  String get rvKindRemote => 'remote';
+
+  @override
+  String get rvKindTag => 'tag';
+
+  @override
+  String get rvKindWorktree => 'worktree';
+
+  @override
+  String get rvReviewAgainstCurrent => 'Review against current';
+
+  @override
+  String get rvPaletteReview => 'Review branches…';
 }

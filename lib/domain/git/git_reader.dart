@@ -5,6 +5,7 @@ import 'git_service.dart';
 import 'line_history.dart';
 import 'models.dart';
 import 'reflog.dart';
+import 'review.dart';
 import 'stash.dart';
 import 'worktree.dart';
 
@@ -643,19 +644,86 @@ class GitReader {
       origPath == null || origPath == path ? [path] : [origPath, path];
 
   /// Commit history for [path], following renames (`git log --follow`).
-  Future<List<Commit>> fileHistory(String path) async {
+  /// Walks back from [rev] when given, else from HEAD.
+  Future<List<Commit>> fileHistory(String path, {String? rev}) async {
     final r = await _run([
       'log',
       '--follow',
       '--decorate=full',
       '-z',
       '--pretty=format:%H$_fs%P$_fs%an$_fs%ae$_fs%aI$_fs%D$_fs%s$_fs%b',
+      ?rev,
       '--',
       path,
     ]);
     if (!r.ok) throw GitException('git log --follow failed', r);
+    return _parseSimpleLog(r.stdout);
+  }
+
+  /// The full sha of the commit [rev] names. An annotated tag is peeled to
+  /// the commit it tags; anything that is not a commit throws.
+  Future<String> resolveCommit(String rev) async {
+    final r = await _run(['rev-parse', '--verify', '-q', '$rev^{commit}']);
+    if (!r.ok || r.out.isEmpty) {
+      throw GitException('Not a commit: $rev', r);
+    }
+    return r.out;
+  }
+
+  /// The commit both [a] and [b] grew from, or null when their histories
+  /// share no commit at all. A revision git cannot resolve still throws.
+  Future<String?> mergeBase(String a, String b) async {
+    final r = await _run(['merge-base', a, b]);
+    // Exit 1 with nothing printed is git's "no common ancestor"; a bad
+    // revision also exits non-zero, but says why on stderr.
+    if (!r.ok && r.exitCode == 1 && r.out.isEmpty && r.err.isEmpty) {
+      return null;
+    }
+    if (!r.ok) throw GitException('git merge-base failed', r);
+    return r.out.isEmpty ? null : r.out;
+  }
+
+  /// How many commits only [base] has and how many only [head] has.
+  Future<AheadBehind> aheadBehind(String base, String head) async {
+    final r = await _run([
+      'rev-list',
+      '--left-right',
+      '--count',
+      '$base...$head',
+    ]);
+    if (!r.ok) throw GitException('git rev-list --count failed', r);
+    return parseLeftRightCount(r.stdout);
+  }
+
+  /// Commits [head] has that [base] does not (`base..head`), newest first,
+  /// stopping at [maxCount]. [truncated] says the cap cut the list short.
+  Future<({List<Commit> commits, bool truncated})> rangeCommits(
+    String base,
+    String head, {
+    int maxCount = 500,
+  }) async {
+    // One past the cap tells a full page from a cut one without a second
+    // count query.
+    final r = await _run([
+      'log',
+      '--topo-order',
+      '-z',
+      '--max-count=${maxCount + 1}',
+      '--pretty=format:%H$_fs%P$_fs%an$_fs%ae$_fs%aI$_fs%D$_fs%s$_fs%b',
+      '$base..$head',
+    ], timeout: _historyTimeout);
+    if (!r.ok) throw GitException('git log failed', r);
+    final all = _parseSimpleLog(r.stdout);
+    return all.length > maxCount
+        ? (commits: all.sublist(0, maxCount), truncated: true)
+        : (commits: all, truncated: false);
+  }
+
+  /// Commits from a `%H %P %an %ae %aI %D %s %b` log, without lane layout or
+  /// ref decoration.
+  List<Commit> _parseSimpleLog(String stdout) {
     final out = <Commit>[];
-    for (final rec in r.stdout.split(_rs)) {
+    for (final rec in stdout.split(_rs)) {
       final f = rec.split(_fs);
       if (f.length < 8) continue;
       out.add(
@@ -718,9 +786,10 @@ class GitReader {
   }
 
   /// Raw `git blame --line-porcelain` output for [path] (parse with
-  /// [parseBlame]).
-  Future<String> blame(String path) async {
-    final r = await _run(['blame', '--line-porcelain', '--', path]);
+  /// [parseBlame]). Annotates the file as of [rev] when given, else the
+  /// working-tree copy.
+  Future<String> blame(String path, {String? rev}) async {
+    final r = await _run(['blame', '--line-porcelain', ?rev, '--', path]);
     if (!r.ok) throw GitException('git blame failed', r);
     return r.stdout;
   }
@@ -786,6 +855,22 @@ class GitReader {
       '--',
       ..._renamePathspec(path, origPath),
     ]);
+    if (!r.ok) throw GitException('git diff failed', r);
+    return r.stdout;
+  }
+
+  /// Every file's unified diff between [from] and [to] in one patch, matching
+  /// what [compareFiles] lists. One process for the whole review instead of
+  /// one per file; the history ceiling applies because a wide range can be
+  /// large.
+  Future<String> rangeDiff(String from, String to) async {
+    final r = await _run([
+      'diff',
+      '--no-color',
+      '--find-renames',
+      from,
+      to,
+    ], timeout: _historyTimeout);
     if (!r.ok) throw GitException('git diff failed', r);
     return r.stdout;
   }

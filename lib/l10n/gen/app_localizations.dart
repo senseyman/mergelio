@@ -5539,6 +5539,300 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Nothing to stash'**
   String get ropNothingToStash;
+
+  /// No description provided for @rvTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'REVIEW'**
+  String get rvTitle;
+
+  /// No description provided for @rvPickTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Review branches'**
+  String get rvPickTitle;
+
+  /// No description provided for @rvBase.
+  ///
+  /// In en, this message translates to:
+  /// **'Base'**
+  String get rvBase;
+
+  /// No description provided for @rvHead.
+  ///
+  /// In en, this message translates to:
+  /// **'Head'**
+  String get rvHead;
+
+  /// No description provided for @rvSideHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Branch, tag, remote branch or commit'**
+  String get rvSideHint;
+
+  /// No description provided for @rvWorktreeNote.
+  ///
+  /// In en, this message translates to:
+  /// **'A worktree is read at its last commit; its uncommitted edits are not part of the review.'**
+  String get rvWorktreeNote;
+
+  /// No description provided for @rvNotACommit.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{ref}\" is not a commit in this repository'**
+  String rvNotACommit(String ref);
+
+  /// No description provided for @rvOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open review'**
+  String get rvOpen;
+
+  /// No description provided for @rvSwap.
+  ///
+  /// In en, this message translates to:
+  /// **'Swap base and head'**
+  String get rvSwap;
+
+  /// No description provided for @rvChangeSides.
+  ///
+  /// In en, this message translates to:
+  /// **'Change sides'**
+  String get rvChangeSides;
+
+  /// No description provided for @rvModeThreeDot.
+  ///
+  /// In en, this message translates to:
+  /// **'Since branch point'**
+  String get rvModeThreeDot;
+
+  /// No description provided for @rvModeTwoDot.
+  ///
+  /// In en, this message translates to:
+  /// **'Tip to tip'**
+  String get rvModeTwoDot;
+
+  /// No description provided for @rvThreeDotCaption.
+  ///
+  /// In en, this message translates to:
+  /// **'{range}: what {head} changed since it branched from {base}, as a pull request shows it.'**
+  String rvThreeDotCaption(String range, String head, String base);
+
+  /// No description provided for @rvTwoDotCaption.
+  ///
+  /// In en, this message translates to:
+  /// **'{range}: every difference between the tips of {base} and {head}, including changes made only on {base}.'**
+  String rvTwoDotCaption(String range, String base, String head);
+
+  /// No description provided for @rvAheadBehind.
+  ///
+  /// In en, this message translates to:
+  /// **'{head} is {ahead} ahead, {behind} behind {base}'**
+  String rvAheadBehind(String head, int ahead, int behind, String base);
+
+  /// No description provided for @rvFileCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 file} other{{count} files}}'**
+  String rvFileCount(int count);
+
+  /// No description provided for @rvViewedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{viewed} of {total} viewed'**
+  String rvViewedCount(int viewed, int total);
+
+  /// No description provided for @rvViewed.
+  ///
+  /// In en, this message translates to:
+  /// **'Viewed'**
+  String get rvViewed;
+
+  /// No description provided for @rvCommits.
+  ///
+  /// In en, this message translates to:
+  /// **'COMMITS ({count})'**
+  String rvCommits(int count);
+
+  /// No description provided for @rvCommitsTruncated.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing the newest {count}'**
+  String rvCommitsTruncated(int count);
+
+  /// No description provided for @rvNoCommits.
+  ///
+  /// In en, this message translates to:
+  /// **'Head has no commits that base lacks'**
+  String get rvNoCommits;
+
+  /// No description provided for @rvFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'FILES'**
+  String get rvFiles;
+
+  /// No description provided for @rvNoMergeBase.
+  ///
+  /// In en, this message translates to:
+  /// **'{base} and {head} share no history, so there is no branch point to read from. Tip to tip still shows how they differ.'**
+  String rvNoMergeBase(String base, String head);
+
+  /// No description provided for @rvUseTwoDot.
+  ///
+  /// In en, this message translates to:
+  /// **'Show tip to tip'**
+  String get rvUseTwoDot;
+
+  /// No description provided for @rvNoChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'No file changes'**
+  String get rvNoChanges;
+
+  /// No description provided for @rvCouldNotRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read the review'**
+  String get rvCouldNotRead;
+
+  /// No description provided for @rvCouldNotReadFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read this file\'s diff'**
+  String get rvCouldNotReadFile;
+
+  /// No description provided for @rvCollapseAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Collapse all'**
+  String get rvCollapseAll;
+
+  /// No description provided for @rvExpandAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand all'**
+  String get rvExpandAll;
+
+  /// No description provided for @rvLargeDiff.
+  ///
+  /// In en, this message translates to:
+  /// **'Large diff ({count} lines). Expand to show it.'**
+  String rvLargeDiff(int count);
+
+  /// No description provided for @rvBinary.
+  ///
+  /// In en, this message translates to:
+  /// **'Binary or LFS file. Open it in the diff viewer to compare.'**
+  String get rvBinary;
+
+  /// No description provided for @rvNoContentChange.
+  ///
+  /// In en, this message translates to:
+  /// **'Renamed without content changes'**
+  String get rvNoContentChange;
+
+  /// No description provided for @rvOpenInDiff.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in diff viewer'**
+  String get rvOpenInDiff;
+
+  /// No description provided for @rvFileHistoryAtHead.
+  ///
+  /// In en, this message translates to:
+  /// **'File history at head'**
+  String get rvFileHistoryAtHead;
+
+  /// No description provided for @rvBlameAtHead.
+  ///
+  /// In en, this message translates to:
+  /// **'Blame at head'**
+  String get rvBlameAtHead;
+
+  /// No description provided for @rvExport.
+  ///
+  /// In en, this message translates to:
+  /// **'Export patches'**
+  String get rvExport;
+
+  /// No description provided for @rvSavePatches.
+  ///
+  /// In en, this message translates to:
+  /// **'Save as patch files…'**
+  String get rvSavePatches;
+
+  /// No description provided for @rvCopyPatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy as patch'**
+  String get rvCopyPatch;
+
+  /// No description provided for @rvPatchesSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Saved 1 patch to {dir}} other{Saved {count} patches to {dir}}}'**
+  String rvPatchesSaved(int count, String dir);
+
+  /// No description provided for @rvPatchCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Patch copied'**
+  String get rvPatchCopied;
+
+  /// No description provided for @rvExportFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not export patches'**
+  String get rvExportFailed;
+
+  /// No description provided for @rvOpenPr.
+  ///
+  /// In en, this message translates to:
+  /// **'Open PR #{number}'**
+  String rvOpenPr(int number);
+
+  /// No description provided for @rvOpenMr.
+  ///
+  /// In en, this message translates to:
+  /// **'Open MR !{number}'**
+  String rvOpenMr(int number);
+
+  /// No description provided for @rvKindBranch.
+  ///
+  /// In en, this message translates to:
+  /// **'branch'**
+  String get rvKindBranch;
+
+  /// No description provided for @rvKindRemote.
+  ///
+  /// In en, this message translates to:
+  /// **'remote'**
+  String get rvKindRemote;
+
+  /// No description provided for @rvKindTag.
+  ///
+  /// In en, this message translates to:
+  /// **'tag'**
+  String get rvKindTag;
+
+  /// No description provided for @rvKindWorktree.
+  ///
+  /// In en, this message translates to:
+  /// **'worktree'**
+  String get rvKindWorktree;
+
+  /// No description provided for @rvReviewAgainstCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'Review against current'**
+  String get rvReviewAgainstCurrent;
+
+  /// No description provided for @rvPaletteReview.
+  ///
+  /// In en, this message translates to:
+  /// **'Review branches…'**
+  String get rvPaletteReview;
 }
 
 class _AppLocalizationsDelegate

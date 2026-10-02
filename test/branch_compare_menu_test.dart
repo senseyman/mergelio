@@ -10,6 +10,7 @@ import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/state/compare_target.dart';
+import 'package:mergelio/state/review.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
 import 'package:mergelio/state/workspace.dart';
@@ -105,6 +106,22 @@ void main() {
           )
           .enabled,
       isFalse,
+    );
+  });
+
+  testWidgets('a branch row opens a review of it into the current branch', (
+    tester,
+  ) async {
+    final c = await pumpSidebar(tester);
+
+    await tester.tap(find.text('work'), buttons: kSecondaryButton);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Review against current'));
+    await tester.pumpAndSettle();
+
+    expect(
+      c.read(reviewTargetProvider),
+      const ReviewTarget(repoPath: '/r', base: 'main', head: 'work'),
     );
   });
 }

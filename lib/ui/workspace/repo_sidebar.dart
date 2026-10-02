@@ -7,6 +7,7 @@ import '../../domain/git/models.dart';
 import '../../domain/path_key.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/compare_target.dart';
+import '../../state/review.dart';
 import '../../state/graph_selection.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
@@ -506,6 +507,21 @@ class _BranchRow extends ConsumerWidget {
             repoPath: path,
             from: current.name,
             to: branch.name,
+          );
+        }, enabled: !branch.current),
+        item(l.rvReviewAgainstCurrent, () {
+          final current = ref
+              .read(repoDataProvider(path))
+              .valueOrNull
+              ?.branches
+              .where((b) => b.current)
+              .firstOrNull;
+          if (current == null) return;
+          // Read as a pull request of this branch into the current one.
+          ref.read(reviewTargetProvider.notifier).state = ReviewTarget(
+            repoPath: path,
+            base: current.name,
+            head: branch.name,
           );
         }, enabled: !branch.current),
         const PopupMenuDivider(),

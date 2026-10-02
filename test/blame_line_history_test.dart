@@ -16,7 +16,7 @@ import 'package:mergelio/ui/insight/file_insight_dialog.dart';
 void main() {
   const repo = '/r';
   const path = 'a.txt';
-  const file = (repo: repo, path: path);
+  const file = (repo: repo, path: path, rev: null);
 
   late List<LineRangeKey> asked;
 

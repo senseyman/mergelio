@@ -16,6 +16,8 @@ import '../graph/graph_view.dart';
 import '../shell/collapsed_rail.dart';
 import '../shell/resize_handle.dart';
 import '../../state/compare_target.dart';
+import '../../state/review.dart';
+import '../review/review_view.dart';
 import 'commit_details.dart';
 import 'lfs_locks_section.dart';
 import 'compare_details.dart';
@@ -83,7 +85,7 @@ class _CenterWithDiff extends ConsumerWidget {
               onTap: open
                   ? () => ref.read(diffTargetProvider.notifier).state = null
                   : null,
-              child: const GraphView(),
+              child: const _CenterContent(),
             ),
           ),
           // The sheet slides up from the bottom edge (~240ms ease-out) and
@@ -104,6 +106,20 @@ class _CenterWithDiff extends ConsumerWidget {
         ],
       ),
     );
+  }
+}
+
+/// What the centre column shows under the diff sheet: an open review of this
+/// repository, else the graph. A review left open in another tab stays there.
+class _CenterContent extends ConsumerWidget {
+  const _CenterContent();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final path = ref.watch(workspaceProvider).activeTab?.path;
+    final review = ref.watch(reviewTargetProvider);
+    if (review != null && review.repoPath == path) return const ReviewView();
+    return const GraphView();
   }
 }
 

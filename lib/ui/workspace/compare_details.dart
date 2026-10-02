@@ -7,6 +7,7 @@ import '../../l10n/gen/app_localizations.dart';
 import '../../state/compare_target.dart';
 import '../../state/diff_target.dart';
 import '../../state/lfs.dart';
+import '../../state/review.dart';
 import '../../state/settings_controller.dart';
 import '../common/change_file_row.dart';
 import '../common/file_tree_view.dart';
@@ -50,6 +51,24 @@ class CompareDetails extends ConsumerWidget {
                   ),
                 ),
                 const Spacer(),
+                IconButton(
+                  iconSize: 15,
+                  tooltip: l.rvOpen,
+                  icon: const Icon(Icons.rate_review_outlined),
+                  // Tip to tip, the same diff this panel lists, so the
+                  // review opens on the numbers already on screen.
+                  onPressed: () {
+                    ref
+                        .read(reviewTargetProvider.notifier)
+                        .state = ReviewTarget(
+                      repoPath: target.repoPath,
+                      base: target.from,
+                      head: target.to,
+                      threeDot: false,
+                    );
+                    ref.read(compareTargetProvider.notifier).state = null;
+                  },
+                ),
                 IconButton(
                   iconSize: 15,
                   tooltip: l.cmpSwap,
