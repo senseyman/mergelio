@@ -128,17 +128,93 @@ class ForgeMessageRow extends StatelessWidget {
 }
 
 /// What a forge section shows while its first read is in flight.
-class ForgeLoadingRow extends StatelessWidget {
+///
+/// Two faint bars per row in the shape of the rows about to arrive — a
+/// title over a shorter meta line — breathing slowly rather than spinning,
+/// so the section reads as "filling in" instead of "busy". Holds still when
+/// the system asks for reduced motion.
+class ForgeLoadingRow extends StatefulWidget {
   const ForgeLoadingRow({super.key});
 
   @override
-  Widget build(BuildContext context) => const Padding(
-    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-    child: SizedBox(
-      width: 12,
-      height: 12,
-      child: CircularProgressIndicator(strokeWidth: 2),
+  State<ForgeLoadingRow> createState() => _ForgeLoadingRowState();
+}
+
+class _ForgeLoadingRowState extends State<ForgeLoadingRow>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+    value: 0.5,
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _pulse.stop();
+    } else if (!_pulse.isAnimating) {
+      _pulse.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final fill = context.tokens.textFaint.withValues(alpha: 0.22);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+      child: AnimatedBuilder(
+        animation: _pulse,
+        builder: (context, child) => Opacity(
+          opacity: 0.45 + 0.55 * Curves.easeInOut.transform(_pulse.value),
+          child: child,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _PlaceholderRow(fill: fill, title: 0.72, meta: 0.44),
+            const SizedBox(height: 12),
+            _PlaceholderRow(fill: fill, title: 0.56, meta: 0.32),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PlaceholderRow extends StatelessWidget {
+  final Color fill;
+  final double title;
+  final double meta;
+
+  const _PlaceholderRow({
+    required this.fill,
+    required this.title,
+    required this.meta,
+  });
+
+  Widget _bar(double widthFactor, double height) => FractionallySizedBox(
+    widthFactor: widthFactor,
+    alignment: Alignment.centerLeft,
+    child: Container(
+      height: height,
+      decoration: BoxDecoration(
+        color: fill,
+        borderRadius: BorderRadius.circular(height / 2),
+      ),
     ),
+  );
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [_bar(title, 8), const SizedBox(height: 6), _bar(meta, 6)],
   );
 }
 
