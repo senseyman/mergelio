@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'askpass.dart';
 import 'commit_message.dart';
 import 'git_service.dart';
+import 'hooks.dart';
 import 'stash.dart';
 
 /// The flag [shell] wants in front of a command string.
@@ -487,7 +488,7 @@ class GitWriter {
     MergeFavor favor = MergeFavor.none,
     String? authorName,
     String? authorEmail,
-  }) => _ok([
+  }) => _traced(what: 'git merge', [
     ..._identity(authorName, authorEmail),
     'merge',
     if (squash)
@@ -498,7 +499,7 @@ class GitWriter {
     ],
     if (favor != MergeFavor.none) ...['-X', favor.name],
     branch,
-  ], 'git merge');
+  ]);
 
   /// Backs out a merge in progress. A conflicted `--squash` merge never wrote
   /// MERGE_HEAD, so git refuses `--abort` there; `git reset --merge` is git's
@@ -765,9 +766,9 @@ class GitWriter {
   /// Commits a cherry-pick that paused on conflicts, once the resolution is
   /// staged. `GIT_EDITOR=true` keeps the picked message without prompting.
   Future<void> cherryPickContinue({String? authorName, String? authorEmail}) =>
-      _ok(
+      _traced(
         [..._identity(authorName, authorEmail), 'cherry-pick', '--continue'],
-        'git cherry-pick --continue',
+        what: 'git cherry-pick --continue',
         environment: {'GIT_EDITOR': 'true'},
       );
 
@@ -789,11 +790,12 @@ class GitWriter {
       _ok(['revert', '--abort'], 'git revert --abort');
 
   /// Commits a revert that paused on conflicts, once the resolution is staged.
-  Future<void> revertContinue({String? authorName, String? authorEmail}) => _ok(
-    [..._identity(authorName, authorEmail), 'revert', '--continue'],
-    'git revert --continue',
-    environment: {'GIT_EDITOR': 'true'},
-  );
+  Future<void> revertContinue({String? authorName, String? authorEmail}) =>
+      _traced(
+        [..._identity(authorName, authorEmail), 'revert', '--continue'],
+        what: 'git revert --continue',
+        environment: {'GIT_EDITOR': 'true'},
+      );
 
   /// Drops the paused commit from the revert sequence (empty resolution).
   Future<void> revertSkip() => _ok(['revert', '--skip'], 'git revert --skip');
@@ -997,11 +999,14 @@ class GitWriter {
   /// signature (requires the repo to be configured for it). [description] and
   /// [coauthors] are appended to the message body. [authorName]/[authorEmail],
   /// when given, set the commit identity for this commit (the active profile).
+  /// [noVerify] skips the hooks listed in [noVerifyHooks].
+  /// A hook's refusal throws [HookRejectedException].
   Future<void> commit(
     String summary, {
     String description = '',
     bool amend = false,
     bool sign = false,
+    bool noVerify = false,
     List<String> coauthors = const [],
     String? authorName,
     String? authorEmail,
@@ -1016,36 +1021,115 @@ class GitWriter {
         body.write('\nCo-authored-by: $c');
       }
     }
-    await _ok([
+    await _traced([
       // Per-commit identity via -c, applied before the subcommand.
       if (authorName != null) ...['-c', 'user.name=$authorName'],
       if (authorEmail != null) ...['-c', 'user.email=$authorEmail'],
       'commit',
       if (amend) '--amend',
       if (sign) '-S',
+      if (noVerify) '--no-verify',
       '-m',
       body.toString(),
-    ], 'git commit');
+    ]);
+  }
+
+  /// Runs a git command that may run hooks and, when one refuses it, throws
+  /// [HookRejectedException] naming the hook. Git prints little or nothing of
+  /// its own in that case — the transcript is the hook's — so the hook is read
+  /// from the trace git writes as it runs children.
+  Future<void> _traced(
+    List<String> args, {
+    String what = 'git commit',
+    Map<String, String>? environment,
+  }) async {
+    final dir = _privateTempDir();
+    // Without a private place for the trace the command still runs; it only
+    // loses the hook's name if one refuses.
+    final trace = dir == null ? null : File(p.join(dir.path, 'trace2.json'));
+    try {
+      final r = await _run(
+        [
+          // A hook skipped for lacking its execute bit otherwise adds a hint
+          // to whatever the hook that did run printed.
+          '-c',
+          'advice.ignoredHook=false',
+          ...args,
+        ],
+        environment: {
+          ...?environment,
+          if (trace != null) 'GIT_TRACE2_EVENT': trace.path,
+        },
+      );
+      if (r.ok) return;
+      final hook = trace != null && await trace.exists()
+          ? rejectingHook(await trace.readAsString())
+          : null;
+      if (hook != null) throw HookRejectedException(hook, r);
+      throw GitException(what, r);
+    } finally {
+      try {
+        dir?.deleteSync(recursive: true);
+      } on FileSystemException {
+        // Best-effort: a leaked temp file is not worth failing the op over.
+      }
+    }
+  }
+
+  /// A new temp directory only this user can read, for the trace, which
+  /// carries the whole command line, message included. Null when one cannot
+  /// be had.
+  ///
+  /// Dart creates temp directories 0700 on macOS but with the umask on Linux
+  /// — 0755 — where /tmp is shared, so the mode is set here rather than
+  /// trusted. Windows keeps %TEMP% inside the user's own profile. Everything
+  /// is synchronous: the commit must not wait on the event loop before git
+  /// starts.
+  static Directory? _privateTempDir() {
+    final Directory dir;
+    try {
+      dir = Directory.systemTemp.createTempSync('mergelio_commit_');
+    } on FileSystemException {
+      return null;
+    }
+    if (Platform.isWindows) return dir;
+    try {
+      if (Process.runSync('chmod', ['700', dir.path]).exitCode == 0) {
+        return dir;
+      }
+    } on ProcessException {
+      // No chmod to run: treat it as a directory that cannot be made private.
+    }
+    try {
+      dir.deleteSync();
+    } on FileSystemException {
+      // Empty and about to be abandoned either way.
+    }
+    return null;
   }
 
   /// Rewrites the message of HEAD, leaving its tree alone. `--only` with no
   /// paths is git's way of amending the last commit *without* folding in
   /// whatever is already staged — a plain `--amend` would absorb it silently.
+  /// Hooks run as for any commit; [noVerify] skips those it can, and a refusal
+  /// throws [HookRejectedException].
   Future<void> amendMessage(
     String summary, {
     String description = '',
     bool sign = false,
+    bool noVerify = false,
     String? authorName,
     String? authorEmail,
-  }) => _ok([
+  }) => _traced([
     ..._identity(authorName, authorEmail),
     'commit',
     '--amend',
     '--only',
     if (sign) '-S',
+    if (noVerify) '--no-verify',
     '-m',
     joinCommitMessage(summary, description),
-  ], 'git commit --amend');
+  ]);
 
   /// Reverts [path] to its committed state, dropping staged and unstaged edits.
   /// Reverts every tracked file in the repository to HEAD, index and working

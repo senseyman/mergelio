@@ -6067,6 +6067,186 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'git verifies SSH signatures only when gpg.ssh.allowedSignersFile points at an allowed signers file. Set it to check SSH-signed commits.'**
   String get sigHintSshUnconfigured;
+
+  /// No description provided for @hkTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Git hooks'**
+  String get hkTitle;
+
+  /// No description provided for @hkPaletteOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Git hooks…'**
+  String get hkPaletteOpen;
+
+  /// No description provided for @hkDir.
+  ///
+  /// In en, this message translates to:
+  /// **'Hooks directory'**
+  String get hkDir;
+
+  /// No description provided for @hkCustomPath.
+  ///
+  /// In en, this message translates to:
+  /// **'Set by core.hooksPath: {path}'**
+  String hkCustomPath(String path);
+
+  /// No description provided for @hkManaged.
+  ///
+  /// In en, this message translates to:
+  /// **'Managed by {tool} — it may overwrite changes made here when it reinstalls its hooks.'**
+  String hkManaged(String tool);
+
+  /// No description provided for @hkEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No hooks in this repository.'**
+  String get hkEmpty;
+
+  /// No description provided for @hkStateActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get hkStateActive;
+
+  /// No description provided for @hkStateDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Disabled'**
+  String get hkStateDisabled;
+
+  /// No description provided for @hkStateSample.
+  ///
+  /// In en, this message translates to:
+  /// **'Sample'**
+  String get hkStateSample;
+
+  /// No description provided for @hkEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get hkEdit;
+
+  /// No description provided for @hkUseSample.
+  ///
+  /// In en, this message translates to:
+  /// **'Use sample'**
+  String get hkUseSample;
+
+  /// No description provided for @hkEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable — git runs this hook'**
+  String get hkEnable;
+
+  /// No description provided for @hkDisable.
+  ///
+  /// In en, this message translates to:
+  /// **'Disable — git skips this hook'**
+  String get hkDisable;
+
+  /// No description provided for @hkEditorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit the {hook} hook'**
+  String hkEditorTitle(String hook);
+
+  /// No description provided for @hkSkipHooks.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip hooks'**
+  String get hkSkipHooks;
+
+  /// No description provided for @hkSkipArmed.
+  ///
+  /// In en, this message translates to:
+  /// **'Next commit skips hooks (--no-verify)'**
+  String get hkSkipArmed;
+
+  /// No description provided for @hkSkipDisarm.
+  ///
+  /// In en, this message translates to:
+  /// **'Run hooks again'**
+  String get hkSkipDisarm;
+
+  /// No description provided for @hkRejectedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The {hook} hook rejected the commit'**
+  String hkRejectedTitle(String hook);
+
+  /// No description provided for @hkOutputFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'Output from {hook}'**
+  String hkOutputFrom(String hook);
+
+  /// No description provided for @hkNoOutput.
+  ///
+  /// In en, this message translates to:
+  /// **'The hook printed nothing.'**
+  String get hkNoOutput;
+
+  /// No description provided for @hkMessageKept.
+  ///
+  /// In en, this message translates to:
+  /// **'Your message was kept.'**
+  String get hkMessageKept;
+
+  /// No description provided for @hkManage.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage hooks…'**
+  String get hkManage;
+
+  /// No description provided for @hkSkipNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip hooks for next commit'**
+  String get hkSkipNext;
+
+  /// No description provided for @hkLinkedNoToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Linked to a file elsewhere — change its mode there, so the change is not made behind your back.'**
+  String get hkLinkedNoToggle;
+
+  /// No description provided for @hkChangeFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not change the {hook} hook'**
+  String hkChangeFailed(String hook);
+
+  /// No description provided for @hkFailNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'The hook file is not there any more.'**
+  String get hkFailNotFound;
+
+  /// No description provided for @hkFailExists.
+  ///
+  /// In en, this message translates to:
+  /// **'A hook with this name already exists.'**
+  String get hkFailExists;
+
+  /// No description provided for @hkFailOutside.
+  ///
+  /// In en, this message translates to:
+  /// **'The hook links to a file outside the repository, so it is not changed from here.'**
+  String get hkFailOutside;
+
+  /// No description provided for @hkFailLinked.
+  ///
+  /// In en, this message translates to:
+  /// **'The hook links to a file elsewhere; change that file\'s mode instead.'**
+  String get hkFailLinked;
+
+  /// No description provided for @hkRewordSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Reword without hooks'**
+  String get hkRewordSkip;
 }
 
 class _AppLocalizationsDelegate

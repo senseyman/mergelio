@@ -3599,4 +3599,109 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get sigHintSshUnconfigured =>
       'git verifies SSH signatures only when gpg.ssh.allowedSignersFile points at an allowed signers file. Set it to check SSH-signed commits.';
+
+  @override
+  String get hkTitle => 'Git hooks';
+
+  @override
+  String get hkPaletteOpen => 'Git hooks…';
+
+  @override
+  String get hkDir => 'Hooks directory';
+
+  @override
+  String hkCustomPath(String path) {
+    return 'Set by core.hooksPath: $path';
+  }
+
+  @override
+  String hkManaged(String tool) {
+    return 'Managed by $tool — it may overwrite changes made here when it reinstalls its hooks.';
+  }
+
+  @override
+  String get hkEmpty => 'No hooks in this repository.';
+
+  @override
+  String get hkStateActive => 'Active';
+
+  @override
+  String get hkStateDisabled => 'Disabled';
+
+  @override
+  String get hkStateSample => 'Sample';
+
+  @override
+  String get hkEdit => 'Edit';
+
+  @override
+  String get hkUseSample => 'Use sample';
+
+  @override
+  String get hkEnable => 'Enable — git runs this hook';
+
+  @override
+  String get hkDisable => 'Disable — git skips this hook';
+
+  @override
+  String hkEditorTitle(String hook) {
+    return 'Edit the $hook hook';
+  }
+
+  @override
+  String get hkSkipHooks => 'Skip hooks';
+
+  @override
+  String get hkSkipArmed => 'Next commit skips hooks (--no-verify)';
+
+  @override
+  String get hkSkipDisarm => 'Run hooks again';
+
+  @override
+  String hkRejectedTitle(String hook) {
+    return 'The $hook hook rejected the commit';
+  }
+
+  @override
+  String hkOutputFrom(String hook) {
+    return 'Output from $hook';
+  }
+
+  @override
+  String get hkNoOutput => 'The hook printed nothing.';
+
+  @override
+  String get hkMessageKept => 'Your message was kept.';
+
+  @override
+  String get hkManage => 'Manage hooks…';
+
+  @override
+  String get hkSkipNext => 'Skip hooks for next commit';
+
+  @override
+  String get hkLinkedNoToggle =>
+      'Linked to a file elsewhere — change its mode there, so the change is not made behind your back.';
+
+  @override
+  String hkChangeFailed(String hook) {
+    return 'Could not change the $hook hook';
+  }
+
+  @override
+  String get hkFailNotFound => 'The hook file is not there any more.';
+
+  @override
+  String get hkFailExists => 'A hook with this name already exists.';
+
+  @override
+  String get hkFailOutside =>
+      'The hook links to a file outside the repository, so it is not changed from here.';
+
+  @override
+  String get hkFailLinked =>
+      'The hook links to a file elsewhere; change that file\'s mode instead.';
+
+  @override
+  String get hkRewordSkip => 'Reword without hooks';
 }

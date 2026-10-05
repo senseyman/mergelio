@@ -6,6 +6,7 @@ import '../../l10n/gen/app_localizations.dart';
 import '../../state/repo_actions.dart';
 import '../common/confirm.dart';
 import '../common/dialogs.dart';
+import 'hooks_panel.dart';
 
 /// Prompts for a new message for [commit] and applies it. Shared by the graph's
 /// context menu and the commit details panel so both reach the same flow.
@@ -50,9 +51,35 @@ Future<void> editCommitMessage(
     );
     if (!ok) return;
   }
-  await actions.rewordCommit(
+  final rejection = await actions.rewordCommit(
     commit.sha,
     edited.summary,
     description: edited.description,
+  );
+  if (rejection == null || !context.mounted) return;
+  await showHookRejectedDialog(
+    context,
+    repoPath: repoPath,
+    rejection: rejection,
+    // The edit dialog has closed; retrying is how the new message survives.
+    messageKept: false,
+    skipLabel: l.hkRewordSkip,
+    onSkip: () async {
+      final again = await actions.rewordCommit(
+        commit.sha,
+        edited.summary,
+        description: edited.description,
+        noVerify: true,
+      );
+      // A hook --no-verify does not cover can still refuse; say so rather
+      // than let the retry fail without a word.
+      if (again == null || !context.mounted) return;
+      await showHookRejectedDialog(
+        context,
+        repoPath: repoPath,
+        rejection: again,
+        messageKept: false,
+      );
+    },
   );
 }

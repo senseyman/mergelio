@@ -19,6 +19,24 @@ void main() {
       expect(todo, contains(r"'it'\''s new'"));
     });
 
+    test('a reword can skip the commit hooks', () {
+      final todo = buildRebaseTodo([
+        const RebaseStep(
+          'aaa',
+          RebaseAction.reword,
+          message: 'new',
+          noVerify: true,
+        ),
+      ]);
+      expect(todo, contains('git commit --amend --no-verify -F -'));
+      expect(
+        buildRebaseTodo([
+          const RebaseStep('aaa', RebaseAction.reword, message: 'new'),
+        ]),
+        isNot(contains('--no-verify')),
+      );
+    });
+
     test('a multi-line reword message stays on one todo line', () {
       final todo = buildRebaseTodo([
         const RebaseStep('aaa', RebaseAction.reword, message: 'sub\n\nbody'),

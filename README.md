@@ -152,6 +152,14 @@ change never needs a second window.*
   the diff. Saving writes the working tree, leaves the change unstaged, and is
   undoable.
 - Commit, amend, sign (`-S`) and add co-authors.
+- **Git hooks.** When a hook refuses a commit, a reword, a merge or a
+  cherry-pick/revert continue, Mergelio names the hook and shows what it
+  printed; the commit message you typed is kept. **Skip hooks** sends the next
+  commit with `--no-verify`, stays visible while armed, and lasts for that one
+  commit. **Git hooks…** in the command palette lists the hooks git runs
+  (following `core.hooksPath`, and flagging husky, lefthook and pre-commit
+  installs), enables or disables each by its execute bit, edits it, or installs
+  one from git's sample.
 - Discard by **hunk, file, or the whole working tree** behind a confirmation
   gate, and undoable afterwards. Discarding everything reverts tracked files
   only; deleting untracked files is a separate opt-in on the prompt.

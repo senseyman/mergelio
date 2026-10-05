@@ -6,6 +6,8 @@ import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/domain/git/models.dart';
 import 'package:mergelio/domain/git/signature.dart';
 
+import 'support/hermetic_git.dart';
+
 /// Integration tests: SSH-sign commits and tags in a real temporary
 /// repository and read them back through [GitReader]. The parser tests feed
 /// hand-written strings; this checks them against what git and ssh-keygen
@@ -16,7 +18,7 @@ import 'package:mergelio/domain/git/signature.dart';
 /// prints for every SSH signature (this file once passed on a laptop and
 /// failed on CI for exactly that reason).
 void main() {
-  const svc = _HermeticGit();
+  const svc = HermeticGit();
   // `ssh-keygen -?` exits non-zero with usage; only a missing binary throws.
   bool probe() {
     // Any failure to probe means skip, never a broken file.
@@ -257,39 +259,4 @@ void main() {
     },
     skip: !hasSshKeygen,
   );
-}
-
-/// [SystemGitService] with global and system git config ignored, so the
-/// developer's own signing setup cannot change what these tests observe.
-class _HermeticGit implements GitService {
-  const _HermeticGit();
-
-  static const _inner = SystemGitService();
-  static const _isolation = {
-    'GIT_CONFIG_GLOBAL': '/dev/null',
-    'GIT_CONFIG_NOSYSTEM': '1',
-  };
-
-  @override
-  Future<GitResult> run(
-    List<String> args, {
-    String? repoPath,
-    Duration? timeout,
-    Map<String, String>? environment,
-    GitCancel? cancel,
-    String? stdin,
-  }) => _inner.run(
-    args,
-    repoPath: repoPath,
-    timeout: timeout,
-    environment: {...?environment, ..._isolation},
-    cancel: cancel,
-    stdin: stdin,
-  );
-
-  @override
-  Future<String> version() => _inner.version();
-
-  @override
-  Future<bool> isRepository(String path) => _inner.isRepository(path);
 }

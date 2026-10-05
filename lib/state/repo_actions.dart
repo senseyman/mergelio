@@ -14,6 +14,7 @@ import '../domain/git/git_providers.dart';
 import '../domain/git/git_reader.dart';
 import '../domain/git/git_service.dart';
 import '../domain/git/git_writer.dart';
+import '../domain/git/hooks.dart';
 import '../domain/git/lfs.dart';
 import '../domain/git/maintenance.dart';
 import '../domain/git/models.dart';
@@ -866,14 +867,18 @@ class RepoActions {
     return saved;
   }
 
-  Future<void> commit(
+  /// Commits what is staged and reports how it went. A hook's refusal comes
+  /// back in the outcome rather than as a toast, so the caller can show the
+  /// hook's own output; every other failure is toasted as usual.
+  Future<CommitOutcome> commit(
     String summary, {
     String description = '',
     bool amend = false,
     bool sign = false,
+    bool noVerify = false,
     List<String> coauthors = const [],
   }) async {
-    if (_blockedByRepoOp) return;
+    if (_blockedByRepoOp) return const CommitOutcome();
     final profile = _ref.read(profilesProvider).active;
     // HEAD before the commit — undo soft-resets here, returning the committed
     // changes to the staging area (works for amend too: prev is the original).
@@ -888,6 +893,7 @@ class RepoActions {
         description: description,
         amend: amend,
         sign: sign,
+        noVerify: noVerify,
         coauthors: coauthors,
         authorName: profile?.name,
         authorEmail: profile?.email,
@@ -895,7 +901,8 @@ class RepoActions {
       if (merging) merged = await _headSha();
     }
 
-    await _undoable(
+    HookRejectedException? rejection;
+    final committed = await _undoable(
       amend
           ? 'Amend commit'
           : merging
@@ -907,8 +914,16 @@ class RepoActions {
       // not for a merge, whose second parent went with MERGE_HEAD. That one is
       // restored from the reflog.
       redo: () => merged == null ? doCommit() : _writer.resetHard(merged!),
+      handled: (e) {
+        if (e is! HookRejectedException) return false;
+        rejection = e;
+        return true;
+      },
     );
-    if (merging) _ref.read(_opBaseProvider(path).notifier).state = null;
+    if (merging && committed) {
+      _ref.read(_opBaseProvider(path).notifier).state = null;
+    }
+    return CommitOutcome(committed: committed, rejection: rejection);
   }
 
   // --- Undoable ref operations ----------------------------------------------
@@ -941,14 +956,21 @@ class RepoActions {
     } else {
       description = '$e';
     }
+    // A hook's refusal carries only the hook's own output; the title says
+    // whose it is.
+    final title = e is HookRejectedException
+        ? 'The ${e.hook} hook stopped $label'
+        : '$label failed';
     _ref
         .read(toastProvider.notifier)
-        .show('$label failed', description: description, kind: ToastKind.error);
+        .show(title, description: description, kind: ToastKind.error);
   }
 
   /// Runs an undoable op: executes [run], records its inverse, refreshes. The
   /// recorded undo/redo re-run real git and refresh, so the UI follows.
-  Future<void> _undoable(
+  /// Reports whether [run] went through. A failure [handled] claims is left
+  /// to the caller instead of being toasted.
+  Future<bool> _undoable(
     String label,
     Future<void> Function() run, {
     required Future<void> Function() undo,
@@ -956,9 +978,10 @@ class RepoActions {
     // Set false by an op that writes a working-tree file and nothing else: it
     // needs no lock of its own and must not take the one a running op holds.
     bool claimsRepo = true,
+    bool Function(GitException)? handled,
   }) async {
     if (claimsRepo) {
-      if (_blockedByRepoOp) return;
+      if (_blockedByRepoOp) return false;
       // Hold the shared busy flag so a second ref op (or network op) cannot
       // run concurrently and race on .git/index.lock.
       _ref.read(busyProvider.notifier).state = BusyState(label);
@@ -983,12 +1006,14 @@ class RepoActions {
             ),
           );
       _refresh();
+      return true;
     } on GitException catch (e) {
       // Refresh on failure too: a conflicted cherry-pick/revert leaves the
       // repo mid-operation, which the UI must show.
       await _journalFail(opId);
       _refresh();
-      _toastErr(label, e);
+      if (handled?.call(e) != true) _toastErr(label, e);
+      return false;
     } finally {
       // Clearing a flag this op never set would let the op that does own it
       // disappear from the progress bar mid-run.
@@ -2190,30 +2215,38 @@ class RepoActions {
   /// necessarily rewrites every commit above it. A commit that is not an
   /// ancestor of HEAD cannot be reached either way, so it is refused rather
   /// than silently rebasing the wrong branch.
-  Future<void> rewordCommit(
+  ///
+  /// Rewording HEAD runs the commit hooks; a refusal is returned, not
+  /// toasted, so the caller can show the hook's output. An older commit's
+  /// hooks run inside the rebase, which reports its own stop. [noVerify]
+  /// skips the hooks it can for this one attempt, on either path.
+  Future<HookRejectedException?> rewordCommit(
     String sha,
     String summary, {
     String description = '',
+    bool noVerify = false,
   }) async {
     final toasts = _ref.read(toastProvider.notifier);
     if (summary.trim().isEmpty) {
       toasts.show('Commit message is empty', kind: ToastKind.warning);
-      return;
+      return null;
     }
     final target = await _out(['rev-parse', sha]);
     final wasSigned = _isSigned(
       await _out(['log', '-1', '--format=%G?', target]),
     );
     if (target == await _headSha()) {
-      if (_blockedByRepoOp) return;
+      if (_blockedByRepoOp) return null;
       final prev = target;
       Future<void> amend() => _writer.amendMessage(
         summary,
         description: description,
         sign: wasSigned,
+        noVerify: noVerify,
         authorName: _identity.name,
         authorEmail: _identity.email,
       );
+      HookRejectedException? rejection;
       // The tree is unchanged, so soft-resetting to the original commit puts
       // history back exactly as it was and stages nothing extra.
       await _undoable(
@@ -2221,15 +2254,20 @@ class RepoActions {
         amend,
         undo: () => _writer.resetSoft(prev),
         redo: amend,
+        handled: (e) {
+          if (e is! HookRejectedException) return false;
+          rejection = e;
+          return true;
+        },
       );
-      return;
+      return rejection;
     }
     if (!await _isAncestorOfHead(target)) {
       toasts.show(
         'Commit is not on the current branch',
         kind: ToastKind.warning,
       );
-      return;
+      return null;
     }
     // An empty parent means the root commit, which git rebases with `--root`.
     final parent = await _out(['rev-parse', '--verify', '--quiet', '$target^']);
@@ -2242,7 +2280,7 @@ class RepoActions {
             'the history above it.',
         kind: ToastKind.warning,
       );
-      return;
+      return null;
     }
     final log = await _out(['log', '--reverse', '--format=%H', range]);
     final message = joinCommitMessage(summary, description);
@@ -2255,12 +2293,14 @@ class RepoActions {
               RebaseAction.reword,
               message: message,
               sign: wasSigned,
+              noVerify: noVerify,
             )
           else
             RebaseStep(line.trim(), RebaseAction.pick),
     ];
-    if (steps.isEmpty) return;
+    if (steps.isEmpty) return null;
     await rebase(parent.isEmpty ? '--root' : parent, steps);
+    return null;
   }
 
   Future<bool> _isAncestorOfHead(String sha) async => (await _git.run([
@@ -3139,6 +3179,13 @@ final pendingOpProvider = FutureProvider.family<PendingOp?, String>((
   ref.watch(repoDataProvider(path));
   return ref.read(repoActionsProvider(path)).pendingOp();
 });
+
+/// How a commit attempt ended. [rejection] is set when a hook refused it.
+class CommitOutcome {
+  final bool committed;
+  final HookRejectedException? rejection;
+  const CommitOutcome({this.committed = false, this.rejection});
+}
 
 final repoActionsProvider = Provider.family<RepoActions, String>((ref, path) {
   final actions = RepoActions(
