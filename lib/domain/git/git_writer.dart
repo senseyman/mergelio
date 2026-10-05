@@ -1043,12 +1043,10 @@ class GitWriter {
     String what = 'git commit',
     Map<String, String>? environment,
   }) async {
-    // The trace carries the whole command line, message included, so it goes
-    // in a directory only this user can read — /tmp is shared on Linux.
-    // Created synchronously: the commit must not wait on the event loop
-    // before git starts.
-    final dir = Directory.systemTemp.createTempSync('mergelio_commit_');
-    final trace = File(p.join(dir.path, 'trace2.json'));
+    final dir = _privateTempDir();
+    // Without a private place for the trace the command still runs; it only
+    // loses the hook's name if one refuses.
+    final trace = dir == null ? null : File(p.join(dir.path, 'trace2.json'));
     try {
       final r = await _run(
         [
@@ -1058,21 +1056,56 @@ class GitWriter {
           'advice.ignoredHook=false',
           ...args,
         ],
-        environment: {...?environment, 'GIT_TRACE2_EVENT': trace.path},
+        environment: {
+          ...?environment,
+          if (trace != null) 'GIT_TRACE2_EVENT': trace.path,
+        },
       );
       if (r.ok) return;
-      final hook = await trace.exists()
+      final hook = trace != null && await trace.exists()
           ? rejectingHook(await trace.readAsString())
           : null;
       if (hook != null) throw HookRejectedException(hook, r);
       throw GitException(what, r);
     } finally {
       try {
-        dir.deleteSync(recursive: true);
+        dir?.deleteSync(recursive: true);
       } on FileSystemException {
         // Best-effort: a leaked temp file is not worth failing the op over.
       }
     }
+  }
+
+  /// A new temp directory only this user can read, for the trace, which
+  /// carries the whole command line, message included. Null when one cannot
+  /// be had.
+  ///
+  /// Dart creates temp directories 0700 on macOS but with the umask on Linux
+  /// — 0755 — where /tmp is shared, so the mode is set here rather than
+  /// trusted. Windows keeps %TEMP% inside the user's own profile. Everything
+  /// is synchronous: the commit must not wait on the event loop before git
+  /// starts.
+  static Directory? _privateTempDir() {
+    final Directory dir;
+    try {
+      dir = Directory.systemTemp.createTempSync('mergelio_commit_');
+    } on FileSystemException {
+      return null;
+    }
+    if (Platform.isWindows) return dir;
+    try {
+      if (Process.runSync('chmod', ['700', dir.path]).exitCode == 0) {
+        return dir;
+      }
+    } on ProcessException {
+      // No chmod to run: treat it as a directory that cannot be made private.
+    }
+    try {
+      dir.deleteSync();
+    } on FileSystemException {
+      // Empty and about to be abandoned either way.
+    }
+    return null;
   }
 
   /// Rewrites the message of HEAD, leaving its tree alone. `--only` with no
