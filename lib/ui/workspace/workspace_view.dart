@@ -165,6 +165,14 @@ class RightPanel extends ConsumerWidget {
           }
         }
       }
+      // Not on the loaded page — picked from the reflog, a review or a
+      // signature check — so read that one commit on its own. The working
+      // tree stays up while it loads, and for a sha the repository lacks.
+      if (commit == null && data != null) {
+        commit = ref
+            .watch(commitByShaProvider((repo: path, sha: selected)))
+            .valueOrNull;
+      }
       if (commit != null) {
         return CommitDetails(
           repoPath: path,

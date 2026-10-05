@@ -6,6 +6,7 @@ import 'line_history.dart';
 import 'models.dart';
 import 'reflog.dart';
 import 'review.dart';
+import 'signature.dart';
 import 'stash.dart';
 import 'worktree.dart';
 
@@ -32,11 +33,16 @@ class GitReader {
   /// endless reload loop. `GIT_OPTIONAL_LOCKS=0` disables those writes.
   static const _readEnvironment = {'GIT_OPTIONAL_LOCKS': '0'};
 
-  Future<GitResult> _run(List<String> args, {Duration? timeout}) => git.run(
+  Future<GitResult> _run(
+    List<String> args, {
+    Duration? timeout,
+    GitCancel? cancel,
+  }) => git.run(
     args,
     repoPath: repoPath,
     timeout: timeout,
     environment: _readEnvironment,
+    cancel: cancel,
   );
 
   /// `-U<n>` for an explicit context width, or nothing to keep git's default.
@@ -141,21 +147,7 @@ class GitReader {
       if (f.length < 8) continue;
       records++;
       if (auxShas.contains(f[0])) continue; // drop stash index/untracked nodes
-      out.add(
-        Commit(
-          sha: f[0],
-          parents: f[1].split(' ').where((s) => s.isNotEmpty).toList(),
-          author: f[2],
-          authorEmail: f[3],
-          date: DateTime.parse(f[4]),
-          dateOffset: isoOffset(f[4]),
-          refs: _parseRefs(f[5]),
-          message: f[6],
-          body: f[7].trimRight(),
-          coauthor: f[7].toLowerCase().contains('co-authored-by:'),
-          avatarValue: avatarFor(f[3]),
-        ),
-      );
+      out.add(_fullCommit(f));
     }
     return (commits: out, truncated: maxCount != null && records >= maxCount);
   }
@@ -719,6 +711,42 @@ class GitReader {
         : (commits: all, truncated: false);
   }
 
+  /// One `%H %P %an %ae %aI %D %s %b` record (split on [_fs]) with its refs
+  /// and body, as the history walk reads it.
+  Commit _fullCommit(List<String> f) => Commit(
+    sha: f[0],
+    parents: f[1].split(' ').where((s) => s.isNotEmpty).toList(),
+    author: f[2],
+    authorEmail: f[3],
+    date: DateTime.parse(f[4]),
+    dateOffset: isoOffset(f[4]),
+    refs: _parseRefs(f[5]),
+    message: f[6],
+    body: f[7].trimRight(),
+    coauthor: f[7].toLowerCase().contains('co-authored-by:'),
+    avatarValue: avatarFor(f[3]),
+  );
+
+  /// One commit read the way the history walk reads it, for a commit that
+  /// may lie beyond the loaded page. Null when git does not know [sha].
+  Future<Commit?> commit(String sha) async {
+    final r = await _run([
+      'log',
+      '-1',
+      '--decorate=full',
+      '-z',
+      '--pretty=format:%H$_fs%P$_fs%an$_fs%ae$_fs%aI$_fs%D$_fs%s$_fs%b',
+      '--end-of-options',
+      sha,
+    ]);
+    if (!r.ok) return null;
+    for (final rec in r.stdout.split(_rs)) {
+      final f = rec.split(_fs);
+      if (f.length >= 8) return _fullCommit(f);
+    }
+    return null;
+  }
+
   /// Commits from a `%H %P %an %ae %aI %D %s %b` log, without lane layout or
   /// ref decoration.
   List<Commit> _parseSimpleLog(String stdout) {
@@ -776,13 +804,70 @@ class GitReader {
     return parseLineHistory(r.stdout);
   }
 
-  /// `%G?` verification for one commit, on demand. Bulk history reads skip
-  /// verification because git spawns gpg per signed commit — thousands of
-  /// subprocesses on a repository that enforces signing.
-  Future<String> signatureStatus(String sha) async {
-    final r = await _run(['log', '-1', '--format=%G?', sha]);
-    if (!r.ok) throw GitException('git log -1 --format=%G? failed', r);
-    return r.out.isEmpty ? 'N' : r.out;
+  /// Signature verification for one commit, on demand. Bulk history reads
+  /// skip verification because git spawns gpg per signed commit — thousands
+  /// of subprocesses on a repository that enforces signing.
+  Future<SignatureVerdict> signatureVerdict(String sha) async {
+    final r = await _run([
+      'log',
+      '-1',
+      '--format=$kSignatureDetailFormat',
+      '--end-of-options',
+      sha,
+    ]);
+    if (!r.ok) throw GitException('git log -1 signature read failed', r);
+    return withVerifierErrors(parseSignatureVerdict(r.out), r.err);
+  }
+
+  /// `gpg.ssh.allowedSignersFile`, or null when unset. Without it git can
+  /// check an SSH signature's maths but never name its signer.
+  Future<String?> allowedSignersFile() async {
+    final r = await _run(['config', '--get', 'gpg.ssh.allowedSignersFile']);
+    return r.ok && r.out.isNotEmpty ? r.out : null;
+  }
+
+  /// Verifies the tag [name]. git exits non-zero for anything short of a
+  /// good signature, so the verdict comes from stderr, not the exit code.
+  Future<SignatureVerdict> verifyTag(String name) async {
+    final r = await _run(['verify-tag', '--raw', 'refs/tags/$name']);
+    return parseTagVerification(r.err);
+  }
+
+  /// Budget for [signatureAudit]: every signed commit in the range costs a
+  /// gpg or ssh-keygen process.
+  static const _auditTimeout = Duration(minutes: 5);
+
+  /// Verifies every commit in `base..HEAD`, up to [limit] of them.
+  ///
+  /// [cancel] stops git but not a verifier it has already started (see
+  /// [GitCancel.cancel]). git verifies one commit at a time — measured: never
+  /// more than one ssh-keygen alive during a run — so a cancelled check leaves
+  /// at most one verifier finishing its single signature.
+  Future<SignatureAudit> signatureAudit(
+    String base, {
+    int limit = 500,
+    GitCancel? cancel,
+  }) async {
+    final r = await _run(
+      [
+        'log',
+        '-z',
+        '--max-count=${limit + 1}',
+        '--format=$kSignatureAuditFormat',
+        '--end-of-options',
+        '$base..HEAD',
+      ],
+      timeout: _auditTimeout,
+      cancel: cancel,
+    );
+    if (!r.ok) throw GitException('git log signature audit failed', r);
+    // When verification never ran git still prints a letter per commit —
+    // SSH-signed ones as unsigned — and every one is wrong; better no list
+    // than that list.
+    if (verifierFailed(r.err)) {
+      throw GitException('signatures could not be verified', r);
+    }
+    return parseSignatureAudit(r.stdout, limit: limit);
   }
 
   /// Raw `git blame --line-porcelain` output for [path] (parse with

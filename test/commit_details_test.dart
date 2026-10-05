@@ -2,14 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/core/tokens.dart';
-import 'package:mergelio/domain/git/models.dart';
-import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/data/settings_repository.dart';
+import 'package:mergelio/domain/git/models.dart';
+import 'package:mergelio/domain/git/signature.dart';
+import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/state/graph_selection.dart';
 import 'package:mergelio/state/lfs.dart';
 import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
+import 'package:mergelio/state/signatures.dart';
 import 'package:mergelio/ui/workspace/commit_details.dart';
 
 final _commit = Commit(
@@ -26,6 +28,9 @@ Widget _harness({
   bool hasWip = false,
   Commit? commit,
   String sigStatus = 'G',
+  Map<String, SignatureVerdict> tags = const {},
+  List<String>? verifiedTags,
+  List<String>? signersReads,
   Future<Set<String>> Function(Ref ref, LfsQuery q)? lfsPaths,
 }) => ProviderScope(
   overrides: [
@@ -34,7 +39,17 @@ Widget _harness({
           files ??
           const [CommitFileChange(path: 'x', change: GitChange.modified)],
     ),
-    commitSignatureProvider.overrideWith((ref, key) async => sigStatus),
+    commitSignatureProvider.overrideWith(
+      (ref, key) async => parseSignatureVerdict(sigStatus),
+    ),
+    tagSignatureProvider.overrideWith((ref, key) async {
+      verifiedTags?.add(key.name);
+      return tags[key.name] ?? SignatureVerdict.unsigned;
+    }),
+    allowedSignersFileProvider.overrideWith((ref, repo) async {
+      signersReads?.add(repo);
+      return null;
+    }),
     lfsLocksProvider.overrideWith((ref, p) async => LfsLockState.none),
     lfsPathsProvider.overrideWith(
       lfsPaths ?? (ref, q) async => const <String>{},
@@ -53,7 +68,14 @@ Widget _harness({
     home: Scaffold(
       body: CommitDetails(
         repoPath: '/repo',
-        commit: commit ?? _commit,
+        commit:
+            commit ??
+            _commit.copyWith(
+              refs: [
+                for (final name in tags.keys)
+                  GitRef(kind: RefKind.tag, name: name),
+              ],
+            ),
         hasWip: hasWip,
       ),
     ),
@@ -92,6 +114,108 @@ void main() {
 
     expect(find.text('feat: something'), findsOneWidget);
     expect(find.text('Verified signature'), findsNothing);
+  });
+
+  testWidgets('a signature that cannot be checked says so', (tester) async {
+    await tester.pumpWidget(_harness(sigStatus: 'E'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Cannot verify signature'), findsOneWidget);
+    expect(find.textContaining('Verified'), findsNothing);
+  });
+
+  testWidgets('each signed tag on the commit shows its own verdict', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        sigStatus: 'N',
+        tags: const {
+          'v1.0': SignatureVerdict(state: SignatureState.good),
+          'v1.1': SignatureVerdict(state: SignatureState.bad),
+          'lightweight': SignatureVerdict.unsigned,
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tag v1.0'), findsOneWidget);
+    expect(find.text('Tag v1.1'), findsOneWidget);
+    expect(find.text('Verified signature'), findsOneWidget);
+    expect(find.text('Bad signature'), findsOneWidget);
+    // An unsigned tag has nothing to say.
+    expect(find.text('Tag lightweight'), findsNothing);
+  });
+
+  testWidgets('a commit with many tags verifies a bounded number', (
+    tester,
+  ) async {
+    final verified = <String>[];
+    await tester.pumpWidget(
+      _harness(
+        sigStatus: 'N',
+        verifiedTags: verified,
+        tags: {
+          for (var i = 0; i < 8; i++)
+            'pkg$i/v1': const SignatureVerdict(state: SignatureState.good),
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(verified, hasLength(kMaxVerifiedTags));
+    expect(find.text('Verify 3 more tags'), findsOneWidget);
+
+    await tester.tap(find.text('Verify 3 more tags'));
+    await tester.pumpAndSettle();
+    expect(verified, hasLength(8));
+    expect(find.textContaining('more tags'), findsNothing);
+  });
+
+  testWidgets('the allowed signers path git already named is not re-read', (
+    tester,
+  ) async {
+    final reads = <String>[];
+    await tester.pumpWidget(
+      _harness(
+        sigStatus:
+            'U\x1f\x1fSHA256:abc\x1fSHA256:abc\x1f\x1fundefined\x1f'
+            'Unable to open allowed keys file "/gone": No such file',
+        signersReads: reads,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Valid, untrusted key'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('/gone'), findsOneWidget);
+    expect(reads, isEmpty);
+  });
+
+  testWidgets('a commit without tags verifies no tag at all', (tester) async {
+    final verified = <String>[];
+    await tester.pumpWidget(_harness(verifiedTags: verified));
+    await tester.pumpAndSettle();
+    expect(verified, isEmpty);
+  });
+
+  testWidgets('a long signed tag name fits the narrowest panel', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(336, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      _harness(
+        sigStatus: 'N',
+        tags: const {
+          'release/2026-10-05-a-really-long-tag-name': SignatureVerdict(
+            state: SignatureState.unverifiable,
+          ),
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.text('Cannot verify signature'), findsOneWidget);
   });
 
   testWidgets('shows the commit description body below the subject', (

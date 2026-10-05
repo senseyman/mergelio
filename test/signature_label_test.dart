@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mergelio/domain/git/signature.dart';
 import 'package:mergelio/core/tokens.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
@@ -47,7 +48,7 @@ void main() {
           commitFilesProvider((repo: '/r', sha: c.sha))
               .overrideWith((ref) async => const <CommitFileChange>[]),
           commitSignatureProvider((repo: '/r', sha: c.sha))
-              .overrideWith((ref) async => status),
+              .overrideWith((ref) async => parseSignatureVerdict(status)),
           settingsProvider.overrideWith(
             (ref) => SettingsController(
               InMemorySettingsRepository(),

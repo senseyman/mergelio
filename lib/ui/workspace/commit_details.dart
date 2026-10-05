@@ -6,14 +6,17 @@ import '../../core/theme.dart';
 import '../../core/tokens.dart';
 import '../../domain/git/commit_message.dart';
 import '../../domain/git/models.dart';
+import '../../domain/git/signature.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/diff_target.dart';
 import '../../state/graph_selection.dart';
 import '../../state/lfs.dart';
 import '../../state/repo_data.dart';
 import '../../state/settings_controller.dart';
+import '../../state/signatures.dart';
 import '../common/change_file_row.dart';
 import '../common/file_tree_view.dart';
+import '../common/signature_badge.dart';
 import '../graph/commit_columns.dart';
 import '../graph/ref_pill.dart';
 import 'edit_commit_message.dart';
@@ -40,11 +43,15 @@ class CommitDetails extends ConsumerWidget {
     final c = commit;
     final files = ref.watch(commitFilesProvider((repo: repoPath, sha: c.sha)));
     final clock = ref.watch(settingsProvider.select((s) => s.clockFormat));
-    // 'N' is unsigned and 'E' cannot be checked; neither warrants a row. Null
-    // while verification is still running, so the row appears once known.
+    // Null while verification is still running, so the row appears once
+    // known. An unsigned commit gets no row.
     final sig = ref
         .watch(commitSignatureProvider((repo: repoPath, sha: c.sha)))
         .valueOrNull;
+    final tags = [
+      for (final r in c.refs)
+        if (r.kind == RefKind.tag) r.name,
+    ];
 
     return Container(
       color: t.bgPanel,
@@ -153,7 +160,10 @@ class CommitDetails extends ConsumerWidget {
                   Wrap(
                     spacing: 4,
                     runSpacing: 4,
-                    children: [for (final r in c.refs) RefPill(gitRef: r)],
+                    children: [
+                      for (final r in c.refs)
+                        RefPill(gitRef: r, ellipsize: true),
+                    ],
                   ),
                 ],
                 const SizedBox(height: 12),
@@ -177,8 +187,16 @@ class CommitDetails extends ConsumerWidget {
                     value: p.length > 7 ? p.substring(0, 7) : p,
                     mono: true,
                   ),
-                if (sig != null && sig != 'N' && sig != 'E')
-                  _Signature(status: sig),
+                if (sig != null && sig.isSigned)
+                  _Signature(repoPath: repoPath, verdict: sig),
+                if (tags.isNotEmpty)
+                  _TagSignatures(
+                    // A fresh list per commit, so one commit's "show all"
+                    // does not carry over to the next.
+                    key: ValueKey(c.sha),
+                    repoPath: repoPath,
+                    tags: tags,
+                  ),
                 if (c.coauthor)
                   Padding(
                     padding: const EdgeInsets.only(top: 6),
@@ -327,34 +345,112 @@ class _MsgAction extends StatelessWidget {
   }
 }
 
-/// Signature indicator whose wording matches the real `%G?` status — never
-/// claims "Verified" for a bad, expired or revoked signature.
-class _Signature extends StatelessWidget {
-  final String status;
-  const _Signature({required this.status});
+/// Tags verified on their own before the user asks for more. Each one costs a
+/// `git verify-tag` and a gpg or ssh-keygen process, and a commit can carry
+/// dozens of tags in a repository that tags every package's release.
+const kMaxVerifiedTags = 5;
+
+/// Signature rows for a commit's tags: the first [kMaxVerifiedTags] verified
+/// straight away, the rest behind one action.
+class _TagSignatures extends StatefulWidget {
+  final String repoPath;
+  final List<String> tags;
+  const _TagSignatures({super.key, required this.repoPath, required this.tags});
+
+  @override
+  State<_TagSignatures> createState() => _TagSignaturesState();
+}
+
+class _TagSignaturesState extends State<_TagSignatures> {
+  bool _all = false;
 
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
-    final (label, color, icon) = switch (status) {
-      // 'G' is a good, trusted signature; 'U' is good but the key's validity is
-      // unknown/untrusted — never assert "verified" for it.
-      'G' => ('Verified signature', t.success, Icons.verified_user_outlined),
-      'U' => ('Valid, untrusted key', t.warning, Icons.gpp_maybe_outlined),
-      'X' || 'Y' => ('Expired signature', t.warning, Icons.gpp_maybe_outlined),
-      'R' => ('Revoked key', t.danger, Icons.gpp_bad_outlined),
-      'B' => ('Bad signature', t.danger, Icons.gpp_bad_outlined),
-      _ => ('Signed', t.textMuted, Icons.lock_outline),
-    };
+    final l = AppLocalizations.of(context);
+    final tags = widget.tags;
+    final shown = _all ? tags : tags.take(kMaxVerifiedTags).toList();
+    final rest = tags.length - shown.length;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final tag in shown)
+          _TagSignature(repoPath: widget.repoPath, tag: tag),
+        if (rest > 0)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(4),
+              onTap: () => setState(() => _all = true),
+              child: Text(
+                l.sigMoreTags(rest),
+                style: TextStyle(color: t.accent, fontSize: 12),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// A tag's signature row, verified on demand. Nothing while it is checked,
+/// nor for a lightweight or unsigned tag.
+class _TagSignature extends ConsumerWidget {
+  final String repoPath;
+  final String tag;
+  const _TagSignature({required this.repoPath, required this.tag});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final verdict = ref
+        .watch(tagSignatureProvider((repo: repoPath, name: tag)))
+        .valueOrNull;
+    if (verdict == null || !verdict.isSigned) return const SizedBox.shrink();
+    return _Signature(repoPath: repoPath, verdict: verdict, tag: tag);
+  }
+}
+
+/// One signature row: the commit's own, or a signed tag's when [tag] names
+/// it. The allowed signers file is read only for an SSH signature git could
+/// not attribute, and only when the verifier's output does not already name
+/// the file it failed to open.
+class _Signature extends ConsumerWidget {
+  final String repoPath;
+  final SignatureVerdict verdict;
+  final String? tag;
+  const _Signature({required this.repoPath, required this.verdict, this.tag});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = context.tokens;
+    final l = AppLocalizations.of(context);
+    final needsSigners =
+        verdict.isSsh &&
+        verdict.state == SignatureState.untrusted &&
+        allowedSignersPathIn(verdict.detail) == null;
+    final signers = needsSigners
+        ? ref.watch(allowedSignersFileProvider(repoPath)).valueOrNull
+        : null;
+    final badge = SignatureBadge(verdict: verdict, allowedSignersFile: signers);
     return Padding(
       padding: const EdgeInsets.only(top: 8),
-      child: Row(
-        children: [
-          Icon(icon, size: 13, color: color),
-          const SizedBox(width: 6),
-          Text(label, style: TextStyle(color: color, fontSize: 12)),
-        ],
-      ),
+      child: tag == null
+          ? badge
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Flexible(
+                  child: Text(
+                    l.sigTag(tag!),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: t.textFaint, fontSize: 12),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Flexible(child: badge),
+              ],
+            ),
     );
   }
 }

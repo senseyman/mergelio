@@ -108,9 +108,17 @@ change never needs a second window.*
 
 ### Commit graph & history
 
-- Lane-based commit graph with configurable columns, ref pills, signed-commit
-  indicators and full keyboard navigation.
+- Lane-based commit graph with configurable columns, ref pills and full
+  keyboard navigation.
 - Commit details with per-file stats, and a diff for any commit.
+- **Signature verification** (GPG and SSH): the selected commit and its tags
+  are verified on demand and labelled verified, untrusted key, expired,
+  revoked, bad or cannot verify — in words, not only colour. Expand a badge for
+  the signer, key and fingerprint, and for why a signature stops short of
+  verified (no `gpg.ssh.allowedSignersFile`, a key missing from it, a missing
+  public key, or gpg / ssh-keygen not found). **Check signatures…** in the
+  command palette lists every commit since a base ref (the upstream by default)
+  without a verified signature.
 - **File history** and per-line **blame** for any changed file.
 - **Line history** (`git log -L`): pick a line or a run of lines — in blame, or
   in any diff — and see every commit that changed just those lines, each with

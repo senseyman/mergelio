@@ -5,11 +5,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/core/tokens.dart';
 import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/domain/git/models.dart';
+import 'package:mergelio/domain/git/signature.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/state/lfs.dart';
 import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
+import 'package:mergelio/state/signatures.dart';
 import 'package:mergelio/state/workspace.dart';
 import 'package:mergelio/ui/workspace/commit_details.dart';
 
@@ -49,7 +51,12 @@ void main() {
         overrides: [
           workspaceProvider.overrideWith((ref) => workspace),
           commitFilesProvider.overrideWith((ref, key) async => const []),
-          commitSignatureProvider.overrideWith((ref, key) async => 'N'),
+          commitSignatureProvider.overrideWith(
+            (ref, key) async => SignatureVerdict.unsigned,
+          ),
+          tagSignatureProvider.overrideWith(
+            (ref, key) async => SignatureVerdict.unsigned,
+          ),
           lfsLocksProvider.overrideWith((ref, p) async => LfsLockState.none),
           lfsPathsProvider.overrideWith((ref, q) async => const <String>{}),
           settingsProvider.overrideWith(

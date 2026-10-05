@@ -17,6 +17,7 @@ import '../review/review_picker.dart';
 import '../workspace/branch_switch.dart';
 import '../workspace/maintenance_panel.dart';
 import '../workspace/remote_dialog.dart';
+import '../workspace/signature_audit_panel.dart';
 import 'lfs_prune_flow.dart';
 import 'lfs_push_guard.dart';
 import 'repo_op_dialogs.dart';
@@ -81,6 +82,11 @@ void openGlobalPalette(BuildContext context, WidgetRef ref) {
       l.mntPaletteOpen,
       Icons.cleaning_services_outlined,
       () => showMaintenancePanel(context, path),
+    ),
+    PaletteCommand(
+      l.sigPaletteAudit,
+      Icons.verified_user_outlined,
+      () => showSignatureAudit(context, ref, path),
     ),
     PaletteCommand(
       l.tbGlobalSearch,

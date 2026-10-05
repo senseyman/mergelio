@@ -6,6 +6,7 @@ import '../domain/git/git_providers.dart';
 import '../domain/git/git_reader.dart';
 import '../domain/git/lane_layout.dart';
 import '../domain/git/models.dart';
+import '../domain/git/signature.dart';
 import 'squash_link_cache.dart';
 
 part 'repo_data.freezed.dart';
@@ -43,13 +44,24 @@ final commitFilesProvider = FutureProvider.family
       return reader.commitFiles(key.sha);
     });
 
+/// One commit by sha, for a selection that lies beyond the loaded page — a
+/// row picked in the reflog, a review or a signature check. Null when the
+/// repository does not have it.
+final commitByShaProvider = FutureProvider.family
+    .autoDispose<Commit?, ({String repo, String sha})>((ref, key) async {
+      return GitReader(ref.watch(gitServiceProvider), key.repo).commit(key.sha);
+    });
+
 /// Signature verification for the one commit shown in the details panel.
 /// On demand because verifying spawns gpg per signed commit — doing it for
 /// the whole graph takes seconds on a repository that enforces signing.
 final commitSignatureProvider = FutureProvider.family
-    .autoDispose<String, ({String repo, String sha})>((ref, key) async {
+    .autoDispose<SignatureVerdict, ({String repo, String sha})>((
+      ref,
+      key,
+    ) async {
       final reader = GitReader(ref.watch(gitServiceProvider), key.repo);
-      return reader.signatureStatus(key.sha);
+      return reader.signatureVerdict(key.sha);
     });
 
 /// Squash-link inference, remembered per repository and per branch so that a

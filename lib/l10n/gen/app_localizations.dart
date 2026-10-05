@@ -5851,6 +5851,222 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not look up the merge request'**
   String get rvMrLookupFailed;
+
+  /// No description provided for @sigGood.
+  ///
+  /// In en, this message translates to:
+  /// **'Verified signature'**
+  String get sigGood;
+
+  /// No description provided for @sigUntrusted.
+  ///
+  /// In en, this message translates to:
+  /// **'Valid, untrusted key'**
+  String get sigUntrusted;
+
+  /// No description provided for @sigExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'Expired signature'**
+  String get sigExpired;
+
+  /// No description provided for @sigExpiredKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Expired key'**
+  String get sigExpiredKey;
+
+  /// No description provided for @sigRevoked.
+  ///
+  /// In en, this message translates to:
+  /// **'Revoked key'**
+  String get sigRevoked;
+
+  /// No description provided for @sigBad.
+  ///
+  /// In en, this message translates to:
+  /// **'Bad signature'**
+  String get sigBad;
+
+  /// No description provided for @sigUnverifiable.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot verify signature'**
+  String get sigUnverifiable;
+
+  /// No description provided for @sigNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Not signed'**
+  String get sigNone;
+
+  /// No description provided for @sigShowDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Show signature details'**
+  String get sigShowDetails;
+
+  /// No description provided for @sigHideDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide signature details'**
+  String get sigHideDetails;
+
+  /// No description provided for @sigSigner.
+  ///
+  /// In en, this message translates to:
+  /// **'Signer'**
+  String get sigSigner;
+
+  /// No description provided for @sigKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Key'**
+  String get sigKey;
+
+  /// No description provided for @sigFingerprint.
+  ///
+  /// In en, this message translates to:
+  /// **'Fingerprint'**
+  String get sigFingerprint;
+
+  /// No description provided for @sigPrimaryKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Primary key'**
+  String get sigPrimaryKey;
+
+  /// No description provided for @sigTrust.
+  ///
+  /// In en, this message translates to:
+  /// **'Trust'**
+  String get sigTrust;
+
+  /// No description provided for @sigFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'Format'**
+  String get sigFormat;
+
+  /// No description provided for @sigUnknownSigner.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown signer'**
+  String get sigUnknownSigner;
+
+  /// No description provided for @sigHintNoAllowedSigners.
+  ///
+  /// In en, this message translates to:
+  /// **'The signature matches the key, but git names an SSH signer only when gpg.ssh.allowedSignersFile is set.'**
+  String get sigHintNoAllowedSigners;
+
+  /// No description provided for @sigHintKeyNotAllowed.
+  ///
+  /// In en, this message translates to:
+  /// **'This SSH key is not listed in the allowed signers file ({path}).'**
+  String sigHintKeyNotAllowed(String path);
+
+  /// No description provided for @sigHintMissingKey.
+  ///
+  /// In en, this message translates to:
+  /// **'The signer\'s public key is not available on this machine, so the signature could not be checked.'**
+  String get sigHintMissingKey;
+
+  /// No description provided for @sigTag.
+  ///
+  /// In en, this message translates to:
+  /// **'Tag {name}'**
+  String sigTag(String name);
+
+  /// No description provided for @sigPaletteAudit.
+  ///
+  /// In en, this message translates to:
+  /// **'Check signatures…'**
+  String get sigPaletteAudit;
+
+  /// No description provided for @sigAuditTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Signature check'**
+  String get sigAuditTitle;
+
+  /// No description provided for @sigAuditBase.
+  ///
+  /// In en, this message translates to:
+  /// **'Since'**
+  String get sigAuditBase;
+
+  /// No description provided for @sigAuditBaseHint.
+  ///
+  /// In en, this message translates to:
+  /// **'branch, tag or commit'**
+  String get sigAuditBaseHint;
+
+  /// No description provided for @sigAuditRun.
+  ///
+  /// In en, this message translates to:
+  /// **'Check'**
+  String get sigAuditRun;
+
+  /// No description provided for @sigAuditRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Checks {range}: commits reachable from HEAD but not from the base.'**
+  String sigAuditRange(String range);
+
+  /// No description provided for @sigAuditAllVerified.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{The commit has a verified signature} other{All {count} commits have a verified signature}}'**
+  String sigAuditAllVerified(int count);
+
+  /// No description provided for @sigAuditSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{unverified, plural, one{{unverified} commit of {count} lacks a verified signature} other{{unverified} commits of {count} lack a verified signature}}'**
+  String sigAuditSummary(int count, int unverified);
+
+  /// No description provided for @sigAuditEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No commits in this range'**
+  String get sigAuditEmpty;
+
+  /// No description provided for @sigAuditTruncated.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{Only the latest commit was checked.} other{Only the latest {count} commits were checked.}}'**
+  String sigAuditTruncated(int count);
+
+  /// No description provided for @sigAuditFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not check signatures'**
+  String get sigAuditFailed;
+
+  /// No description provided for @sigHintSignersUnreadable.
+  ///
+  /// In en, this message translates to:
+  /// **'The allowed signers file ({path}) could not be opened, so git cannot name the signer.'**
+  String sigHintSignersUnreadable(String path);
+
+  /// No description provided for @sigHintVerifierMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'git could not start {program}, so nothing was checked. Install it or point git at it (gpg.program, gpg.ssh.program).'**
+  String sigHintVerifierMissing(String program);
+
+  /// No description provided for @sigMoreTags.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{Verify 1 more tag} other{Verify {count} more tags}}'**
+  String sigMoreTags(int count);
+
+  /// No description provided for @sigHintSshUnconfigured.
+  ///
+  /// In en, this message translates to:
+  /// **'git verifies SSH signatures only when gpg.ssh.allowedSignersFile points at an allowed signers file. Set it to check SSH-signed commits.'**
+  String get sigHintSshUnconfigured;
 }
 
 class _AppLocalizationsDelegate
