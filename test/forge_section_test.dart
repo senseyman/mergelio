@@ -287,9 +287,9 @@ void main() {
     // particular not a false "0" while the fetch is still in flight.
     expect(find.text('0'), findsNothing);
 
-    // The spinner renders while the fetch is in flight, not the
+    // The placeholder renders while the fetch is in flight, not the
     // empty-state message that would falsely claim there is nothing open.
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byType(ForgeLoadingRow), findsOneWidget);
     expect(find.text('No open pull requests'), findsNothing);
 
     completer.complete(const ForgePanel());

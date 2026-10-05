@@ -284,7 +284,7 @@ void main() {
     await t.pump();
 
     expect(find.text('0'), findsNothing);
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byType(ForgeLoadingRow), findsOneWidget);
 
     completer.complete(const []);
     await t.pumpAndSettle();
