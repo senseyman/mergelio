@@ -5,8 +5,8 @@ import 'git_service.dart';
 import 'line_history.dart';
 import 'models.dart';
 import 'reflog.dart';
-import 'signature.dart';
 import 'review.dart';
+import 'signature.dart';
 import 'stash.dart';
 import 'worktree.dart';
 
@@ -33,11 +33,16 @@ class GitReader {
   /// endless reload loop. `GIT_OPTIONAL_LOCKS=0` disables those writes.
   static const _readEnvironment = {'GIT_OPTIONAL_LOCKS': '0'};
 
-  Future<GitResult> _run(List<String> args, {Duration? timeout}) => git.run(
+  Future<GitResult> _run(
+    List<String> args, {
+    Duration? timeout,
+    GitCancel? cancel,
+  }) => git.run(
     args,
     repoPath: repoPath,
     timeout: timeout,
     environment: _readEnvironment,
+    cancel: cancel,
   );
 
   /// `-U<n>` for an explicit context width, or nothing to keep git's default.
@@ -821,15 +826,23 @@ class GitReader {
   static const _auditTimeout = Duration(minutes: 5);
 
   /// Verifies every commit in `base..HEAD`, up to [limit] of them.
-  Future<SignatureAudit> signatureAudit(String base, {int limit = 500}) async {
-    final r = await _run([
-      'log',
-      '-z',
-      '--max-count=${limit + 1}',
-      '--format=$kSignatureAuditFormat',
-      '--end-of-options',
-      '$base..HEAD',
-    ], timeout: _auditTimeout);
+  Future<SignatureAudit> signatureAudit(
+    String base, {
+    int limit = 500,
+    GitCancel? cancel,
+  }) async {
+    final r = await _run(
+      [
+        'log',
+        '-z',
+        '--max-count=${limit + 1}',
+        '--format=$kSignatureAuditFormat',
+        '--end-of-options',
+        '$base..HEAD',
+      ],
+      timeout: _auditTimeout,
+      cancel: cancel,
+    );
     if (!r.ok) throw GitException('git log signature audit failed', r);
     return parseSignatureAudit(r.stdout, limit: limit);
   }

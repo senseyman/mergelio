@@ -1,7 +1,10 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_reader.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/domain/git/signature.dart';
+import 'package:mergelio/state/signatures.dart';
 
 class _CapturingGit implements GitService {
   final calls = <List<String>>[];
@@ -9,6 +12,7 @@ class _CapturingGit implements GitService {
   final String err;
   final int code;
   final timeouts = <Duration?>[];
+  final cancels = <GitCancel?>[];
   _CapturingGit([this.output = '', this.err = '', this.code = 0]);
 
   @override
@@ -22,6 +26,7 @@ class _CapturingGit implements GitService {
   }) async {
     calls.add(args);
     timeouts.add(timeout);
+    cancels.add(cancel);
     return GitResult(code, output, err);
   }
 
@@ -153,5 +158,27 @@ void main() {
       GitReader(git, '/repo').signatureAudit('nope'),
       throwsA(isA<GitException>()),
     );
+  });
+
+  test('signatureAudit hands its cancel handle to git', () async {
+    final git = _CapturingGit();
+    final cancel = GitCancel();
+    await GitReader(git, '/repo').signatureAudit('main', cancel: cancel);
+    expect(git.cancels.single, same(cancel));
+  });
+
+  test('disposing the audit provider cancels the running check', () async {
+    final git = _CapturingGit();
+    final container = ProviderContainer(
+      overrides: [gitServiceProvider.overrideWithValue(git)],
+    );
+    final key = (repo: '/repo', base: 'main');
+    final sub = container.listen(signatureAuditProvider(key), (_, _) {});
+    await container.read(signatureAuditProvider(key).future);
+    expect(git.cancels.single!.isCancelled, isFalse);
+
+    sub.close();
+    container.dispose();
+    expect(git.cancels.single!.isCancelled, isTrue);
   });
 }

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/git/git_providers.dart';
 import '../domain/git/git_reader.dart';
+import '../domain/git/git_service.dart';
 import '../domain/git/signature.dart';
 
 /// `gpg.ssh.allowedSignersFile` for a repository, null when unset. Read
@@ -32,14 +33,18 @@ final tagSignaturesProvider = FutureProvider.family
       ];
     });
 
-/// Every commit in `base..HEAD` without a verified signature.
+/// Every commit in `base..HEAD` without a verified signature. Each signed
+/// commit costs a gpg or ssh-keygen process, so the check is killed as soon
+/// as nobody is waiting for it.
 final signatureAuditProvider = FutureProvider.family
     .autoDispose<SignatureAudit, ({String repo, String base})>((
       ref,
       key,
     ) async {
+      final cancel = GitCancel();
+      ref.onDispose(cancel.cancel);
       return GitReader(
         ref.watch(gitServiceProvider),
         key.repo,
-      ).signatureAudit(key.base);
+      ).signatureAudit(key.base, cancel: cancel);
     });
