@@ -488,7 +488,7 @@ class GitWriter {
     MergeFavor favor = MergeFavor.none,
     String? authorName,
     String? authorEmail,
-  }) => _ok([
+  }) => _traced(what: 'git merge', [
     ..._identity(authorName, authorEmail),
     'merge',
     if (squash)
@@ -499,7 +499,7 @@ class GitWriter {
     ],
     if (favor != MergeFavor.none) ...['-X', favor.name],
     branch,
-  ], 'git merge');
+  ]);
 
   /// Backs out a merge in progress. A conflicted `--squash` merge never wrote
   /// MERGE_HEAD, so git refuses `--abort` there; `git reset --merge` is git's
@@ -766,9 +766,9 @@ class GitWriter {
   /// Commits a cherry-pick that paused on conflicts, once the resolution is
   /// staged. `GIT_EDITOR=true` keeps the picked message without prompting.
   Future<void> cherryPickContinue({String? authorName, String? authorEmail}) =>
-      _ok(
+      _traced(
         [..._identity(authorName, authorEmail), 'cherry-pick', '--continue'],
-        'git cherry-pick --continue',
+        what: 'git cherry-pick --continue',
         environment: {'GIT_EDITOR': 'true'},
       );
 
@@ -790,11 +790,12 @@ class GitWriter {
       _ok(['revert', '--abort'], 'git revert --abort');
 
   /// Commits a revert that paused on conflicts, once the resolution is staged.
-  Future<void> revertContinue({String? authorName, String? authorEmail}) => _ok(
-    [..._identity(authorName, authorEmail), 'revert', '--continue'],
-    'git revert --continue',
-    environment: {'GIT_EDITOR': 'true'},
-  );
+  Future<void> revertContinue({String? authorName, String? authorEmail}) =>
+      _traced(
+        [..._identity(authorName, authorEmail), 'revert', '--continue'],
+        what: 'git revert --continue',
+        environment: {'GIT_EDITOR': 'true'},
+      );
 
   /// Drops the paused commit from the revert sequence (empty resolution).
   Future<void> revertSkip() => _ok(['revert', '--skip'], 'git revert --skip');
@@ -1020,7 +1021,7 @@ class GitWriter {
         body.write('\nCo-authored-by: $c');
       }
     }
-    await _commitTraced([
+    await _traced([
       // Per-commit identity via -c, applied before the subcommand.
       if (authorName != null) ...['-c', 'user.name=$authorName'],
       if (authorEmail != null) ...['-c', 'user.email=$authorEmail'],
@@ -1033,11 +1034,15 @@ class GitWriter {
     ]);
   }
 
-  /// Runs a `git commit` invocation and, when a hook refuses it, throws
-  /// [HookRejectedException] naming the hook. Git prints nothing of its own
-  /// in that case — the transcript is the hook's — so the hook is read from
-  /// the trace git writes as it runs children.
-  Future<void> _commitTraced(List<String> args) async {
+  /// Runs a git command that may run hooks and, when one refuses it, throws
+  /// [HookRejectedException] naming the hook. Git prints little or nothing of
+  /// its own in that case — the transcript is the hook's — so the hook is read
+  /// from the trace git writes as it runs children.
+  Future<void> _traced(
+    List<String> args, {
+    String what = 'git commit',
+    Map<String, String>? environment,
+  }) async {
     // The trace carries the whole command line, message included, so it goes
     // in a directory only this user can read — /tmp is shared on Linux.
     // Created synchronously: the commit must not wait on the event loop
@@ -1053,14 +1058,14 @@ class GitWriter {
           'advice.ignoredHook=false',
           ...args,
         ],
-        environment: {'GIT_TRACE2_EVENT': trace.path},
+        environment: {...?environment, 'GIT_TRACE2_EVENT': trace.path},
       );
       if (r.ok) return;
       final hook = await trace.exists()
           ? rejectingHook(await trace.readAsString())
           : null;
       if (hook != null) throw HookRejectedException(hook, r);
-      throw GitException('git commit', r);
+      throw GitException(what, r);
     } finally {
       try {
         dir.deleteSync(recursive: true);
@@ -1082,7 +1087,7 @@ class GitWriter {
     bool noVerify = false,
     String? authorName,
     String? authorEmail,
-  }) => _commitTraced([
+  }) => _traced([
     ..._identity(authorName, authorEmail),
     'commit',
     '--amend',

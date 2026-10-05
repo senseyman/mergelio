@@ -8,9 +8,10 @@ import '../domain/git/git_providers.dart';
 import '../domain/git/hooks.dart';
 
 /// Whether the next commit in a repository skips its hooks. Armed by hand for
-/// one commit at a time: a successful commit disarms it, and it is never
-/// saved, so a restart cannot leave hooks silently off.
-final skipHooksOnceProvider = StateProvider.family<bool, String>(
+/// one commit at a time: a successful commit disarms it, and so does the
+/// composer going away — switching tabs, closing the repository — so hooks
+/// are never found off long after the choice was made. Never saved.
+final skipHooksOnceProvider = StateProvider.autoDispose.family<bool, String>(
   (_, _) => false,
 );
 

@@ -156,7 +156,6 @@ void main() {
       await installSample(hooks, 'pre-rebase', repoPath: dir.path);
       final h = await find('pre-rebase');
       expect(h.state, HookState.active);
-      expect(h.hasSample, isTrue);
     });
 
     test('installing a sample never replaces a hook', () async {
@@ -384,6 +383,85 @@ void main() {
           ),
         ),
       );
+    });
+
+    group('older commits and other commands', () {
+      late ProviderContainer container;
+
+      setUp(() {
+        container = ProviderContainer(
+          overrides: [
+            gitServiceProvider.overrideWithValue(git),
+            profilesProvider.overrideWith(
+              (ref) => ProfilesController(
+                InMemoryKeyValueStore(),
+                const ProfilesState(),
+              ),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+      });
+
+      Future<String> out(List<String> args) async =>
+          (await git.run(args, repoPath: dir.path)).out;
+
+      test('noVerify carries into rewording an older commit', () async {
+        await g(['commit', '-q', '-m', 'first']);
+        final first = await out(['rev-parse', 'HEAD']);
+        await File('${dir.path}/b.txt').writeAsString('b\n');
+        await g(['add', 'b.txt']);
+        await g(['commit', '-q', '-m', 'second']);
+        await hook('commit-msg', 'exit 1');
+        await container
+            .read(repoActionsProvider(dir.path))
+            .rewordCommit(first, 'first, reworded', noVerify: true);
+        expect(await out(['log', '--format=%s']), 'second\nfirst, reworded');
+      });
+
+      test('a hook refusing cherry-pick --continue is named', () async {
+        await g(['commit', '-q', '-m', 'base']);
+        await g(['checkout', '-q', '-b', 'side']);
+        await File('${dir.path}/a.txt').writeAsString('side\n');
+        await g(['commit', '-q', '-am', 'side']);
+        await g(['checkout', '-q', 'main']);
+        await File('${dir.path}/a.txt').writeAsString('main\n');
+        await g(['commit', '-q', '-am', 'main']);
+        await git.run(['cherry-pick', 'side'], repoPath: dir.path);
+        await File('${dir.path}/a.txt').writeAsString('resolved\n');
+        await g(['add', 'a.txt']);
+        await hook('pre-commit', 'echo "lint" >&2; exit 1');
+        await expectLater(
+          GitWriter(git, dir.path).cherryPickContinue(),
+          throwsA(
+            isA<HookRejectedException>().having(
+              (e) => e.hook,
+              'hook',
+              'pre-commit',
+            ),
+          ),
+        );
+      });
+
+      test('a hook refusing a merge is named in the toast', () async {
+        await g(['commit', '-q', '-m', 'base']);
+        await g(['checkout', '-q', '-b', 'other']);
+        await File('${dir.path}/o.txt').writeAsString('o\n');
+        await g(['add', 'o.txt']);
+        await g(['commit', '-q', '-m', 'o']);
+        await g(['checkout', '-q', 'main']);
+        await File('${dir.path}/m.txt').writeAsString('m\n');
+        await g(['add', 'm.txt']);
+        await g(['commit', '-q', '-m', 'm']);
+        await hook(
+          'pre-merge-commit',
+          'echo "no merges on Friday" >&2; exit 1',
+        );
+        await container.read(repoActionsProvider(dir.path)).merge('other');
+        final toast = container.read(toastProvider).single;
+        expect(toast.title, 'The pre-merge-commit hook stopped Merge');
+        expect(toast.description, contains('no merges on Friday'));
+      });
     });
 
     group('rewording HEAD', () {

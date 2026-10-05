@@ -36,6 +36,15 @@ class _FakeGit implements GitService {
   Future<bool> isRepository(String path) async => true;
 }
 
+/// The git subcommand in [args], past any leading `-c key=value` pairs.
+String? _subcommand(List<String> args) {
+  var i = 0;
+  while (i < args.length && args[i] == '-c') {
+    i += 2;
+  }
+  return i < args.length ? args[i] : null;
+}
+
 const _staged = WorkingFile(path: 'staged.txt', index: GitChange.modified);
 const _unstaged = WorkingFile(path: 'unstaged.txt', worktree: GitChange.added);
 const _partial = WorkingFile(
@@ -107,7 +116,7 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Commit'));
     await tester.pump();
 
-    expect(git.calls.any((c) => c.contains('commit')), isFalse);
+    expect(git.calls.any((c) => _subcommand(c) == 'commit'), isFalse);
     expect(
       container.read(toastProvider).any((t) => t.kind == ToastKind.warning),
       isTrue,
@@ -121,7 +130,7 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Commit'));
     await tester.pump();
 
-    final commitCall = git.calls.firstWhere((c) => c.contains('commit'));
+    final commitCall = git.calls.firstWhere((c) => _subcommand(c) == 'commit');
     expect(commitCall, contains('my message'));
   });
 

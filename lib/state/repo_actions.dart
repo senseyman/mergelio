@@ -956,9 +956,14 @@ class RepoActions {
     } else {
       description = '$e';
     }
+    // A hook's refusal carries only the hook's own output; the title says
+    // whose it is.
+    final title = e is HookRejectedException
+        ? 'The ${e.hook} hook stopped $label'
+        : '$label failed';
     _ref
         .read(toastProvider.notifier)
-        .show('$label failed', description: description, kind: ToastKind.error);
+        .show(title, description: description, kind: ToastKind.error);
   }
 
   /// Runs an undoable op: executes [run], records its inverse, refreshes. The
@@ -2212,8 +2217,9 @@ class RepoActions {
   /// than silently rebasing the wrong branch.
   ///
   /// Rewording HEAD runs the commit hooks; a refusal is returned, not
-  /// toasted, so the caller can show the hook's output. [noVerify] skips the
-  /// hooks it can for this one attempt.
+  /// toasted, so the caller can show the hook's output. An older commit's
+  /// hooks run inside the rebase, which reports its own stop. [noVerify]
+  /// skips the hooks it can for this one attempt, on either path.
   Future<HookRejectedException?> rewordCommit(
     String sha,
     String summary, {
@@ -2287,6 +2293,7 @@ class RepoActions {
               RebaseAction.reword,
               message: message,
               sign: wasSigned,
+              noVerify: noVerify,
             )
           else
             RebaseStep(line.trim(), RebaseAction.pick),

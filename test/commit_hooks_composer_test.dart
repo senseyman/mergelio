@@ -58,7 +58,7 @@ class _FakeActions implements RepoActions {
 
 const _staged = WorkingFile(path: 'staged.txt', index: GitChange.modified);
 
-Widget _harness(_FakeActions actions) => ProviderScope(
+Widget _harness(_FakeActions actions, {bool show = true}) => ProviderScope(
   overrides: [
     lfsLocksProvider.overrideWith((ref, repo) async => LfsLockState.none),
     gitServiceProvider.overrideWithValue(_FakeGit()),
@@ -72,11 +72,13 @@ Widget _harness(_FakeActions actions) => ProviderScope(
     localizationsDelegates: AppLocalizations.localizationsDelegates,
     supportedLocales: AppLocalizations.supportedLocales,
     theme: ThemeData(extensions: [AppTokens.dark()]),
-    home: const Scaffold(
-      body: WorkingTreePanel(
-        repoPath: '/r',
-        data: RepoData(working: [_staged]),
-      ),
+    home: Scaffold(
+      body: show
+          ? const WorkingTreePanel(
+              repoPath: '/r',
+              data: RepoData(working: [_staged]),
+            )
+          : const SizedBox(),
     ),
   ),
 );
@@ -212,5 +214,48 @@ void main() {
     );
     expect(find.text('Skip hooks for next commit'), findsNothing);
     expect(find.text('Manage hooks…'), findsOneWidget);
+  });
+
+  testWidgets('skip hooks does not outlive the composer', (tester) async {
+    final actions = _FakeActions();
+    await tester.pumpWidget(_harness(actions));
+    await tester.tap(find.text('Skip hooks'));
+    await tester.pump();
+    expect(find.text('Next commit skips hooks (--no-verify)'), findsOneWidget);
+
+    // Another tab replaces the composer; coming back finds hooks on again.
+    await tester.pumpWidget(_harness(actions, show: false));
+    await tester.pump();
+    await tester.pumpWidget(_harness(actions));
+    await tester.pump();
+    expect(find.text('Next commit skips hooks (--no-verify)'), findsNothing);
+  });
+
+  testWidgets('a long transcript scrolls with the dialog, not inside it', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final actions = _FakeActions()
+      ..next = CommitOutcome(
+        rejection: HookRejectedException(
+          'pre-commit',
+          GitResult(1, '', List.generate(200, (i) => 'line $i').join('\n')),
+        ),
+      );
+    await tester.pumpWidget(_harness(actions));
+    await tester.enterText(_summary, 'msg');
+    await tester.tap(find.text('Commit'));
+    await tester.pumpAndSettle();
+    // SelectableText carries a Scrollable of its own, but with no line limit
+    // it grows rather than scrolls; scroll views are what nest badly.
+    expect(
+      find.descendant(
+        of: find.byType(Dialog),
+        matching: find.byType(SingleChildScrollView),
+      ),
+      findsOneWidget,
+    );
   });
 }

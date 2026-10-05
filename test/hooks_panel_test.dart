@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -83,7 +84,7 @@ Widget _harness(HookInventory inv, _FakeHookActions actions) => ProviderScope(
 const _inv = HookInventory(
   dir: '/r/.git/hooks',
   hooks: [
-    HookFile('pre-commit', HookState.active, hasSample: true),
+    HookFile('pre-commit', HookState.active),
     HookFile('pre-push', HookState.disabled),
     HookFile('pre-rebase', HookState.sample),
   ],
@@ -260,5 +261,31 @@ void main() {
     expect(toast.title, 'Could not change the pre-rebase hook');
     expect(toast.description, 'A hook with this name already exists.');
     expect(toast.kind, ToastKind.error);
+  });
+
+  testWidgets('Windows runs every hook, so there is no switch', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+    try {
+      await tester.pumpWidget(_harness(_inv, _FakeHookActions()));
+      await tester.pumpAndSettle();
+      expect(find.byType(Switch), findsNothing);
+      expect(find.text('Edit'), findsNWidgets(2));
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  testWidgets('a long hooks path wraps instead of overflowing', (tester) async {
+    tester.view.physicalSize = const Size(336, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final dir =
+        'C:/Users/someone/Documents/Projects/${'very-long-folder-name/' * 6}.git/hooks';
+    await tester.pumpWidget(
+      _harness(HookInventory(dir: dir), _FakeHookActions()),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text(dir), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }

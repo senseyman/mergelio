@@ -49,7 +49,6 @@ void main() {
       ], windows: false);
       expect(hooks, hasLength(1));
       expect(hooks.single.state, HookState.active);
-      expect(hooks.single.hasSample, isTrue);
     });
 
     test('unknown names and helper files are ignored', () {
@@ -111,6 +110,25 @@ void main() {
         ),
         HookManager.preCommit,
       );
+    });
+
+    test('husky by the scripts its hooks source', () {
+      expect(
+        detectHookManager(
+          hookTexts: const ['#!/bin/sh\n. "\$(dirname "\$0")/_/husky.sh"\n'],
+        ),
+        HookManager.husky,
+      );
+    });
+
+    test('a passing mention of a tool is not an install', () {
+      for (final text in [
+        '#!/bin/sh\n# we moved off husky last year\nflutter analyze',
+        '#!/bin/sh\n# TODO: try lefthook\nexit 0',
+        '#!/bin/sh\n# see https://pre-commit.com for ideas\nexit 0',
+      ]) {
+        expect(detectHookManager(hookTexts: [text]), isNull, reason: text);
+      }
     });
 
     test('plain hooks have no manager', () {
@@ -207,6 +225,81 @@ void main() {
           'code': 1,
         }),
         _event({'event': 'child_exit', 'sid': sid, 'child_id': 0, 'code': 0}),
+      ].join('\n');
+      expect(rejectingHook(trace), isNull);
+    });
+
+    test('a hook in the git commit the command spawned counts', () {
+      // cherry-pick --continue commits through a child `git commit`, so its
+      // hooks run one session down.
+      final trace = [
+        _event({
+          'event': 'child_start',
+          'sid': sid,
+          'child_id': 0,
+          'child_class': '?',
+          'argv': ['git', 'commit', '--no-edit'],
+        }),
+        _event({
+          'event': 'child_start',
+          'sid': '$sid/c1',
+          'child_id': 0,
+          'child_class': 'hook',
+          'hook_name': 'pre-commit',
+        }),
+        _event({
+          'event': 'child_exit',
+          'sid': '$sid/c1',
+          'child_id': 0,
+          'code': 1,
+        }),
+        _event({'event': 'child_exit', 'sid': sid, 'child_id': 0, 'code': 1}),
+      ].join('\n');
+      expect(rejectingHook(trace), 'pre-commit');
+    });
+
+    test('only the next session down is followed', () {
+      final trace = [
+        _event({
+          'event': 'child_start',
+          'sid': sid,
+          'child_id': 0,
+          'child_class': '?',
+        }),
+        _event({
+          'event': 'child_start',
+          'sid': '$sid/c1/c2',
+          'child_id': 0,
+          'child_class': 'hook',
+          'hook_name': 'pre-commit',
+        }),
+        _event({
+          'event': 'child_exit',
+          'sid': '$sid/c1/c2',
+          'child_id': 0,
+          'code': 1,
+        }),
+      ].join('\n');
+      expect(rejectingHook(trace), isNull);
+    });
+
+    test('a start event is never read as an exit', () {
+      final trace = [
+        _event({
+          'event': 'child_start',
+          'sid': sid,
+          'child_id': 0,
+          'child_class': 'hook',
+          'hook_name': 'pre-commit',
+        }),
+        // A hypothetical start that carries a code must not end the hook.
+        _event({
+          'event': 'child_start',
+          'sid': sid,
+          'child_id': 0,
+          'child_class': 'filter',
+          'code': 1,
+        }),
       ].join('\n');
       expect(rejectingHook(trace), isNull);
     });

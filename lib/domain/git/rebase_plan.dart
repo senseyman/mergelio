@@ -9,11 +9,15 @@ class RebaseStep {
   final RebaseAction action;
   final String message;
   final bool sign;
+
+  /// For a reword: skip the commit hooks when the new message is committed.
+  final bool noVerify;
   const RebaseStep(
     this.sha,
     this.action, {
     this.message = '',
     this.sign = false,
+    this.noVerify = false,
   });
 }
 
@@ -36,7 +40,8 @@ String buildRebaseTodo(List<RebaseStep> steps) {
         // turns the escaped one-liner back into the real multi-line message.
         lines.add(
           "exec printf '%b' ${_shellQuote(_escapeNewlines(s.message))} "
-          '| git commit --amend ${s.sign ? '-S ' : ''}-F -',
+          '| git commit --amend ${s.sign ? '-S ' : ''}'
+          '${s.noVerify ? '--no-verify ' : ''}-F -',
         );
       case RebaseAction.squash:
         lines.add('squash ${s.sha}');

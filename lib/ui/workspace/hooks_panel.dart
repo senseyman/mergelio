@@ -1,5 +1,4 @@
-import 'dart:io';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -193,7 +192,7 @@ class _HookRow extends ConsumerWidget {
           if (hook.installed) ...[
             // Windows runs every hook regardless of its mode, so there is
             // nothing for a switch to change there.
-            if (!Platform.isWindows)
+            if (defaultTargetPlatform != TargetPlatform.windows)
               Tooltip(
                 message: hook.isLink
                     ? l.hkLinkedNoToggle
@@ -403,25 +402,24 @@ class _HookTranscript extends StatelessWidget {
           style: TextStyle(color: t.textFaint, fontSize: 11),
         ),
         const SizedBox(height: 4),
+        // No scroll view of its own: the dialog already scrolls, and a second
+        // one inside it stops dead at its end instead of handing the drag on.
         Container(
-          constraints: const BoxConstraints(maxHeight: 320),
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             color: t.bgApp,
             borderRadius: BorderRadius.circular(6),
             border: Border.all(color: t.border),
           ),
-          child: SingleChildScrollView(
-            child: output.isEmpty
-                ? Text(
-                    l.hkNoOutput,
-                    style: TextStyle(color: t.textMuted, fontSize: 12),
-                  )
-                : SelectableText(
-                    output,
-                    style: AppFonts.mns(size: 12, color: t.textPrimary),
-                  ),
-          ),
+          child: output.isEmpty
+              ? Text(
+                  l.hkNoOutput,
+                  style: TextStyle(color: t.textMuted, fontSize: 12),
+                )
+              : SelectableText(
+                  output,
+                  style: AppFonts.mns(size: 12, color: t.textPrimary),
+                ),
         ),
         if (messageKept) ...[
           const SizedBox(height: 10),
