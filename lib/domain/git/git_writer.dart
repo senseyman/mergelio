@@ -1,12 +1,22 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:path/path.dart' as p;
 
 import 'askpass.dart';
 import 'commit_message.dart';
 import 'git_service.dart';
+import 'hooks.dart';
 import 'stash.dart';
+
+String _randomHex(int bytes) {
+  final rnd = Random.secure();
+  return [
+    for (var i = 0; i < bytes; i++)
+      rnd.nextInt(256).toRadixString(16).padLeft(2, '0'),
+  ].join();
+}
 
 /// The flag [shell] wants in front of a command string.
 ///
@@ -997,11 +1007,17 @@ class GitWriter {
   /// signature (requires the repo to be configured for it). [description] and
   /// [coauthors] are appended to the message body. [authorName]/[authorEmail],
   /// when given, set the commit identity for this commit (the active profile).
+  /// [noVerify] skips the pre-commit and commit-msg hooks.
+  ///
+  /// When a hook refuses the commit, throws [HookRejectedException] naming it.
+  /// Git prints nothing of its own in that case — the transcript is the hook's
+  /// — so the hook is read from the trace git writes as it runs children.
   Future<void> commit(
     String summary, {
     String description = '',
     bool amend = false,
     bool sign = false,
+    bool noVerify = false,
     List<String> coauthors = const [],
     String? authorName,
     String? authorEmail,
@@ -1016,16 +1032,47 @@ class GitWriter {
         body.write('\nCo-authored-by: $c');
       }
     }
-    await _ok([
-      // Per-commit identity via -c, applied before the subcommand.
-      if (authorName != null) ...['-c', 'user.name=$authorName'],
-      if (authorEmail != null) ...['-c', 'user.email=$authorEmail'],
-      'commit',
-      if (amend) '--amend',
-      if (sign) '-S',
-      '-m',
-      body.toString(),
-    ], 'git commit');
+    // Git creates the trace file itself, so nothing touches the disk before
+    // the commit starts. The random name keeps it unguessable in a shared
+    // temp directory.
+    final trace = File(
+      p.join(
+        Directory.systemTemp.path,
+        'mergelio_trace2_${_randomHex(16)}.json',
+      ),
+    );
+    try {
+      final r = await _run(
+        [
+          // Per-commit identity via -c, applied before the subcommand.
+          if (authorName != null) ...['-c', 'user.name=$authorName'],
+          if (authorEmail != null) ...['-c', 'user.email=$authorEmail'],
+          // A hook skipped for lacking its execute bit otherwise adds a hint
+          // to whatever the hook that did run printed.
+          '-c',
+          'advice.ignoredHook=false',
+          'commit',
+          if (amend) '--amend',
+          if (sign) '-S',
+          if (noVerify) '--no-verify',
+          '-m',
+          body.toString(),
+        ],
+        environment: {'GIT_TRACE2_EVENT': trace.path},
+      );
+      if (r.ok) return;
+      final hook = await trace.exists()
+          ? rejectingHook(await trace.readAsString())
+          : null;
+      if (hook != null) throw HookRejectedException(hook, r);
+      throw GitException('git commit', r);
+    } finally {
+      try {
+        if (await trace.exists()) await trace.delete();
+      } on FileSystemException {
+        // Best-effort: a leaked temp file is not worth failing the op over.
+      }
+    }
   }
 
   /// Rewrites the message of HEAD, leaving its tree alone. `--only` with no

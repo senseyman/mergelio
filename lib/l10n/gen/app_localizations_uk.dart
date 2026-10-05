@@ -3643,4 +3643,83 @@ class AppLocalizationsUk extends AppLocalizations {
   @override
   String get sigHintSshUnconfigured =>
       'git перевіряє SSH-підписи лише тоді, коли gpg.ssh.allowedSignersFile вказує на файл дозволених підписантів. Задайте його, щоб перевіряти коміти з SSH-підписом.';
+
+  @override
+  String get hkTitle => 'Git-хуки';
+
+  @override
+  String get hkPaletteOpen => 'Git-хуки…';
+
+  @override
+  String get hkDir => 'Каталог хуків';
+
+  @override
+  String hkCustomPath(String path) {
+    return 'Задано через core.hooksPath: $path';
+  }
+
+  @override
+  String hkManaged(String tool) {
+    return 'Керується $tool — він може перезаписати зміни, зроблені тут, коли перевстановить свої хуки.';
+  }
+
+  @override
+  String get hkEmpty => 'У цьому репозиторії немає хуків.';
+
+  @override
+  String get hkStateActive => 'Активний';
+
+  @override
+  String get hkStateDisabled => 'Вимкнений';
+
+  @override
+  String get hkStateSample => 'Зразок';
+
+  @override
+  String get hkEdit => 'Редагувати';
+
+  @override
+  String get hkUseSample => 'Використати зразок';
+
+  @override
+  String get hkEnable => 'Увімкнути — git запускатиме цей хук';
+
+  @override
+  String get hkDisable => 'Вимкнути — git пропускатиме цей хук';
+
+  @override
+  String hkEditorTitle(String hook) {
+    return 'Редагування хука $hook';
+  }
+
+  @override
+  String get hkSkipHooks => 'Без хуків';
+
+  @override
+  String get hkSkipArmed => 'Наступний коміт пропустить хуки (--no-verify)';
+
+  @override
+  String get hkSkipDisarm => 'Знову запускати хуки';
+
+  @override
+  String hkRejectedTitle(String hook) {
+    return 'Хук $hook відхилив коміт';
+  }
+
+  @override
+  String hkOutputFrom(String hook) {
+    return 'Вивід $hook';
+  }
+
+  @override
+  String get hkNoOutput => 'Хук нічого не вивів.';
+
+  @override
+  String get hkMessageKept => 'Ваше повідомлення збережено.';
+
+  @override
+  String get hkManage => 'Керувати хуками…';
+
+  @override
+  String get hkSkipNext => 'Пропустити хуки для наступного коміту';
 }

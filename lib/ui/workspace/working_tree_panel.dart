@@ -11,6 +11,7 @@ import '../../domain/git/models.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/diff_target.dart';
 import '../../state/feedback.dart';
+import '../../state/hooks.dart';
 import '../../state/lfs.dart';
 import '../../state/merge_session.dart';
 import '../../state/profiles.dart';
@@ -23,6 +24,7 @@ import '../common/file_tree_view.dart';
 import '../common/lfs_chip.dart';
 import '../common/lfs_lock_chip.dart';
 import '../insight/file_insight_dialog.dart';
+import 'hooks_panel.dart';
 import 'lfs_banner.dart';
 import 'lfs_lock_menu.dart';
 import 'lfs_locks_section.dart';
@@ -734,16 +736,32 @@ class _ComposerState extends ConsumerState<_Composer> {
       toasts.show(l.wtpNothingStaged, kind: ToastKind.warning);
       return;
     }
+    final skipHooks = skipHooksOnceProvider(widget.repoPath);
     try {
-      await ref
+      final outcome = await ref
           .read(repoActionsProvider(widget.repoPath))
           .commit(
             summary,
             description: _description.text,
             amend: _amend,
             sign: _sign,
+            noVerify: ref.read(skipHooks),
             coauthors: _coauthorList,
           );
+      // Anything short of a commit keeps the message: the failure has been
+      // reported already, and retyping it is the last thing the user needs.
+      if (!outcome.committed) {
+        final rejection = outcome.rejection;
+        if (rejection != null && mounted) {
+          await showHookRejectedDialog(
+            context,
+            repoPath: widget.repoPath,
+            rejection: rejection,
+          );
+        }
+        return;
+      }
+      ref.read(skipHooks.notifier).state = false;
       _summary.clear();
       _description.clear();
       _coauthors.clear();
@@ -762,6 +780,7 @@ class _ComposerState extends ConsumerState<_Composer> {
     final l = AppLocalizations.of(context);
     final t = context.tokens;
     final profile = ref.watch(profilesProvider).active;
+    final skipHooks = ref.watch(skipHooksOnceProvider(widget.repoPath));
     return CallbackShortcuts(
       bindings: {
         const SingleActivator(LogicalKeyboardKey.enter, meta: true): _commit,
@@ -829,6 +848,10 @@ class _ComposerState extends ConsumerState<_Composer> {
               ),
             ],
             const SizedBox(height: 8),
+            if (skipHooks) ...[
+              _SkipHooksStrip(repoPath: widget.repoPath),
+              const SizedBox(height: 8),
+            ],
             Row(
               children: [
                 // Toggles wrap to a second line when the panel is narrow so the
@@ -848,6 +871,18 @@ class _ComposerState extends ConsumerState<_Composer> {
                         label: l.wtpSign,
                         value: _sign,
                         onChanged: (v) => setState(() => _sign = v),
+                      ),
+                      _Toggle(
+                        label: l.hkSkipHooks,
+                        value: skipHooks,
+                        onChanged: (v) =>
+                            ref
+                                    .read(
+                                      skipHooksOnceProvider(widget.repoPath)
+                                          .notifier,
+                                    )
+                                    .state =
+                                v,
                       ),
                       InkWell(
                         onTap: () =>
@@ -895,6 +930,49 @@ class _ComposerState extends ConsumerState<_Composer> {
       borderSide: BorderSide(color: t.border),
     ),
   );
+}
+
+/// Stays in view while the next commit is set to skip hooks, so the choice
+/// cannot be forgotten between arming it and committing.
+class _SkipHooksStrip extends ConsumerWidget {
+  final String repoPath;
+  const _SkipHooksStrip({required this.repoPath});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
+    final t = context.tokens;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(8, 4, 4, 4),
+      decoration: BoxDecoration(
+        color: t.warning.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: t.warning.withValues(alpha: 0.5)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.warning_amber_rounded, size: 14, color: t.warning),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              l.hkSkipArmed,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: t.textPrimary, fontSize: 12),
+            ),
+          ),
+          IconButton(
+            tooltip: l.hkSkipDisarm,
+            iconSize: 14,
+            visualDensity: VisualDensity.compact,
+            icon: Icon(Icons.close, color: t.textMuted),
+            onPressed: () =>
+                ref.read(skipHooksOnceProvider(repoPath).notifier).state =
+                    false,
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _Toggle extends StatelessWidget {

@@ -83,6 +83,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Add remote…'), findsOneWidget);
 
+    // The command list scrolls; this one sits below its first screenful.
+    await tester.ensureVisible(find.text('Add remote…'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Add remote…'));
     await tester.pumpAndSettle();
     expect(find.byKey(remoteNameFieldKey), findsOneWidget);

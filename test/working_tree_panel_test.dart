@@ -107,7 +107,7 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Commit'));
     await tester.pump();
 
-    expect(git.calls.any((c) => c.first == 'commit'), isFalse);
+    expect(git.calls.any((c) => c.contains('commit')), isFalse);
     expect(
       container.read(toastProvider).any((t) => t.kind == ToastKind.warning),
       isTrue,
@@ -121,7 +121,7 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Commit'));
     await tester.pump();
 
-    final commitCall = git.calls.firstWhere((c) => c.first == 'commit');
+    final commitCall = git.calls.firstWhere((c) => c.contains('commit'));
     expect(commitCall, contains('my message'));
   });
 
