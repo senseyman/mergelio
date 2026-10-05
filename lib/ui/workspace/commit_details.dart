@@ -48,11 +48,10 @@ class CommitDetails extends ConsumerWidget {
     final sig = ref
         .watch(commitSignatureProvider((repo: repoPath, sha: c.sha)))
         .valueOrNull;
-    final tags =
-        ref
-            .watch(tagSignaturesProvider((repo: repoPath, sha: c.sha)))
-            .valueOrNull ??
-        const <TagSignature>[];
+    final tags = [
+      for (final r in c.refs)
+        if (r.kind == RefKind.tag) r.name,
+    ];
 
     return Container(
       color: t.bgPanel,
@@ -161,7 +160,10 @@ class CommitDetails extends ConsumerWidget {
                   Wrap(
                     spacing: 4,
                     runSpacing: 4,
-                    children: [for (final r in c.refs) RefPill(gitRef: r)],
+                    children: [
+                      for (final r in c.refs)
+                        RefPill(gitRef: r, ellipsize: true),
+                    ],
                   ),
                 ],
                 const SizedBox(height: 12),
@@ -188,11 +190,7 @@ class CommitDetails extends ConsumerWidget {
                 if (sig != null && sig.isSigned)
                   _Signature(repoPath: repoPath, verdict: sig),
                 for (final tag in tags)
-                  _Signature(
-                    repoPath: repoPath,
-                    verdict: tag.verdict,
-                    tag: tag.name,
-                  ),
+                  _TagSignature(repoPath: repoPath, tag: tag),
                 if (c.coauthor)
                   Padding(
                     padding: const EdgeInsets.only(top: 6),
@@ -338,6 +336,23 @@ class _MsgAction extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// A tag's signature row, verified on demand. Nothing while it is checked,
+/// nor for a lightweight or unsigned tag.
+class _TagSignature extends ConsumerWidget {
+  final String repoPath;
+  final String tag;
+  const _TagSignature({required this.repoPath, required this.tag});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final verdict = ref
+        .watch(tagSignatureProvider((repo: repoPath, name: tag)))
+        .valueOrNull;
+    if (verdict == null || !verdict.isSigned) return const SizedBox.shrink();
+    return _Signature(repoPath: repoPath, verdict: verdict, tag: tag);
   }
 }
 

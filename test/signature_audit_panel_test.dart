@@ -74,7 +74,7 @@ void main() {
   testWidgets('lists every unverified commit with its verdict', (tester) async {
     await pump(tester);
     expect(
-      find.text('2 of 3 commits lack a verified signature'),
+      find.text('2 commits of 3 lack a verified signature'),
       findsOneWidget,
     );
     expect(find.text('aaaaaaa'), findsOneWidget);
@@ -180,4 +180,19 @@ void main() {
       expect(find.text('Cannot verify signature'), findsOneWidget);
     });
   }
+
+  testWidgets('one unverified commit reads in the singular', (tester) async {
+    await pump(
+      tester,
+      audit: (_) async => const SignatureAudit(
+        checked: 3,
+        truncated: false,
+        unverified: [_unsigned],
+      ),
+    );
+    expect(
+      find.text('1 commit of 3 lacks a verified signature'),
+      findsOneWidget,
+    );
+  });
 }

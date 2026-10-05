@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/domain/git/git_reader.dart';
 import 'package:mergelio/domain/git/git_service.dart';
+import 'package:mergelio/domain/git/models.dart';
 import 'package:mergelio/domain/git/signature.dart';
 
 /// Integration tests: SSH-sign commits and tags in a real temporary
@@ -114,21 +115,29 @@ void main() {
     expect(v.state, SignatureState.bad);
   }, skip: !hasSshKeygen);
 
-  test('only the signed tag is listed, and it verifies', () async {
-    final sha = await g(repo, ['rev-parse', 'HEAD~1']);
-    expect(await reader().signedTagsAt(sha), ['v1']);
+  test(
+    'the commit carries its tags, and only the signed one verifies',
+    () async {
+      final sha = await g(repo, ['rev-parse', 'HEAD~1']);
+      final c = await reader().commit(sha);
+      expect(
+        c!.refs.where((r) => r.kind == RefKind.tag).map((r) => r.name).toSet(),
+        {'v1', 'v1-plain'},
+      );
 
-    expect((await reader().verifyTag('v1')).state, SignatureState.untrusted);
+      expect((await reader().verifyTag('v1')).state, SignatureState.untrusted);
 
-    await File(allowed).writeAsString('t@example.com $pubKey\n');
-    await g(repo, ['config', 'gpg.ssh.allowedSignersFile', allowed]);
-    final v = await reader().verifyTag('v1');
-    expect(v.state, SignatureState.good);
-    expect(v.signer, 't@example.com');
-    expect(v.isSsh, isTrue);
+      await File(allowed).writeAsString('t@example.com $pubKey\n');
+      await g(repo, ['config', 'gpg.ssh.allowedSignersFile', allowed]);
+      final v = await reader().verifyTag('v1');
+      expect(v.state, SignatureState.good);
+      expect(v.signer, 't@example.com');
+      expect(v.isSsh, isTrue);
 
-    expect((await reader().verifyTag('v1-plain')).state, SignatureState.none);
-  }, skip: !hasSshKeygen);
+      expect((await reader().verifyTag('v1-plain')).state, SignatureState.none);
+    },
+    skip: !hasSshKeygen,
+  );
 
   test(
     'the audit lists every commit since base that is not verified',
@@ -151,4 +160,55 @@ void main() {
       throwsA(isA<GitException>()),
     );
   }, skip: !hasSshKeygen);
+
+  test('a missing ssh-keygen is unverifiable, never bad', () async {
+    await g(repo, ['config', 'gpg.ssh.program', 'mergelio-no-such-keygen']);
+
+    final v = await reader().signatureVerdict('HEAD~1');
+    expect(v.state, SignatureState.unverifiable);
+    expect(
+      signatureHint(v, allowedSignersFile: null),
+      SignatureHint.verifierMissing,
+    );
+    expect(missingVerifier(v.detail), 'mergelio-no-such-keygen');
+
+    final tag = await reader().verifyTag('v1');
+    expect(tag.state, SignatureState.unverifiable);
+
+    await expectLater(
+      reader().signatureAudit('base'),
+      throwsA(isA<GitException>()),
+    );
+  }, skip: !hasSshKeygen);
+
+  test('a configured allowed signers file that is gone is named', () async {
+    await g(repo, ['config', 'gpg.ssh.allowedSignersFile', '${dir.path}/gone']);
+    final v = await reader().signatureVerdict('HEAD~1');
+    expect(v.state, SignatureState.untrusted);
+    expect(
+      signatureHint(v, allowedSignersFile: '${dir.path}/gone'),
+      SignatureHint.sshAllowedSignersUnreadable,
+    );
+    expect(allowedSignersPathIn(v.detail), '${dir.path}/gone');
+  }, skip: !hasSshKeygen);
+
+  test(
+    'a key missing from a readable allowed signers file is named so',
+    () async {
+      final other = '${dir.path}/other';
+      await Process.run('ssh-keygen', [
+        '-q', '-t', 'ed25519', '-N', '', '-f', other, //
+      ]);
+      final otherKey = (await File('$other.pub').readAsString()).trim();
+      await File(allowed).writeAsString('someone@else $otherKey\n');
+      await g(repo, ['config', 'gpg.ssh.allowedSignersFile', allowed]);
+      final v = await reader().signatureVerdict('HEAD~1');
+      expect(v.state, SignatureState.untrusted);
+      expect(
+        signatureHint(v, allowedSignersFile: allowed),
+        SignatureHint.sshKeyNotAllowed,
+      );
+    },
+    skip: !hasSshKeygen,
+  );
 }

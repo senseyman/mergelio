@@ -49,13 +49,24 @@ enum SignatureHint {
   /// SSH signature whose key is not listed in the allowed signers file.
   sshKeyNotAllowed,
 
+  /// The configured allowed signers file could not be opened.
+  sshAllowedSignersUnreadable,
+
   /// The public key is not available locally.
   missingKey,
+
+  /// git could not start gpg or ssh-keygen at all. git then reports an SSH
+  /// signature as bad and a GPG one as absent, so the verdict is replaced.
+  verifierMissing,
 }
 
 /// The pretty format that fills a [SignatureVerdict]: status, signer, key,
 /// fingerprint, primary-key fingerprint and trust level, unit-separated.
 const kSignatureFormat = '%G?%x1f%GS%x1f%GK%x1f%GF%x1f%GP%x1f%GT';
+
+/// [kSignatureFormat] plus the verifier's own output (`%GG`), which is what
+/// explains an untrusted or uncheckable verdict. Last, as it spans lines.
+const kSignatureDetailFormat = '$kSignatureFormat%x1f%GG';
 
 /// Number of fields [kSignatureFormat] produces.
 const _verdictFields = 6;
@@ -77,6 +88,9 @@ class SignatureVerdict {
   /// empty when git reported none.
   final String trust;
 
+  /// What gpg or ssh-keygen printed, empty when not asked for.
+  final String detail;
+
   const SignatureVerdict({
     required this.state,
     this.signer = '',
@@ -84,6 +98,7 @@ class SignatureVerdict {
     this.fingerprint = '',
     this.primaryFingerprint = '',
     this.trust = '',
+    this.detail = '',
   });
 
   static const unsigned = SignatureVerdict(state: SignatureState.none);
@@ -115,8 +130,8 @@ SignatureTone signatureTone(SignatureState state) => switch (state) {
   _ => SignatureTone.caution,
 };
 
-/// Parses one [kSignatureFormat] record. A bare status letter (the older
-/// `%G?`-only format) parses too.
+/// Parses one [kSignatureFormat] or [kSignatureDetailFormat] record. A bare
+/// status letter (the older `%G?`-only format) parses too.
 SignatureVerdict parseSignatureVerdict(String record) {
   final f = record.trimRight().split('\x1f');
   String at(int i) => i < f.length ? f[i].trim() : '';
@@ -130,11 +145,43 @@ SignatureVerdict parseSignatureVerdict(String record) {
     // git prints "undefined" trust even for an unsigned commit; it says
     // nothing there.
     trust: state == SignatureState.none ? '' : at(5),
+    detail: f.length > _verdictFields
+        ? f.sublist(_verdictFields).join('\x1f').trim()
+        : '',
   );
 }
 
+final _missingVerifier = RegExp(r"cannot (?:exec '([^']+)'|run ([^:\n]+):)");
+
+/// The gpg or ssh-keygen program git failed to start, named in its [stderr],
+/// or null when it started.
+String? missingVerifier(String stderr) {
+  final m = _missingVerifier.firstMatch(stderr);
+  return m == null ? null : (m.group(1) ?? m.group(2))!.trim();
+}
+
+/// [verdict] corrected by git's [stderr]. Without its verifier git still
+/// prints a letter — `B` for SSH, `N` for GPG — that says nothing about the
+/// signature itself.
+SignatureVerdict withVerifierErrors(SignatureVerdict verdict, String stderr) {
+  if (missingVerifier(stderr) == null) return verdict;
+  return SignatureVerdict(
+    state: SignatureState.unverifiable,
+    detail: stderr.trim(),
+  );
+}
+
+final _unreadableSigners = RegExp(
+  r'Unable to open allowed keys file "([^"]*)"',
+);
+
+/// The allowed signers path ssh-keygen failed to open, named in [detail];
+/// empty when none was configured, null when there was no such failure.
+String? allowedSignersPathIn(String detail) =>
+    _unreadableSigners.firstMatch(detail)?.group(1);
+
 final _sshGood = RegExp(
-  r'^Good "git" signature(?: for (.+?))? with \S+ key (\S+)',
+  r'^Good "git" signature(?: for (.+))? with \S+ key (\S+)',
   multiLine: true,
 );
 
@@ -142,6 +189,22 @@ final _sshGood = RegExp(
 /// ssh-keygen text git passes through for an SSH-signed tag. Output that
 /// matches neither is [SignatureState.unverifiable], never good.
 SignatureVerdict parseTagVerification(String stderr) {
+  final v = _parseTagVerification(stderr);
+  return SignatureVerdict(
+    state: v.state,
+    signer: v.signer,
+    key: v.key,
+    fingerprint: v.fingerprint,
+    primaryFingerprint: v.primaryFingerprint,
+    trust: v.trust,
+    detail: stderr,
+  );
+}
+
+SignatureVerdict _parseTagVerification(String stderr) {
+  if (missingVerifier(stderr) != null) {
+    return const SignatureVerdict(state: SignatureState.unverifiable);
+  }
   if (stderr.contains('[GNUPG:]')) return _parseGpgStatus(stderr);
 
   // Failure wording is checked first: ssh-keygen can print a "Good" line for
@@ -168,57 +231,54 @@ SignatureVerdict parseTagVerification(String stderr) {
 
 /// GPG `--status-fd` lines, mapped the way git maps them for `%G?`.
 SignatureVerdict _parseGpgStatus(String raw) {
-  // Highest-precedence outcome wins, so a BADSIG anywhere cannot be masked
-  // by a GOODSIG line from another signature.
-  const precedence = [
-    ('BADSIG', SignatureState.bad),
-    ('REVKEYSIG', SignatureState.revoked),
-    ('EXPKEYSIG', SignatureState.expiredKey),
-    ('EXPSIG', SignatureState.expired),
-    ('ERRSIG', SignatureState.unverifiable),
-    ('GOODSIG', SignatureState.good),
-  ];
-  final lines = [
-    for (final l in raw.split('\n'))
-      if (l.startsWith('[GNUPG:] ')) l.substring(9).trim(),
-  ];
-  List<String>? lineFor(String keyword) {
-    for (final l in lines) {
-      final parts = l.split(' ');
-      if (parts.first == keyword) return parts;
-    }
-    return null;
-  }
-
-  for (final (keyword, state) in precedence) {
-    final parts = lineFor(keyword);
-    if (parts == null) continue;
-    final valid = lineFor('VALIDSIG');
-    String trust = '';
-    for (final l in lines) {
-      if (l.startsWith('TRUST_')) {
-        trust = l.split(' ').first.substring(6).toLowerCase();
+  const verdicts = {
+    'GOODSIG': SignatureState.good,
+    'BADSIG': SignatureState.bad,
+    'ERRSIG': SignatureState.unverifiable,
+    'EXPSIG': SignatureState.expired,
+    'EXPKEYSIG': SignatureState.expiredKey,
+    'REVKEYSIG': SignatureState.revoked,
+  };
+  List<String>? verdict;
+  List<String>? valid;
+  var trust = '';
+  for (final l in raw.split('\n')) {
+    if (!l.startsWith('[GNUPG:] ')) continue;
+    final parts = l.substring(9).trim().split(' ');
+    if (verdicts.containsKey(parts.first)) {
+      // More than one verdict means more than one signature. git refuses to
+      // pick one, and so does this.
+      if (verdict != null) {
+        return const SignatureVerdict(state: SignatureState.unverifiable);
       }
+      verdict = parts;
+    } else if (parts.first == 'VALIDSIG') {
+      valid = parts;
+    } else if (parts.first.startsWith('TRUST_')) {
+      trust = parts.first.substring(6).toLowerCase();
     }
-    var result = state;
-    // git downgrades a good signature from a key trusted less than marginally.
-    if (state == SignatureState.good &&
-        !const {'marginal', 'fully', 'ultimate'}.contains(trust)) {
-      result = SignatureState.untrusted;
-    }
-    return SignatureVerdict(
-      state: result,
-      key: parts.length > 1 ? parts[1] : '',
-      // ERRSIG carries algorithm codes, not a user id, after the key.
-      signer: state == SignatureState.unverifiable || parts.length < 3
-          ? ''
-          : parts.sublist(2).join(' '),
-      fingerprint: valid != null && valid.length > 1 ? valid[1] : '',
-      primaryFingerprint: valid != null && valid.length > 10 ? valid[10] : '',
-      trust: trust,
-    );
   }
-  return const SignatureVerdict(state: SignatureState.unverifiable);
+  if (verdict == null) {
+    return const SignatureVerdict(state: SignatureState.unverifiable);
+  }
+  final state = verdicts[verdict.first]!;
+  return SignatureVerdict(
+    // git reads a good signature from a key trusted less than marginally (or
+    // with no trust line at all) as untrusted.
+    state:
+        state == SignatureState.good &&
+            !const {'marginal', 'fully', 'ultimate'}.contains(trust)
+        ? SignatureState.untrusted
+        : state,
+    key: verdict.length > 1 ? verdict[1] : '',
+    // ERRSIG carries algorithm codes, not a user id, after the key.
+    signer: state == SignatureState.unverifiable || verdict.length < 3
+        ? ''
+        : verdict.sublist(2).join(' '),
+    fingerprint: valid != null && valid.length > 1 ? valid[1] : '',
+    primaryFingerprint: valid != null && valid.length > 10 ? valid[10] : '',
+    trust: trust,
+  );
 }
 
 /// The local-setup reason behind [verdict], given the repository's
@@ -227,12 +287,23 @@ SignatureHint signatureHint(
   SignatureVerdict verdict, {
   required String? allowedSignersFile,
 }) {
+  if (missingVerifier(verdict.detail) != null) {
+    return SignatureHint.verifierMissing;
+  }
   if (verdict.state == SignatureState.unverifiable) {
     return SignatureHint.missingKey;
   }
   if (verdict.state == SignatureState.untrusted &&
       verdict.isSsh &&
       verdict.signer.isEmpty) {
+    // ssh-keygen's own complaint is more exact than the config: it names the
+    // file it tried, empty when none is set.
+    final tried = allowedSignersPathIn(verdict.detail);
+    if (tried != null) {
+      return tried.isEmpty
+          ? SignatureHint.sshNoAllowedSigners
+          : SignatureHint.sshAllowedSignersUnreadable;
+    }
     return allowedSignersFile == null || allowedSignersFile.isEmpty
         ? SignatureHint.sshNoAllowedSigners
         : SignatureHint.sshKeyNotAllowed;

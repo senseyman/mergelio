@@ -54,7 +54,9 @@ void main() {
           commitSignatureProvider.overrideWith(
             (ref, key) async => SignatureVerdict.unsigned,
           ),
-          tagSignaturesProvider.overrideWith((ref, key) async => const []),
+          tagSignatureProvider.overrideWith(
+            (ref, key) async => SignatureVerdict.unsigned,
+          ),
           lfsLocksProvider.overrideWith((ref, p) async => LfsLockState.none),
           lfsPathsProvider.overrideWith((ref, q) async => const <String>{}),
           settingsProvider.overrideWith(

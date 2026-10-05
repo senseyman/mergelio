@@ -1304,8 +1304,10 @@
   "sigAuditRun": "Перевірити",
   "sigAuditRange": "Перевіряє {range}: коміти, досяжні з HEAD, але не з бази.",
   "sigAuditAllVerified": "{count, plural, one{{count} коміт має перевірений підпис} few{Усі {count} коміти мають перевірений підпис} other{Усі {count} комітів мають перевірений підпис}}",
-  "sigAuditSummary": "{count, plural, one{{unverified} з {count} коміту без перевіреного підпису} few{{unverified} з {count} комітів без перевіреного підпису} other{{unverified} з {count} комітів без перевіреного підпису}}",
+  "sigAuditSummary": "{unverified, plural, one{{unverified} коміт із {count} не має перевіреного підпису} few{{unverified} коміти з {count} не мають перевіреного підпису} other{{unverified} комітів із {count} не мають перевіреного підпису}}",
   "sigAuditEmpty": "У цьому діапазоні немає комітів",
   "sigAuditTruncated": "{count, plural, one{Перевірено лише останній {count} коміт.} few{Перевірено лише останні {count} коміти.} other{Перевірено лише останні {count} комітів.}}",
-  "sigAuditFailed": "Не вдалося перевірити підписи"
+  "sigAuditFailed": "Не вдалося перевірити підписи",
+  "sigHintSignersUnreadable": "Не вдалося відкрити файл дозволених підписантів ({path}), тож git не може назвати підписанта.",
+  "sigHintVerifierMissing": "git не зміг запустити {program}, тож нічого не перевірено. Встановіть його або вкажіть шлях для git (gpg.program, gpg.ssh.program)."
 }

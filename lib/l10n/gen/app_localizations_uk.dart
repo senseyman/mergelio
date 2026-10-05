@@ -3591,11 +3591,11 @@ class AppLocalizationsUk extends AppLocalizations {
   @override
   String sigAuditSummary(int count, int unverified) {
     String _temp0 = intl.Intl.pluralLogic(
-      count,
+      unverified,
       locale: localeName,
-      other: '$unverified з $count комітів без перевіреного підпису',
-      few: '$unverified з $count комітів без перевіреного підпису',
-      one: '$unverified з $count коміту без перевіреного підпису',
+      other: '$unverified комітів із $count не мають перевіреного підпису',
+      few: '$unverified коміти з $count не мають перевіреного підпису',
+      one: '$unverified коміт із $count не має перевіреного підпису',
     );
     return '$_temp0';
   }
@@ -3617,4 +3617,14 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get sigAuditFailed => 'Не вдалося перевірити підписи';
+
+  @override
+  String sigHintSignersUnreadable(String path) {
+    return 'Не вдалося відкрити файл дозволених підписантів ($path), тож git не може назвати підписанта.';
+  }
+
+  @override
+  String sigHintVerifierMissing(String program) {
+    return 'git не зміг запустити $program, тож нічого не перевірено. Встановіть його або вкажіть шлях для git (gpg.program, gpg.ssh.program).';
+  }
 }

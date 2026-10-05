@@ -43,10 +43,13 @@ Future<ProviderContainer> _pump(
         (ref, path) async => RepoData(commits: [_commit]),
       ),
       commitFilesProvider.overrideWith((ref, key) async => const []),
+      commitByShaProvider.overrideWith((ref, key) async => null),
       commitSignatureProvider.overrideWith(
         (ref, key) async => SignatureVerdict.unsigned,
       ),
-      tagSignaturesProvider.overrideWith((ref, key) async => const []),
+      tagSignatureProvider.overrideWith(
+        (ref, key) async => SignatureVerdict.unsigned,
+      ),
       compareFilesProvider.overrideWith((ref, key) async => const []),
       settingsProvider.overrideWith(
         (ref) => SettingsController(

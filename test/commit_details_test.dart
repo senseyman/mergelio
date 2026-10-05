@@ -28,7 +28,8 @@ Widget _harness({
   bool hasWip = false,
   Commit? commit,
   String sigStatus = 'G',
-  List<TagSignature> tags = const [],
+  Map<String, SignatureVerdict> tags = const {},
+  List<String>? verifiedTags,
   Future<Set<String>> Function(Ref ref, LfsQuery q)? lfsPaths,
 }) => ProviderScope(
   overrides: [
@@ -40,7 +41,10 @@ Widget _harness({
     commitSignatureProvider.overrideWith(
       (ref, key) async => parseSignatureVerdict(sigStatus),
     ),
-    tagSignaturesProvider.overrideWith((ref, key) async => tags),
+    tagSignatureProvider.overrideWith((ref, key) async {
+      verifiedTags?.add(key.name);
+      return tags[key.name] ?? SignatureVerdict.unsigned;
+    }),
     allowedSignersFileProvider.overrideWith((ref, repo) async => null),
     lfsLocksProvider.overrideWith((ref, p) async => LfsLockState.none),
     lfsPathsProvider.overrideWith(
@@ -60,7 +64,14 @@ Widget _harness({
     home: Scaffold(
       body: CommitDetails(
         repoPath: '/repo',
-        commit: commit ?? _commit,
+        commit:
+            commit ??
+            _commit.copyWith(
+              refs: [
+                for (final name in tags.keys)
+                  GitRef(kind: RefKind.tag, name: name),
+              ],
+            ),
         hasWip: hasWip,
       ),
     ),
@@ -115,10 +126,11 @@ void main() {
     await tester.pumpWidget(
       _harness(
         sigStatus: 'N',
-        tags: const [
-          (name: 'v1.0', verdict: SignatureVerdict(state: SignatureState.good)),
-          (name: 'v1.1', verdict: SignatureVerdict(state: SignatureState.bad)),
-        ],
+        tags: const {
+          'v1.0': SignatureVerdict(state: SignatureState.good),
+          'v1.1': SignatureVerdict(state: SignatureState.bad),
+          'lightweight': SignatureVerdict.unsigned,
+        },
       ),
     );
     await tester.pumpAndSettle();
@@ -127,6 +139,15 @@ void main() {
     expect(find.text('Tag v1.1'), findsOneWidget);
     expect(find.text('Verified signature'), findsOneWidget);
     expect(find.text('Bad signature'), findsOneWidget);
+    // An unsigned tag has nothing to say.
+    expect(find.text('Tag lightweight'), findsNothing);
+  });
+
+  testWidgets('a commit without tags verifies no tag at all', (tester) async {
+    final verified = <String>[];
+    await tester.pumpWidget(_harness(verifiedTags: verified));
+    await tester.pumpAndSettle();
+    expect(verified, isEmpty);
   });
 
   testWidgets('a long signed tag name fits the narrowest panel', (
@@ -138,12 +159,11 @@ void main() {
     await tester.pumpWidget(
       _harness(
         sigStatus: 'N',
-        tags: const [
-          (
-            name: 'release/2026-10-05-a-really-long-tag-name',
-            verdict: SignatureVerdict(state: SignatureState.unverifiable),
+        tags: const {
+          'release/2026-10-05-a-really-long-tag-name': SignatureVerdict(
+            state: SignatureState.unverifiable,
           ),
-        ],
+        },
       ),
     );
     await tester.pumpAndSettle();

@@ -198,4 +198,41 @@ void main() {
     await tester.pump();
     expect(find.text('Jane'), findsNothing);
   });
+
+  testWidgets('a verifier that could not start is named, not called bad', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      const SignatureVerdict(
+        state: SignatureState.unverifiable,
+        detail: 'error: cannot run ssh-keygen: No such file or directory',
+      ),
+    );
+    expect(find.text('Bad signature'), findsNothing);
+    await tester.tap(find.text('Cannot verify signature'));
+    await tester.pump();
+    expect(find.textContaining('ssh-keygen'), findsOneWidget);
+    expect(find.textContaining('public key'), findsNothing);
+  });
+
+  testWidgets('an unreadable allowed signers file names the file', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      const SignatureVerdict(
+        state: SignatureState.untrusted,
+        key: _fp,
+        fingerprint: _fp,
+        detail:
+            'Unable to open allowed keys file "/gone/allowed": No such file',
+      ),
+      allowedSignersFile: '/gone/allowed',
+    );
+    await tester.tap(find.text('Valid, untrusted key'));
+    await tester.pump();
+    expect(find.textContaining('/gone/allowed'), findsOneWidget);
+    expect(find.textContaining('not listed'), findsNothing);
+  });
 }

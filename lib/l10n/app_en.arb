@@ -2275,10 +2275,14 @@
   "@sigAuditRange": {"placeholders": {"range": {"type": "String"}}},
   "sigAuditAllVerified": "{count, plural, one{The commit has a verified signature} other{All {count} commits have a verified signature}}",
   "@sigAuditAllVerified": {"placeholders": {"count": {"type": "int"}}},
-  "sigAuditSummary": "{count, plural, one{{unverified} of {count} commit lacks a verified signature} other{{unverified} of {count} commits lack a verified signature}}",
+  "sigAuditSummary": "{unverified, plural, one{{unverified} commit of {count} lacks a verified signature} other{{unverified} commits of {count} lack a verified signature}}",
   "@sigAuditSummary": {"placeholders": {"count": {"type": "int"}, "unverified": {"type": "int"}}},
   "sigAuditEmpty": "No commits in this range",
   "sigAuditTruncated": "{count, plural, one{Only the latest commit was checked.} other{Only the latest {count} commits were checked.}}",
   "@sigAuditTruncated": {"placeholders": {"count": {"type": "int"}}},
-  "sigAuditFailed": "Could not check signatures"
+  "sigAuditFailed": "Could not check signatures",
+  "sigHintSignersUnreadable": "The allowed signers file ({path}) could not be opened, so git cannot name the signer.",
+  "@sigHintSignersUnreadable": {"placeholders": {"path": {"type": "String"}}},
+  "sigHintVerifierMissing": "git could not start {program}, so nothing was checked. Install it or point git at it (gpg.program, gpg.ssh.program).",
+  "@sigHintVerifierMissing": {"placeholders": {"program": {"type": "String"}}}
 }

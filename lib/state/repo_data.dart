@@ -44,6 +44,14 @@ final commitFilesProvider = FutureProvider.family
       return reader.commitFiles(key.sha);
     });
 
+/// One commit by sha, for a selection that lies beyond the loaded page — a
+/// row picked in the reflog, a review or a signature check. Null when the
+/// repository does not have it.
+final commitByShaProvider = FutureProvider.family
+    .autoDispose<Commit?, ({String repo, String sha})>((ref, key) async {
+      return GitReader(ref.watch(gitServiceProvider), key.repo).commit(key.sha);
+    });
+
 /// Signature verification for the one commit shown in the details panel.
 /// On demand because verifying spawns gpg per signed commit — doing it for
 /// the whole graph takes seconds on a repository that enforces signing.

@@ -15,22 +15,18 @@ final allowedSignersFileProvider = FutureProvider.family
       ).allowedSignersFile();
     });
 
-/// A signed tag and what verifying it concluded.
-typedef TagSignature = ({String name, SignatureVerdict verdict});
-
-/// Signed tags pointing at one commit, each verified. On demand for the
-/// commit shown in the details panel only, for the same reason commits are.
-final tagSignaturesProvider = FutureProvider.family
-    .autoDispose<List<TagSignature>, ({String repo, String sha})>((
+/// One tag verified, on demand. The details panel asks only for the tags
+/// already decorating the shown commit, so a commit without tags costs no git
+/// process at all; a lightweight or unsigned tag comes back unsigned.
+final tagSignatureProvider = FutureProvider.family
+    .autoDispose<SignatureVerdict, ({String repo, String name})>((
       ref,
       key,
     ) async {
-      final reader = GitReader(ref.watch(gitServiceProvider), key.repo);
-      final names = await reader.signedTagsAt(key.sha);
-      return [
-        for (final name in names)
-          (name: name, verdict: await reader.verifyTag(name)),
-      ];
+      return GitReader(
+        ref.watch(gitServiceProvider),
+        key.repo,
+      ).verifyTag(key.name);
     });
 
 /// Every commit in `base..HEAD` without a verified signature. Each signed

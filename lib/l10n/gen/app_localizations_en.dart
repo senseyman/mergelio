@@ -3550,10 +3550,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String sigAuditSummary(int count, int unverified) {
     String _temp0 = intl.Intl.pluralLogic(
-      count,
+      unverified,
       locale: localeName,
-      other: '$unverified of $count commits lack a verified signature',
-      one: '$unverified of $count commit lacks a verified signature',
+      other: '$unverified commits of $count lack a verified signature',
+      one: '$unverified commit of $count lacks a verified signature',
     );
     return '$_temp0';
   }
@@ -3574,4 +3574,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sigAuditFailed => 'Could not check signatures';
+
+  @override
+  String sigHintSignersUnreadable(String path) {
+    return 'The allowed signers file ($path) could not be opened, so git cannot name the signer.';
+  }
+
+  @override
+  String sigHintVerifierMissing(String program) {
+    return 'git could not start $program, so nothing was checked. Install it or point git at it (gpg.program, gpg.ssh.program).';
+  }
 }

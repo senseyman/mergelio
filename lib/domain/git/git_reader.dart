@@ -147,21 +147,7 @@ class GitReader {
       if (f.length < 8) continue;
       records++;
       if (auxShas.contains(f[0])) continue; // drop stash index/untracked nodes
-      out.add(
-        Commit(
-          sha: f[0],
-          parents: f[1].split(' ').where((s) => s.isNotEmpty).toList(),
-          author: f[2],
-          authorEmail: f[3],
-          date: DateTime.parse(f[4]),
-          dateOffset: isoOffset(f[4]),
-          refs: _parseRefs(f[5]),
-          message: f[6],
-          body: f[7].trimRight(),
-          coauthor: f[7].toLowerCase().contains('co-authored-by:'),
-          avatarValue: avatarFor(f[3]),
-        ),
-      );
+      out.add(_fullCommit(f));
     }
     return (commits: out, truncated: maxCount != null && records >= maxCount);
   }
@@ -725,6 +711,42 @@ class GitReader {
         : (commits: all, truncated: false);
   }
 
+  /// One `%H %P %an %ae %aI %D %s %b` record (split on [_fs]) with its refs
+  /// and body, as the history walk reads it.
+  Commit _fullCommit(List<String> f) => Commit(
+    sha: f[0],
+    parents: f[1].split(' ').where((s) => s.isNotEmpty).toList(),
+    author: f[2],
+    authorEmail: f[3],
+    date: DateTime.parse(f[4]),
+    dateOffset: isoOffset(f[4]),
+    refs: _parseRefs(f[5]),
+    message: f[6],
+    body: f[7].trimRight(),
+    coauthor: f[7].toLowerCase().contains('co-authored-by:'),
+    avatarValue: avatarFor(f[3]),
+  );
+
+  /// One commit read the way the history walk reads it, for a commit that
+  /// may lie beyond the loaded page. Null when git does not know [sha].
+  Future<Commit?> commit(String sha) async {
+    final r = await _run([
+      'log',
+      '-1',
+      '--decorate=full',
+      '-z',
+      '--pretty=format:%H$_fs%P$_fs%an$_fs%ae$_fs%aI$_fs%D$_fs%s$_fs%b',
+      '--end-of-options',
+      sha,
+    ]);
+    if (!r.ok) return null;
+    for (final rec in r.stdout.split(_rs)) {
+      final f = rec.split(_fs);
+      if (f.length >= 8) return _fullCommit(f);
+    }
+    return null;
+  }
+
   /// Commits from a `%H %P %an %ae %aI %D %s %b` log, without lane layout or
   /// ref decoration.
   List<Commit> _parseSimpleLog(String stdout) {
@@ -786,9 +808,14 @@ class GitReader {
   /// skip verification because git spawns gpg per signed commit — thousands
   /// of subprocesses on a repository that enforces signing.
   Future<SignatureVerdict> signatureVerdict(String sha) async {
-    final r = await _run(['log', '-1', '--format=$kSignatureFormat', sha]);
+    final r = await _run([
+      'log',
+      '-1',
+      '--format=$kSignatureDetailFormat',
+      sha,
+    ]);
     if (!r.ok) throw GitException('git log -1 signature read failed', r);
-    return parseSignatureVerdict(r.out);
+    return withVerifierErrors(parseSignatureVerdict(r.out), r.err);
   }
 
   /// `gpg.ssh.allowedSignersFile`, or null when unset. Without it git can
@@ -796,22 +823,6 @@ class GitReader {
   Future<String?> allowedSignersFile() async {
     final r = await _run(['config', '--get', 'gpg.ssh.allowedSignersFile']);
     return r.ok && r.out.isNotEmpty ? r.out : null;
-  }
-
-  /// Tags pointing at [sha] that carry a signature. Lightweight and unsigned
-  /// annotated tags are left out: there is nothing to verify.
-  Future<List<String>> signedTagsAt(String sha) async {
-    final r = await _run([
-      'tag',
-      '--points-at',
-      sha,
-      '--format=%(refname:short)%09%(if)%(contents:signature)%(then)1%(end)',
-    ]);
-    if (!r.ok) throw GitException('git tag --points-at failed', r);
-    return [
-      for (final line in r.out.split('\n'))
-        if (line.endsWith('\t1')) line.substring(0, line.length - 2),
-    ];
   }
 
   /// Verifies the tag [name]. git exits non-zero for anything short of a
@@ -844,6 +855,11 @@ class GitReader {
       cancel: cancel,
     );
     if (!r.ok) throw GitException('git log signature audit failed', r);
+    // Without its verifier git still prints a letter per commit, and every
+    // one of them is wrong; better no list than that list.
+    if (missingVerifier(r.err) != null) {
+      throw GitException('signature verifier could not start', r);
+    }
     return parseSignatureAudit(r.stdout, limit: limit);
   }
 

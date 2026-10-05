@@ -131,7 +131,13 @@ class _Details extends StatelessWidget {
       SignatureHint.sshKeyNotAllowed => l.sigHintKeyNotAllowed(
         allowedSignersFile ?? '',
       ),
+      SignatureHint.sshAllowedSignersUnreadable => l.sigHintSignersUnreadable(
+        allowedSignersPathIn(v.detail) ?? allowedSignersFile ?? '',
+      ),
       SignatureHint.missingKey => l.sigHintMissingKey,
+      SignatureHint.verifierMissing => l.sigHintVerifierMissing(
+        missingVerifier(v.detail) ?? '',
+      ),
     };
     return Padding(
       padding: const EdgeInsets.only(left: 19, top: 4),

@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_reader.dart';
 import 'package:mergelio/domain/git/git_service.dart';
+import 'package:mergelio/domain/git/models.dart';
 import 'package:mergelio/domain/git/signature.dart';
 import 'package:mergelio/state/signatures.dart';
 
@@ -84,7 +85,7 @@ void main() {
     expect(git.calls.single, [
       'log',
       '-1',
-      '--format=$kSignatureFormat',
+      '--format=$kSignatureDetailFormat',
       'abc123',
     ]);
   });
@@ -108,13 +109,6 @@ void main() {
     // `git config --get` exits 1 for a missing key.
     final git = _CapturingGit('', '', 1);
     expect(await GitReader(git, '/repo').allowedSignersFile(), isNull);
-  });
-
-  test('signedTagsAt lists only tags that carry a signature', () async {
-    final git = _CapturingGit('v1\t1\nv2\t\nv3\t\n');
-    final tags = await GitReader(git, '/repo').signedTagsAt('abc123');
-    expect(tags, ['v1']);
-    expect(git.calls.single.take(3), ['tag', '--points-at', 'abc123']);
   });
 
   test('verifyTag parses stderr even when git exits non-zero', () async {
@@ -180,5 +174,57 @@ void main() {
     sub.close();
     container.dispose();
     expect(git.cancels.single!.isCancelled, isTrue);
+  });
+
+  test('signatureVerdict does not trust git\'s letter when the verifier '
+      'could not start', () async {
+    final git = _CapturingGit(
+      'B\x1f\x1f\x1f\x1f\x1fnever\x1f',
+      'error: cannot run ssh-keygen: No such file or directory',
+    );
+    final v = await GitReader(git, '/repo').signatureVerdict('abc123');
+    expect(v.state, SignatureState.unverifiable);
+    expect(missingVerifier(v.detail), 'ssh-keygen');
+  });
+
+  test('signatureAudit fails rather than list wrong verdicts when the '
+      'verifier could not start', () async {
+    final git = _CapturingGit(
+      'a1\x1fB\x1f\x1f\x1f\x1f\x1fnever\x1fAnn\x1fs\x00',
+      'error: cannot run ssh-keygen: No such file or directory',
+    );
+    await expectLater(
+      GitReader(git, '/repo').signatureAudit('main'),
+      throwsA(
+        isA<GitException>().having(
+          (e) => e.result?.err,
+          'stderr',
+          contains('cannot run ssh-keygen'),
+        ),
+      ),
+    );
+  });
+
+  test('commit reads one commit in full, refs and body included', () async {
+    final git = _CapturingGit(
+      'abc123\x1fp1\x1fAnn\x1fa@x.io\x1f2026-10-05T12:00:00+01:00\x1f'
+      'HEAD -> refs/heads/main, tag: refs/tags/v1\x1fsubject\x1fbody\n\x00',
+    );
+    final c = await GitReader(git, '/repo').commit('abc123');
+    expect(c, isNotNull);
+    expect(c!.sha, 'abc123');
+    expect(c.message, 'subject');
+    expect(c.body, 'body');
+    expect(c.parents, ['p1']);
+    expect(c.refs.where((r) => r.kind == RefKind.tag).map((r) => r.name), [
+      'v1',
+    ]);
+    expect(git.calls.single.first, 'log');
+    expect(git.calls.single, containsAll(['-1', '--decorate=full', 'abc123']));
+  });
+
+  test('commit is null for a sha git does not know', () async {
+    final git = _CapturingGit('', 'fatal: bad object nope', 128);
+    expect(await GitReader(git, '/repo').commit('nope'), isNull);
   });
 }

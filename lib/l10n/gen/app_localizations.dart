@@ -6023,7 +6023,7 @@ abstract class AppLocalizations {
   /// No description provided for @sigAuditSummary.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, one{{unverified} of {count} commit lacks a verified signature} other{{unverified} of {count} commits lack a verified signature}}'**
+  /// **'{unverified, plural, one{{unverified} commit of {count} lacks a verified signature} other{{unverified} commits of {count} lack a verified signature}}'**
   String sigAuditSummary(int count, int unverified);
 
   /// No description provided for @sigAuditEmpty.
@@ -6043,6 +6043,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not check signatures'**
   String get sigAuditFailed;
+
+  /// No description provided for @sigHintSignersUnreadable.
+  ///
+  /// In en, this message translates to:
+  /// **'The allowed signers file ({path}) could not be opened, so git cannot name the signer.'**
+  String sigHintSignersUnreadable(String path);
+
+  /// No description provided for @sigHintVerifierMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'git could not start {program}, so nothing was checked. Install it or point git at it (gpg.program, gpg.ssh.program).'**
+  String sigHintVerifierMissing(String program);
 }
 
 class _AppLocalizationsDelegate
