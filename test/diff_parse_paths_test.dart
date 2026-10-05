@@ -54,4 +54,17 @@ void main() {
     expect(files.single.path, 'é 2.txt');
     expect(files.single.oldPath, 'é.txt');
   });
+
+  test('a binary file whose name holds " b/" keeps its whole name', () {
+    // No ---/+++ lines to correct the header, and the a/ and b/ halves are
+    // the same name, so the header splits down the middle.
+    final files = parseUnifiedDiff(
+      'diff --git a/foo b/bar.png b/foo b/bar.png\n'
+      'new file mode 100644\n'
+      'index 0000000..1234567\n'
+      'Binary files /dev/null and b/foo b/bar.png differ\n',
+    );
+    expect(files.single.path, 'foo b/bar.png');
+    expect(files.single.binary, isTrue);
+  });
 }

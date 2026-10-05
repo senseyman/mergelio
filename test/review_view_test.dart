@@ -4,12 +4,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/core/tokens.dart';
 import 'package:mergelio/data/settings_repository.dart';
+import 'package:mergelio/domain/forge/forge.dart';
+import 'package:mergelio/domain/forge/forge_error.dart';
 import 'package:mergelio/domain/forge/forge_host.dart';
 import 'package:mergelio/domain/forge/models.dart';
 import 'package:mergelio/domain/git/diff.dart';
 import 'package:mergelio/domain/git/models.dart';
+import 'package:mergelio/domain/git/review.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
+import 'package:mergelio/state/diff_target.dart';
+import 'package:mergelio/state/feedback.dart';
 import 'package:mergelio/state/file_insight.dart';
+import 'package:mergelio/state/forge.dart';
 import 'package:mergelio/state/graph_selection.dart';
 import 'package:mergelio/state/review.dart';
 import 'package:mergelio/state/settings.dart';
@@ -17,9 +23,67 @@ import 'package:mergelio/state/settings_controller.dart';
 import 'package:mergelio/ui/review/review_view.dart';
 import 'package:mergelio/ui/workspace/forge_presentation.dart';
 
+const _host = ForgeHost(
+  kind: ForgeKind.github,
+  host: 'github.com',
+  owner: 'o',
+  repo: 'r',
+);
+
+class _FakeForge implements Forge {
+  final List<PullRequest> prs;
+  final bool fail;
+  final asked = <String>[];
+  _FakeForge(this.prs, {this.fail = false});
+
+  @override
+  ForgeHost get host => _host;
+
+  @override
+  Future<List<PullRequest>> pullRequestsForBranch(
+    String branch, {
+    int limit = 50,
+  }) async {
+    asked.add(branch);
+    if (fail) throw const ForgeOffline('down');
+    return prs;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation i) => super.noSuchMethod(i);
+}
+
+PullRequest _pr(int n, String target) => PullRequest(
+  number: n,
+  title: 't',
+  state: PullRequestState.open,
+  author: const ForgeUser(login: 'u'),
+  sourceBranch: 'feature',
+  targetBranch: target,
+  headSha: 'h',
+);
+
 const _target = ReviewTarget(repoPath: '/repo', base: 'main', head: 'feature');
 
-ReviewSummary _summary({bool related = true, int ahead = 2}) {
+const _files = [
+  ReviewFile(
+    change: CommitFileChange(path: 'lib/a.dart', change: GitChange.modified),
+    fingerprint: 'fp-a',
+    adds: 1,
+    dels: 1,
+  ),
+  ReviewFile(
+    change: CommitFileChange(path: 'lib/b.dart', change: GitChange.added),
+    fingerprint: 'fp-b',
+    adds: 1,
+  ),
+];
+
+ReviewSummary _summary({
+  bool related = true,
+  int ahead = 2,
+  List<ReviewFile> files = _files,
+}) {
   final mergeBase = related ? 'm' * 40 : null;
   return ReviewSummary(
     baseSha: 'b' * 40,
@@ -37,16 +101,11 @@ ReviewSummary _summary({bool related = true, int ahead = 2}) {
       ),
     ],
     commitsTruncated: false,
-    files: mergeBase == null
-        ? const []
-        : const [
-            CommitFileChange(path: 'lib/a.dart', change: GitChange.modified),
-            CommitFileChange(path: 'lib/b.dart', change: GitChange.added),
-          ],
+    files: mergeBase == null ? const [] : files,
   );
 }
 
-final _diffs = <String, FileDiff>{
+final _diffs = <String, FileDiff?>{
   'lib/a.dart': const FileDiff(
     path: 'lib/a.dart',
     status: GitChange.modified,
@@ -79,7 +138,10 @@ final _diffs = <String, FileDiff>{
 Future<ProviderContainer> _pump(
   WidgetTester tester, {
   ReviewSummary? summary,
-  ({PullRequest pr, ForgeHost host})? pr,
+  Map<String, FileDiff?>? diffs,
+  List<String>? diffsRead,
+  ReviewPrQuery? prQuery,
+  Forge? forge,
   List<Uri>? launched,
   List<LineRangeKey>? lineHistoryAsked,
 }) async {
@@ -104,8 +166,14 @@ Future<ProviderContainer> _pump(
                 files: _summary().files,
               );
       }),
-      reviewDiffProvider.overrideWith((ref, k) async => _diffs),
-      reviewPullRequestProvider.overrideWith((ref, t) async => pr),
+      reviewFileDiffProvider.overrideWith((ref, k) async {
+        diffsRead?.add(k.path);
+        final all = diffs ?? _diffs;
+        if (!all.containsKey(k.path)) throw StateError('no diff');
+        return all[k.path];
+      }),
+      reviewPrQueryProvider.overrideWith((ref, t) async => prQuery),
+      forgeProvider.overrideWith((ref, p) async => forge),
       forgeLaunchUrlProvider.overrideWithValue((uri) async {
         launched?.add(uri);
         return true;
@@ -190,44 +258,156 @@ void main() {
   ) async {
     final c = await _pump(tester, summary: _summary(related: false));
     expect(find.textContaining('share no history'), findsOneWidget);
+    // Head's commits need no merge base, so they still show.
+    expect(find.text('Add the widget'), findsOneWidget);
     await tester.tap(find.text('Show tip to tip'));
     await tester.pumpAndSettle();
     expect(c.read(reviewTargetProvider)!.threeDot, isFalse);
   });
 
-  testWidgets('the PR button appears only for a resolved request', (
+  testWidgets('without a branch on a forge there is no PR button', (
     tester,
   ) async {
     await _pump(tester);
-    expect(find.textContaining('Open PR'), findsNothing);
+    expect(find.text('Open pull request'), findsNothing);
   });
 
-  testWidgets('the PR button opens the request on the forge', (tester) async {
+  testWidgets('the PR is looked up only when the button is pressed', (
+    tester,
+  ) async {
     final launched = <Uri>[];
+    final forge = _FakeForge([_pr(42, 'main')]);
     await _pump(
       tester,
       launched: launched,
-      pr: (
-        pr: const PullRequest(
-          number: 42,
-          title: 't',
-          state: PullRequestState.open,
-          author: ForgeUser(login: 'u'),
-          sourceBranch: 'feature',
-          targetBranch: 'main',
-          headSha: 'h',
-        ),
-        host: const ForgeHost(
-          kind: ForgeKind.github,
-          host: 'github.com',
-          owner: 'o',
-          repo: 'r',
-        ),
+      forge: forge,
+      prQuery: (host: _host, head: 'feature', base: 'main'),
+    );
+    expect(forge.asked, isEmpty);
+
+    await tester.tap(find.text('Open pull request'));
+    await tester.pumpAndSettle();
+    expect(forge.asked, ['feature']);
+    expect(launched.single.toString(), 'https://github.com/o/r/pull/42');
+  });
+
+  testWidgets('no matching request says so instead of opening anything', (
+    tester,
+  ) async {
+    final launched = <Uri>[];
+    final c = await _pump(
+      tester,
+      launched: launched,
+      forge: _FakeForge(const []),
+      prQuery: (host: _host, head: 'feature', base: 'main'),
+    );
+    await tester.tap(find.text('Open pull request'));
+    await tester.pumpAndSettle();
+    expect(launched, isEmpty);
+    expect(
+      c.read(toastProvider).single.title,
+      'No single open pull request for feature',
+    );
+    // Let the toast's own dismiss timer run out.
+    await tester.pump(const Duration(seconds: 4));
+  });
+
+  testWidgets('a forge failure is reported, not swallowed', (tester) async {
+    final c = await _pump(
+      tester,
+      forge: _FakeForge(const [], fail: true),
+      prQuery: (host: _host, head: 'feature', base: 'main'),
+    );
+    await tester.tap(find.text('Open pull request'));
+    await tester.pumpAndSettle();
+    final toast = c.read(toastProvider).single;
+    expect(toast.title, 'Could not look up the pull request');
+    expect(toast.kind, ToastKind.error);
+    await tester.pump(const Duration(seconds: 4));
+  });
+
+  testWidgets('a file whose diff will not read can still be ticked', (
+    tester,
+  ) async {
+    final c = await _pump(tester, diffs: {'lib/b.dart': _diffs['lib/b.dart']});
+    expect(find.text("Could not read this file's diff"), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('rv-viewed-lib/a.dart')));
+    await tester.pumpAndSettle();
+    expect(find.text('1 of 2 viewed'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('rv-toggle-lib/a.dart')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Open in diff viewer'));
+    await tester.pumpAndSettle();
+    expect(c.read(diffTargetProvider)?.path, 'lib/a.dart');
+  });
+
+  testWidgets('git printing no diff for a listed file says so too', (
+    tester,
+  ) async {
+    await _pump(tester, diffs: {'lib/a.dart': null, 'lib/b.dart': null});
+    expect(find.text("Could not read this file's diff"), findsNWidgets(2));
+  });
+
+  testWidgets('a collapsed file is never read', (tester) async {
+    final read = <String>[];
+    await _pump(
+      tester,
+      diffsRead: read,
+      summary: _summary(
+        files: [
+          _files[0],
+          const ReviewFile(
+            change: CommitFileChange(path: 'big.txt', change: GitChange.added),
+            fingerprint: 'fp-big',
+            adds: kReviewLargeDiffLines + 1,
+          ),
+        ],
       ),
     );
-    await tester.tap(find.text('Open PR #42'));
+    expect(read, ['lib/a.dart']);
+    expect(find.textContaining('Large diff'), findsOneWidget);
+  });
+
+  testWidgets('a file far down the review is read only once scrolled to', (
+    tester,
+  ) async {
+    final read = <String>[];
+    final many = [
+      for (var i = 0; i < 60; i++)
+        ReviewFile(
+          change: CommitFileChange(path: 'f$i.txt', change: GitChange.added),
+          fingerprint: 'fp$i',
+          adds: 1,
+        ),
+    ];
+    await _pump(
+      tester,
+      diffsRead: read,
+      summary: _summary(files: many),
+      diffs: {
+        for (final f in many)
+          f.change.path: FileDiff(
+            path: f.change.path,
+            status: GitChange.added,
+            hunks: [
+              DiffHunk(
+                header: '@@ -0,0 +1 @@',
+                oldStart: 0,
+                newStart: 1,
+                lines: [DiffLine(type: DiffLineType.add, newNo: 1, text: 'x')],
+              ),
+            ],
+          ),
+      },
+    );
+    expect(read, contains('f0.txt'));
+    expect(read, isNot(contains('f59.txt')));
+    expect(read.length, lessThan(many.length));
+
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -20000));
     await tester.pumpAndSettle();
-    expect(launched.single.toString(), 'https://github.com/o/r/pull/42');
+    expect(read, contains('f59.txt'));
   });
 
   testWidgets('a removed line\'s history is read on the base side', (

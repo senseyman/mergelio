@@ -3282,9 +3282,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get rvSwap => 'Swap base and head';
 
   @override
-  String get rvChangeSides => 'Change sides';
-
-  @override
   String get rvModeThreeDot => 'Since branch point';
 
   @override
@@ -3411,14 +3408,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get rvExportFailed => 'Could not export patches';
 
   @override
-  String rvOpenPr(int number) {
-    return 'Open PR #$number';
-  }
+  String get rvOpenPr => 'Open pull request';
 
   @override
-  String rvOpenMr(int number) {
-    return 'Open MR !$number';
-  }
+  String get rvOpenMr => 'Open merge request';
 
   @override
   String get rvKindBranch => 'branch';
@@ -3437,4 +3430,20 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get rvPaletteReview => 'Review branches…';
+
+  @override
+  String rvNoOpenPr(String branch) {
+    return 'No single open pull request for $branch';
+  }
+
+  @override
+  String rvNoOpenMr(String branch) {
+    return 'No single open merge request for $branch';
+  }
+
+  @override
+  String get rvPrLookupFailed => 'Could not look up the pull request';
+
+  @override
+  String get rvMrLookupFailed => 'Could not look up the merge request';
 }

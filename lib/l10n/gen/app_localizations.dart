@@ -5594,12 +5594,6 @@ abstract class AppLocalizations {
   /// **'Swap base and head'**
   String get rvSwap;
 
-  /// No description provided for @rvChangeSides.
-  ///
-  /// In en, this message translates to:
-  /// **'Change sides'**
-  String get rvChangeSides;
-
   /// No description provided for @rvModeThreeDot.
   ///
   /// In en, this message translates to:
@@ -5789,14 +5783,14 @@ abstract class AppLocalizations {
   /// No description provided for @rvOpenPr.
   ///
   /// In en, this message translates to:
-  /// **'Open PR #{number}'**
-  String rvOpenPr(int number);
+  /// **'Open pull request'**
+  String get rvOpenPr;
 
   /// No description provided for @rvOpenMr.
   ///
   /// In en, this message translates to:
-  /// **'Open MR !{number}'**
-  String rvOpenMr(int number);
+  /// **'Open merge request'**
+  String get rvOpenMr;
 
   /// No description provided for @rvKindBranch.
   ///
@@ -5833,6 +5827,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Review branches…'**
   String get rvPaletteReview;
+
+  /// No description provided for @rvNoOpenPr.
+  ///
+  /// In en, this message translates to:
+  /// **'No single open pull request for {branch}'**
+  String rvNoOpenPr(String branch);
+
+  /// No description provided for @rvNoOpenMr.
+  ///
+  /// In en, this message translates to:
+  /// **'No single open merge request for {branch}'**
+  String rvNoOpenMr(String branch);
+
+  /// No description provided for @rvPrLookupFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not look up the pull request'**
+  String get rvPrLookupFailed;
+
+  /// No description provided for @rvMrLookupFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not look up the merge request'**
+  String get rvMrLookupFailed;
 }
 
 class _AppLocalizationsDelegate

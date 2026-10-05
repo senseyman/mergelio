@@ -100,34 +100,61 @@ void main() {
     expect({for (final f in twoDot) f.path}, {'a.txt', 'b.txt', 'm.txt'});
   });
 
-  test('rangeDiff is one patch covering every file', () async {
-    final mb = await reader.mergeBase('main', 'feature');
-    final raw = await reader.rangeDiff(mb!, 'feature');
-    expect(raw, contains('diff --git a/a.txt b/a.txt'));
-    expect(raw, contains('diff --git a/b.txt b/b.txt'));
-    expect(raw, isNot(contains('m.txt')));
+  test('reviewFiles lists the changes with counts and blob ids', () async {
+    await g(['checkout', '-q', 'feature']);
+    // Diff from feature's tip as it stands, where b.txt exists to rename.
+    final mb = await g(['rev-parse', 'HEAD']);
+    await g(['mv', 'b.txt', 'bee.txt']);
+    await File('${repo.path}/bin.dat').writeAsBytes([0, 1, 2]);
+    await commit('a.txt', 'one\ntwo\nthree\n', 'more');
+    final files = await reader.reviewFiles(mb, 'feature');
+    final by = {for (final f in files) f.change.path: f};
+
+    expect(by.keys, unorderedEquals(['a.txt', 'bee.txt', 'bin.dat']));
+    expect((by['a.txt']!.adds, by['a.txt']!.dels), (1, 0));
+    expect(by['bee.txt']!.change.origPath, 'b.txt');
+    expect(by['bin.dat']!.binary, isTrue);
+    // Same content, same fingerprint; the tip moving on changes it.
+    expect(
+      (await reader.reviewFiles(mb, 'feature'))[0].fingerprint,
+      files[0].fingerprint,
+    );
+    await commit('a.txt', 'one\ntwo\nthree\nfour\n', 'again');
+    final moved = {
+      for (final f in await reader.reviewFiles(mb, 'feature'))
+        f.change.path: f.fingerprint,
+    };
+    expect(moved['a.txt'], isNot(by['a.txt']!.fingerprint));
+    expect(moved['bee.txt'], by['bee.txt']!.fingerprint);
   });
 
-  test('rangeDiff names every file the way compareFiles does', () async {
+  test('odd names list and diff under the same name', () async {
     await g(['checkout', '-q', 'feature']);
     await commit('a b.txt', 'space\n', 'space');
     await commit('caf\u00e9.txt', 'accent\n', 'accent');
     await commit('tab\tname.txt', 'tab\n', 'tab');
-    await File('${repo.path}/caf\u00e9.txt').delete();
+    await Directory('${repo.path}/foo b').create();
+    await File('${repo.path}/foo b/bar.png').writeAsBytes([0, 1, 2]);
     await g(['add', '-A']);
-    await g(['commit', '-q', '-m', 'drop accent']);
-    await commit('d\u00e9j\u00e0.txt', 'x\n', 'again');
+    await g(['commit', '-q', '-m', 'binary']);
     final mb = await reader.mergeBase('main', 'feature');
-    final listed = {
-      for (final f in await reader.compareFiles(mb!, 'feature')) f.path,
-    };
-    final parsed = {
-      for (final f in parseUnifiedDiff(await reader.rangeDiff(mb, 'feature')))
-        f.path,
-    };
-    expect(listed, contains('a b.txt'));
-    expect(listed, contains('tab\tname.txt'));
-    expect(parsed, listed);
+    final files = await reader.reviewFiles(mb!, 'feature');
+    final listed = {for (final f in files) f.change.path};
+    expect(
+      listed,
+      containsAll([
+        'a b.txt',
+        'caf\u00e9.txt',
+        'tab\tname.txt',
+        'foo b/bar.png',
+      ]),
+    );
+    for (final f in files) {
+      final diff = parseUnifiedDiff(
+        await reader.compareDiff(mb, 'feature', f.change.path),
+      );
+      expect(diff.single.path, f.change.path);
+    }
   });
 
   test('blame and file history read the given revision', () async {

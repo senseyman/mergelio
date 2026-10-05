@@ -17,6 +17,10 @@ import 'package:mergelio/state/workspace.dart';
 import 'package:mergelio/ui/workspace/repo_sidebar.dart';
 
 class _FakeGit implements GitService {
+  /// HEAD is on no branch: the tracking listing marks none as current.
+  final bool detached;
+  _FakeGit({this.detached = false});
+
   @override
   Future<GitResult> run(
     List<String> args, {
@@ -31,7 +35,7 @@ class _FakeGit implements GitService {
       'remote' when args.length == 1 => 'origin\n',
       'for-each-ref' when args.contains('refs/remotes') => '',
       'for-each-ref' when tracking =>
-        'main\t*\t\taaa\t\n'
+        '${detached ? 'main\t\t\taaa\t\n' : 'main\t*\t\taaa\t\n'}'
             'work\t\t\tbbb\t\n',
       'for-each-ref' => 'main\nwork\n',
       'rev-parse' => 'aaa\n',
@@ -47,11 +51,14 @@ class _FakeGit implements GitService {
 }
 
 void main() {
-  Future<ProviderContainer> pumpSidebar(WidgetTester tester) async {
+  Future<ProviderContainer> pumpSidebar(
+    WidgetTester tester, {
+    bool detached = false,
+  }) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          gitServiceProvider.overrideWithValue(_FakeGit()),
+          gitServiceProvider.overrideWithValue(_FakeGit(detached: detached)),
           settingsProvider.overrideWith(
             (ref) => SettingsController(
               InMemorySettingsRepository(),
@@ -123,5 +130,26 @@ void main() {
       c.read(reviewTargetProvider),
       const ReviewTarget(repoPath: '/r', base: 'main', head: 'work'),
     );
+  });
+
+  testWidgets('with no branch checked out, compare and review are off', (
+    tester,
+  ) async {
+    await pumpSidebar(tester, detached: true);
+
+    await tester.tap(find.text('work'), buttons: kSecondaryButton);
+    await tester.pumpAndSettle();
+
+    for (final label in ['Compare with current', 'Review against current']) {
+      expect(
+        tester
+            .widget<PopupMenuItem<void>>(
+              find.widgetWithText(PopupMenuItem<void>, label),
+            )
+            .enabled,
+        isFalse,
+        reason: label,
+      );
+    }
   });
 }

@@ -5,27 +5,6 @@ import 'package:mergelio/domain/git/models.dart';
 import 'package:mergelio/domain/git/review.dart';
 import 'package:mergelio/domain/git/worktree.dart';
 
-FileDiff _file(String added, {String path = 'a.txt'}) => FileDiff(
-  path: path,
-  status: GitChange.modified,
-  hunks: [
-    DiffHunk(
-      header: '@@ -1 +1,2 @@',
-      oldStart: 1,
-      newStart: 1,
-      lines: [
-        const DiffLine(
-          type: DiffLineType.context,
-          oldNo: 1,
-          newNo: 1,
-          text: 'x',
-        ),
-        DiffLine(type: DiffLineType.add, newNo: 2, text: added),
-      ],
-    ),
-  ],
-);
-
 PullRequest _pr(int n, String target) => PullRequest(
   number: n,
   title: 't$n',
@@ -64,38 +43,65 @@ void main() {
     });
   });
 
-  group('diffFingerprint', () {
-    test('is the same for equal content parsed twice', () {
-      expect(diffFingerprint(_file('y')), diffFingerprint(_file('y')));
-    });
+  group('parseReviewFiles', () {
+    // Exactly what git 2.x prints for `diff --raw --no-abbrev -z -M` and
+    // `diff --numstat -z -M` over an add (binary), delete, mode+content
+    // change and a rename with an edit.
+    const z = '0000000000000000000000000000000000000000';
+    const raw =
+        ':000000 100644 $z bdc955b7b2e610ad5a72302b139a2e6cb325519a A\x00bin.dat\x00'
+        ':100644 000000 587be6b4c3f93f93c489c0111bba5596147a26cb $z D\x00gone.txt\x00'
+        ':100644 100755 28ce6a8b26aa170e1de65536fe8abe1832bd3242 3d3fffbbfd74e37fb6e9ce38b0ef7e97da0f2d3d M\x00mod.txt\x00'
+        ':100644 100644 0fdf397db08b5cecda1b6394d4fef7395c1933ba f9d9a0195c5b9c01ef64e2a69d8b9a624f42b8c8 R085\x00keep.txt\x00moved.txt\x00';
+    const numstat =
+        '-\t-\tbin.dat\x00'
+        '0\t1\tgone.txt\x00'
+        '1\t0\tmod.txt\x00'
+        '1\t0\t\x00keep.txt\x00moved.txt\x00';
 
-    test('changes when a line changes', () {
-      expect(diffFingerprint(_file('y')), isNot(diffFingerprint(_file('z'))));
-    });
-
-    test('changes with the path', () {
+    test('reads every change with its counts', () {
+      final files = parseReviewFiles(raw: raw, numstat: numstat);
       expect(
-        diffFingerprint(_file('y')),
-        isNot(diffFingerprint(_file('y', path: 'b.txt'))),
-      );
-    });
-
-    test('changes when a line flips between added and removed', () {
-      FileDiff one(DiffLineType type) => FileDiff(
-        path: 'a',
-        status: GitChange.modified,
-        hunks: [
-          DiffHunk(
-            header: '@@',
-            oldStart: 1,
-            newStart: 1,
-            lines: [DiffLine(type: type, text: 'q')],
-          ),
+        [for (final f in files) (f.change.path, f.change.change)],
+        [
+          ('bin.dat', GitChange.added),
+          ('gone.txt', GitChange.deleted),
+          ('mod.txt', GitChange.modified),
+          ('moved.txt', GitChange.renamed),
         ],
       );
+      expect(files[3].change.origPath, 'keep.txt');
+      expect((files[0].binary, files[0].lines), (true, 0));
+      expect((files[1].adds, files[1].dels), (0, 1));
+      expect((files[3].adds, files[3].dels, files[3].lines), (1, 0, 1));
+    });
+
+    test('a file numstat skipped still lists, with no counts', () {
+      final files = parseReviewFiles(raw: raw, numstat: '');
+      expect(files, hasLength(4));
+      expect((files[2].adds, files[2].dels, files[2].binary), (0, 0, false));
+    });
+
+    test('the fingerprint follows content and mode, not the path alone', () {
+      final a = parseReviewFiles(raw: raw, numstat: numstat);
+      final again = parseReviewFiles(raw: raw, numstat: numstat);
+      expect(a[2].fingerprint, again[2].fingerprint);
+      final edited = parseReviewFiles(
+        raw: raw.replaceFirst('3d3fffbb', '3d3fffbc'),
+        numstat: numstat,
+      );
+      expect(edited[2].fingerprint, isNot(a[2].fingerprint));
+      final modeOnly = parseReviewFiles(
+        raw: raw.replaceFirst(':100644 100755', ':100644 100644'),
+        numstat: numstat,
+      );
+      expect(modeOnly[2].fingerprint, isNot(a[2].fingerprint));
+    });
+
+    test('ignores a truncated record', () {
       expect(
-        diffFingerprint(one(DiffLineType.add)),
-        isNot(diffFingerprint(one(DiffLineType.del))),
+        parseReviewFiles(raw: ':100644 100644 a b M', numstat: ''),
+        isEmpty,
       );
     });
   });
@@ -130,6 +136,29 @@ void main() {
       );
       expect(choices[4].detail, '/wt/hotfix');
     });
+
+    test(
+      'a branch checked out in a worktree is offered once, saying where',
+      () {
+        final choices = reviewRefChoices(
+          repoPath: '/repo',
+          branches: const [
+            Branch(name: 'main'),
+            Branch(name: 'hotfix'),
+          ],
+          remoteBranches: const [],
+          tags: const [],
+          worktrees: const [Worktree(path: '/wt/hotfix', branch: 'hotfix')],
+        );
+        expect(
+          [for (final c in choices) (c.kind, c.rev, c.detail)],
+          [
+            (RefChoiceKind.branch, 'main', null),
+            (RefChoiceKind.branch, 'hotfix', '/wt/hotfix'),
+          ],
+        );
+      },
+    );
 
     test('skips a remote HEAD alias and a worktree with no commit', () {
       final choices = reviewRefChoices(

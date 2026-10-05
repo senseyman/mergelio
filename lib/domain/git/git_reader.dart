@@ -859,20 +859,18 @@ class GitReader {
     return r.stdout;
   }
 
-  /// Every file's unified diff between [from] and [to] in one patch, matching
-  /// what [compareFiles] lists. One process for the whole review instead of
-  /// one per file; the history ceiling applies because a wide range can be
-  /// large.
-  Future<String> rangeDiff(String from, String to) async {
-    final r = await _run([
-      'diff',
-      '--no-color',
-      '--find-renames',
-      from,
-      to,
-    ], timeout: _historyTimeout);
-    if (!r.ok) throw GitException('git diff failed', r);
-    return r.stdout;
+  /// Files that differ between [from] and [to] with their blob ids and line
+  /// counts, read without the diff text itself — what a review lists before
+  /// any file is opened. Same direction and rename detection as
+  /// [compareFiles].
+  Future<List<ReviewFile>> reviewFiles(String from, String to) async {
+    final [raw, numstat] = await Future.wait([
+      _run(['diff', '--raw', '--no-abbrev', '-z', '--find-renames', from, to]),
+      _run(['diff', '--numstat', '-z', '--find-renames', from, to]),
+    ]);
+    if (!raw.ok) throw GitException('git diff --raw failed', raw);
+    if (!numstat.ok) throw GitException('git diff --numstat failed', numstat);
+    return parseReviewFiles(raw: raw.stdout, numstat: numstat.stdout);
   }
 
   /// `--name-status -z` records: a status token followed by one path, or by

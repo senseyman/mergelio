@@ -1119,7 +1119,6 @@
   },
   "rvOpen": "Відкрити перегляд",
   "rvSwap": "Поміняти базу й гілку змін",
-  "rvChangeSides": "Змінити сторони",
   "rvModeThreeDot": "Від розгалуження",
   "rvModeTwoDot": "Між вершинами",
   "rvThreeDotCaption": "{range}: що змінила {head} від відгалуження з {base}, як у пул-реквесті.",
@@ -1251,26 +1250,30 @@
   },
   "rvPatchCopied": "Patch скопійовано",
   "rvExportFailed": "Не вдалося експортувати patch-файли",
-  "rvOpenPr": "Відкрити PR #{number}",
-  "@rvOpenPr": {
-    "placeholders": {
-      "number": {
-        "type": "int"
-      }
-    }
-  },
-  "rvOpenMr": "Відкрити MR !{number}",
-  "@rvOpenMr": {
-    "placeholders": {
-      "number": {
-        "type": "int"
-      }
-    }
-  },
+  "rvOpenPr": "Відкрити пул-реквест",
+  "rvOpenMr": "Відкрити мерж-реквест",
   "rvKindBranch": "гілка",
   "rvKindRemote": "віддалена",
   "rvKindTag": "тег",
   "rvKindWorktree": "робоче дерево",
   "rvReviewAgainstCurrent": "Переглянути відносно поточної",
-  "rvPaletteReview": "Перегляд гілок…"
+  "rvPaletteReview": "Перегляд гілок…",
+  "rvNoOpenPr": "Немає єдиного відкритого пул-реквесту для {branch}",
+  "@rvNoOpenPr": {
+    "placeholders": {
+      "branch": {
+        "type": "String"
+      }
+    }
+  },
+  "rvNoOpenMr": "Немає єдиного відкритого мерж-реквесту для {branch}",
+  "@rvNoOpenMr": {
+    "placeholders": {
+      "branch": {
+        "type": "String"
+      }
+    }
+  },
+  "rvPrLookupFailed": "Не вдалося знайти пул-реквест",
+  "rvMrLookupFailed": "Не вдалося знайти мерж-реквест"
 }

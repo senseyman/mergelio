@@ -6,6 +6,7 @@ import '../../core/theme.dart';
 import '../../core/tokens.dart';
 import '../../domain/text_tabs.dart';
 import '../../l10n/gen/app_localizations.dart';
+import '../../state/compare_target.dart';
 import '../../state/diff_target.dart';
 import '../../state/file_insight.dart';
 import '../../state/settings_controller.dart';
@@ -15,6 +16,7 @@ import 'line_history_dialog.dart';
 
 /// File History / Blame modal with two tabs. History rows open the file's diff
 /// at that commit; Blame annotates each line with its last-touching commit.
+/// Read as of [rev] when given — and titled so — else the working tree / HEAD.
 Future<void> showFileInsight(
   BuildContext context, {
   required String repoPath,
@@ -23,7 +25,7 @@ Future<void> showFileInsight(
   String? rev,
 }) => showAppModal<void>(
   context: context,
-  title: path,
+  title: fileInsightTitle(path, rev),
   icon: Icons.history,
   width: 720,
   body: SizedBox(
@@ -36,6 +38,11 @@ Future<void> showFileInsight(
     ),
   ),
 );
+
+/// The dialog title: the path, and the revision it is read at when that is
+/// not the checkout.
+String fileInsightTitle(String path, String? rev) =>
+    rev == null ? path : '$path @ ${compareRefLabel(rev)}';
 
 class _InsightBody extends StatelessWidget {
   final String repoPath;

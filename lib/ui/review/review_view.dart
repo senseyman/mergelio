@@ -1,12 +1,13 @@
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
 import '../../core/tokens.dart';
 import '../../domain/forge/forge_host.dart';
-import '../../domain/forge/models.dart';
+import '../../domain/forge/forge_error.dart';
 import '../../domain/git/diff.dart';
 import '../../domain/git/git_providers.dart';
 import '../../domain/git/git_writer.dart';
@@ -16,6 +17,7 @@ import '../../domain/text_tabs.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/diff_target.dart';
 import '../../state/feedback.dart';
+import '../../state/forge.dart';
 import '../../state/graph_selection.dart';
 import '../../state/review.dart';
 import '../common/dialogs.dart';
@@ -42,6 +44,10 @@ class _ReviewViewState extends ConsumerState<ReviewView> {
   /// The reader's own expand/collapse per path. Absent means the default
   /// applies — see [reviewFileExpanded].
   final _choice = <String, bool>{};
+
+  /// Files whose card has scrolled near the viewport. A diff is read only
+  /// once its file is here, so a wide review costs what the reader looks at.
+  final _seen = <String>{};
   bool _commitsOpen = true;
 
   @override
@@ -54,7 +60,12 @@ class _ReviewViewState extends ConsumerState<ReviewView> {
     // A different pair is a different review; choices made on the old one
     // say nothing about this one.
     ref.listen(reviewTargetProvider, (prev, next) {
-      if (prev != next) setState(_choice.clear);
+      if (prev != next) {
+        setState(() {
+          _choice.clear();
+          _seen.clear();
+        });
+      }
     });
 
     final summary = ref.watch(reviewSummaryProvider(target));
@@ -87,33 +98,17 @@ class _ReviewViewState extends ConsumerState<ReviewView> {
   Widget _body(ReviewTarget target, ReviewSummary s) {
     final l = AppLocalizations.of(context);
     final from = s.fromRev;
-    final diffs = from == null
-        ? const AsyncValue<Map<String, FileDiff>>.data({})
-        : ref.watch(
-            reviewDiffProvider((
-              repoPath: target.repoPath,
-              from: from,
-              to: s.headSha,
-            )),
-          );
     final marks = ref.watch(reviewViewedProvider(target));
-    final byPath = diffs.valueOrNull ?? const <String, FileDiff>{};
-    final prints = {
-      for (final f in s.files)
-        if (byPath[f.path] case final d?) f.path: diffFingerprint(d),
-    };
-    final viewedCount = [
-      for (final e in prints.entries)
-        if (isViewed(marks, e.key, e.value)) e.key,
-    ].length;
-    var adds = 0, dels = 0;
-    for (final d in byPath.values) {
-      for (final h in d.hunks) {
-        for (final line in h.lines) {
-          if (line.type == DiffLineType.add) adds++;
-          if (line.type == DiffLineType.del) dels++;
-        }
-      }
+    // Choices for files no longer in the review — head moved past them — say
+    // nothing now.
+    final paths = {for (final f in s.files) f.change.path};
+    _choice.removeWhere((p, _) => !paths.contains(p));
+    _seen.removeWhere((p) => !paths.contains(p));
+    var adds = 0, dels = 0, viewedCount = 0;
+    for (final f in s.files) {
+      adds += f.adds;
+      dels += f.dels;
+      if (isViewed(marks, f.change.path, f.fingerprint)) viewedCount++;
     }
 
     return CustomScrollView(
@@ -126,61 +121,58 @@ class _ReviewViewState extends ConsumerState<ReviewView> {
             dels: dels,
             viewed: viewedCount,
             onCollapseAll: () => setState(() {
-              for (final f in s.files) {
-                _choice[f.path] = false;
+              for (final p in paths) {
+                _choice[p] = false;
               }
             }),
             onExpandAll: () => setState(() {
-              for (final f in s.files) {
-                _choice[f.path] = true;
+              for (final p in paths) {
+                _choice[p] = true;
               }
             }),
           ),
         ),
         if (from == null)
-          SliverToBoxAdapter(child: _NoMergeBase(target: target))
-        else ...[
-          SliverToBoxAdapter(
-            child: _Commits(
-              summary: s,
-              open: _commitsOpen,
-              onToggle: () => setState(() => _commitsOpen = !_commitsOpen),
-            ),
+          SliverToBoxAdapter(child: _NoMergeBase(target: target)),
+        // The commits are the half of the answer that needs no merge base.
+        SliverToBoxAdapter(
+          child: _Commits(
+            summary: s,
+            open: _commitsOpen,
+            onToggle: () => setState(() => _commitsOpen = !_commitsOpen),
           ),
+        ),
+        if (from != null) ...[
           SliverToBoxAdapter(child: _SectionLabel(l.rvFiles)),
           if (s.files.isEmpty)
             SliverToBoxAdapter(child: _Message(l.rvNoChanges))
-          else if (diffs.hasError)
-            SliverToBoxAdapter(child: _Message(l.rvCouldNotRead))
           else
             for (final f in s.files)
               _FileSliver(
-                key: ValueKey(f.path),
+                key: ValueKey(f.change.path),
                 target: target,
                 file: f,
-                diff: byPath[f.path],
-                loading: diffs.isLoading && !diffs.hasValue,
                 fromRev: from,
                 headRev: s.headSha,
-                viewed:
-                    prints[f.path] != null &&
-                    isViewed(marks, f.path, prints[f.path]!),
-                choice: _choice[f.path],
+                seen: _seen.contains(f.change.path),
+                onSeen: () {
+                  if (mounted && _seen.add(f.change.path)) setState(() {});
+                },
+                viewed: isViewed(marks, f.change.path, f.fingerprint),
+                choice: _choice[f.change.path],
                 onToggle: (expanded) =>
-                    setState(() => _choice[f.path] = !expanded),
+                    setState(() => _choice[f.change.path] = !expanded),
                 onViewed: () {
-                  final fp = prints[f.path];
-                  if (fp == null) return;
                   ref
                       .read(reviewViewedProvider(target).notifier)
-                      .toggle(f.path, fp);
+                      .toggle(f.change.path, f.fingerprint);
                   // Ticking puts the file away; unticking brings it back.
                   // Either way the default now decides, not an older click.
-                  setState(() => _choice.remove(f.path));
+                  setState(() => _choice.remove(f.change.path));
                 },
               ),
-          const SliverToBoxAdapter(child: SizedBox(height: 24)),
         ],
+        const SliverToBoxAdapter(child: SizedBox(height: 24)),
       ],
     );
   }
@@ -287,7 +279,7 @@ class _ModeBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final t = context.tokens;
     final l = AppLocalizations.of(context);
-    final pr = ref.watch(reviewPullRequestProvider(target)).valueOrNull;
+    final pr = ref.watch(reviewPrQueryProvider(target)).valueOrNull;
     final caption = target.threeDot
         ? l.rvThreeDotCaption(target.range, target.headLabel, target.baseLabel)
         : l.rvTwoDotCaption(target.range, target.baseLabel, target.headLabel);
@@ -345,7 +337,7 @@ class _ModeBar extends ConsumerWidget {
                 ),
               ),
               _ExportButton(target: target, summary: summary),
-              if (pr != null) _PrButton(pr: pr.pr, host: pr.host),
+              if (pr != null) _PrButton(repoPath: target.repoPath, query: pr),
             ],
           ),
           const SizedBox(height: 6),
@@ -441,33 +433,63 @@ class _ExportButton extends ConsumerWidget {
   }
 }
 
-class _PrButton extends ConsumerWidget {
-  final PullRequest pr;
-  final ForgeHost host;
-  const _PrButton({required this.pr, required this.host});
+/// Opens the pull request for this review. The forge is asked only on a
+/// press, so opening a review sends nothing anywhere.
+class _PrButton extends ConsumerStatefulWidget {
+  final String repoPath;
+  final ReviewPrQuery query;
+  const _PrButton({required this.repoPath, required this.query});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_PrButton> createState() => _PrButtonState();
+}
+
+class _PrButtonState extends ConsumerState<_PrButton> {
+  bool _busy = false;
+
+  Future<void> _open() async {
+    final l = AppLocalizations.of(context);
+    final toast = ref.read(toastProvider.notifier);
+    final q = widget.query;
+    final gitlab = q.host.kind == ForgeKind.gitlab;
+    setState(() => _busy = true);
+    try {
+      final forge = await ref.read(forgeProvider(widget.repoPath).future);
+      final pr = forge == null ? null : await lookUpReviewPullRequest(forge, q);
+      if (pr == null) {
+        toast.show(gitlab ? l.rvNoOpenMr(q.head) : l.rvNoOpenPr(q.head));
+        return;
+      }
+      // Built from the locally resolved host and a plain number, never from
+      // a URL the forge sent back.
+      final opened = await ref.read(forgeLaunchUrlProvider)(
+        pullRequestWebUrl(q.host, pr.number),
+      );
+      if (!opened) {
+        toast.show(
+          gitlab ? l.forgeCouldNotOpenMr : l.forgeCouldNotOpenPr,
+          kind: ToastKind.error,
+        );
+      }
+    } on ForgeError catch (e) {
+      toast.show(
+        gitlab ? l.rvMrLookupFailed : l.rvPrLookupFailed,
+        description: forgePanelMessage(e, l, q.host.kind),
+        kind: ToastKind.error,
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final t = context.tokens;
     final l = AppLocalizations.of(context);
-    final gitlab = host.kind == ForgeKind.gitlab;
+    final gitlab = widget.query.host.kind == ForgeKind.gitlab;
     return InkWell(
       borderRadius: BorderRadius.circular(5),
-      onTap: () async {
-        // Built from the locally resolved host and a plain number, never from
-        // a URL the forge sent back.
-        final opened = await ref.read(forgeLaunchUrlProvider)(
-          pullRequestWebUrl(host, pr.number),
-        );
-        if (!opened) {
-          ref
-              .read(toastProvider.notifier)
-              .show(
-                gitlab ? l.forgeCouldNotOpenMr : l.forgeCouldNotOpenPr,
-                kind: ToastKind.error,
-              );
-        }
-      },
+      onTap: _busy ? null : _open,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
         child: Row(
@@ -476,7 +498,7 @@ class _PrButton extends ConsumerWidget {
             Icon(Icons.open_in_new, size: 13, color: t.accent),
             const SizedBox(width: 4),
             Text(
-              gitlab ? l.rvOpenMr(pr.number) : l.rvOpenPr(pr.number),
+              gitlab ? l.rvOpenMr : l.rvOpenPr,
               style: TextStyle(color: t.accent, fontSize: 11.5),
             ),
           ],
@@ -696,15 +718,16 @@ class _Commits extends ConsumerWidget {
   }
 }
 
-/// One file of the review: its header, and when expanded its diff lines,
-/// built lazily so a long file costs only what is on screen.
+/// One file of the review: its header, and when expanded its diff. The diff
+/// is read only once the card has come near the viewport and is open, and its
+/// lines are built only as they scroll into view.
 class _FileSliver extends ConsumerWidget {
   final ReviewTarget target;
-  final CommitFileChange file;
-  final FileDiff? diff;
-  final bool loading;
+  final ReviewFile file;
   final String fromRev;
   final String headRev;
+  final bool seen;
+  final VoidCallback onSeen;
   final bool viewed;
   final bool? choice;
   final void Function(bool expanded) onToggle;
@@ -714,37 +737,90 @@ class _FileSliver extends ConsumerWidget {
     super.key,
     required this.target,
     required this.file,
-    required this.diff,
-    required this.loading,
     required this.fromRev,
     required this.headRev,
+    required this.seen,
+    required this.onSeen,
     required this.viewed,
     required this.choice,
     required this.onToggle,
     required this.onViewed,
   });
 
+  CommitFileChange get _change => file.change;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final d = diff;
-    final rows = <_Row>[
-      if (d != null)
-        for (final h in d.hunks) ...[
-          _Row.header(h.header),
-          for (final line in h.lines) _Row.line(line),
-        ],
-    ];
-    final lineCount = rows.length;
+    final l = AppLocalizations.of(context);
     final expanded = reviewFileExpanded(
       choice: choice,
       viewed: viewed,
-      lineCount: lineCount,
+      lineCount: file.lines,
     );
-    final showNote =
-        expanded &&
-        d != null &&
-        rows.isEmpty; // binary, LFS, or a pure rename / mode change
-    final large = !expanded && choice == null && !viewed && lineCount > 0;
+    final large = !expanded && choice == null && !viewed && file.lines > 0;
+    final AsyncValue<FileDiff?>? diff = expanded && seen
+        ? ref.watch(
+            reviewFileDiffProvider((
+              repoPath: target.repoPath,
+              from: fromRev,
+              to: headRev,
+              path: _change.path,
+              origPath: _change.origPath,
+            )),
+          )
+        : null;
+
+    Widget? body;
+    if (expanded && !seen) {
+      body = SliverToBoxAdapter(child: _SeenMarker(onSeen: onSeen));
+    } else if (diff != null) {
+      body = diff.when(
+        loading: () => const SliverToBoxAdapter(child: _Spinner()),
+        error: (_, _) => SliverToBoxAdapter(
+          child: _CouldNotRead(target, file, fromRev, headRev),
+        ),
+        data: (d) {
+          if (d == null) {
+            return SliverToBoxAdapter(
+              child: _CouldNotRead(target, file, fromRev, headRev),
+            );
+          }
+          // Binary, LFS, or a pure rename / mode change.
+          if (d.hunks.isEmpty) {
+            return SliverToBoxAdapter(
+              child: _Message(
+                d.binary || d.lfs != null ? l.rvBinary : l.rvNoContentChange,
+              ),
+            );
+          }
+          // Row i is a hunk header or one of its lines; [starts] is where each
+          // hunk's header sits, so no row objects are made up front.
+          final starts = <int>[];
+          var n = 0;
+          for (final h in d.hunks) {
+            starts.add(n);
+            n += 1 + h.lines.length;
+          }
+          return SliverList.builder(
+            itemCount: n,
+            itemBuilder: (context, i) {
+              var h = starts.length - 1;
+              while (starts[h] > i) {
+                h--;
+              }
+              final hunk = d.hunks[h];
+              final at = i - starts[h];
+              if (at == 0) return _HunkHeader(hunk.header);
+              final line = hunk.lines[at - 1];
+              return _LineView(
+                line: line,
+                onMenu: (pos) => _lineMenu(context, pos, line),
+              );
+            },
+          );
+        },
+      );
+    }
 
     return SliverMainAxisGroup(
       slivers: [
@@ -752,55 +828,17 @@ class _FileSliver extends ConsumerWidget {
           child: _FileHeader(
             target: target,
             file: file,
-            diff: d,
             fromRev: fromRev,
             headRev: headRev,
             expanded: expanded,
             viewed: viewed,
             onToggle: () => onToggle(expanded),
-            onViewed: d == null ? null : onViewed,
+            onViewed: onViewed,
           ),
         ),
-        if (expanded && loading)
-          const SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.all(10),
-              child: Center(
-                child: SizedBox(
-                  width: 14,
-                  height: 14,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              ),
-            ),
-          ),
-        if (showNote)
-          SliverToBoxAdapter(
-            child: _Message(
-              d.binary || d.lfs != null
-                  ? AppLocalizations.of(context).rvBinary
-                  : AppLocalizations.of(context).rvNoContentChange,
-            ),
-          ),
         if (large)
-          SliverToBoxAdapter(
-            child: _Message(
-              AppLocalizations.of(context).rvLargeDiff(lineCount),
-            ),
-          ),
-        if (expanded && rows.isNotEmpty)
-          SliverList.builder(
-            itemCount: rows.length,
-            itemBuilder: (context, i) {
-              final row = rows[i];
-              return row.line == null
-                  ? _HunkHeader(row.header!)
-                  : _LineView(
-                      line: row.line!,
-                      onMenu: (at) => _lineMenu(context, at, row.line!),
-                    );
-            },
-          ),
+          SliverToBoxAdapter(child: _Message(l.rvLargeDiff(file.lines))),
+        ?body,
       ],
     );
   }
@@ -808,8 +846,8 @@ class _FileSliver extends ConsumerWidget {
   void _lineMenu(BuildContext context, Offset at, DiffLine line) {
     final anchor = lineHistoryAnchor(
       line,
-      path: file.path,
-      oldPath: file.origPath,
+      path: _change.path,
+      oldPath: _change.origPath,
       headRev: headRev,
       fromRev: fromRev,
     );
@@ -836,43 +874,155 @@ class _FileSliver extends ConsumerWidget {
   }
 }
 
-class _Row {
-  final String? header;
-  final DiffLine? line;
-  const _Row.header(String this.header) : line = null;
-  const _Row.line(DiffLine this.line) : header = null;
+/// Reports, once, that the card it sits in has come within a screen of the
+/// viewport. Measured against the scroll position rather than inferred from
+/// being built: every card's header and this marker are laid out whether on
+/// screen or not.
+class _SeenMarker extends StatefulWidget {
+  final VoidCallback onSeen;
+  const _SeenMarker({required this.onSeen});
+
+  @override
+  State<_SeenMarker> createState() => _SeenMarkerState();
 }
+
+class _SeenMarkerState extends State<_SeenMarker> {
+  ScrollPosition? _position;
+  bool _done = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final next = Scrollable.maybeOf(context)?.position;
+    if (next != _position) {
+      _position?.removeListener(_check);
+      _position = next?..addListener(_check);
+    }
+    // After layout, when there is a box to measure.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _check());
+  }
+
+  @override
+  void dispose() {
+    _position?.removeListener(_check);
+    super.dispose();
+  }
+
+  void _check() {
+    if (_done || !mounted) return;
+    final box = context.findRenderObject();
+    final position = _position;
+    if (box is! RenderBox || !box.hasSize || position == null) return;
+    final viewport = RenderAbstractViewport.maybeOf(box);
+    if (viewport == null) return;
+    // The scroll offset that would put this marker at the top of the view.
+    final at = viewport.getOffsetToReveal(box, 0).offset;
+    final view = position.viewportDimension;
+    final near =
+        at < position.pixels + 2 * view &&
+        at + box.size.height > position.pixels - view;
+    if (!near) return;
+    _done = true;
+    _position?.removeListener(_check);
+    widget.onSeen();
+  }
+
+  // Off screen by definition until it reports; a spinner here would animate
+  // for nothing.
+  @override
+  Widget build(BuildContext context) => const SizedBox(height: 34);
+}
+
+class _Spinner extends StatelessWidget {
+  const _Spinner();
+
+  @override
+  Widget build(BuildContext context) => const Padding(
+    padding: EdgeInsets.all(10),
+    child: Center(
+      child: SizedBox(
+        width: 14,
+        height: 14,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      ),
+    ),
+  );
+}
+
+/// A file listed as changed whose diff could not be read here. The diff sheet
+/// reads it its own way and renders binary content, so it is offered instead
+/// of an empty card.
+class _CouldNotRead extends ConsumerWidget {
+  final ReviewTarget target;
+  final ReviewFile file;
+  final String fromRev;
+  final String headRev;
+  const _CouldNotRead(this.target, this.file, this.fromRev, this.headRev);
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = context.tokens;
+    final l = AppLocalizations.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 8),
+      child: Wrap(
+        spacing: 8,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Text(
+            l.rvCouldNotReadFile,
+            style: TextStyle(color: t.textMuted, fontSize: 12),
+          ),
+          TextButton(
+            onPressed: () => ref.read(diffTargetProvider.notifier).state =
+                reviewDiffTarget(target, file.change, fromRev, headRev),
+            child: Text(l.rvOpenInDiff),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// [change] of a review opened in the diff sheet, between the same commits.
+DiffTarget reviewDiffTarget(
+  ReviewTarget target,
+  CommitFileChange change,
+  String fromRev,
+  String headRev,
+) => DiffTarget(
+  repoPath: target.repoPath,
+  path: change.path,
+  baseRev: fromRev,
+  commitSha: headRev,
+  origPath: change.origPath,
+);
 
 class _FileHeader extends ConsumerWidget {
   final ReviewTarget target;
-  final CommitFileChange file;
-  final FileDiff? diff;
+  final ReviewFile entry;
   final String fromRev;
   final String headRev;
   final bool expanded;
   final bool viewed;
   final VoidCallback onToggle;
-  final VoidCallback? onViewed;
+  final VoidCallback onViewed;
 
   const _FileHeader({
     required this.target,
-    required this.file,
-    required this.diff,
+    required ReviewFile file,
     required this.fromRev,
     required this.headRev,
     required this.expanded,
     required this.viewed,
     required this.onToggle,
     required this.onViewed,
-  });
+  }) : entry = file;
 
-  DiffTarget get _diffTarget => DiffTarget(
-    repoPath: target.repoPath,
-    path: file.path,
-    baseRev: fromRev,
-    commitSha: headRev,
-    origPath: file.origPath,
-  );
+  CommitFileChange get file => entry.change;
+
+  DiffTarget get _diffTarget =>
+      reviewDiffTarget(target, file, fromRev, headRev);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -885,13 +1035,7 @@ class _FileHeader extends ConsumerWidget {
       GitChange.copied => (t.accent, 'C'),
       _ => (t.warning, 'M'),
     };
-    var adds = 0, dels = 0;
-    for (final h in diff?.hunks ?? const <DiffHunk>[]) {
-      for (final line in h.lines) {
-        if (line.type == DiffLineType.add) adds++;
-        if (line.type == DiffLineType.del) dels++;
-      }
-    }
+    final adds = entry.adds, dels = entry.dels;
     final label = file.origPath == null
         ? file.path
         : '${file.origPath} → ${file.path}';

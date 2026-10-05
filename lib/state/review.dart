@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../domain/forge/forge.dart';
 import '../domain/forge/forge_host.dart';
 import '../domain/forge/models.dart';
 import '../domain/git/diff.dart';
@@ -77,7 +78,7 @@ class ReviewSummary {
   final AheadBehind counts;
   final List<Commit> commits;
   final bool commitsTruncated;
-  final List<CommitFileChange> files;
+  final List<ReviewFile> files;
 
   const ReviewSummary({
     required this.baseSha,
@@ -108,37 +109,48 @@ final reviewSummaryProvider = FutureProvider.family
       ]);
       final mergeBase = await reader.mergeBase(baseSha, headSha);
       final fromRev = target.threeDot ? mergeBase : baseSha;
-      final results = await Future.wait<Object>([
-        reader.aheadBehind(baseSha, headSha),
-        reader.rangeCommits(baseSha, headSha),
-        if (fromRev != null) reader.compareFiles(fromRev, headSha),
-      ]);
-      final page = results[1] as ({List<Commit> commits, bool truncated});
+      // Sequential: each is quick, and a failure surfaces as itself rather
+      // than wrapped in a ParallelWaitError.
+      final counts = await reader.aheadBehind(baseSha, headSha);
+      final page = await reader.rangeCommits(baseSha, headSha);
+      final files = fromRev == null
+          ? const <ReviewFile>[]
+          : await reader.reviewFiles(fromRev, headSha);
       return ReviewSummary(
         baseSha: baseSha,
         headSha: headSha,
         mergeBase: mergeBase,
         fromRev: fromRev,
-        counts: results[0] as AheadBehind,
+        counts: counts,
         commits: page.commits,
         commitsTruncated: page.truncated,
-        files: fromRev == null
-            ? const []
-            : results[2] as List<CommitFileChange>,
+        files: files,
       );
     });
 
-/// The two resolved commits a review's diff is read between.
-typedef ReviewDiffKey = ({String repoPath, String from, String to});
+/// One file of a review, between two resolved commits.
+typedef ReviewFileKey = ({
+  String repoPath,
+  String from,
+  String to,
+  String path,
+  String? origPath,
+});
 
-/// Every file diff of a review, keyed by path, read as one patch. Both sides
-/// are object names, so the answer never goes stale and needs no
-/// ref-following.
-final reviewDiffProvider = FutureProvider.family
-    .autoDispose<Map<String, FileDiff>, ReviewDiffKey>((ref, key) async {
+/// The parsed diff of one review file, or null when git printed none. Read on
+/// its own, by pathspec, only once the file's card is shown — a wide review
+/// never holds every file's text at once. Both sides are object names, so the
+/// answer never goes stale and needs no ref-following.
+final reviewFileDiffProvider = FutureProvider.family
+    .autoDispose<FileDiff?, ReviewFileKey>((ref, key) async {
       final reader = GitReader(ref.watch(gitServiceProvider), key.repoPath);
-      final raw = await reader.rangeDiff(key.from, key.to);
-      return {for (final f in parseUnifiedDiff(raw)) f.path: f};
+      final raw = await reader.compareDiff(
+        key.from,
+        key.to,
+        key.path,
+        origPath: key.origPath,
+      );
+      return parseUnifiedDiff(raw).firstOrNull;
     });
 
 /// Whether [path] is marked viewed for exactly the diff [fingerprint] names.
@@ -183,28 +195,32 @@ final reviewViewedProvider =
       ReviewTarget
     >((ref, _) => ReviewViewed());
 
-/// The open pull request this review corresponds to, with the forge it lives
-/// on, or null when there is none to point at — no forge configured, a head
-/// that is not a branch, no single matching request, or the forge failing.
-/// A review never errors over this; the button just does not appear.
-final reviewPullRequestProvider = FutureProvider.family
-    .autoDispose<({PullRequest pr, ForgeHost host})?, ReviewTarget>((
-      ref,
-      target,
-    ) async {
-      try {
-        final data = await ref.read(repoDataProvider(target.repoPath).future);
-        final locals = [for (final b in data.branches) b.name];
-        String? branchOf(String rev) =>
-            prBranchFor(rev, localBranches: locals, remotes: data.remotes);
-        final head = branchOf(target.head);
-        if (head == null) return null;
-        final forge = await ref.watch(forgeProvider(target.repoPath).future);
-        if (forge == null) return null;
-        final prs = await forge.pullRequestsForBranch(head);
-        final pr = pickPullRequest(prs, branchOf(target.base));
-        return pr == null ? null : (pr: pr, host: forge.host);
-      } catch (_) {
-        return null;
-      }
+/// What a review's pull request button would look up: the forge, and the
+/// branch names a request would carry. Null when there is nothing to look up
+/// — no forge, or a head that is not a branch. Answered from local git alone;
+/// the forge itself is asked only when the button is pressed.
+typedef ReviewPrQuery = ({ForgeHost host, String head, String? base});
+
+final reviewPrQueryProvider = FutureProvider.family
+    .autoDispose<ReviewPrQuery?, ReviewTarget>((ref, target) async {
+      final data = await ref.watch(repoDataProvider(target.repoPath).future);
+      final locals = [for (final b in data.branches) b.name];
+      String? branchOf(String rev) =>
+          prBranchFor(rev, localBranches: locals, remotes: data.remotes);
+      final head = branchOf(target.head);
+      if (head == null) return null;
+      final host = await ref.watch(forgeHostProvider(target.repoPath).future);
+      if (host == null) return null;
+      return (host: host, head: head, base: branchOf(target.base));
     });
+
+/// Asks the forge for the one open request [query] corresponds to, or null
+/// when there is no single answer. Forge failures propagate as [ForgeError]
+/// for the caller to report.
+Future<PullRequest?> lookUpReviewPullRequest(
+  Forge forge,
+  ReviewPrQuery query,
+) async => pickPullRequest(
+  await forge.pullRequestsForBranch(query.head, limit: kPullRequestLimit),
+  query.base,
+);

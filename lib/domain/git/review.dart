@@ -29,36 +29,98 @@ AheadBehind parseLeftRightCount(String out) {
 String reviewRange(String base, String head, {required bool threeDot}) =>
     threeDot ? '$base...$head' : '$base..$head';
 
-/// A short, stable digest of everything a reviewer sees in [file]. Marking a
-/// file viewed records this; when head moves and the diff changes, the digest
-/// no longer matches and the mark lapses, so new content is never hidden
-/// behind an old tick.
-String diffFingerprint(FileDiff file) {
-  // 64-bit FNV-1a: cheap, no dependency, and only ever compared within one
-  // session, so collision resistance against an adversary is not a concern.
-  var h = 0xcbf29ce484222325;
-  void add(String s) {
-    for (final c in s.codeUnits) {
-      h ^= c;
-      h = (h * 0x100000001b3) & 0xFFFFFFFFFFFFFFFF;
+/// One changed file of a review, as git's raw and numstat listings describe
+/// it — enough to draw the card and count the change without reading the diff
+/// itself, which is fetched only when the card is first shown.
+class ReviewFile {
+  final CommitFileChange change;
+
+  /// Both sides' blob ids and modes. Marking a file viewed records this; when
+  /// head moves and the file's content changes, it no longer matches and the
+  /// mark lapses, so new content is never hidden behind an old tick.
+  final String fingerprint;
+  final int adds;
+  final int dels;
+
+  /// git could not count lines because either side is binary.
+  final bool binary;
+
+  const ReviewFile({
+    required this.change,
+    required this.fingerprint,
+    this.adds = 0,
+    this.dels = 0,
+    this.binary = false,
+  });
+
+  /// Changed lines, the measure for starting a huge diff collapsed.
+  int get lines => adds + dels;
+}
+
+/// Parses `git diff --raw --no-abbrev -z` and `git diff --numstat -z`, both run
+/// with the same rename detection over the same pair, into one list in raw's
+/// order. A file numstat did not report still lists, uncounted.
+List<ReviewFile> parseReviewFiles({
+  required String raw,
+  required String numstat,
+}) {
+  final counts = <String, ({int adds, int dels, bool binary})>{};
+  final nt = numstat.split('\x00');
+  for (var i = 0; i < nt.length; i++) {
+    final f = nt[i].split('\t');
+    if (f.length != 3) continue;
+    // A rename leaves the path field empty; the old and new names follow as
+    // their own records.
+    String? path = f[2];
+    if (path.isEmpty) {
+      if (i + 2 >= nt.length) break;
+      path = nt[i + 2];
+      i += 2;
     }
-    h ^= 0x1f;
-    h = (h * 0x100000001b3) & 0xFFFFFFFFFFFFFFFF;
+    final binary = f[0] == '-' && f[1] == '-';
+    counts[path] = (
+      adds: int.tryParse(f[0]) ?? 0,
+      dels: int.tryParse(f[1]) ?? 0,
+      binary: binary,
+    );
   }
 
-  add(file.path);
-  add(file.oldPath ?? '');
-  add(file.status.name);
-  add(file.binary ? 'b' : 't');
-  add(file.lfs?.after?.oid ?? '');
-  for (final hunk in file.hunks) {
-    add(hunk.header);
-    for (final line in hunk.lines) {
-      add(line.type.name);
-      add(line.text);
-    }
+  final out = <ReviewFile>[];
+  final rt = raw.split('\x00');
+  var i = 0;
+  while (i + 1 < rt.length && rt[i].startsWith(':')) {
+    // :<old mode> <new mode> <old blob> <new blob> <status>
+    final meta = rt[i].substring(1).split(' ');
+    if (meta.length != 5 || meta[4].isEmpty) break;
+    final status = meta[4][0];
+    final twoPaths = status == 'R' || status == 'C';
+    if (twoPaths && i + 2 >= rt.length) break;
+    final path = twoPaths ? rt[i + 2] : rt[i + 1];
+    final origPath = twoPaths ? rt[i + 1] : null;
+    i += twoPaths ? 3 : 2;
+    final change = switch (status) {
+      'A' => GitChange.added,
+      'D' => GitChange.deleted,
+      'R' => GitChange.renamed,
+      'C' => GitChange.copied,
+      _ => GitChange.modified,
+    };
+    final c = counts[path];
+    out.add(
+      ReviewFile(
+        change: CommitFileChange(
+          path: path,
+          change: change,
+          origPath: origPath,
+        ),
+        fingerprint: meta.sublist(0, 4).join(':'),
+        adds: c?.adds ?? 0,
+        dels: c?.dels ?? 0,
+        binary: c?.binary ?? false,
+      ),
+    );
   }
-  return h.toUnsigned(64).toRadixString(16);
+  return out;
 }
 
 enum RefChoiceKind { branch, remote, tag, worktree }
@@ -83,18 +145,33 @@ List<RefChoice> reviewRefChoices({
   required List<RemoteBranch> remoteBranches,
   required List<String> tags,
   required List<Worktree> worktrees,
-}) => [
-  for (final b in branches) RefChoice(RefChoiceKind.branch, b.name),
-  for (final r in remoteBranches)
-    // `origin/HEAD` is an alias for another remote branch already listed.
-    if (r.branch != 'HEAD') RefChoice(RefChoiceKind.remote, r.name),
-  for (final t in tags) RefChoice(RefChoiceKind.tag, t),
-  for (final w in worktrees)
-    if (w.kind != WorktreeKind.bare &&
-        !samePath(w.path, repoPath) &&
-        (w.branch ?? w.head) != null)
-      RefChoice(RefChoiceKind.worktree, w.branch ?? w.head!, detail: w.path),
-];
+}) {
+  final linked = [
+    for (final w in worktrees)
+      if (w.kind != WorktreeKind.bare &&
+          !samePath(w.path, repoPath) &&
+          (w.branch ?? w.head) != null)
+        w,
+  ];
+  // A worktree on a local branch is that branch: one row, saying where it is
+  // checked out, rather than the same revision listed twice.
+  final checkedOut = {
+    for (final w in linked)
+      if (w.branch != null) w.branch!: w.path,
+  };
+  final locals = {for (final b in branches) b.name};
+  return [
+    for (final b in branches)
+      RefChoice(RefChoiceKind.branch, b.name, detail: checkedOut[b.name]),
+    for (final r in remoteBranches)
+      // `origin/HEAD` is an alias for another remote branch already listed.
+      if (r.branch != 'HEAD') RefChoice(RefChoiceKind.remote, r.name),
+    for (final t in tags) RefChoice(RefChoiceKind.tag, t),
+    for (final w in linked)
+      if (w.branch == null || !locals.contains(w.branch))
+        RefChoice(RefChoiceKind.worktree, w.branch ?? w.head!, detail: w.path),
+  ];
+}
 
 /// The branch name a forge would know [rev] by: a local branch as is, a
 /// remote-tracking branch without its remote. Null for anything else — a

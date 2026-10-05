@@ -486,6 +486,11 @@ List<FileDiff> parseUnifiedDiff(String raw) {
       if (q != null) {
         path = _headerPath(q.group(2)!);
         oldPath = _headerPath(q.group(1)!);
+      } else if (_sameSides(line.substring('diff --git '.length))
+          case final same?) {
+        // Unrenamed, both halves are one name, which may itself hold " b/";
+        // splitting on the regex would cut it in the wrong place.
+        path = oldPath = same;
       } else if (m != null) {
         path = m.group(2);
         oldPath = m.group(1);
@@ -593,4 +598,15 @@ String _headerPath(String raw) {
   var p = raw.endsWith('\t') ? raw.substring(0, raw.length - 1) : raw;
   p = unquoteGitPath(p);
   return p.startsWith('a/') || p.startsWith('b/') ? p.substring(2) : p;
+}
+
+/// The name in an `a/<name> b/<name>` header whose two halves are the same,
+/// or null when they differ.
+String? _sameSides(String rest) {
+  // "a/" + name + " b/" + name: 2n + 5 characters.
+  if (!rest.startsWith('a/') || (rest.length - 5).isOdd) return null;
+  final n = (rest.length - 5) ~/ 2;
+  if (n <= 0) return null;
+  final left = rest.substring(2, 2 + n);
+  return rest.substring(2 + n) == ' b/$left' ? left : null;
 }

@@ -2086,7 +2086,6 @@
   },
   "rvOpen": "Open review",
   "rvSwap": "Swap base and head",
-  "rvChangeSides": "Change sides",
   "rvModeThreeDot": "Since branch point",
   "rvModeTwoDot": "Tip to tip",
   "rvThreeDotCaption": "{range}: what {head} changed since it branched from {base}, as a pull request shows it.",
@@ -2218,26 +2217,30 @@
   },
   "rvPatchCopied": "Patch copied",
   "rvExportFailed": "Could not export patches",
-  "rvOpenPr": "Open PR #{number}",
-  "@rvOpenPr": {
-    "placeholders": {
-      "number": {
-        "type": "int"
-      }
-    }
-  },
-  "rvOpenMr": "Open MR !{number}",
-  "@rvOpenMr": {
-    "placeholders": {
-      "number": {
-        "type": "int"
-      }
-    }
-  },
+  "rvOpenPr": "Open pull request",
+  "rvOpenMr": "Open merge request",
   "rvKindBranch": "branch",
   "rvKindRemote": "remote",
   "rvKindTag": "tag",
   "rvKindWorktree": "worktree",
   "rvReviewAgainstCurrent": "Review against current",
-  "rvPaletteReview": "Review branches…"
+  "rvPaletteReview": "Review branches…",
+  "rvNoOpenPr": "No single open pull request for {branch}",
+  "@rvNoOpenPr": {
+    "placeholders": {
+      "branch": {
+        "type": "String"
+      }
+    }
+  },
+  "rvNoOpenMr": "No single open merge request for {branch}",
+  "@rvNoOpenMr": {
+    "placeholders": {
+      "branch": {
+        "type": "String"
+      }
+    }
+  },
+  "rvPrLookupFailed": "Could not look up the pull request",
+  "rvMrLookupFailed": "Could not look up the merge request"
 }

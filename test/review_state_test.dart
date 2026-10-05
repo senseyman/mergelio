@@ -17,6 +17,7 @@ class _FakeForge implements Forge {
   final List<PullRequest> prs;
   final bool fail;
   final asked = <String>[];
+  final limits = <int>[];
   _FakeForge(this.prs, {this.fail = false});
 
   @override
@@ -33,6 +34,7 @@ class _FakeForge implements Forge {
     int limit = 50,
   }) async {
     asked.add(branch);
+    limits.add(limit);
     if (fail) throw const ForgeOffline('down');
     return prs;
   }
@@ -190,7 +192,7 @@ void main() {
       expect(s.headSha, await g(['rev-parse', 'feature']));
       expect((s.counts.ahead, s.counts.behind), (1, 1));
       expect([for (final x in s.commits) x.message], ['f1']);
-      expect([for (final f in s.files) f.path], ['a.txt']);
+      expect([for (final f in s.files) f.change.path], ['a.txt']);
     });
 
     test('two-dot reads files from base\'s tip', () async {
@@ -203,7 +205,7 @@ void main() {
       );
       final s = await c.read(reviewSummaryProvider(t).future);
       expect(s.fromRev, await g(['rev-parse', 'main']));
-      expect({for (final f in s.files) f.path}, {'a.txt', 'm.txt'});
+      expect({for (final f in s.files) f.change.path}, {'a.txt', 'm.txt'});
     });
 
     test('unrelated histories have no three-dot answer', () async {
@@ -218,7 +220,7 @@ void main() {
       expect(s.files, isEmpty);
     });
 
-    test('the whole diff is read once and keyed by path', () async {
+    test('one file\'s diff is read on its own', () async {
       final c = container();
       final t = ReviewTarget(
         repoPath: repo.path,
@@ -226,23 +228,46 @@ void main() {
         head: 'feature',
       );
       final s = await c.read(reviewSummaryProvider(t).future);
-      final diffs = await c.read(
-        reviewDiffProvider((
+      final diff = await c.read(
+        reviewFileDiffProvider((
           repoPath: repo.path,
           from: s.fromRev!,
           to: s.headSha,
+          path: 'a.txt',
+          origPath: null,
         )).future,
       );
-      expect(diffs.keys, ['a.txt']);
-      expect(diffs['a.txt']!.hunks.single.lines.last.text, 'two');
+      expect(diff!.hunks.single.lines.last.text, 'two');
+    });
+
+    test('unrelated histories still list head\'s commits', () async {
+      await g(['checkout', '-q', '--orphan', 'lonely']);
+      await g(['rm', '-rq', '--cached', '.']);
+      await commit('z.txt', 'z\n', 'root');
+      final c = container();
+      final t = ReviewTarget(repoPath: repo.path, base: 'main', head: 'lonely');
+      final s = await c.read(reviewSummaryProvider(t).future);
+      expect([for (final x in s.commits) x.message], ['root']);
     });
   });
 
-  group('reviewPullRequestProvider', () {
-    ProviderContainer container(Forge? forge) {
+  group('pull request lookup', () {
+    const host = ForgeHost(
+      kind: ForgeKind.github,
+      host: 'github.com',
+      owner: 'o',
+      repo: 'r',
+    );
+
+    ProviderContainer container({ForgeHost? forgeHost = host}) {
       final c = ProviderContainer(
         overrides: [
-          forgeProvider.overrideWith((ref, p) async => forge),
+          forgeHostProvider.overrideWith((ref, p) async => forgeHost),
+          // Building a forge is what leads to the network; the query must
+          // never get that far.
+          forgeProvider.overrideWith(
+            (ref, p) async => throw StateError('forge asked on open'),
+          ),
           repoDataProvider.overrideWith(
             (ref, p) async => const RepoData(
               branches: [
@@ -260,49 +285,59 @@ void main() {
 
     const t = ReviewTarget(repoPath: '/r', base: 'main', head: 'feature');
 
-    test('finds the request for head aimed at base', () async {
-      final forge = _FakeForge([_pr(3, 'dev'), _pr(7, 'main')]);
-      final c = container(forge);
-      final found = await c.read(reviewPullRequestProvider(t).future);
-      expect(found?.pr.number, 7);
-      expect(found?.host.repo, 'r');
-      expect(forge.asked, ['feature']);
+    test('the query names both branches without asking the forge', () async {
+      final q = await container().read(reviewPrQueryProvider(t).future);
+      expect((q?.host, q?.head, q?.base), (host, 'feature', 'main'));
     });
 
     test('a remote head is looked up by its branch name', () async {
-      final forge = _FakeForge([_pr(1, 'main')]);
-      final c = container(forge);
-      await c.read(
-        reviewPullRequestProvider(
+      final q = await container().read(
+        reviewPrQueryProvider(
           const ReviewTarget(repoPath: '/r', base: 'main', head: 'origin/x'),
         ).future,
       );
-      expect(forge.asked, ['x']);
+      expect(q?.head, 'x');
+    });
+
+    test('no forge or a tag head means nothing to look up', () async {
+      expect(
+        await container(forgeHost: null).read(reviewPrQueryProvider(t).future),
+        isNull,
+      );
+      expect(
+        await container().read(
+          reviewPrQueryProvider(
+            const ReviewTarget(repoPath: '/r', base: 'main', head: 'v1.0'),
+          ).future,
+        ),
+        isNull,
+      );
     });
 
     test(
-      'no forge, a tag head or a forge failure all mean no button',
+      'lookup asks once, within the usual page, and picks base\'s',
       () async {
-        expect(
-          await container(null).read(reviewPullRequestProvider(t).future),
-          isNull,
-        );
-        final forge = _FakeForge([_pr(1, 'main')]);
-        expect(
-          await container(forge).read(
-            reviewPullRequestProvider(
-              const ReviewTarget(repoPath: '/r', base: 'main', head: 'v1.0'),
-            ).future,
-          ),
-          isNull,
-        );
-        expect(forge.asked, isEmpty);
-        expect(
-          await container(_FakeForge([_pr(1, 'main')], fail: true))
-              .read(reviewPullRequestProvider(t).future),
-          isNull,
-        );
+        final forge = _FakeForge([_pr(3, 'dev'), _pr(7, 'main')]);
+        final pr = await lookUpReviewPullRequest(forge, (
+          host: host,
+          head: 'feature',
+          base: 'main',
+        ));
+        expect(pr?.number, 7);
+        expect(forge.asked, ['feature']);
+        expect(forge.limits, [kPullRequestLimit]);
       },
     );
+
+    test('a forge failure reaches the caller', () async {
+      expect(
+        () => lookUpReviewPullRequest(_FakeForge(const [], fail: true), (
+          host: host,
+          head: 'feature',
+          base: 'main',
+        )),
+        throwsA(isA<ForgeError>()),
+      );
+    });
   });
 }

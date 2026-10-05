@@ -3318,9 +3318,6 @@ class AppLocalizationsUk extends AppLocalizations {
   String get rvSwap => 'Поміняти базу й гілку змін';
 
   @override
-  String get rvChangeSides => 'Змінити сторони';
-
-  @override
   String get rvModeThreeDot => 'Від розгалуження';
 
   @override
@@ -3451,14 +3448,10 @@ class AppLocalizationsUk extends AppLocalizations {
   String get rvExportFailed => 'Не вдалося експортувати patch-файли';
 
   @override
-  String rvOpenPr(int number) {
-    return 'Відкрити PR #$number';
-  }
+  String get rvOpenPr => 'Відкрити пул-реквест';
 
   @override
-  String rvOpenMr(int number) {
-    return 'Відкрити MR !$number';
-  }
+  String get rvOpenMr => 'Відкрити мерж-реквест';
 
   @override
   String get rvKindBranch => 'гілка';
@@ -3477,4 +3470,20 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get rvPaletteReview => 'Перегляд гілок…';
+
+  @override
+  String rvNoOpenPr(String branch) {
+    return 'Немає єдиного відкритого пул-реквесту для $branch';
+  }
+
+  @override
+  String rvNoOpenMr(String branch) {
+    return 'Немає єдиного відкритого мерж-реквесту для $branch';
+  }
+
+  @override
+  String get rvPrLookupFailed => 'Не вдалося знайти пул-реквест';
+
+  @override
+  String get rvMrLookupFailed => 'Не вдалося знайти мерж-реквест';
 }
