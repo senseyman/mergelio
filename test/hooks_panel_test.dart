@@ -6,6 +6,7 @@ import 'package:mergelio/core/tokens.dart';
 import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/domain/git/hooks.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
+import 'package:mergelio/state/feedback.dart';
 import 'package:mergelio/state/file_editor.dart';
 import 'package:mergelio/state/hooks.dart';
 import 'package:mergelio/state/settings.dart';
@@ -15,29 +16,32 @@ import 'package:mergelio/ui/workspace/hooks_panel.dart';
 class _FakeHookActions implements HookActions {
   final calls = <String>[];
 
+  /// What every write answers with; null is success.
+  HookWriteException? failWith;
+
   @override
   String get repoPath => '/r';
 
   @override
-  Future<bool> setEnabled(
+  Future<HookWriteException?> setEnabled(
     String dir,
     String name, {
     required bool enabled,
   }) async {
     calls.add('${enabled ? 'enable' : 'disable'} $dir/$name');
-    return true;
+    return failWith;
   }
 
   @override
-  Future<bool> save(String dir, String name, String text) async {
+  Future<HookWriteException?> save(String dir, String name, String text) async {
     calls.add('save $dir/$name');
-    return true;
+    return failWith;
   }
 
   @override
-  Future<bool> useSample(String dir, String name) async {
+  Future<HookWriteException?> useSample(String dir, String name) async {
     calls.add('sample $dir/$name');
-    return true;
+    return failWith;
   }
 }
 
@@ -207,5 +211,54 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Discard edits?'), findsNothing);
     expect(find.text('Edit the pre-commit hook'), findsNothing);
+  });
+
+  testWidgets('a symlinked hook has no switch to flip', (tester) async {
+    tester.view.physicalSize = const Size(760, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final actions = _FakeHookActions();
+    await tester.pumpWidget(
+      _harness(
+        const HookInventory(
+          dir: '/r/.git/hooks',
+          hooks: [HookFile('pre-commit', HookState.active, isLink: true)],
+        ),
+        actions,
+      ),
+    );
+    await tester.pumpAndSettle();
+    final sw = tester.widget<Switch>(
+      find.byKey(const ValueKey('hook:switch:pre-commit')),
+    );
+    expect(sw.onChanged, isNull);
+    expect(
+      find.byTooltip(
+        'Linked to a file elsewhere — change its mode there, so the change '
+        'is not made behind your back.',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('a refused change is reported in words', (tester) async {
+    tester.view.physicalSize = const Size(760, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final actions = _FakeHookActions()
+      ..failWith = HookWriteException(
+        HookWriteFailure.alreadyExists,
+        '/r/.git/hooks/pre-rebase',
+      );
+    await tester.pumpWidget(_harness(_inv, actions));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Use sample'));
+    await tester.pumpAndSettle();
+    final toast = ProviderScope.containerOf(
+      tester.element(find.byType(HooksPanel)),
+    ).read(toastProvider).single;
+    expect(toast.title, 'Could not change the pre-rebase hook');
+    expect(toast.description, 'A hook with this name already exists.');
+    expect(toast.kind, ToastKind.error);
   });
 }

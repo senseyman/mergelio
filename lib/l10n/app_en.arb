@@ -2315,5 +2315,13 @@
   "hkNoOutput": "The hook printed nothing.",
   "hkMessageKept": "Your message was kept.",
   "hkManage": "Manage hooks…",
-  "hkSkipNext": "Skip hooks for next commit"
+  "hkSkipNext": "Skip hooks for next commit",
+  "hkLinkedNoToggle": "Linked to a file elsewhere — change its mode there, so the change is not made behind your back.",
+  "hkChangeFailed": "Could not change the {hook} hook",
+  "@hkChangeFailed": {"placeholders": {"hook": {"type": "String"}}},
+  "hkFailNotFound": "The hook file is not there any more.",
+  "hkFailExists": "A hook with this name already exists.",
+  "hkFailOutside": "The hook links to a file outside the repository, so it is not changed from here.",
+  "hkFailLinked": "The hook links to a file elsewhere; change that file's mode instead.",
+  "hkRewordSkip": "Reword without hooks"
 }

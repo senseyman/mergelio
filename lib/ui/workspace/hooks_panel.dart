@@ -7,6 +7,7 @@ import '../../core/theme.dart';
 import '../../core/tokens.dart';
 import '../../domain/git/hooks.dart';
 import '../../l10n/gen/app_localizations.dart';
+import '../../state/feedback.dart';
 import '../../state/hooks.dart';
 import '../common/confirm.dart';
 import '../common/dialogs.dart';
@@ -77,6 +78,32 @@ class HooksPanel extends ConsumerWidget {
           ),
         );
   }
+}
+
+/// Waits for a hook change and, when it was refused, says why. Reports
+/// whether it landed.
+Future<bool> reportHookWrite(
+  WidgetRef ref,
+  AppLocalizations l,
+  String hook,
+  Future<HookWriteException?> write,
+) async {
+  final failure = await write;
+  if (failure == null) return true;
+  ref
+      .read(toastProvider.notifier)
+      .show(
+        l.hkChangeFailed(hook),
+        description: switch (failure.failure) {
+          HookWriteFailure.notFound => l.hkFailNotFound,
+          HookWriteFailure.alreadyExists => l.hkFailExists,
+          HookWriteFailure.outsideRepository => l.hkFailOutside,
+          HookWriteFailure.linked => l.hkFailLinked,
+          HookWriteFailure.io => failure.detail,
+        },
+        kind: ToastKind.error,
+      );
+  return false;
 }
 
 String _managerName(HookManager m) => switch (m) {
@@ -168,14 +195,22 @@ class _HookRow extends ConsumerWidget {
             // nothing for a switch to change there.
             if (!Platform.isWindows)
               Tooltip(
-                message: hook.state == HookState.active
+                message: hook.isLink
+                    ? l.hkLinkedNoToggle
+                    : hook.state == HookState.active
                     ? l.hkDisable
                     : l.hkEnable,
                 child: Switch(
                   key: ValueKey('hook:switch:${hook.name}'),
                   value: hook.state == HookState.active,
-                  onChanged: (on) =>
-                      actions.setEnabled(dir, hook.name, enabled: on),
+                  onChanged: hook.isLink
+                      ? null
+                      : (on) => reportHookWrite(
+                          ref,
+                          l,
+                          hook.name,
+                          actions.setEnabled(dir, hook.name, enabled: on),
+                        ),
                 ),
               ),
             TextButton(
@@ -184,7 +219,12 @@ class _HookRow extends ConsumerWidget {
             ),
           ] else
             TextButton(
-              onPressed: () => actions.useSample(dir, hook.name),
+              onPressed: () => reportHookWrite(
+                ref,
+                l,
+                hook.name,
+                actions.useSample(dir, hook.name),
+              ),
               child: Text(l.hkUseSample),
             ),
         ],
@@ -255,9 +295,14 @@ class _HookEditorState extends ConsumerState<_HookEditor> {
         repoPath: widget.dir,
         relPath: widget.name,
         onDirtyChanged: (dirty) => setState(() => _dirty = dirty),
-        onSave: (name, text) => ref
-            .read(hookActionsProvider(widget.repoPath))
-            .save(widget.dir, name, text),
+        onSave: (name, text) => reportHookWrite(
+          ref,
+          AppLocalizations.of(context),
+          name,
+          ref
+              .read(hookActionsProvider(widget.repoPath))
+              .save(widget.dir, name, text),
+        ),
         onCancel: () => Navigator.of(context).maybePop(),
         footerBuilder: (context, controls) => Padding(
           padding: const EdgeInsets.only(top: 10),
@@ -274,23 +319,29 @@ class _HookEditorState extends ConsumerState<_HookEditor> {
   );
 }
 
-enum _RejectedChoice { manage, skipNext }
+enum _RejectedChoice { manage, skip }
 
-/// Shows what the hook that refused a commit had to say. Offering to skip
-/// hooks only arms the next commit — committing stays the user's move.
+/// Shows what the hook that refused a commit had to say.
+///
+/// [skipLabel] and [onSkip] offer the caller's way past the hooks — arming the
+/// next commit, or retrying a reword — and only for a hook `--no-verify`
+/// really skips. [messageKept] says the typed message is still waiting, which
+/// holds for the composer but not for a dialog that has already closed.
 Future<void> showHookRejectedDialog(
   BuildContext context, {
   required String repoPath,
   required HookRejectedException rejection,
+  String? skipLabel,
+  Future<void> Function()? onSkip,
+  bool messageKept = true,
 }) async {
   final l = AppLocalizations.of(context);
-  final container = ProviderScope.containerOf(context, listen: false);
   final choice = await showAppModal<_RejectedChoice>(
     context: context,
     title: l.hkRejectedTitle(rejection.hook),
     icon: Icons.block,
     width: 640,
-    body: _HookTranscript(rejection: rejection),
+    body: _HookTranscript(rejection: rejection, messageKept: messageKept),
     actions: [
       Builder(
         builder: (ctx) => TextButton(
@@ -299,12 +350,14 @@ Future<void> showHookRejectedDialog(
         ),
       ),
       // Offered only where it would work: some hooks run despite
-      // --no-verify, and arming it for one of those just fails again.
-      if (noVerifyHooks.contains(rejection.hook))
+      // --no-verify, and getting past one of those this way just fails again.
+      if (skipLabel != null &&
+          onSkip != null &&
+          noVerifyHooks.contains(rejection.hook))
         Builder(
           builder: (ctx) => TextButton(
-            onPressed: () => Navigator.of(ctx).pop(_RejectedChoice.skipNext),
-            child: Text(l.hkSkipNext),
+            onPressed: () => Navigator.of(ctx).pop(_RejectedChoice.skip),
+            child: Text(skipLabel),
           ),
         ),
       Builder(
@@ -316,8 +369,8 @@ Future<void> showHookRejectedDialog(
     ],
   );
   switch (choice) {
-    case _RejectedChoice.skipNext:
-      container.read(skipHooksOnceProvider(repoPath).notifier).state = true;
+    case _RejectedChoice.skip:
+      await onSkip?.call();
     case _RejectedChoice.manage:
       if (context.mounted) await showHooksPanel(context, repoPath);
     case null:
@@ -327,7 +380,8 @@ Future<void> showHookRejectedDialog(
 
 class _HookTranscript extends StatelessWidget {
   final HookRejectedException rejection;
-  const _HookTranscript({required this.rejection});
+  final bool messageKept;
+  const _HookTranscript({required this.rejection, required this.messageKept});
 
   @override
   Widget build(BuildContext context) {
@@ -369,11 +423,13 @@ class _HookTranscript extends StatelessWidget {
                   ),
           ),
         ),
-        const SizedBox(height: 10),
-        Text(
-          l.hkMessageKept,
-          style: TextStyle(color: t.textMuted, fontSize: 12),
-        ),
+        if (messageKept) ...[
+          const SizedBox(height: 10),
+          Text(
+            l.hkMessageKept,
+            style: TextStyle(color: t.textMuted, fontSize: 12),
+          ),
+        ],
       ],
     );
   }

@@ -25,6 +25,15 @@ void main() {
       expect(hooks.single.state, HookState.active);
     });
 
+    test('a symlinked hook is marked as linked', () {
+      final hooks = classifyHooks(const [
+        HookDirEntry('pre-commit', 0x1ed, isLink: true),
+        HookDirEntry('commit-msg', 0x1ed),
+      ], windows: false);
+      final linked = {for (final h in hooks) h.name: h.isLink};
+      expect(linked, {'pre-commit': true, 'commit-msg': false});
+    });
+
     test('a sample alone is listed as a sample', () {
       final hooks = classifyHooks(const [
         HookDirEntry('pre-rebase.sample', 0x1ed),

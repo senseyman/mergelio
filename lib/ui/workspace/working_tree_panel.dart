@@ -753,10 +753,13 @@ class _ComposerState extends ConsumerState<_Composer> {
       if (!outcome.committed) {
         final rejection = outcome.rejection;
         if (rejection != null && mounted) {
+          final armSkip = ref.read(skipHooks.notifier);
           await showHookRejectedDialog(
             context,
             repoPath: widget.repoPath,
             rejection: rejection,
+            skipLabel: l.hkSkipNext,
+            onSkip: () async => armSkip.state = true,
           );
         }
         return;

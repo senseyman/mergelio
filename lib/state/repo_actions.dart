@@ -2210,30 +2210,37 @@ class RepoActions {
   /// necessarily rewrites every commit above it. A commit that is not an
   /// ancestor of HEAD cannot be reached either way, so it is refused rather
   /// than silently rebasing the wrong branch.
-  Future<void> rewordCommit(
+  ///
+  /// Rewording HEAD runs the commit hooks; a refusal is returned, not
+  /// toasted, so the caller can show the hook's output. [noVerify] skips the
+  /// hooks it can for this one attempt.
+  Future<HookRejectedException?> rewordCommit(
     String sha,
     String summary, {
     String description = '',
+    bool noVerify = false,
   }) async {
     final toasts = _ref.read(toastProvider.notifier);
     if (summary.trim().isEmpty) {
       toasts.show('Commit message is empty', kind: ToastKind.warning);
-      return;
+      return null;
     }
     final target = await _out(['rev-parse', sha]);
     final wasSigned = _isSigned(
       await _out(['log', '-1', '--format=%G?', target]),
     );
     if (target == await _headSha()) {
-      if (_blockedByRepoOp) return;
+      if (_blockedByRepoOp) return null;
       final prev = target;
       Future<void> amend() => _writer.amendMessage(
         summary,
         description: description,
         sign: wasSigned,
+        noVerify: noVerify,
         authorName: _identity.name,
         authorEmail: _identity.email,
       );
+      HookRejectedException? rejection;
       // The tree is unchanged, so soft-resetting to the original commit puts
       // history back exactly as it was and stages nothing extra.
       await _undoable(
@@ -2241,15 +2248,20 @@ class RepoActions {
         amend,
         undo: () => _writer.resetSoft(prev),
         redo: amend,
+        handled: (e) {
+          if (e is! HookRejectedException) return false;
+          rejection = e;
+          return true;
+        },
       );
-      return;
+      return rejection;
     }
     if (!await _isAncestorOfHead(target)) {
       toasts.show(
         'Commit is not on the current branch',
         kind: ToastKind.warning,
       );
-      return;
+      return null;
     }
     // An empty parent means the root commit, which git rebases with `--root`.
     final parent = await _out(['rev-parse', '--verify', '--quiet', '$target^']);
@@ -2262,7 +2274,7 @@ class RepoActions {
             'the history above it.',
         kind: ToastKind.warning,
       );
-      return;
+      return null;
     }
     final log = await _out(['log', '--reverse', '--format=%H', range]);
     final message = joinCommitMessage(summary, description);
@@ -2279,8 +2291,9 @@ class RepoActions {
           else
             RebaseStep(line.trim(), RebaseAction.pick),
     ];
-    if (steps.isEmpty) return;
+    if (steps.isEmpty) return null;
     await rebase(parent.isEmpty ? '--root' : parent, steps);
+    return null;
   }
 
   Future<bool> _isAncestorOfHead(String sha) async => (await _git.run([

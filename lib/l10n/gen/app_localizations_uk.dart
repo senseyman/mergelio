@@ -3722,4 +3722,30 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get hkSkipNext => 'Пропустити хуки для наступного коміту';
+
+  @override
+  String get hkLinkedNoToggle =>
+      'Посилання на файл в іншому місці — змінюйте його режим там, щоб зміна не відбувалася непомітно.';
+
+  @override
+  String hkChangeFailed(String hook) {
+    return 'Не вдалося змінити хук $hook';
+  }
+
+  @override
+  String get hkFailNotFound => 'Файлу хука більше немає.';
+
+  @override
+  String get hkFailExists => 'Хук із такою назвою вже існує.';
+
+  @override
+  String get hkFailOutside =>
+      'Хук посилається на файл поза репозиторієм, тож звідси його не змінено.';
+
+  @override
+  String get hkFailLinked =>
+      'Хук посилається на файл в іншому місці; змініть режим того файлу.';
+
+  @override
+  String get hkRewordSkip => 'Змінити без хуків';
 }

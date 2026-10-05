@@ -999,10 +999,7 @@ class GitWriter {
   /// [coauthors] are appended to the message body. [authorName]/[authorEmail],
   /// when given, set the commit identity for this commit (the active profile).
   /// [noVerify] skips the hooks listed in [noVerifyHooks].
-  ///
-  /// When a hook refuses the commit, throws [HookRejectedException] naming it.
-  /// Git prints nothing of its own in that case — the transcript is the hook's
-  /// — so the hook is read from the trace git writes as it runs children.
+  /// A hook's refusal throws [HookRejectedException].
   Future<void> commit(
     String summary, {
     String description = '',
@@ -1023,6 +1020,24 @@ class GitWriter {
         body.write('\nCo-authored-by: $c');
       }
     }
+    await _commitTraced([
+      // Per-commit identity via -c, applied before the subcommand.
+      if (authorName != null) ...['-c', 'user.name=$authorName'],
+      if (authorEmail != null) ...['-c', 'user.email=$authorEmail'],
+      'commit',
+      if (amend) '--amend',
+      if (sign) '-S',
+      if (noVerify) '--no-verify',
+      '-m',
+      body.toString(),
+    ]);
+  }
+
+  /// Runs a `git commit` invocation and, when a hook refuses it, throws
+  /// [HookRejectedException] naming the hook. Git prints nothing of its own
+  /// in that case — the transcript is the hook's — so the hook is read from
+  /// the trace git writes as it runs children.
+  Future<void> _commitTraced(List<String> args) async {
     // The trace carries the whole command line, message included, so it goes
     // in a directory only this user can read — /tmp is shared on Linux.
     // Created synchronously: the commit must not wait on the event loop
@@ -1032,19 +1047,11 @@ class GitWriter {
     try {
       final r = await _run(
         [
-          // Per-commit identity via -c, applied before the subcommand.
-          if (authorName != null) ...['-c', 'user.name=$authorName'],
-          if (authorEmail != null) ...['-c', 'user.email=$authorEmail'],
           // A hook skipped for lacking its execute bit otherwise adds a hint
           // to whatever the hook that did run printed.
           '-c',
           'advice.ignoredHook=false',
-          'commit',
-          if (amend) '--amend',
-          if (sign) '-S',
-          if (noVerify) '--no-verify',
-          '-m',
-          body.toString(),
+          ...args,
         ],
         environment: {'GIT_TRACE2_EVENT': trace.path},
       );
@@ -1066,21 +1073,25 @@ class GitWriter {
   /// Rewrites the message of HEAD, leaving its tree alone. `--only` with no
   /// paths is git's way of amending the last commit *without* folding in
   /// whatever is already staged — a plain `--amend` would absorb it silently.
+  /// Hooks run as for any commit; [noVerify] skips those it can, and a refusal
+  /// throws [HookRejectedException].
   Future<void> amendMessage(
     String summary, {
     String description = '',
     bool sign = false,
+    bool noVerify = false,
     String? authorName,
     String? authorEmail,
-  }) => _ok([
+  }) => _commitTraced([
     ..._identity(authorName, authorEmail),
     'commit',
     '--amend',
     '--only',
     if (sign) '-S',
+    if (noVerify) '--no-verify',
     '-m',
     joinCommitMessage(summary, description),
-  ], 'git commit --amend');
+  ]);
 
   /// Reverts [path] to its committed state, dropping staged and unstaged edits.
   /// Reverts every tracked file in the repository to HEAD, index and working

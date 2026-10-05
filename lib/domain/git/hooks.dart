@@ -60,11 +60,13 @@ enum HookState {
   sample,
 }
 
-/// One plain file in the hooks directory, as listed: name and POSIX mode.
+/// One plain file in the hooks directory, as listed: name, the POSIX mode
+/// git will see (a symlink's target's), and whether it is a symlink.
 class HookDirEntry {
   final String name;
   final int mode;
-  const HookDirEntry(this.name, this.mode);
+  final bool isLink;
+  const HookDirEntry(this.name, this.mode, {this.isLink = false});
 }
 
 class HookFile {
@@ -73,7 +75,16 @@ class HookFile {
 
   /// Whether git's template for this hook sits beside it.
   final bool hasSample;
-  const HookFile(this.name, this.state, {this.hasSample = false});
+
+  /// A symlink to a script kept elsewhere, commonly a tracked file in the
+  /// repository. Its mode belongs to that file, so it is not toggled here.
+  final bool isLink;
+  const HookFile(
+    this.name,
+    this.state, {
+    this.hasSample = false,
+    this.isLink = false,
+  });
 
   bool get installed => state != HookState.sample;
 }
@@ -86,6 +97,7 @@ List<HookFile> classifyHooks(
   required bool windows,
 }) {
   final modes = <String, int>{};
+  final links = <String>{};
   final samples = <String>{};
   for (final e in entries) {
     if (e.name.endsWith(_sampleSuffix)) {
@@ -93,6 +105,7 @@ List<HookFile> classifyHooks(
       if (gitHookNames.contains(name)) samples.add(name);
     } else if (gitHookNames.contains(e.name)) {
       modes[e.name] = e.mode;
+      if (e.isLink) links.add(e.name);
     }
   }
   final hooks = [
@@ -101,6 +114,7 @@ List<HookFile> classifyHooks(
         name,
         windows || mode & 0x49 != 0 ? HookState.active : HookState.disabled,
         hasSample: samples.contains(name),
+        isLink: links.contains(name),
       ),
     for (final name in samples)
       if (!modes.containsKey(name)) HookFile(name, HookState.sample),
@@ -255,7 +269,9 @@ Future<HookInventory> readHookInventory(
       // it so the mode is the one git will see.
       final stat = await FileStat.stat(e.path);
       if (stat.type != FileSystemEntityType.file) continue;
-      entries.add(HookDirEntry(p.basename(e.path), stat.mode));
+      entries.add(
+        HookDirEntry(p.basename(e.path), stat.mode, isLink: e is Link),
+      );
     }
   }
   final hooks = classifyHooks(entries, windows: windows ?? Platform.isWindows);
@@ -283,24 +299,74 @@ Future<String> _head(File file) async {
   }
 }
 
+/// Why a hook could not be changed. The UI words each one.
+enum HookWriteFailure {
+  notFound,
+  alreadyExists,
+
+  /// A symlinked hook whose target is outside the hooks directory and the
+  /// repository.
+  outsideRepository,
+
+  /// A symlinked hook: its mode is the target's, so it is changed there.
+  linked,
+
+  /// The filesystem refused; [HookWriteException.detail] says how.
+  io,
+}
+
+class HookWriteException implements Exception {
+  final HookWriteFailure failure;
+  final String path;
+
+  /// The operating system's own explanation, for [HookWriteFailure.io].
+  final String? detail;
+  HookWriteException(this.failure, this.path, [this.detail]);
+
+  @override
+  String toString() =>
+      'HookWriteException(${failure.name}, $path${detail == null ? '' : ', $detail'})';
+}
+
+/// Runs a filesystem step, turning the OS's refusal into a [HookWriteException]
+/// so callers only ever see one kind of failure.
+Future<T> _io<T>(String path, Future<T> Function() run) async {
+  try {
+    return await run();
+  } on FileSystemException catch (e) {
+    throw HookWriteException(
+      HookWriteFailure.io,
+      path,
+      e.osError?.message ?? e.message,
+    );
+  }
+}
+
 /// Resolves the hook file about to be written and refuses it when its real
 /// location is outside both the hooks directory and the repository — a
 /// symlinked hook may point into the repo's own scripts, never elsewhere.
 Future<File> _guardedHook(String dir, String name, String repoPath) async {
   final file = File(hookFilePath(dir, name));
   if (await FileSystemEntity.isLink(file.path)) {
-    final real = await file.resolveSymbolicLinks();
-    final realDir = await Directory(dir).resolveSymbolicLinks();
-    final realRepo = await Directory(repoPath).resolveSymbolicLinks();
+    final (real, realDir, realRepo) = await _io(
+      file.path,
+      () async => (
+        await file.resolveSymbolicLinks(),
+        await Directory(dir).resolveSymbolicLinks(),
+        await Directory(repoPath).resolveSymbolicLinks(),
+      ),
+    );
     if (!isWithinOrEqual(realDir, real) && !isWithinOrEqual(realRepo, real)) {
-      throw FileSystemException('Hook links outside the repository', file.path);
+      throw HookWriteException(HookWriteFailure.outsideRepository, file.path);
     }
   }
   return file;
 }
 
 /// Turns hook [name] on or off by its execute bits — the switch git itself
-/// reads. Only meaningful on POSIX; Windows runs hooks regardless.
+/// reads. Only meaningful on POSIX; Windows runs hooks regardless. Refuses a
+/// symlinked hook: chmod would land on the target, and when that is a tracked
+/// script the toggle would show up as a mode change in the working tree.
 Future<void> setHookEnabled(
   String dir,
   String name, {
@@ -308,12 +374,26 @@ Future<void> setHookEnabled(
   required String repoPath,
 }) async {
   final file = await _guardedHook(dir, name, repoPath);
-  if (!await file.exists()) {
-    throw FileSystemException('No such hook', file.path);
+  if (await FileSystemEntity.isLink(file.path)) {
+    throw HookWriteException(HookWriteFailure.linked, file.path);
   }
-  final r = await Process.run('chmod', [enabled ? '+x' : 'a-x', file.path]);
+  await _chmod(file, enabled: enabled);
+}
+
+Future<void> _chmod(File file, {required bool enabled}) async {
+  if (!await file.exists()) {
+    throw HookWriteException(HookWriteFailure.notFound, file.path);
+  }
+  final r = await _io(
+    file.path,
+    () => Process.run('chmod', [enabled ? '+x' : 'a-x', file.path]),
+  );
   if (r.exitCode != 0) {
-    throw FileSystemException('chmod failed: ${r.stderr}'.trim(), file.path);
+    throw HookWriteException(
+      HookWriteFailure.io,
+      file.path,
+      '${r.stderr}'.trim(),
+    );
   }
 }
 
@@ -327,9 +407,9 @@ Future<void> writeHook(
 }) async {
   final file = await _guardedHook(dir, name, repoPath);
   if (!await file.exists()) {
-    throw FileSystemException('No such hook', file.path);
+    throw HookWriteException(HookWriteFailure.notFound, file.path);
   }
-  await file.writeAsString(text, flush: true);
+  await _io(file.path, () => file.writeAsString(text, flush: true));
 }
 
 /// Installs hook [name] from git's sample beside it and makes it executable.
@@ -342,10 +422,12 @@ Future<void> installSample(
   final file = await _guardedHook(dir, name, repoPath);
   if (await FileSystemEntity.type(file.path, followLinks: false) !=
       FileSystemEntityType.notFound) {
-    throw FileSystemException('Hook already exists', file.path);
+    throw HookWriteException(HookWriteFailure.alreadyExists, file.path);
   }
-  await File('${file.path}$_sampleSuffix').copy(file.path);
-  if (!Platform.isWindows) {
-    await setHookEnabled(dir, name, enabled: true, repoPath: repoPath);
+  final sample = File('${file.path}$_sampleSuffix');
+  if (!await sample.exists()) {
+    throw HookWriteException(HookWriteFailure.notFound, sample.path);
   }
+  await _io(file.path, () => sample.copy(file.path));
+  if (!Platform.isWindows) await _chmod(file, enabled: true);
 }

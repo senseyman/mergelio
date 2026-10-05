@@ -12,44 +12,15 @@ import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/domain/git/git_writer.dart';
 import 'package:mergelio/domain/git/hooks.dart';
 import 'package:mergelio/state/feedback.dart';
+import 'package:mergelio/state/hooks.dart';
 import 'package:mergelio/state/profiles.dart';
 import 'package:mergelio/state/repo_actions.dart';
 
-/// Real git with the host's global and system config shut out, so a
-/// developer's own core.hooksPath cannot change what these tests see.
-class _HermeticGit implements GitService {
-  const _HermeticGit();
-
-  static const _inner = SystemGitService();
-  static const _isolation = {
-    'GIT_CONFIG_GLOBAL': '/dev/null',
-    'GIT_CONFIG_NOSYSTEM': '1',
-  };
-
-  @override
-  Future<GitResult> run(
-    List<String> args, {
-    String? repoPath,
-    Duration? timeout,
-    Map<String, String>? environment,
-    GitCancel? cancel,
-    String? stdin,
-  }) => _inner.run(
-    args,
-    repoPath: repoPath,
-    timeout: timeout,
-    environment: {...?environment, ..._isolation},
-    cancel: cancel,
-    stdin: stdin,
-  );
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
+import 'support/hermetic_git.dart';
 
 /// Notes the permissions of the directory each commit's trace is written to,
 /// while git is still running and the file is still there.
-class _TraceDirSpy extends _HermeticGit {
+class _TraceDirSpy extends HermeticGit {
   final modes = <int>[];
   final dirs = <String>[];
 
@@ -80,7 +51,7 @@ class _TraceDirSpy extends _HermeticGit {
 }
 
 void main() {
-  const git = _HermeticGit();
+  const git = HermeticGit();
   late Directory dir;
   late String hooks;
 
@@ -193,7 +164,13 @@ void main() {
       await File('$hooks/pre-rebase.sample').writeAsString('#!/bin/sh\n');
       await expectLater(
         installSample(hooks, 'pre-rebase', repoPath: dir.path),
-        throwsA(isA<FileSystemException>()),
+        throwsA(
+          isA<HookWriteException>().having(
+            (e) => e.failure,
+            'failure',
+            HookWriteFailure.alreadyExists,
+          ),
+        ),
       );
       expect(await File('$hooks/pre-rebase').readAsString(), contains('mine'));
     });
@@ -205,7 +182,13 @@ void main() {
       await Link('$hooks/pre-commit').create(target.path);
       await expectLater(
         writeHook(hooks, 'pre-commit', 'y', repoPath: dir.path),
-        throwsA(isA<FileSystemException>()),
+        throwsA(
+          isA<HookWriteException>().having(
+            (e) => e.failure,
+            'failure',
+            HookWriteFailure.outsideRepository,
+          ),
+        ),
       );
       expect(target.readAsStringSync(), 'x');
     });
@@ -217,6 +200,95 @@ void main() {
       await Link('$hooks/pre-commit').create(script.path);
       await writeHook(hooks, 'pre-commit', 'new', repoPath: dir.path);
       expect(await script.readAsString(), 'new');
+    });
+
+    test(
+      'a symlinked hook is listed as linked and cannot be toggled',
+      () async {
+        final script = File('${dir.path}/scripts/pre-commit');
+        await script.create(recursive: true);
+        await script.writeAsString('#!/bin/sh\n');
+        await Process.run('chmod', ['+x', script.path]);
+        await Link('$hooks/pre-commit').create(script.path);
+        final h = await find('pre-commit');
+        expect(h.isLink, isTrue);
+        expect(h.state, HookState.active);
+        await expectLater(
+          setHookEnabled(
+            hooks,
+            'pre-commit',
+            enabled: false,
+            repoPath: dir.path,
+          ),
+          throwsA(
+            isA<HookWriteException>().having(
+              (e) => e.failure,
+              'failure',
+              HookWriteFailure.linked,
+            ),
+          ),
+        );
+        // The tracked script keeps its mode: toggling here would have shown up
+        // as a change in the working tree.
+        expect((await script.stat()).mode & 0x40, isNot(0));
+      },
+    );
+
+    test('toggling a missing hook names the failure', () async {
+      await expectLater(
+        setHookEnabled(hooks, 'pre-commit', enabled: true, repoPath: dir.path),
+        throwsA(
+          isA<HookWriteException>().having(
+            (e) => e.failure,
+            'failure',
+            HookWriteFailure.notFound,
+          ),
+        ),
+      );
+    });
+  });
+
+  group('hookInventoryProvider', () {
+    test('picks up a hook added outside the app while watched', () async {
+      final container = ProviderContainer(
+        overrides: [gitServiceProvider.overrideWithValue(git)],
+      );
+      addTearDown(container.dispose);
+      final sub = container.listen(hookInventoryProvider(dir.path), (_, _) {});
+      addTearDown(sub.close);
+      await container.read(hookInventoryProvider(dir.path).future);
+
+      // git init leaves pre-commit.sample behind, so the hook is already
+      // listed — as a sample — before the real one is written.
+      HookState? state() => container
+          .read(hookInventoryProvider(dir.path))
+          .valueOrNull
+          ?.hooks
+          .where((h) => h.name == 'pre-commit')
+          .firstOrNull
+          ?.state;
+      expect(state(), HookState.sample);
+
+      final deadline = DateTime.now().add(const Duration(seconds: 5));
+      await hook('pre-commit', 'exit 0');
+      while (state() != HookState.active && DateTime.now().isBefore(deadline)) {
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      }
+      expect(state(), HookState.active);
+    });
+  });
+
+  group('HookActions', () {
+    test('a refused write comes back as the failure, not a toast', () async {
+      final container = ProviderContainer(
+        overrides: [gitServiceProvider.overrideWithValue(git)],
+      );
+      addTearDown(container.dispose);
+      final failure = await container
+          .read(hookActionsProvider(dir.path))
+          .setEnabled(hooks, 'pre-commit', enabled: true);
+      expect(failure?.failure, HookWriteFailure.notFound);
+      expect(container.read(toastProvider), isEmpty);
     });
   });
 
@@ -312,6 +384,74 @@ void main() {
           ),
         ),
       );
+    });
+
+    group('rewording HEAD', () {
+      setUp(() async {
+        await g(['commit', '-q', '-m', 'first']);
+        await hook('commit-msg', 'echo "needs a ticket" >&2; exit 1');
+      });
+
+      test('the writer names the hook that refused it', () async {
+        await expectLater(
+          GitWriter(git, dir.path).amendMessage('second'),
+          throwsA(
+            isA<HookRejectedException>()
+                .having((e) => e.hook, 'hook', 'commit-msg')
+                .having(
+                  (e) => e.result?.err,
+                  'err',
+                  contains('needs a ticket'),
+                ),
+          ),
+        );
+      });
+
+      test('noVerify gets the reword past the hook', () async {
+        await GitWriter(git, dir.path).amendMessage('second', noVerify: true);
+        final log = await git.run([
+          'log',
+          '-1',
+          '--format=%s',
+        ], repoPath: dir.path);
+        expect(log.out, 'second');
+      });
+
+      test('RepoActions hands the rejection back without a toast', () async {
+        final container = ProviderContainer(
+          overrides: [
+            gitServiceProvider.overrideWithValue(git),
+            profilesProvider.overrideWith(
+              (ref) => ProfilesController(
+                InMemoryKeyValueStore(),
+                const ProfilesState(),
+              ),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+        final actions = container.read(repoActionsProvider(dir.path));
+        final head = (await git.run([
+          'rev-parse',
+          'HEAD',
+        ], repoPath: dir.path)).out;
+        final rejection = await actions.rewordCommit(head, 'second');
+        expect(rejection?.hook, 'commit-msg');
+        expect(container.read(toastProvider), isEmpty);
+
+        final retry = await actions.rewordCommit(
+          head,
+          'second',
+          noVerify: true,
+        );
+        expect(retry, isNull);
+        final log = await git.run([
+          'log',
+          '-1',
+          '--format=%s',
+        ], repoPath: dir.path);
+        expect(log.out, 'second');
+      });
     });
 
     group('RepoActions.commit', () {

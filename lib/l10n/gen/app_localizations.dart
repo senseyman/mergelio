@@ -6205,6 +6205,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Skip hooks for next commit'**
   String get hkSkipNext;
+
+  /// No description provided for @hkLinkedNoToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Linked to a file elsewhere — change its mode there, so the change is not made behind your back.'**
+  String get hkLinkedNoToggle;
+
+  /// No description provided for @hkChangeFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not change the {hook} hook'**
+  String hkChangeFailed(String hook);
+
+  /// No description provided for @hkFailNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'The hook file is not there any more.'**
+  String get hkFailNotFound;
+
+  /// No description provided for @hkFailExists.
+  ///
+  /// In en, this message translates to:
+  /// **'A hook with this name already exists.'**
+  String get hkFailExists;
+
+  /// No description provided for @hkFailOutside.
+  ///
+  /// In en, this message translates to:
+  /// **'The hook links to a file outside the repository, so it is not changed from here.'**
+  String get hkFailOutside;
+
+  /// No description provided for @hkFailLinked.
+  ///
+  /// In en, this message translates to:
+  /// **'The hook links to a file elsewhere; change that file\'s mode instead.'**
+  String get hkFailLinked;
+
+  /// No description provided for @hkRewordSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Reword without hooks'**
+  String get hkRewordSkip;
 }
 
 class _AppLocalizationsDelegate

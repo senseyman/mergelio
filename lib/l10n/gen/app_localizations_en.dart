@@ -3678,4 +3678,30 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get hkSkipNext => 'Skip hooks for next commit';
+
+  @override
+  String get hkLinkedNoToggle =>
+      'Linked to a file elsewhere — change its mode there, so the change is not made behind your back.';
+
+  @override
+  String hkChangeFailed(String hook) {
+    return 'Could not change the $hook hook';
+  }
+
+  @override
+  String get hkFailNotFound => 'The hook file is not there any more.';
+
+  @override
+  String get hkFailExists => 'A hook with this name already exists.';
+
+  @override
+  String get hkFailOutside =>
+      'The hook links to a file outside the repository, so it is not changed from here.';
+
+  @override
+  String get hkFailLinked =>
+      'The hook links to a file elsewhere; change that file\'s mode instead.';
+
+  @override
+  String get hkRewordSkip => 'Reword without hooks';
 }
