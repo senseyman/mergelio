@@ -3,6 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mergelio/state/signatures.dart';
+import 'package:mergelio/domain/git/signature.dart';
 import 'package:mergelio/core/tokens.dart';
 import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/domain/git/models.dart';
@@ -43,7 +45,10 @@ Future<void> _pump(WidgetTester tester, {required String selected}) async {
         ),
       ),
       commitFilesProvider.overrideWith((ref, key) async => const []),
-      commitSignatureProvider.overrideWith((ref, key) async => 'N'),
+      commitSignatureProvider.overrideWith(
+        (ref, key) async => SignatureVerdict.unsigned,
+      ),
+      tagSignaturesProvider.overrideWith((ref, key) async => const []),
       stashContentsProvider.overrideWith(
         (ref, key) async => const StashContents(baseSha: 'b'),
       ),

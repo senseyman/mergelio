@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mergelio/state/signatures.dart';
+import 'package:mergelio/domain/git/signature.dart';
 import 'package:mergelio/core/tokens.dart';
 import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/domain/git/models.dart';
@@ -49,7 +51,10 @@ void main() {
         overrides: [
           workspaceProvider.overrideWith((ref) => workspace),
           commitFilesProvider.overrideWith((ref, key) async => const []),
-          commitSignatureProvider.overrideWith((ref, key) async => 'N'),
+          commitSignatureProvider.overrideWith(
+            (ref, key) async => SignatureVerdict.unsigned,
+          ),
+          tagSignaturesProvider.overrideWith((ref, key) async => const []),
           lfsLocksProvider.overrideWith((ref, p) async => LfsLockState.none),
           lfsPathsProvider.overrideWith((ref, q) async => const <String>{}),
           settingsProvider.overrideWith(

@@ -6,6 +6,7 @@ import '../domain/git/git_providers.dart';
 import '../domain/git/git_reader.dart';
 import '../domain/git/lane_layout.dart';
 import '../domain/git/models.dart';
+import '../domain/git/signature.dart';
 import 'squash_link_cache.dart';
 
 part 'repo_data.freezed.dart';
@@ -47,9 +48,12 @@ final commitFilesProvider = FutureProvider.family
 /// On demand because verifying spawns gpg per signed commit — doing it for
 /// the whole graph takes seconds on a repository that enforces signing.
 final commitSignatureProvider = FutureProvider.family
-    .autoDispose<String, ({String repo, String sha})>((ref, key) async {
+    .autoDispose<SignatureVerdict, ({String repo, String sha})>((
+      ref,
+      key,
+    ) async {
       final reader = GitReader(ref.watch(gitServiceProvider), key.repo);
-      return reader.signatureStatus(key.sha);
+      return reader.signatureVerdict(key.sha);
     });
 
 /// Squash-link inference, remembered per repository and per branch so that a

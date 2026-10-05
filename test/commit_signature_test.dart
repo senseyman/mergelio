@@ -1,11 +1,15 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/domain/git/git_reader.dart';
 import 'package:mergelio/domain/git/git_service.dart';
+import 'package:mergelio/domain/git/signature.dart';
 
 class _CapturingGit implements GitService {
   final calls = <List<String>>[];
   final String output;
-  _CapturingGit([this.output = '']);
+  final String err;
+  final int code;
+  final timeouts = <Duration?>[];
+  _CapturingGit([this.output = '', this.err = '', this.code = 0]);
 
   @override
   Future<GitResult> run(
@@ -17,7 +21,8 @@ class _CapturingGit implements GitService {
     String? stdin,
   }) async {
     calls.add(args);
-    return GitResult(0, output, '');
+    timeouts.add(timeout);
+    return GitResult(code, output, err);
   }
 
   @override
@@ -65,16 +70,88 @@ void main() {
     }
   });
 
-  test('signatureStatus verifies exactly one commit on demand', () async {
-    final git = _CapturingGit('G\n');
-    final status = await GitReader(git, '/repo').signatureStatus('abc123');
+  test('signatureVerdict verifies exactly one commit on demand', () async {
+    final git = _CapturingGit('G\x1fme\x1fKEY\x1fFPR\x1f\x1ffully\n');
+    final v = await GitReader(git, '/repo').signatureVerdict('abc123');
 
-    expect(status, 'G');
-    expect(git.calls.single, ['log', '-1', '--format=%G?', 'abc123']);
+    expect(v.state, SignatureState.good);
+    expect(v.signer, 'me');
+    expect(git.calls.single, [
+      'log',
+      '-1',
+      '--format=$kSignatureFormat',
+      'abc123',
+    ]);
   });
 
-  test('signatureStatus maps empty output to N (unsigned)', () async {
+  test('signatureVerdict maps empty output to unsigned', () async {
     final git = _CapturingGit();
-    expect(await GitReader(git, '/repo').signatureStatus('abc123'), 'N');
+    final v = await GitReader(git, '/repo').signatureVerdict('abc123');
+    expect(v.state, SignatureState.none);
+  });
+
+  test('allowedSignersFile reads the repo config', () async {
+    final git = _CapturingGit('/home/me/.ssh/allowed_signers\n');
+    expect(
+      await GitReader(git, '/repo').allowedSignersFile(),
+      '/home/me/.ssh/allowed_signers',
+    );
+    expect(git.calls.single, ['config', '--get', 'gpg.ssh.allowedSignersFile']);
+  });
+
+  test('allowedSignersFile is null when unset', () async {
+    // `git config --get` exits 1 for a missing key.
+    final git = _CapturingGit('', '', 1);
+    expect(await GitReader(git, '/repo').allowedSignersFile(), isNull);
+  });
+
+  test('signedTagsAt lists only tags that carry a signature', () async {
+    final git = _CapturingGit('v1\t1\nv2\t\nv3\t\n');
+    final tags = await GitReader(git, '/repo').signedTagsAt('abc123');
+    expect(tags, ['v1']);
+    expect(git.calls.single.take(3), ['tag', '--points-at', 'abc123']);
+  });
+
+  test('verifyTag parses stderr even when git exits non-zero', () async {
+    final git = _CapturingGit(
+      '',
+      'Good "git" signature with ED25519 key SHA256:abc\nNo principal matched.\n',
+      1,
+    );
+    final v = await GitReader(git, '/repo').verifyTag('v1');
+    expect(v.state, SignatureState.untrusted);
+    expect(git.calls.single, ['verify-tag', '--raw', 'refs/tags/v1']);
+  });
+
+  test('signatureAudit walks base..HEAD with a long timeout', () async {
+    final git = _CapturingGit(
+      'a1\x1fN\x1f\x1f\x1f\x1f\x1f\x1fAnn\x1fsubject\x00',
+    );
+    final audit = await GitReader(
+      git,
+      '/repo',
+    ).signatureAudit('origin/main', limit: 50);
+
+    expect(audit.checked, 1);
+    expect(audit.unverified.single.sha, 'a1');
+    expect(git.calls.single, [
+      'log',
+      '-z',
+      '--max-count=51',
+      '--format=$kSignatureAuditFormat',
+      '--end-of-options',
+      'origin/main..HEAD',
+    ]);
+    // Verification spawns gpg per commit; the 30s default is too short.
+    expect(git.timeouts.single, isNotNull);
+    expect(git.timeouts.single!.inMinutes, greaterThanOrEqualTo(5));
+  });
+
+  test('signatureAudit surfaces a bad base ref as an error', () async {
+    final git = _CapturingGit('', "fatal: bad revision 'nope..HEAD'", 128);
+    expect(
+      GitReader(git, '/repo').signatureAudit('nope'),
+      throwsA(isA<GitException>()),
+    );
   });
 }

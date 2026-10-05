@@ -138,7 +138,10 @@ void main() {
 
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Checkout: feature'));
+      // Filter first: the full command list outgrows the 600px test surface.
+      await tester.enterText(find.byType(TextField), 'Checkout: feature');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Checkout: feature').last);
       await tester.pumpAndSettle();
 
       // The dialog appeared instead of an immediate checkout.

@@ -3486,4 +3486,135 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get rvMrLookupFailed => 'Не вдалося знайти мерж-реквест';
+
+  @override
+  String get sigGood => 'Перевірений підпис';
+
+  @override
+  String get sigUntrusted => 'Дійсний, ключ без довіри';
+
+  @override
+  String get sigExpired => 'Прострочений підпис';
+
+  @override
+  String get sigExpiredKey => 'Прострочений ключ';
+
+  @override
+  String get sigRevoked => 'Відкликаний ключ';
+
+  @override
+  String get sigBad => 'Недійсний підпис';
+
+  @override
+  String get sigUnverifiable => 'Не вдалося перевірити підпис';
+
+  @override
+  String get sigNone => 'Без підпису';
+
+  @override
+  String get sigShowDetails => 'Показати деталі підпису';
+
+  @override
+  String get sigHideDetails => 'Сховати деталі підпису';
+
+  @override
+  String get sigSigner => 'Підписант';
+
+  @override
+  String get sigKey => 'Ключ';
+
+  @override
+  String get sigFingerprint => 'Відбиток';
+
+  @override
+  String get sigPrimaryKey => 'Основний ключ';
+
+  @override
+  String get sigTrust => 'Довіра';
+
+  @override
+  String get sigFormat => 'Формат';
+
+  @override
+  String get sigUnknownSigner => 'Невідомий підписант';
+
+  @override
+  String get sigHintNoAllowedSigners =>
+      'Підпис відповідає ключу, але git називає SSH-підписанта лише тоді, коли задано gpg.ssh.allowedSignersFile.';
+
+  @override
+  String sigHintKeyNotAllowed(String path) {
+    return 'Цього SSH-ключа немає у файлі дозволених підписантів ($path).';
+  }
+
+  @override
+  String get sigHintMissingKey =>
+      'Публічного ключа підписанта немає на цьому комп\'ютері, тож підпис не вдалося перевірити.';
+
+  @override
+  String sigTag(String name) {
+    return 'Тег $name';
+  }
+
+  @override
+  String get sigPaletteAudit => 'Перевірити підписи…';
+
+  @override
+  String get sigAuditTitle => 'Перевірка підписів';
+
+  @override
+  String get sigAuditBase => 'Від';
+
+  @override
+  String get sigAuditBaseHint => 'гілка, тег або коміт';
+
+  @override
+  String get sigAuditRun => 'Перевірити';
+
+  @override
+  String sigAuditRange(String range) {
+    return 'Перевіряє $range: коміти, досяжні з HEAD, але не з бази.';
+  }
+
+  @override
+  String sigAuditAllVerified(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Усі $count комітів мають перевірений підпис',
+      few: 'Усі $count коміти мають перевірений підпис',
+      one: '$count коміт має перевірений підпис',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String sigAuditSummary(int count, int unverified) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$unverified з $count комітів без перевіреного підпису',
+      few: '$unverified з $count комітів без перевіреного підпису',
+      one: '$unverified з $count коміту без перевіреного підпису',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get sigAuditEmpty => 'У цьому діапазоні немає комітів';
+
+  @override
+  String sigAuditTruncated(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Перевірено лише останні $count комітів.',
+      few: 'Перевірено лише останні $count коміти.',
+      one: 'Перевірено лише останній $count коміт.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get sigAuditFailed => 'Не вдалося перевірити підписи';
 }

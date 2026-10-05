@@ -3446,4 +3446,132 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get rvMrLookupFailed => 'Could not look up the merge request';
+
+  @override
+  String get sigGood => 'Verified signature';
+
+  @override
+  String get sigUntrusted => 'Valid, untrusted key';
+
+  @override
+  String get sigExpired => 'Expired signature';
+
+  @override
+  String get sigExpiredKey => 'Expired key';
+
+  @override
+  String get sigRevoked => 'Revoked key';
+
+  @override
+  String get sigBad => 'Bad signature';
+
+  @override
+  String get sigUnverifiable => 'Cannot verify signature';
+
+  @override
+  String get sigNone => 'Not signed';
+
+  @override
+  String get sigShowDetails => 'Show signature details';
+
+  @override
+  String get sigHideDetails => 'Hide signature details';
+
+  @override
+  String get sigSigner => 'Signer';
+
+  @override
+  String get sigKey => 'Key';
+
+  @override
+  String get sigFingerprint => 'Fingerprint';
+
+  @override
+  String get sigPrimaryKey => 'Primary key';
+
+  @override
+  String get sigTrust => 'Trust';
+
+  @override
+  String get sigFormat => 'Format';
+
+  @override
+  String get sigUnknownSigner => 'Unknown signer';
+
+  @override
+  String get sigHintNoAllowedSigners =>
+      'The signature matches the key, but git names an SSH signer only when gpg.ssh.allowedSignersFile is set.';
+
+  @override
+  String sigHintKeyNotAllowed(String path) {
+    return 'This SSH key is not listed in the allowed signers file ($path).';
+  }
+
+  @override
+  String get sigHintMissingKey =>
+      'The signer\'s public key is not available on this machine, so the signature could not be checked.';
+
+  @override
+  String sigTag(String name) {
+    return 'Tag $name';
+  }
+
+  @override
+  String get sigPaletteAudit => 'Check signatures…';
+
+  @override
+  String get sigAuditTitle => 'Signature check';
+
+  @override
+  String get sigAuditBase => 'Since';
+
+  @override
+  String get sigAuditBaseHint => 'branch, tag or commit';
+
+  @override
+  String get sigAuditRun => 'Check';
+
+  @override
+  String sigAuditRange(String range) {
+    return 'Checks $range: commits reachable from HEAD but not from the base.';
+  }
+
+  @override
+  String sigAuditAllVerified(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'All $count commits have a verified signature',
+      one: 'The commit has a verified signature',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String sigAuditSummary(int count, int unverified) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$unverified of $count commits lack a verified signature',
+      one: '$unverified of $count commit lacks a verified signature',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get sigAuditEmpty => 'No commits in this range';
+
+  @override
+  String sigAuditTruncated(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Only the latest $count commits were checked.',
+      one: 'Only the latest commit was checked.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get sigAuditFailed => 'Could not check signatures';
 }

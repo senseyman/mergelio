@@ -5,6 +5,7 @@ import 'git_service.dart';
 import 'line_history.dart';
 import 'models.dart';
 import 'reflog.dart';
+import 'signature.dart';
 import 'review.dart';
 import 'stash.dart';
 import 'worktree.dart';
@@ -776,13 +777,61 @@ class GitReader {
     return parseLineHistory(r.stdout);
   }
 
-  /// `%G?` verification for one commit, on demand. Bulk history reads skip
-  /// verification because git spawns gpg per signed commit — thousands of
-  /// subprocesses on a repository that enforces signing.
-  Future<String> signatureStatus(String sha) async {
-    final r = await _run(['log', '-1', '--format=%G?', sha]);
-    if (!r.ok) throw GitException('git log -1 --format=%G? failed', r);
-    return r.out.isEmpty ? 'N' : r.out;
+  /// Signature verification for one commit, on demand. Bulk history reads
+  /// skip verification because git spawns gpg per signed commit — thousands
+  /// of subprocesses on a repository that enforces signing.
+  Future<SignatureVerdict> signatureVerdict(String sha) async {
+    final r = await _run(['log', '-1', '--format=$kSignatureFormat', sha]);
+    if (!r.ok) throw GitException('git log -1 signature read failed', r);
+    return parseSignatureVerdict(r.out);
+  }
+
+  /// `gpg.ssh.allowedSignersFile`, or null when unset. Without it git can
+  /// check an SSH signature's maths but never name its signer.
+  Future<String?> allowedSignersFile() async {
+    final r = await _run(['config', '--get', 'gpg.ssh.allowedSignersFile']);
+    return r.ok && r.out.isNotEmpty ? r.out : null;
+  }
+
+  /// Tags pointing at [sha] that carry a signature. Lightweight and unsigned
+  /// annotated tags are left out: there is nothing to verify.
+  Future<List<String>> signedTagsAt(String sha) async {
+    final r = await _run([
+      'tag',
+      '--points-at',
+      sha,
+      '--format=%(refname:short)%09%(if)%(contents:signature)%(then)1%(end)',
+    ]);
+    if (!r.ok) throw GitException('git tag --points-at failed', r);
+    return [
+      for (final line in r.out.split('\n'))
+        if (line.endsWith('\t1')) line.substring(0, line.length - 2),
+    ];
+  }
+
+  /// Verifies the tag [name]. git exits non-zero for anything short of a
+  /// good signature, so the verdict comes from stderr, not the exit code.
+  Future<SignatureVerdict> verifyTag(String name) async {
+    final r = await _run(['verify-tag', '--raw', 'refs/tags/$name']);
+    return parseTagVerification(r.err);
+  }
+
+  /// Budget for [signatureAudit]: every signed commit in the range costs a
+  /// gpg or ssh-keygen process.
+  static const _auditTimeout = Duration(minutes: 5);
+
+  /// Verifies every commit in `base..HEAD`, up to [limit] of them.
+  Future<SignatureAudit> signatureAudit(String base, {int limit = 500}) async {
+    final r = await _run([
+      'log',
+      '-z',
+      '--max-count=${limit + 1}',
+      '--format=$kSignatureAuditFormat',
+      '--end-of-options',
+      '$base..HEAD',
+    ], timeout: _auditTimeout);
+    if (!r.ok) throw GitException('git log signature audit failed', r);
+    return parseSignatureAudit(r.stdout, limit: limit);
   }
 
   /// Raw `git blame --line-porcelain` output for [path] (parse with

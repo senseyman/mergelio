@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mergelio/state/signatures.dart';
+import 'package:mergelio/domain/git/signature.dart';
 import 'package:mergelio/core/tokens.dart';
 import 'package:mergelio/domain/git/models.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
@@ -26,6 +28,7 @@ Widget _harness({
   bool hasWip = false,
   Commit? commit,
   String sigStatus = 'G',
+  List<TagSignature> tags = const [],
   Future<Set<String>> Function(Ref ref, LfsQuery q)? lfsPaths,
 }) => ProviderScope(
   overrides: [
@@ -34,7 +37,11 @@ Widget _harness({
           files ??
           const [CommitFileChange(path: 'x', change: GitChange.modified)],
     ),
-    commitSignatureProvider.overrideWith((ref, key) async => sigStatus),
+    commitSignatureProvider.overrideWith(
+      (ref, key) async => parseSignatureVerdict(sigStatus),
+    ),
+    tagSignaturesProvider.overrideWith((ref, key) async => tags),
+    allowedSignersFileProvider.overrideWith((ref, repo) async => null),
     lfsLocksProvider.overrideWith((ref, p) async => LfsLockState.none),
     lfsPathsProvider.overrideWith(
       lfsPaths ?? (ref, q) async => const <String>{},
@@ -92,6 +99,56 @@ void main() {
 
     expect(find.text('feat: something'), findsOneWidget);
     expect(find.text('Verified signature'), findsNothing);
+  });
+
+  testWidgets('a signature that cannot be checked says so', (tester) async {
+    await tester.pumpWidget(_harness(sigStatus: 'E'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Cannot verify signature'), findsOneWidget);
+    expect(find.textContaining('Verified'), findsNothing);
+  });
+
+  testWidgets('each signed tag on the commit shows its own verdict', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        sigStatus: 'N',
+        tags: const [
+          (name: 'v1.0', verdict: SignatureVerdict(state: SignatureState.good)),
+          (name: 'v1.1', verdict: SignatureVerdict(state: SignatureState.bad)),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tag v1.0'), findsOneWidget);
+    expect(find.text('Tag v1.1'), findsOneWidget);
+    expect(find.text('Verified signature'), findsOneWidget);
+    expect(find.text('Bad signature'), findsOneWidget);
+  });
+
+  testWidgets('a long signed tag name fits the narrowest panel', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(336, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      _harness(
+        sigStatus: 'N',
+        tags: const [
+          (
+            name: 'release/2026-10-05-a-really-long-tag-name',
+            verdict: SignatureVerdict(state: SignatureState.unverifiable),
+          ),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.text('Cannot verify signature'), findsOneWidget);
   });
 
   testWidgets('shows the commit description body below the subject', (

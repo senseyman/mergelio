@@ -6,14 +6,17 @@ import '../../core/theme.dart';
 import '../../core/tokens.dart';
 import '../../domain/git/commit_message.dart';
 import '../../domain/git/models.dart';
+import '../../domain/git/signature.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/diff_target.dart';
 import '../../state/graph_selection.dart';
 import '../../state/lfs.dart';
 import '../../state/repo_data.dart';
 import '../../state/settings_controller.dart';
+import '../../state/signatures.dart';
 import '../common/change_file_row.dart';
 import '../common/file_tree_view.dart';
+import '../common/signature_badge.dart';
 import '../graph/commit_columns.dart';
 import '../graph/ref_pill.dart';
 import 'edit_commit_message.dart';
@@ -40,11 +43,16 @@ class CommitDetails extends ConsumerWidget {
     final c = commit;
     final files = ref.watch(commitFilesProvider((repo: repoPath, sha: c.sha)));
     final clock = ref.watch(settingsProvider.select((s) => s.clockFormat));
-    // 'N' is unsigned and 'E' cannot be checked; neither warrants a row. Null
-    // while verification is still running, so the row appears once known.
+    // Null while verification is still running, so the row appears once
+    // known. An unsigned commit gets no row.
     final sig = ref
         .watch(commitSignatureProvider((repo: repoPath, sha: c.sha)))
         .valueOrNull;
+    final tags =
+        ref
+            .watch(tagSignaturesProvider((repo: repoPath, sha: c.sha)))
+            .valueOrNull ??
+        const <TagSignature>[];
 
     return Container(
       color: t.bgPanel,
@@ -177,8 +185,14 @@ class CommitDetails extends ConsumerWidget {
                     value: p.length > 7 ? p.substring(0, 7) : p,
                     mono: true,
                   ),
-                if (sig != null && sig != 'N' && sig != 'E')
-                  _Signature(status: sig),
+                if (sig != null && sig.isSigned)
+                  _Signature(repoPath: repoPath, verdict: sig),
+                for (final tag in tags)
+                  _Signature(
+                    repoPath: repoPath,
+                    verdict: tag.verdict,
+                    tag: tag.name,
+                  ),
                 if (c.coauthor)
                   Padding(
                     padding: const EdgeInsets.only(top: 6),
@@ -327,34 +341,44 @@ class _MsgAction extends StatelessWidget {
   }
 }
 
-/// Signature indicator whose wording matches the real `%G?` status — never
-/// claims "Verified" for a bad, expired or revoked signature.
-class _Signature extends StatelessWidget {
-  final String status;
-  const _Signature({required this.status});
+/// One signature row: the commit's own, or a signed tag's when [tag] names
+/// it. The allowed signers file is read only for an SSH signature git could
+/// not attribute, the one case whose explanation needs it.
+class _Signature extends ConsumerWidget {
+  final String repoPath;
+  final SignatureVerdict verdict;
+  final String? tag;
+  const _Signature({required this.repoPath, required this.verdict, this.tag});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final t = context.tokens;
-    final (label, color, icon) = switch (status) {
-      // 'G' is a good, trusted signature; 'U' is good but the key's validity is
-      // unknown/untrusted — never assert "verified" for it.
-      'G' => ('Verified signature', t.success, Icons.verified_user_outlined),
-      'U' => ('Valid, untrusted key', t.warning, Icons.gpp_maybe_outlined),
-      'X' || 'Y' => ('Expired signature', t.warning, Icons.gpp_maybe_outlined),
-      'R' => ('Revoked key', t.danger, Icons.gpp_bad_outlined),
-      'B' => ('Bad signature', t.danger, Icons.gpp_bad_outlined),
-      _ => ('Signed', t.textMuted, Icons.lock_outline),
-    };
+    final l = AppLocalizations.of(context);
+    final needsSigners =
+        verdict.isSsh && verdict.state == SignatureState.untrusted;
+    final signers = needsSigners
+        ? ref.watch(allowedSignersFileProvider(repoPath)).valueOrNull
+        : null;
+    final badge = SignatureBadge(verdict: verdict, allowedSignersFile: signers);
     return Padding(
       padding: const EdgeInsets.only(top: 8),
-      child: Row(
-        children: [
-          Icon(icon, size: 13, color: color),
-          const SizedBox(width: 6),
-          Text(label, style: TextStyle(color: color, fontSize: 12)),
-        ],
-      ),
+      child: tag == null
+          ? badge
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Flexible(
+                  child: Text(
+                    l.sigTag(tag!),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: t.textFaint, fontSize: 12),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Flexible(child: badge),
+              ],
+            ),
     );
   }
 }
