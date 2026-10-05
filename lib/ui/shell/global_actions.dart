@@ -7,11 +7,13 @@ import '../../state/graph_selection.dart';
 import '../../state/lfs.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
+import '../../state/review.dart';
 import '../../state/settings.dart';
 import '../../state/settings_controller.dart';
 import '../../state/search.dart';
 import '../../state/workspace.dart';
 import '../palette/command_palette.dart';
+import '../review/review_picker.dart';
 import '../workspace/branch_switch.dart';
 import '../workspace/maintenance_panel.dart';
 import '../workspace/remote_dialog.dart';
@@ -85,6 +87,11 @@ void openGlobalPalette(BuildContext context, WidgetRef ref) {
       Icons.search,
       () async => openGlobalSearch(ref),
     ),
+    PaletteCommand(l.rvPaletteReview, Icons.rate_review_outlined, () async {
+      if (!context.mounted) return;
+      final next = await showReviewPicker(context, ref, repoPath: path);
+      if (next != null) ref.read(reviewTargetProvider.notifier).state = next;
+    }),
     PaletteCommand('Add remote…', Icons.dns_outlined, () async {
       if (!context.mounted) return;
       final edit = await showRemoteDialog(

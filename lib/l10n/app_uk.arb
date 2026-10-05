@@ -1102,5 +1102,178 @@
   "ropKeepIndex": "Залишити проіндексовані зміни на місці",
   "ropIncludeUntracked": "Включити невідстежувані файли",
   "ropStashFiles": "Файли для схову",
-  "ropNothingToStash": "Нічого ховати"
+  "ropNothingToStash": "Нічого ховати",
+  "rvTitle": "ПЕРЕГЛЯД",
+  "rvPickTitle": "Перегляд гілок",
+  "rvBase": "База",
+  "rvHead": "Гілка змін",
+  "rvSideHint": "Гілка, тег, віддалена гілка або коміт",
+  "rvWorktreeNote": "Робоче дерево береться за останнім комітом; його незакомічені зміни до перегляду не входять.",
+  "rvNotACommit": "«{ref}» — не коміт у цьому репозиторії",
+  "@rvNotACommit": {
+    "placeholders": {
+      "ref": {
+        "type": "String"
+      }
+    }
+  },
+  "rvOpen": "Відкрити перегляд",
+  "rvSwap": "Поміняти базу й гілку змін",
+  "rvModeThreeDot": "Від розгалуження",
+  "rvModeTwoDot": "Між вершинами",
+  "rvThreeDotCaption": "{range}: що змінила {head} від відгалуження з {base}, як у пул-реквесті.",
+  "@rvThreeDotCaption": {
+    "placeholders": {
+      "range": {
+        "type": "String"
+      },
+      "head": {
+        "type": "String"
+      },
+      "base": {
+        "type": "String"
+      }
+    }
+  },
+  "rvTwoDotCaption": "{range}: усі відмінності між вершинами {base} і {head}, зокрема зміни, зроблені лише в {base}.",
+  "@rvTwoDotCaption": {
+    "placeholders": {
+      "range": {
+        "type": "String"
+      },
+      "base": {
+        "type": "String"
+      },
+      "head": {
+        "type": "String"
+      }
+    }
+  },
+  "rvAheadBehind": "{head}: попереду на {ahead}, позаду на {behind} відносно {base}",
+  "@rvAheadBehind": {
+    "placeholders": {
+      "head": {
+        "type": "String"
+      },
+      "ahead": {
+        "type": "int"
+      },
+      "behind": {
+        "type": "int"
+      },
+      "base": {
+        "type": "String"
+      }
+    }
+  },
+  "rvFileCount": "{count, plural, one{{count} файл} few{{count} файли} many{{count} файлів} other{{count} файлу}}",
+  "@rvFileCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "rvViewedCount": "переглянуто {viewed} з {total}",
+  "@rvViewedCount": {
+    "placeholders": {
+      "viewed": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "rvViewed": "Переглянуто",
+  "rvCommits": "КОМІТИ ({count})",
+  "@rvCommits": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "rvCommitsTruncated": "Показано {count} найновіших",
+  "@rvCommitsTruncated": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "rvNoCommits": "У гілці змін немає комітів, яких бракує базі",
+  "rvFiles": "ФАЙЛИ",
+  "rvNoMergeBase": "{base} і {head} не мають спільної історії, тож точки розгалуження немає. Режим «Між вершинами» все одно покаже відмінності.",
+  "@rvNoMergeBase": {
+    "placeholders": {
+      "base": {
+        "type": "String"
+      },
+      "head": {
+        "type": "String"
+      }
+    }
+  },
+  "rvUseTwoDot": "Показати між вершинами",
+  "rvNoChanges": "Змін у файлах немає",
+  "rvCouldNotRead": "Не вдалося прочитати перегляд",
+  "rvCouldNotReadFile": "Не вдалося прочитати зміни цього файлу",
+  "rvCollapseAll": "Згорнути все",
+  "rvExpandAll": "Розгорнути все",
+  "rvLargeDiff": "Великий diff ({count} рядків). Розгорніть, щоб показати.",
+  "@rvLargeDiff": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "rvBinary": "Двійковий або LFS-файл. Відкрийте його в переглядачі змін, щоб порівняти.",
+  "rvNoContentChange": "Перейменовано без змін вмісту",
+  "rvOpenInDiff": "Відкрити в переглядачі змін",
+  "rvFileHistoryAtHead": "Історія файлу в гілці змін",
+  "rvBlameAtHead": "Авторство в гілці змін",
+  "rvExport": "Експорт patch-файлів",
+  "rvSavePatches": "Зберегти як patch-файли…",
+  "rvCopyPatch": "Копіювати як patch",
+  "rvPatchesSaved": "{count, plural, one{Збережено {count} patch-файл у {dir}} few{Збережено {count} patch-файли у {dir}} many{Збережено {count} patch-файлів у {dir}} other{Збережено {count} patch-файлу у {dir}}}",
+  "@rvPatchesSaved": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "dir": {
+        "type": "String"
+      }
+    }
+  },
+  "rvPatchCopied": "Patch скопійовано",
+  "rvExportFailed": "Не вдалося експортувати patch-файли",
+  "rvOpenPr": "Відкрити пул-реквест",
+  "rvOpenMr": "Відкрити мерж-реквест",
+  "rvKindBranch": "гілка",
+  "rvKindRemote": "віддалена",
+  "rvKindTag": "тег",
+  "rvKindWorktree": "робоче дерево",
+  "rvReviewAgainstCurrent": "Переглянути відносно поточної",
+  "rvPaletteReview": "Перегляд гілок…",
+  "rvNoOpenPr": "Немає єдиного відкритого пул-реквесту для {branch}",
+  "@rvNoOpenPr": {
+    "placeholders": {
+      "branch": {
+        "type": "String"
+      }
+    }
+  },
+  "rvNoOpenMr": "Немає єдиного відкритого мерж-реквесту для {branch}",
+  "@rvNoOpenMr": {
+    "placeholders": {
+      "branch": {
+        "type": "String"
+      }
+    }
+  },
+  "rvPrLookupFailed": "Не вдалося знайти пул-реквест",
+  "rvMrLookupFailed": "Не вдалося знайти мерж-реквест"
 }

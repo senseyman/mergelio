@@ -10,12 +10,17 @@ import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/state/compare_target.dart';
+import 'package:mergelio/state/review.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
 import 'package:mergelio/state/workspace.dart';
 import 'package:mergelio/ui/workspace/repo_sidebar.dart';
 
 class _FakeGit implements GitService {
+  /// HEAD is on no branch: the tracking listing marks none as current.
+  final bool detached;
+  _FakeGit({this.detached = false});
+
   @override
   Future<GitResult> run(
     List<String> args, {
@@ -30,7 +35,7 @@ class _FakeGit implements GitService {
       'remote' when args.length == 1 => 'origin\n',
       'for-each-ref' when args.contains('refs/remotes') => '',
       'for-each-ref' when tracking =>
-        'main\t*\t\taaa\t\n'
+        '${detached ? 'main\t\t\taaa\t\n' : 'main\t*\t\taaa\t\n'}'
             'work\t\t\tbbb\t\n',
       'for-each-ref' => 'main\nwork\n',
       'rev-parse' => 'aaa\n',
@@ -46,11 +51,14 @@ class _FakeGit implements GitService {
 }
 
 void main() {
-  Future<ProviderContainer> pumpSidebar(WidgetTester tester) async {
+  Future<ProviderContainer> pumpSidebar(
+    WidgetTester tester, {
+    bool detached = false,
+  }) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          gitServiceProvider.overrideWithValue(_FakeGit()),
+          gitServiceProvider.overrideWithValue(_FakeGit(detached: detached)),
           settingsProvider.overrideWith(
             (ref) => SettingsController(
               InMemorySettingsRepository(),
@@ -106,5 +114,42 @@ void main() {
           .enabled,
       isFalse,
     );
+  });
+
+  testWidgets('a branch row opens a review of it into the current branch', (
+    tester,
+  ) async {
+    final c = await pumpSidebar(tester);
+
+    await tester.tap(find.text('work'), buttons: kSecondaryButton);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Review against current'));
+    await tester.pumpAndSettle();
+
+    expect(
+      c.read(reviewTargetProvider),
+      const ReviewTarget(repoPath: '/r', base: 'main', head: 'work'),
+    );
+  });
+
+  testWidgets('with no branch checked out, compare and review are off', (
+    tester,
+  ) async {
+    await pumpSidebar(tester, detached: true);
+
+    await tester.tap(find.text('work'), buttons: kSecondaryButton);
+    await tester.pumpAndSettle();
+
+    for (final label in ['Compare with current', 'Review against current']) {
+      expect(
+        tester
+            .widget<PopupMenuItem<void>>(
+              find.widgetWithText(PopupMenuItem<void>, label),
+            )
+            .enabled,
+        isFalse,
+        reason: label,
+      );
+    }
   });
 }

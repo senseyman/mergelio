@@ -7,6 +7,7 @@ import '../../domain/git/models.dart';
 import '../../domain/path_key.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/compare_target.dart';
+import '../../state/review.dart';
 import '../../state/graph_selection.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
@@ -461,6 +462,16 @@ class _BranchRow extends ConsumerWidget {
       ),
     );
 
+    // Comparing and reviewing need a branch to read against; on a detached
+    // HEAD, or before the repository has loaded, those items are off rather
+    // than silently doing nothing.
+    final currentBranch = ref
+        .read(repoDataProvider(path))
+        .valueOrNull
+        ?.branches
+        .where((b) => b.current)
+        .firstOrNull;
+
     await showContextMenu<void>(
       context: context,
       position: at,
@@ -493,21 +504,22 @@ class _BranchRow extends ConsumerWidget {
           if (current != null) actions.rebaseOnto(branch.name, current.name);
         }),
         item(l.sbCompareWithCurrent, () {
-          final current = ref
-              .read(repoDataProvider(path))
-              .valueOrNull
-              ?.branches
-              .where((b) => b.current)
-              .firstOrNull;
-          if (current == null) return;
           // Current branch on the left: the comparison reads as what this
           // branch would bring in.
           ref.read(compareTargetProvider.notifier).state = CompareTarget(
             repoPath: path,
-            from: current.name,
+            from: currentBranch!.name,
             to: branch.name,
           );
-        }, enabled: !branch.current),
+        }, enabled: !branch.current && currentBranch != null),
+        item(l.rvReviewAgainstCurrent, () {
+          // Read as a pull request of this branch into the current one.
+          ref.read(reviewTargetProvider.notifier).state = ReviewTarget(
+            repoPath: path,
+            base: currentBranch!.name,
+            head: branch.name,
+          );
+        }, enabled: !branch.current && currentBranch != null),
         const PopupMenuDivider(),
         item(l.sbSetUpstreamItem, () async {
           final up = await showInputDialog(

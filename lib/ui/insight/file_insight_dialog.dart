@@ -6,6 +6,7 @@ import '../../core/theme.dart';
 import '../../core/tokens.dart';
 import '../../domain/text_tabs.dart';
 import '../../l10n/gen/app_localizations.dart';
+import '../../state/compare_target.dart';
 import '../../state/diff_target.dart';
 import '../../state/file_insight.dart';
 import '../../state/settings_controller.dart';
@@ -15,30 +16,44 @@ import 'line_history_dialog.dart';
 
 /// File History / Blame modal with two tabs. History rows open the file's diff
 /// at that commit; Blame annotates each line with its last-touching commit.
+/// Read as of [rev] when given — and titled so — else the working tree / HEAD.
 Future<void> showFileInsight(
   BuildContext context, {
   required String repoPath,
   required String path,
   int initialTab = 0,
+  String? rev,
 }) => showAppModal<void>(
   context: context,
-  title: path,
+  title: fileInsightTitle(path, rev),
   icon: Icons.history,
   width: 720,
   body: SizedBox(
     height: 480,
-    child: _InsightBody(repoPath: repoPath, path: path, initialTab: initialTab),
+    child: _InsightBody(
+      repoPath: repoPath,
+      path: path,
+      initialTab: initialTab,
+      rev: rev,
+    ),
   ),
 );
+
+/// The dialog title: the path, and the revision it is read at when that is
+/// not the checkout.
+String fileInsightTitle(String path, String? rev) =>
+    rev == null ? path : '$path @ ${compareRefLabel(rev)}';
 
 class _InsightBody extends StatelessWidget {
   final String repoPath;
   final String path;
   final int initialTab;
+  final String? rev;
   const _InsightBody({
     required this.repoPath,
     required this.path,
     required this.initialTab,
+    this.rev,
   });
 
   @override
@@ -62,8 +77,8 @@ class _InsightBody extends StatelessWidget {
           Expanded(
             child: TabBarView(
               children: [
-                _HistoryTab(repoPath: repoPath, path: path),
-                _BlameTab(repoPath: repoPath, path: path),
+                _HistoryTab(repoPath: repoPath, path: path, rev: rev),
+                _BlameTab(repoPath: repoPath, path: path, rev: rev),
               ],
             ),
           ),
@@ -76,7 +91,8 @@ class _InsightBody extends StatelessWidget {
 class _HistoryTab extends ConsumerWidget {
   final String repoPath;
   final String path;
-  const _HistoryTab({required this.repoPath, required this.path});
+  final String? rev;
+  const _HistoryTab({required this.repoPath, required this.path, this.rev});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -84,7 +100,7 @@ class _HistoryTab extends ConsumerWidget {
     final t = context.tokens;
     final dateFormat = ref.watch(settingsProvider.select((s) => s.dateFormat));
     return ref
-        .watch(fileHistoryProvider((repo: repoPath, path: path)))
+        .watch(fileHistoryProvider((repo: repoPath, path: path, rev: rev)))
         .when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(
@@ -150,7 +166,8 @@ class _HistoryTab extends ConsumerWidget {
 class _BlameTab extends ConsumerStatefulWidget {
   final String repoPath;
   final String path;
-  const _BlameTab({required this.repoPath, required this.path});
+  final String? rev;
+  const _BlameTab({required this.repoPath, required this.path, this.rev});
 
   @override
   ConsumerState<_BlameTab> createState() => _BlameTabState();
@@ -197,6 +214,7 @@ class _BlameTabState extends ConsumerState<_BlameTab> {
             // Blame numbers lines from one; row indices start at zero.
             start: _start + 1,
             end: _end + 1,
+            rev: widget.rev ?? 'HEAD',
           ),
           child: Text(l.lhLineHistory, style: const TextStyle(fontSize: 13)),
         ),
@@ -209,7 +227,13 @@ class _BlameTabState extends ConsumerState<_BlameTab> {
     final l = AppLocalizations.of(context);
     final t = context.tokens;
     return ref
-        .watch(blameProvider((repo: widget.repoPath, path: widget.path)))
+        .watch(
+          blameProvider((
+            repo: widget.repoPath,
+            path: widget.path,
+            rev: widget.rev,
+          )),
+        )
         .when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(

@@ -3286,4 +3286,204 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get ropNothingToStash => 'Нічого ховати';
+
+  @override
+  String get rvTitle => 'ПЕРЕГЛЯД';
+
+  @override
+  String get rvPickTitle => 'Перегляд гілок';
+
+  @override
+  String get rvBase => 'База';
+
+  @override
+  String get rvHead => 'Гілка змін';
+
+  @override
+  String get rvSideHint => 'Гілка, тег, віддалена гілка або коміт';
+
+  @override
+  String get rvWorktreeNote =>
+      'Робоче дерево береться за останнім комітом; його незакомічені зміни до перегляду не входять.';
+
+  @override
+  String rvNotACommit(String ref) {
+    return '«$ref» — не коміт у цьому репозиторії';
+  }
+
+  @override
+  String get rvOpen => 'Відкрити перегляд';
+
+  @override
+  String get rvSwap => 'Поміняти базу й гілку змін';
+
+  @override
+  String get rvModeThreeDot => 'Від розгалуження';
+
+  @override
+  String get rvModeTwoDot => 'Між вершинами';
+
+  @override
+  String rvThreeDotCaption(String range, String head, String base) {
+    return '$range: що змінила $head від відгалуження з $base, як у пул-реквесті.';
+  }
+
+  @override
+  String rvTwoDotCaption(String range, String base, String head) {
+    return '$range: усі відмінності між вершинами $base і $head, зокрема зміни, зроблені лише в $base.';
+  }
+
+  @override
+  String rvAheadBehind(String head, int ahead, int behind, String base) {
+    return '$head: попереду на $ahead, позаду на $behind відносно $base';
+  }
+
+  @override
+  String rvFileCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count файлу',
+      many: '$count файлів',
+      few: '$count файли',
+      one: '$count файл',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String rvViewedCount(int viewed, int total) {
+    return 'переглянуто $viewed з $total';
+  }
+
+  @override
+  String get rvViewed => 'Переглянуто';
+
+  @override
+  String rvCommits(int count) {
+    return 'КОМІТИ ($count)';
+  }
+
+  @override
+  String rvCommitsTruncated(int count) {
+    return 'Показано $count найновіших';
+  }
+
+  @override
+  String get rvNoCommits => 'У гілці змін немає комітів, яких бракує базі';
+
+  @override
+  String get rvFiles => 'ФАЙЛИ';
+
+  @override
+  String rvNoMergeBase(String base, String head) {
+    return '$base і $head не мають спільної історії, тож точки розгалуження немає. Режим «Між вершинами» все одно покаже відмінності.';
+  }
+
+  @override
+  String get rvUseTwoDot => 'Показати між вершинами';
+
+  @override
+  String get rvNoChanges => 'Змін у файлах немає';
+
+  @override
+  String get rvCouldNotRead => 'Не вдалося прочитати перегляд';
+
+  @override
+  String get rvCouldNotReadFile => 'Не вдалося прочитати зміни цього файлу';
+
+  @override
+  String get rvCollapseAll => 'Згорнути все';
+
+  @override
+  String get rvExpandAll => 'Розгорнути все';
+
+  @override
+  String rvLargeDiff(int count) {
+    return 'Великий diff ($count рядків). Розгорніть, щоб показати.';
+  }
+
+  @override
+  String get rvBinary =>
+      'Двійковий або LFS-файл. Відкрийте його в переглядачі змін, щоб порівняти.';
+
+  @override
+  String get rvNoContentChange => 'Перейменовано без змін вмісту';
+
+  @override
+  String get rvOpenInDiff => 'Відкрити в переглядачі змін';
+
+  @override
+  String get rvFileHistoryAtHead => 'Історія файлу в гілці змін';
+
+  @override
+  String get rvBlameAtHead => 'Авторство в гілці змін';
+
+  @override
+  String get rvExport => 'Експорт patch-файлів';
+
+  @override
+  String get rvSavePatches => 'Зберегти як patch-файли…';
+
+  @override
+  String get rvCopyPatch => 'Копіювати як patch';
+
+  @override
+  String rvPatchesSaved(int count, String dir) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Збережено $count patch-файлу у $dir',
+      many: 'Збережено $count patch-файлів у $dir',
+      few: 'Збережено $count patch-файли у $dir',
+      one: 'Збережено $count patch-файл у $dir',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get rvPatchCopied => 'Patch скопійовано';
+
+  @override
+  String get rvExportFailed => 'Не вдалося експортувати patch-файли';
+
+  @override
+  String get rvOpenPr => 'Відкрити пул-реквест';
+
+  @override
+  String get rvOpenMr => 'Відкрити мерж-реквест';
+
+  @override
+  String get rvKindBranch => 'гілка';
+
+  @override
+  String get rvKindRemote => 'віддалена';
+
+  @override
+  String get rvKindTag => 'тег';
+
+  @override
+  String get rvKindWorktree => 'робоче дерево';
+
+  @override
+  String get rvReviewAgainstCurrent => 'Переглянути відносно поточної';
+
+  @override
+  String get rvPaletteReview => 'Перегляд гілок…';
+
+  @override
+  String rvNoOpenPr(String branch) {
+    return 'Немає єдиного відкритого пул-реквесту для $branch';
+  }
+
+  @override
+  String rvNoOpenMr(String branch) {
+    return 'Немає єдиного відкритого мерж-реквесту для $branch';
+  }
+
+  @override
+  String get rvPrLookupFailed => 'Не вдалося знайти пул-реквест';
+
+  @override
+  String get rvMrLookupFailed => 'Не вдалося знайти мерж-реквест';
 }

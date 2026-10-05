@@ -8,6 +8,7 @@ import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/state/compare_target.dart';
 import 'package:mergelio/state/diff_target.dart';
 import 'package:mergelio/state/lfs.dart';
+import 'package:mergelio/state/review.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
 import 'package:mergelio/ui/workspace/compare_details.dart';
@@ -149,5 +150,21 @@ void main() {
     expect(q.source.rev, 'feature');
     expect(q.source.parentRev, 'main');
     expect(q.paths, ['lib/a.dart', 'lib/b.dart']);
+  });
+
+  testWidgets('open review hands the pair over, tip to tip', (tester) async {
+    final c = await _pump(tester);
+    await tester.tap(find.byTooltip('Open review'));
+    await tester.pump();
+    expect(
+      c.read(reviewTargetProvider),
+      const ReviewTarget(
+        repoPath: '/repo',
+        base: 'main',
+        head: 'feature',
+        threeDot: false,
+      ),
+    );
+    expect(c.read(compareTargetProvider), isNull);
   });
 }

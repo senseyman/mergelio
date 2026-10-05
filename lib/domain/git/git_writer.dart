@@ -1159,4 +1159,32 @@ class GitWriter {
     if (!r.ok) throw GitException('git worktree prune', r);
     return r.stderr;
   }
+
+  /// The commits [head] has over [base] as one mbox of patches, oldest first —
+  /// what `git am` takes back in. Leaves the repository untouched.
+  Future<String> formatPatch(String base, String head) async {
+    final r = await _run([
+      'format-patch',
+      '--stdout',
+      '--no-color',
+      '$base..$head',
+    ]);
+    if (!r.ok) throw GitException('git format-patch failed', r);
+    return r.stdout;
+  }
+
+  /// [formatPatch], written as one numbered file per commit into [dir].
+  /// Returns the paths git wrote, in order.
+  Future<List<String>> formatPatchToDir(
+    String base,
+    String head,
+    String dir,
+  ) async {
+    final r = await _run(['format-patch', '-o', dir, '$base..$head']);
+    if (!r.ok) throw GitException('git format-patch failed', r);
+    return [
+      for (final line in const LineSplitter().convert(r.stdout))
+        if (line.trim().isNotEmpty) line.trim(),
+    ];
+  }
 }

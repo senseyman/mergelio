@@ -2069,5 +2069,178 @@
   "ropKeepIndex": "Keep staged changes in place",
   "ropIncludeUntracked": "Include untracked files",
   "ropStashFiles": "Files to stash",
-  "ropNothingToStash": "Nothing to stash"
+  "ropNothingToStash": "Nothing to stash",
+  "rvTitle": "REVIEW",
+  "rvPickTitle": "Review branches",
+  "rvBase": "Base",
+  "rvHead": "Head",
+  "rvSideHint": "Branch, tag, remote branch or commit",
+  "rvWorktreeNote": "A worktree is read at its last commit; its uncommitted edits are not part of the review.",
+  "rvNotACommit": "\"{ref}\" is not a commit in this repository",
+  "@rvNotACommit": {
+    "placeholders": {
+      "ref": {
+        "type": "String"
+      }
+    }
+  },
+  "rvOpen": "Open review",
+  "rvSwap": "Swap base and head",
+  "rvModeThreeDot": "Since branch point",
+  "rvModeTwoDot": "Tip to tip",
+  "rvThreeDotCaption": "{range}: what {head} changed since it branched from {base}, as a pull request shows it.",
+  "@rvThreeDotCaption": {
+    "placeholders": {
+      "range": {
+        "type": "String"
+      },
+      "head": {
+        "type": "String"
+      },
+      "base": {
+        "type": "String"
+      }
+    }
+  },
+  "rvTwoDotCaption": "{range}: every difference between the tips of {base} and {head}, including changes made only on {base}.",
+  "@rvTwoDotCaption": {
+    "placeholders": {
+      "range": {
+        "type": "String"
+      },
+      "base": {
+        "type": "String"
+      },
+      "head": {
+        "type": "String"
+      }
+    }
+  },
+  "rvAheadBehind": "{head} is {ahead} ahead, {behind} behind {base}",
+  "@rvAheadBehind": {
+    "placeholders": {
+      "head": {
+        "type": "String"
+      },
+      "ahead": {
+        "type": "int"
+      },
+      "behind": {
+        "type": "int"
+      },
+      "base": {
+        "type": "String"
+      }
+    }
+  },
+  "rvFileCount": "{count, plural, =1{1 file} other{{count} files}}",
+  "@rvFileCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "rvViewedCount": "{viewed} of {total} viewed",
+  "@rvViewedCount": {
+    "placeholders": {
+      "viewed": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "rvViewed": "Viewed",
+  "rvCommits": "COMMITS ({count})",
+  "@rvCommits": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "rvCommitsTruncated": "Showing the newest {count}",
+  "@rvCommitsTruncated": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "rvNoCommits": "Head has no commits that base lacks",
+  "rvFiles": "FILES",
+  "rvNoMergeBase": "{base} and {head} share no history, so there is no branch point to read from. Tip to tip still shows how they differ.",
+  "@rvNoMergeBase": {
+    "placeholders": {
+      "base": {
+        "type": "String"
+      },
+      "head": {
+        "type": "String"
+      }
+    }
+  },
+  "rvUseTwoDot": "Show tip to tip",
+  "rvNoChanges": "No file changes",
+  "rvCouldNotRead": "Could not read the review",
+  "rvCouldNotReadFile": "Could not read this file's diff",
+  "rvCollapseAll": "Collapse all",
+  "rvExpandAll": "Expand all",
+  "rvLargeDiff": "Large diff ({count} lines). Expand to show it.",
+  "@rvLargeDiff": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "rvBinary": "Binary or LFS file. Open it in the diff viewer to compare.",
+  "rvNoContentChange": "Renamed without content changes",
+  "rvOpenInDiff": "Open in diff viewer",
+  "rvFileHistoryAtHead": "File history at head",
+  "rvBlameAtHead": "Blame at head",
+  "rvExport": "Export patches",
+  "rvSavePatches": "Save as patch files…",
+  "rvCopyPatch": "Copy as patch",
+  "rvPatchesSaved": "{count, plural, =1{Saved 1 patch to {dir}} other{Saved {count} patches to {dir}}}",
+  "@rvPatchesSaved": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "dir": {
+        "type": "String"
+      }
+    }
+  },
+  "rvPatchCopied": "Patch copied",
+  "rvExportFailed": "Could not export patches",
+  "rvOpenPr": "Open pull request",
+  "rvOpenMr": "Open merge request",
+  "rvKindBranch": "branch",
+  "rvKindRemote": "remote",
+  "rvKindTag": "tag",
+  "rvKindWorktree": "worktree",
+  "rvReviewAgainstCurrent": "Review against current",
+  "rvPaletteReview": "Review branches…",
+  "rvNoOpenPr": "No single open pull request for {branch}",
+  "@rvNoOpenPr": {
+    "placeholders": {
+      "branch": {
+        "type": "String"
+      }
+    }
+  },
+  "rvNoOpenMr": "No single open merge request for {branch}",
+  "@rvNoOpenMr": {
+    "placeholders": {
+      "branch": {
+        "type": "String"
+      }
+    }
+  },
+  "rvPrLookupFailed": "Could not look up the pull request",
+  "rvMrLookupFailed": "Could not look up the merge request"
 }

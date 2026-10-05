@@ -1,5 +1,6 @@
 import 'lfs.dart';
 import 'models.dart';
+import 'quoted_path.dart';
 
 enum DiffLineType { context, add, del }
 
@@ -479,7 +480,18 @@ List<FileDiff> parseUnifiedDiff(String raw) {
       flushFile();
       // diff --git a/<old> b/<new>
       final m = RegExp(r'^diff --git a/(.+) b/(.+)$').firstMatch(line);
-      if (m != null) {
+      // A name git had to quote is quoted on both sides; a binary file has no
+      // ---/+++ lines to fall back on, so this header is all there is.
+      final q = RegExp(r'^diff --git ("a/.+") ("b/.+")$').firstMatch(line);
+      if (q != null) {
+        path = _headerPath(q.group(2)!);
+        oldPath = _headerPath(q.group(1)!);
+      } else if (_sameSides(line.substring('diff --git '.length))
+          case final same?) {
+        // Unrenamed, both halves are one name, which may itself hold " b/";
+        // splitting on the regex would cut it in the wrong place.
+        path = oldPath = same;
+      } else if (m != null) {
         path = m.group(2);
         oldPath = m.group(1);
       }
@@ -556,12 +568,12 @@ List<FileDiff> parseUnifiedDiff(String raw) {
     }
     if (line.startsWith('rename from ')) {
       status = GitChange.renamed;
-      fromPath = line.substring('rename from '.length);
+      fromPath = unquoteGitPath(line.substring('rename from '.length));
       continue;
     }
     if (line.startsWith('rename to ')) {
       status = GitChange.renamed;
-      toPath = line.substring('rename to '.length);
+      toPath = unquoteGitPath(line.substring('rename to '.length));
       continue;
     }
     if (line.startsWith('Binary files')) {
@@ -570,11 +582,31 @@ List<FileDiff> parseUnifiedDiff(String raw) {
     }
     if (line.startsWith('+++ ')) {
       final p = line.substring(4);
-      if (p != '/dev/null') toPath = p.startsWith('b/') ? p.substring(2) : p;
+      if (p != '/dev/null') toPath = _headerPath(p);
       continue;
     }
     // '--- ' (old-file header), 'index …' and other preamble lines are ignored.
   }
   flushFile();
   return out;
+}
+
+/// A path off a `diff --git`, `---` or `+++` line, as the file is named on
+/// disk. git appends a tab after a name containing a space on the `---`/`+++`
+/// lines, C-quotes a name with special characters, and prefixes the side.
+String _headerPath(String raw) {
+  var p = raw.endsWith('\t') ? raw.substring(0, raw.length - 1) : raw;
+  p = unquoteGitPath(p);
+  return p.startsWith('a/') || p.startsWith('b/') ? p.substring(2) : p;
+}
+
+/// The name in an `a/<name> b/<name>` header whose two halves are the same,
+/// or null when they differ.
+String? _sameSides(String rest) {
+  // "a/" + name + " b/" + name: 2n + 5 characters.
+  if (!rest.startsWith('a/') || (rest.length - 5).isOdd) return null;
+  final n = (rest.length - 5) ~/ 2;
+  if (n <= 0) return null;
+  final left = rest.substring(2, 2 + n);
+  return rest.substring(2 + n) == ' b/$left' ? left : null;
 }
