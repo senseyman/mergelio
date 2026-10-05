@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/core/tokens.dart';
+import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/domain/git/hooks.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
+import 'package:mergelio/state/file_editor.dart';
 import 'package:mergelio/state/hooks.dart';
+import 'package:mergelio/state/settings.dart';
+import 'package:mergelio/state/settings_controller.dart';
 import 'package:mergelio/ui/workspace/hooks_panel.dart';
 
 class _FakeHookActions implements HookActions {
@@ -40,13 +45,33 @@ Widget _harness(HookInventory inv, _FakeHookActions actions) => ProviderScope(
   overrides: [
     hookInventoryProvider.overrideWith((ref, path) async => inv),
     hookActionsProvider.overrideWith((ref, path) => actions),
+    // The real one reads the hook file from disk.
+    editableFileForPathProvider.overrideWith(
+      (ref, key) async => const EditableFile(text: '#!/bin/sh\nexit 0\n'),
+    ),
+    settingsProvider.overrideWith(
+      (ref) =>
+          SettingsController(InMemorySettingsRepository(), const AppSettings()),
+    ),
   ],
   child: MaterialApp(
     localizationsDelegates: AppLocalizations.localizationsDelegates,
     supportedLocales: AppLocalizations.supportedLocales,
     theme: ThemeData(extensions: [AppTokens.dark()]),
-    home: const Scaffold(
-      body: SingleChildScrollView(child: HooksPanel(repoPath: '/r')),
+    home: Scaffold(
+      body: Builder(
+        builder: (context) => Column(
+          children: [
+            TextButton(
+              onPressed: () => showHooksPanel(context, '/r'),
+              child: const Text('open'),
+            ),
+            const Expanded(
+              child: SingleChildScrollView(child: HooksPanel(repoPath: '/r')),
+            ),
+          ],
+        ),
+      ),
     ),
   ),
 );
@@ -127,5 +152,60 @@ void main() {
     expect(find.text('Set by core.hooksPath: .husky/_'), findsOneWidget);
     expect(find.textContaining('Managed by husky'), findsOneWidget);
     expect(find.text('No hooks in this repository.'), findsOneWidget);
+  });
+
+  testWidgets('closing the hook editor with unsaved text asks first', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final actions = _FakeHookActions();
+    await tester.pumpWidget(_harness(_inv, actions));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Edit').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Edit the pre-commit hook'), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const ValueKey('editor:body')),
+      '#!/bin/sh\nexit 1\n',
+    );
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.text('Discard edits?'), findsOneWidget);
+
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(find.text('Edit the pre-commit hook'), findsOneWidget);
+    expect(actions.calls, isEmpty);
+
+    // The title bar's close button goes through the same check.
+    await tester.tap(
+      find.descendant(
+        of: find.byType(Dialog).last,
+        matching: find.byIcon(Icons.close),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Discard edits?'), findsOneWidget);
+    await tester.tap(find.text('Discard'));
+    await tester.pumpAndSettle();
+    expect(find.text('Edit the pre-commit hook'), findsNothing);
+  });
+
+  testWidgets('closing an untouched hook editor just closes', (tester) async {
+    tester.view.physicalSize = const Size(1200, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(_harness(_inv, _FakeHookActions()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Edit').first);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.text('Discard edits?'), findsNothing);
+    expect(find.text('Edit the pre-commit hook'), findsNothing);
   });
 }

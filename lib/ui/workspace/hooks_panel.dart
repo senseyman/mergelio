@@ -8,6 +8,7 @@ import '../../core/tokens.dart';
 import '../../domain/git/hooks.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/hooks.dart';
+import '../common/confirm.dart';
 import '../common/dialogs.dart';
 import '../common/file_text_editor.dart';
 
@@ -206,15 +207,58 @@ Future<void> _showHookEditor(
   title: AppLocalizations.of(context).hkEditorTitle(hook.name),
   icon: Icons.webhook_outlined,
   width: 760,
-  body: Consumer(
-    builder: (context, ref, _) => SizedBox(
+  body: _HookEditor(repoPath: repoPath, dir: dir, name: hook.name),
+);
+
+class _HookEditor extends ConsumerStatefulWidget {
+  final String repoPath;
+  final String dir;
+  final String name;
+  const _HookEditor({
+    required this.repoPath,
+    required this.dir,
+    required this.name,
+  });
+
+  @override
+  ConsumerState<_HookEditor> createState() => _HookEditorState();
+}
+
+class _HookEditorState extends ConsumerState<_HookEditor> {
+  /// Unsaved text holds the dialog open: Escape, the close button and a click
+  /// outside all come through the pop below and ask before throwing it away.
+  bool _dirty = false;
+
+  Future<void> _confirmClose() async {
+    final l = AppLocalizations.of(context);
+    final discard = await confirmDestructive(
+      ref,
+      context,
+      title: l.diffDiscardEditsTitle,
+      body: l.diffDiscardEditsBody(widget.name),
+      confirmLabel: l.discard,
+    );
+    if (!discard || !mounted) return;
+    setState(() => _dirty = false);
+    Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) => PopScope(
+    canPop: !_dirty,
+    onPopInvokedWithResult: (didPop, _) {
+      if (!didPop) _confirmClose();
+    },
+    child: SizedBox(
       height: 460,
       child: FileTextEditor(
-        repoPath: dir,
-        relPath: hook.name,
-        onSave: (name, text) =>
-            ref.read(hookActionsProvider(repoPath)).save(dir, name, text),
-        onCancel: () => Navigator.of(context).pop(),
+        repoPath: widget.dir,
+        relPath: widget.name,
+        onDirtyChanged: (dirty) => setState(() => _dirty = dirty),
+        onSave: (name, text) => ref
+            .read(hookActionsProvider(widget.repoPath))
+            .save(widget.dir, name, text),
+        onCancel: () => Navigator.of(context).maybePop(),
         footerBuilder: (context, controls) => Padding(
           padding: const EdgeInsets.only(top: 10),
           child: Align(
@@ -227,8 +271,8 @@ Future<void> _showHookEditor(
         ),
       ),
     ),
-  ),
-);
+  );
+}
 
 enum _RejectedChoice { manage, skipNext }
 
@@ -254,12 +298,15 @@ Future<void> showHookRejectedDialog(
           child: Text(l.hkManage),
         ),
       ),
-      Builder(
-        builder: (ctx) => TextButton(
-          onPressed: () => Navigator.of(ctx).pop(_RejectedChoice.skipNext),
-          child: Text(l.hkSkipNext),
+      // Offered only where it would work: some hooks run despite
+      // --no-verify, and arming it for one of those just fails again.
+      if (noVerifyHooks.contains(rejection.hook))
+        Builder(
+          builder: (ctx) => TextButton(
+            onPressed: () => Navigator.of(ctx).pop(_RejectedChoice.skipNext),
+            child: Text(l.hkSkipNext),
+          ),
         ),
-      ),
       Builder(
         builder: (ctx) => FilledButton(
           onPressed: () => Navigator.of(ctx).pop(),

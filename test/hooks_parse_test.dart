@@ -118,6 +118,24 @@ void main() {
   group('rejectingHook', () {
     const sid = '20261005T1.1Z-H1-P1';
 
+    test('a top-level session that inherited a parent sid still counts', () {
+      // Launched from inside another git process, the command's own sid
+      // carries that parent's as a prefix.
+      const own = 'outer/$sid';
+      final trace = [
+        _event({'event': 'version', 'sid': own}),
+        _event({
+          'event': 'child_start',
+          'sid': own,
+          'child_id': 0,
+          'child_class': 'hook',
+          'hook_name': 'pre-commit',
+        }),
+        _event({'event': 'child_exit', 'sid': own, 'child_id': 0, 'code': 1}),
+      ].join('\n');
+      expect(rejectingHook(trace), 'pre-commit');
+    });
+
     test('names the hook that exited non-zero', () {
       final trace = [
         _event({'event': 'version', 'sid': sid}),
@@ -226,5 +244,9 @@ void main() {
         expect(() => hookFilePath('/r/.git/hooks', bad), throwsArgumentError);
       }
     });
+  });
+
+  test('only the hooks --no-verify really skips are offered as skippable', () {
+    expect(noVerifyHooks, {'pre-commit', 'commit-msg', 'pre-merge-commit'});
   });
 }

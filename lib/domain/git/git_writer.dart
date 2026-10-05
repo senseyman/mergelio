@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math';
 
 import 'package:path/path.dart' as p;
 
@@ -9,14 +8,6 @@ import 'commit_message.dart';
 import 'git_service.dart';
 import 'hooks.dart';
 import 'stash.dart';
-
-String _randomHex(int bytes) {
-  final rnd = Random.secure();
-  return [
-    for (var i = 0; i < bytes; i++)
-      rnd.nextInt(256).toRadixString(16).padLeft(2, '0'),
-  ].join();
-}
 
 /// The flag [shell] wants in front of a command string.
 ///
@@ -1007,7 +998,7 @@ class GitWriter {
   /// signature (requires the repo to be configured for it). [description] and
   /// [coauthors] are appended to the message body. [authorName]/[authorEmail],
   /// when given, set the commit identity for this commit (the active profile).
-  /// [noVerify] skips the pre-commit and commit-msg hooks.
+  /// [noVerify] skips the hooks listed in [noVerifyHooks].
   ///
   /// When a hook refuses the commit, throws [HookRejectedException] naming it.
   /// Git prints nothing of its own in that case — the transcript is the hook's
@@ -1032,15 +1023,12 @@ class GitWriter {
         body.write('\nCo-authored-by: $c');
       }
     }
-    // Git creates the trace file itself, so nothing touches the disk before
-    // the commit starts. The random name keeps it unguessable in a shared
-    // temp directory.
-    final trace = File(
-      p.join(
-        Directory.systemTemp.path,
-        'mergelio_trace2_${_randomHex(16)}.json',
-      ),
-    );
+    // The trace carries the whole command line, message included, so it goes
+    // in a directory only this user can read — /tmp is shared on Linux.
+    // Created synchronously: the commit must not wait on the event loop
+    // before git starts.
+    final dir = Directory.systemTemp.createTempSync('mergelio_commit_');
+    final trace = File(p.join(dir.path, 'trace2.json'));
     try {
       final r = await _run(
         [
@@ -1068,7 +1056,7 @@ class GitWriter {
       throw GitException('git commit', r);
     } finally {
       try {
-        if (await trace.exists()) await trace.delete();
+        dir.deleteSync(recursive: true);
       } on FileSystemException {
         // Best-effort: a leaked temp file is not worth failing the op over.
       }

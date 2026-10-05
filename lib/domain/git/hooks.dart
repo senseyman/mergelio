@@ -39,8 +39,10 @@ const gitHookNames = {
   'post-index-change',
 };
 
-/// The hooks a plain `git commit` runs that `--no-verify` skips.
-const noVerifyHooks = {'pre-commit', 'commit-msg'};
+/// The commit hooks `--no-verify` skips. prepare-commit-msg and
+/// reference-transaction still run with it, so skipping cannot get a commit
+/// past them.
+const noVerifyHooks = {'pre-commit', 'commit-msg', 'pre-merge-commit'};
 
 const _sampleSuffix = '.sample';
 
@@ -148,7 +150,9 @@ HookManager? detectHookManager({
 ///
 /// Only the command's own session counts: a hook that runs git itself
 /// appends that child's events to the same file under a nested session id,
-/// and a failure in there is not the hook's verdict.
+/// and a failure in there is not the hook's verdict. The command writes the
+/// first event, and its own sid may already be nested when it was started
+/// from inside another git process, so the first sid seen is the one kept.
 String? rejectingHook(String trace2Events) {
   String? session;
   final started = <Object?, String>{};
@@ -162,8 +166,7 @@ String? rejectingHook(String trace2Events) {
     if (decoded is! Map<String, Object?>) continue;
     final sid = decoded['sid'];
     if (sid is! String) continue;
-    // The top-level session is the one without a parent prefix.
-    session ??= sid.contains('/') ? null : sid;
+    session ??= sid;
     if (sid != session) continue;
     switch (decoded['event']) {
       case 'child_start' when decoded['child_class'] == 'hook':

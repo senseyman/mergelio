@@ -188,4 +188,29 @@ void main() {
     expect(actions.calls, hasLength(1));
     expect(find.text('Next commit skips hooks (--no-verify)'), findsOneWidget);
   });
+
+  testWidgets('a hook --no-verify cannot skip is not offered as skippable', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final actions = _FakeActions()
+      ..next = CommitOutcome(
+        rejection: HookRejectedException(
+          'prepare-commit-msg',
+          const GitResult(1, '', 'no ticket'),
+        ),
+      );
+    await tester.pumpWidget(_harness(actions));
+    await tester.enterText(_summary, 'msg');
+    await tester.tap(find.text('Commit'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('The prepare-commit-msg hook rejected the commit'),
+      findsOneWidget,
+    );
+    expect(find.text('Skip hooks for next commit'), findsNothing);
+    expect(find.text('Manage hooks…'), findsOneWidget);
+  });
 }

@@ -50,7 +50,9 @@ Future<T?> showAppModal<T>({
                     IconButton(
                       icon: const Icon(Icons.close, size: 18),
                       color: t.textMuted,
-                      onPressed: () => Navigator.of(ctx).pop(),
+                      // maybePop, so a body holding unsaved work can ask
+                      // first, the way Escape and the barrier already do.
+                      onPressed: () => Navigator.of(ctx).maybePop(),
                     ),
                   ],
                 ),

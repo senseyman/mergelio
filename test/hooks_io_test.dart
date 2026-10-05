@@ -5,6 +5,7 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:mergelio/data/kv_store.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
@@ -44,6 +45,38 @@ class _HermeticGit implements GitService {
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// Notes the permissions of the directory each commit's trace is written to,
+/// while git is still running and the file is still there.
+class _TraceDirSpy extends _HermeticGit {
+  final modes = <int>[];
+  final dirs = <String>[];
+
+  @override
+  Future<GitResult> run(
+    List<String> args, {
+    String? repoPath,
+    Duration? timeout,
+    Map<String, String>? environment,
+    GitCancel? cancel,
+    String? stdin,
+  }) {
+    final trace = environment?['GIT_TRACE2_EVENT'];
+    if (trace != null) {
+      final parent = File(trace).parent;
+      dirs.add(parent.path);
+      modes.add(parent.statSync().mode & 0x1ff);
+    }
+    return super.run(
+      args,
+      repoPath: repoPath,
+      timeout: timeout,
+      environment: environment,
+      cancel: cancel,
+      stdin: stdin,
+    );
+  }
 }
 
 void main() {
@@ -240,6 +273,24 @@ void main() {
         ),
       );
     });
+
+    test(
+      'the trace, which holds the message, is private to the user',
+      () async {
+        final spy = _TraceDirSpy();
+        await GitWriter(spy, dir.path).commit('msg');
+        expect(spy.modes, hasLength(1));
+        expect(spy.modes.single & 0x3f, 0, reason: 'no group/other access');
+        // macOS gives each user a private temp dir already; /tmp on Linux is
+        // shared, so the trace needs a directory of its own on every host.
+        expect(p.equals(spy.dirs.single, Directory.systemTemp.path), isFalse);
+        expect(
+          Directory(spy.dirs.single).existsSync(),
+          isFalse,
+          reason: 'removed after the commit',
+        );
+      },
+    );
 
     test('noVerify skips the hooks', () async {
       await hook('pre-commit', 'exit 1');
