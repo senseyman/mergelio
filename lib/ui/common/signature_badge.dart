@@ -142,7 +142,12 @@ class _Details extends StatelessWidget {
       allowedSignersFile: allowedSignersFile,
     )) {
       SignatureHint.none => null,
-      SignatureHint.sshNoAllowedSigners => l.sigHintNoAllowedSigners,
+      // Refused outright (git's default) checks nothing; an empty setting
+      // still checks the key, just cannot name its owner.
+      SignatureHint.sshNoAllowedSigners =>
+        sshSignersUnconfigured(v.detail)
+            ? l.sigHintSshUnconfigured
+            : l.sigHintNoAllowedSigners,
       SignatureHint.sshKeyNotAllowed => l.sigHintKeyNotAllowed(
         allowedSignersFile ?? '',
       ),

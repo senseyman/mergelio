@@ -1310,5 +1310,6 @@
   "sigAuditFailed": "Не вдалося перевірити підписи",
   "sigHintSignersUnreadable": "Не вдалося відкрити файл дозволених підписантів ({path}), тож git не може назвати підписанта.",
   "sigHintVerifierMissing": "git не зміг запустити {program}, тож нічого не перевірено. Встановіть його або вкажіть шлях для git (gpg.program, gpg.ssh.program).",
-  "sigMoreTags": "{count, plural, one{Перевірити ще {count} тег} few{Перевірити ще {count} теги} other{Перевірити ще {count} тегів}}"
+  "sigMoreTags": "{count, plural, one{Перевірити ще {count} тег} few{Перевірити ще {count} теги} other{Перевірити ще {count} тегів}}",
+  "sigHintSshUnconfigured": "git перевіряє SSH-підписи лише тоді, коли gpg.ssh.allowedSignersFile вказує на файл дозволених підписантів. Задайте його, щоб перевіряти коміти з SSH-підписом."
 }

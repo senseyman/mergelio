@@ -160,11 +160,23 @@ String? missingVerifier(String stderr) {
   return m == null ? null : (m.group(1) ?? m.group(2))!.trim();
 }
 
-/// [verdict] corrected by git's [stderr]. Without its verifier git still
-/// prints a letter — `B` for SSH, `N` for GPG — that says nothing about the
-/// signature itself.
+/// Whether git refused to verify an SSH signature because
+/// `gpg.ssh.allowedSignersFile` is not configured. That is git's default, and
+/// git then prints `N` as if the commit carried no signature at all.
+bool sshSignersUnconfigured(String stderr) =>
+    stderr.contains('gpg.ssh.allowedSignersFile needs to be configured');
+
+/// Whether git's [stderr] says its `%G?` letter is not a verdict on the
+/// signature: the verifier could not start, or SSH verification was refused.
+bool verifierFailed(String stderr) =>
+    missingVerifier(stderr) != null || sshSignersUnconfigured(stderr);
+
+/// [verdict] corrected by git's [stderr]. When verification never ran git
+/// still prints a letter — `B` for a missing ssh-keygen, `N` for a missing
+/// gpg or an SSH signature with no allowed signers file — that says nothing
+/// about the signature itself.
 SignatureVerdict withVerifierErrors(SignatureVerdict verdict, String stderr) {
-  if (missingVerifier(stderr) == null) return verdict;
+  if (!verifierFailed(stderr)) return verdict;
   return SignatureVerdict(
     state: SignatureState.unverifiable,
     detail: stderr.trim(),
@@ -202,7 +214,7 @@ SignatureVerdict parseTagVerification(String stderr) {
 }
 
 SignatureVerdict _parseTagVerification(String stderr) {
-  if (missingVerifier(stderr) != null) {
+  if (verifierFailed(stderr)) {
     return const SignatureVerdict(state: SignatureState.unverifiable);
   }
   if (stderr.contains('[GNUPG:]')) return _parseGpgStatus(stderr);
@@ -289,6 +301,9 @@ SignatureHint signatureHint(
 }) {
   if (missingVerifier(verdict.detail) != null) {
     return SignatureHint.verifierMissing;
+  }
+  if (sshSignersUnconfigured(verdict.detail)) {
+    return SignatureHint.sshNoAllowedSigners;
   }
   if (verdict.state == SignatureState.unverifiable) {
     return SignatureHint.missingKey;

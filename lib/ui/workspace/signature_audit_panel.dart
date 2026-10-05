@@ -142,6 +142,11 @@ class _Result extends ConsumerWidget {
                 Text(
                   l.sigHintVerifierMissing(program),
                   style: TextStyle(color: t.textMuted, fontSize: 12),
+                )
+              else if (sshSignersUnconfigured(_reason(e)))
+                Text(
+                  l.sigHintSshUnconfigured,
+                  style: TextStyle(color: t.textMuted, fontSize: 12),
                 ),
               Text(
                 _reason(e),

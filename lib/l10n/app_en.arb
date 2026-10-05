@@ -2286,5 +2286,6 @@
   "sigHintVerifierMissing": "git could not start {program}, so nothing was checked. Install it or point git at it (gpg.program, gpg.ssh.program).",
   "@sigHintVerifierMissing": {"placeholders": {"program": {"type": "String"}}},
   "sigMoreTags": "{count, plural, one{Verify 1 more tag} other{Verify {count} more tags}}",
-  "@sigMoreTags": {"placeholders": {"count": {"type": "int"}}}
+  "@sigMoreTags": {"placeholders": {"count": {"type": "int"}}},
+  "sigHintSshUnconfigured": "git verifies SSH signatures only when gpg.ssh.allowedSignersFile points at an allowed signers file. Set it to check SSH-signed commits."
 }

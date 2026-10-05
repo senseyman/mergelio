@@ -3639,4 +3639,8 @@ class AppLocalizationsUk extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get sigHintSshUnconfigured =>
+      'git перевіряє SSH-підписи лише тоді, коли gpg.ssh.allowedSignersFile вказує на файл дозволених підписантів. Задайте його, щоб перевіряти коміти з SSH-підписом.';
 }

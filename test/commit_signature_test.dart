@@ -231,6 +231,28 @@ void main() {
     final git = _CapturingGit('', 'fatal: bad object nope', 128);
     expect(await GitReader(git, '/repo').commit('nope'), isNull);
   });
+
+  test('signatureVerdict does not read an unverifiable SSH signature as '
+      'unsigned', () async {
+    final git = _CapturingGit(
+      'N\x1f\x1f\x1f\x1f\x1fundefined\x1f',
+      'error: gpg.ssh.allowedSignersFile needs to be configured and exist for ssh signature verification',
+    );
+    final v = await GitReader(git, '/repo').signatureVerdict('abc123');
+    expect(v.state, SignatureState.unverifiable);
+  });
+
+  test('signatureAudit fails rather than list SSH-signed commits as '
+      'unsigned', () async {
+    final git = _CapturingGit(
+      'a1\x1fN\x1f\x1f\x1f\x1f\x1fundefined\x1fAnn\x1fs\x00',
+      'error: gpg.ssh.allowedSignersFile needs to be configured and exist for ssh signature verification',
+    );
+    await expectLater(
+      GitReader(git, '/repo').signatureAudit('main'),
+      throwsA(isA<GitException>()),
+    );
+  });
 }
 
 /// A git that never finishes on its own: it waits until its cancel handle

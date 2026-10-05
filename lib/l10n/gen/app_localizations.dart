@@ -6061,6 +6061,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, one{Verify 1 more tag} other{Verify {count} more tags}}'**
   String sigMoreTags(int count);
+
+  /// No description provided for @sigHintSshUnconfigured.
+  ///
+  /// In en, this message translates to:
+  /// **'git verifies SSH signatures only when gpg.ssh.allowedSignersFile points at an allowed signers file. Set it to check SSH-signed commits.'**
+  String get sigHintSshUnconfigured;
 }
 
 class _AppLocalizationsDelegate

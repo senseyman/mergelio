@@ -214,4 +214,30 @@ void main() {
     expect(find.textContaining('git could not start gpg'), findsOneWidget);
     expect(find.textContaining('gpg.program'), findsOneWidget);
   });
+
+  testWidgets('no allowed signers file says what to configure', (tester) async {
+    await pump(
+      tester,
+      audit: (_) async => throw GitException(
+        'SSH signatures cannot be verified',
+        const GitResult(
+          0,
+          '',
+          'error: gpg.ssh.allowedSignersFile needs to be configured and exist for ssh signature verification',
+        ),
+      ),
+    );
+    expect(find.text('Could not check signatures'), findsOneWidget);
+    expect(
+      find.text(
+        'The signature matches the key, but git names an SSH signer only when '
+        'gpg.ssh.allowedSignersFile is set.',
+      ),
+      findsNothing,
+    );
+    expect(
+      find.textContaining('git verifies SSH signatures only'),
+      findsOneWidget,
+    );
+  });
 }

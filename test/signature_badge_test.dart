@@ -276,4 +276,26 @@ void main() {
     );
     expect(find.text('Bob'), findsNothing);
   });
+
+  testWidgets('an SSH signature git refused to check never claims it matched', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      const SignatureVerdict(
+        state: SignatureState.unverifiable,
+        detail:
+            'error: gpg.ssh.allowedSignersFile needs to be configured and '
+            'exist for ssh signature verification',
+      ),
+    );
+    expect(find.text('Not signed'), findsNothing);
+    await tester.tap(find.text('Cannot verify signature'));
+    await tester.pump();
+    expect(
+      find.textContaining('git verifies SSH signatures only'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('matches the key'), findsNothing);
+  });
 }

@@ -861,10 +861,11 @@ class GitReader {
       cancel: cancel,
     );
     if (!r.ok) throw GitException('git log signature audit failed', r);
-    // Without its verifier git still prints a letter per commit, and every
-    // one of them is wrong; better no list than that list.
-    if (missingVerifier(r.err) != null) {
-      throw GitException('signature verifier could not start', r);
+    // When verification never ran git still prints a letter per commit —
+    // SSH-signed ones as unsigned — and every one is wrong; better no list
+    // than that list.
+    if (verifierFailed(r.err)) {
+      throw GitException('signatures could not be verified', r);
     }
     return parseSignatureAudit(r.stdout, limit: limit);
   }

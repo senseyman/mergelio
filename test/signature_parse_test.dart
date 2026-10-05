@@ -482,4 +482,50 @@ void main() {
       ]);
     });
   });
+
+  group('SSH verification with no allowed signers configured', () {
+    // git's default: it refuses to verify an SSH signature at all, prints
+    // `N` as if the commit were unsigned, and says why only on stderr.
+    const unconfigured =
+        'error: gpg.ssh.allowedSignersFile needs to be configured and exist for ssh signature verification\n';
+
+    test('is recognised in stderr', () {
+      expect(sshSignersUnconfigured(unconfigured), isTrue);
+      expect(sshSignersUnconfigured(''), isFalse);
+      expect(
+        sshSignersUnconfigured('Unable to open allowed keys file "/x"'),
+        isFalse,
+      );
+    });
+
+    test('turns git\'s N into unverifiable, never unsigned', () {
+      final v = withVerifierErrors(SignatureVerdict.unsigned, unconfigured);
+      expect(v.state, SignatureState.unverifiable);
+      expect(v.detail, contains('allowedSignersFile'));
+    });
+
+    test('a tag reads unverifiable', () {
+      expect(
+        parseTagVerification(unconfigured).state,
+        SignatureState.unverifiable,
+      );
+    });
+
+    test('the hint asks for an allowed signers file', () {
+      expect(
+        signatureHint(
+          withVerifierErrors(SignatureVerdict.unsigned, unconfigured),
+          allowedSignersFile: null,
+        ),
+        SignatureHint.sshNoAllowedSigners,
+      );
+      expect(
+        signatureHint(
+          parseTagVerification(unconfigured),
+          allowedSignersFile: null,
+        ),
+        SignatureHint.sshNoAllowedSigners,
+      );
+    });
+  });
 }

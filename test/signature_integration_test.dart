@@ -10,8 +10,13 @@ import 'package:mergelio/domain/git/signature.dart';
 /// repository and read them back through [GitReader]. The parser tests feed
 /// hand-written strings; this checks them against what git and ssh-keygen
 /// actually print. SSH rather than GPG because it needs no agent or keyring.
+///
+/// git runs with the developer's global and system config switched off: a
+/// global `gpg.ssh.allowedSignersFile`, even an empty one, changes what git
+/// prints for every SSH signature (this file once passed on a laptop and
+/// failed on CI for exactly that reason).
 void main() {
-  const svc = SystemGitService();
+  const svc = _HermeticGit();
   // `ssh-keygen -?` exits non-zero with usage; only a missing binary throws.
   bool probe() {
     // Any failure to probe means skip, never a broken file.
@@ -77,17 +82,52 @@ void main() {
 
   GitReader reader() => GitReader(svc, repo);
 
-  test('without allowed signers an SSH signature is untrusted', () async {
-    final v = await reader().signatureVerdict('HEAD~1');
-    expect(v.state, SignatureState.untrusted);
-    expect(v.signer, isEmpty);
-    expect(v.isSsh, isTrue);
+  Future<void> allowKey() async {
+    await File(allowed).writeAsString('t@example.com $pubKey\n');
+    await g(repo, ['config', 'gpg.ssh.allowedSignersFile', allowed]);
+  }
+
+  test('git\'s default refuses SSH verification; that is never '
+      '"unsigned"', () async {
+    // No allowed signers file configured: git prints N and explains only on
+    // stderr.
     expect(await reader().allowedSignersFile(), isNull);
+    final v = await reader().signatureVerdict('HEAD~1');
+    expect(v.state, SignatureState.unverifiable);
+    expect(sshSignersUnconfigured(v.detail), isTrue);
     expect(
       signatureHint(v, allowedSignersFile: null),
       SignatureHint.sshNoAllowedSigners,
     );
+
+    final tag = await reader().verifyTag('v1');
+    expect(tag.state, SignatureState.unverifiable);
+    expect(
+      signatureHint(tag, allowedSignersFile: null),
+      SignatureHint.sshNoAllowedSigners,
+    );
+
+    await expectLater(
+      reader().signatureAudit('base'),
+      throwsA(isA<GitException>()),
+    );
   }, skip: !hasSshKeygen);
+
+  test(
+    'an empty allowed signers setting checks the key but names no one',
+    () async {
+      await g(repo, ['config', 'gpg.ssh.allowedSignersFile', '']);
+      final v = await reader().signatureVerdict('HEAD~1');
+      expect(v.state, SignatureState.untrusted);
+      expect(v.signer, isEmpty);
+      expect(v.isSsh, isTrue);
+      expect(
+        signatureHint(v, allowedSignersFile: null),
+        SignatureHint.sshNoAllowedSigners,
+      );
+    },
+    skip: !hasSshKeygen,
+  );
 
   test('a listed key verifies and names its principal', () async {
     await File(allowed).writeAsString('t@example.com $pubKey\n');
@@ -106,6 +146,7 @@ void main() {
   }, skip: !hasSshKeygen);
 
   test('a tampered commit is bad', () async {
+    await allowKey();
     final raw = await g(repo, ['cat-file', 'commit', 'HEAD~1']);
     final forged = await svc.run(
       ['hash-object', '-t', 'commit', '-w', '--stdin'],
@@ -126,10 +167,12 @@ void main() {
         {'v1', 'v1-plain'},
       );
 
-      expect((await reader().verifyTag('v1')).state, SignatureState.untrusted);
+      expect(
+        (await reader().verifyTag('v1')).state,
+        SignatureState.unverifiable,
+      );
 
-      await File(allowed).writeAsString('t@example.com $pubKey\n');
-      await g(repo, ['config', 'gpg.ssh.allowedSignersFile', allowed]);
+      await allowKey();
       final v = await reader().verifyTag('v1');
       expect(v.state, SignatureState.good);
       expect(v.signer, 't@example.com');
@@ -163,6 +206,8 @@ void main() {
   }, skip: !hasSshKeygen);
 
   test('a missing ssh-keygen is unverifiable, never bad', () async {
+    // git checks for an allowed signers file before it runs ssh-keygen.
+    await allowKey();
     await g(repo, ['config', 'gpg.ssh.program', 'mergelio-no-such-keygen']);
 
     final v = await reader().signatureVerdict('HEAD~1');
@@ -212,4 +257,39 @@ void main() {
     },
     skip: !hasSshKeygen,
   );
+}
+
+/// [SystemGitService] with global and system git config ignored, so the
+/// developer's own signing setup cannot change what these tests observe.
+class _HermeticGit implements GitService {
+  const _HermeticGit();
+
+  static const _inner = SystemGitService();
+  static const _isolation = {
+    'GIT_CONFIG_GLOBAL': '/dev/null',
+    'GIT_CONFIG_NOSYSTEM': '1',
+  };
+
+  @override
+  Future<GitResult> run(
+    List<String> args, {
+    String? repoPath,
+    Duration? timeout,
+    Map<String, String>? environment,
+    GitCancel? cancel,
+    String? stdin,
+  }) => _inner.run(
+    args,
+    repoPath: repoPath,
+    timeout: timeout,
+    environment: {...?environment, ..._isolation},
+    cancel: cancel,
+    stdin: stdin,
+  );
+
+  @override
+  Future<String> version() => _inner.version();
+
+  @override
+  Future<bool> isRepository(String path) => _inner.isRepository(path);
 }
