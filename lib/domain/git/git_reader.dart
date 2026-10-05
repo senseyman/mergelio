@@ -812,6 +812,7 @@ class GitReader {
       'log',
       '-1',
       '--format=$kSignatureDetailFormat',
+      '--end-of-options',
       sha,
     ]);
     if (!r.ok) throw GitException('git log -1 signature read failed', r);
@@ -837,6 +838,11 @@ class GitReader {
   static const _auditTimeout = Duration(minutes: 5);
 
   /// Verifies every commit in `base..HEAD`, up to [limit] of them.
+  ///
+  /// [cancel] stops git but not a verifier it has already started (see
+  /// [GitCancel.cancel]). git verifies one commit at a time — measured: never
+  /// more than one ssh-keygen alive during a run — so a cancelled check leaves
+  /// at most one verifier finishing its single signature.
   Future<SignatureAudit> signatureAudit(
     String base, {
     int limit = 500,

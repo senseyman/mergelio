@@ -189,8 +189,14 @@ class CommitDetails extends ConsumerWidget {
                   ),
                 if (sig != null && sig.isSigned)
                   _Signature(repoPath: repoPath, verdict: sig),
-                for (final tag in tags)
-                  _TagSignature(repoPath: repoPath, tag: tag),
+                if (tags.isNotEmpty)
+                  _TagSignatures(
+                    // A fresh list per commit, so one commit's "show all"
+                    // does not carry over to the next.
+                    key: ValueKey(c.sha),
+                    repoPath: repoPath,
+                    tags: tags,
+                  ),
                 if (c.coauthor)
                   Padding(
                     padding: const EdgeInsets.only(top: 6),
@@ -339,6 +345,54 @@ class _MsgAction extends StatelessWidget {
   }
 }
 
+/// Tags verified on their own before the user asks for more. Each one costs a
+/// `git verify-tag` and a gpg or ssh-keygen process, and a commit can carry
+/// dozens of tags in a repository that tags every package's release.
+const kMaxVerifiedTags = 5;
+
+/// Signature rows for a commit's tags: the first [kMaxVerifiedTags] verified
+/// straight away, the rest behind one action.
+class _TagSignatures extends StatefulWidget {
+  final String repoPath;
+  final List<String> tags;
+  const _TagSignatures({super.key, required this.repoPath, required this.tags});
+
+  @override
+  State<_TagSignatures> createState() => _TagSignaturesState();
+}
+
+class _TagSignaturesState extends State<_TagSignatures> {
+  bool _all = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final l = AppLocalizations.of(context);
+    final tags = widget.tags;
+    final shown = _all ? tags : tags.take(kMaxVerifiedTags).toList();
+    final rest = tags.length - shown.length;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final tag in shown)
+          _TagSignature(repoPath: widget.repoPath, tag: tag),
+        if (rest > 0)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(4),
+              onTap: () => setState(() => _all = true),
+              child: Text(
+                l.sigMoreTags(rest),
+                style: TextStyle(color: t.accent, fontSize: 12),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 /// A tag's signature row, verified on demand. Nothing while it is checked,
 /// nor for a lightweight or unsigned tag.
 class _TagSignature extends ConsumerWidget {
@@ -358,7 +412,8 @@ class _TagSignature extends ConsumerWidget {
 
 /// One signature row: the commit's own, or a signed tag's when [tag] names
 /// it. The allowed signers file is read only for an SSH signature git could
-/// not attribute, the one case whose explanation needs it.
+/// not attribute, and only when the verifier's output does not already name
+/// the file it failed to open.
 class _Signature extends ConsumerWidget {
   final String repoPath;
   final SignatureVerdict verdict;
@@ -370,7 +425,9 @@ class _Signature extends ConsumerWidget {
     final t = context.tokens;
     final l = AppLocalizations.of(context);
     final needsSigners =
-        verdict.isSsh && verdict.state == SignatureState.untrusted;
+        verdict.isSsh &&
+        verdict.state == SignatureState.untrusted &&
+        allowedSignersPathIn(verdict.detail) == null;
     final signers = needsSigners
         ? ref.watch(allowedSignersFileProvider(repoPath)).valueOrNull
         : null;

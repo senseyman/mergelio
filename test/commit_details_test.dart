@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mergelio/state/signatures.dart';
-import 'package:mergelio/domain/git/signature.dart';
 import 'package:mergelio/core/tokens.dart';
-import 'package:mergelio/domain/git/models.dart';
-import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/data/settings_repository.dart';
+import 'package:mergelio/domain/git/models.dart';
+import 'package:mergelio/domain/git/signature.dart';
+import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/state/graph_selection.dart';
 import 'package:mergelio/state/lfs.dart';
 import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
+import 'package:mergelio/state/signatures.dart';
 import 'package:mergelio/ui/workspace/commit_details.dart';
 
 final _commit = Commit(
@@ -30,6 +30,7 @@ Widget _harness({
   String sigStatus = 'G',
   Map<String, SignatureVerdict> tags = const {},
   List<String>? verifiedTags,
+  List<String>? signersReads,
   Future<Set<String>> Function(Ref ref, LfsQuery q)? lfsPaths,
 }) => ProviderScope(
   overrides: [
@@ -45,7 +46,10 @@ Widget _harness({
       verifiedTags?.add(key.name);
       return tags[key.name] ?? SignatureVerdict.unsigned;
     }),
-    allowedSignersFileProvider.overrideWith((ref, repo) async => null),
+    allowedSignersFileProvider.overrideWith((ref, repo) async {
+      signersReads?.add(repo);
+      return null;
+    }),
     lfsLocksProvider.overrideWith((ref, p) async => LfsLockState.none),
     lfsPathsProvider.overrideWith(
       lfsPaths ?? (ref, q) async => const <String>{},
@@ -141,6 +145,49 @@ void main() {
     expect(find.text('Bad signature'), findsOneWidget);
     // An unsigned tag has nothing to say.
     expect(find.text('Tag lightweight'), findsNothing);
+  });
+
+  testWidgets('a commit with many tags verifies a bounded number', (
+    tester,
+  ) async {
+    final verified = <String>[];
+    await tester.pumpWidget(
+      _harness(
+        sigStatus: 'N',
+        verifiedTags: verified,
+        tags: {
+          for (var i = 0; i < 8; i++)
+            'pkg$i/v1': const SignatureVerdict(state: SignatureState.good),
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(verified, hasLength(kMaxVerifiedTags));
+    expect(find.text('Verify 3 more tags'), findsOneWidget);
+
+    await tester.tap(find.text('Verify 3 more tags'));
+    await tester.pumpAndSettle();
+    expect(verified, hasLength(8));
+    expect(find.textContaining('more tags'), findsNothing);
+  });
+
+  testWidgets('the allowed signers path git already named is not re-read', (
+    tester,
+  ) async {
+    final reads = <String>[];
+    await tester.pumpWidget(
+      _harness(
+        sigStatus:
+            'U\x1f\x1fSHA256:abc\x1fSHA256:abc\x1f\x1fundefined\x1f'
+            'Unable to open allowed keys file "/gone": No such file',
+        signersReads: reads,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Valid, untrusted key'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('/gone'), findsOneWidget);
+    expect(reads, isEmpty);
   });
 
   testWidgets('a commit without tags verifies no tag at all', (tester) async {

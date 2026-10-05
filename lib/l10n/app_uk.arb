@@ -1309,5 +1309,6 @@
   "sigAuditTruncated": "{count, plural, one{Перевірено лише останній {count} коміт.} few{Перевірено лише останні {count} коміти.} other{Перевірено лише останні {count} комітів.}}",
   "sigAuditFailed": "Не вдалося перевірити підписи",
   "sigHintSignersUnreadable": "Не вдалося відкрити файл дозволених підписантів ({path}), тож git не може назвати підписанта.",
-  "sigHintVerifierMissing": "git не зміг запустити {program}, тож нічого не перевірено. Встановіть його або вкажіть шлях для git (gpg.program, gpg.ssh.program)."
+  "sigHintVerifierMissing": "git не зміг запустити {program}, тож нічого не перевірено. Встановіть його або вкажіть шлях для git (gpg.program, gpg.ssh.program).",
+  "sigMoreTags": "{count, plural, one{Перевірити ще {count} тег} few{Перевірити ще {count} теги} other{Перевірити ще {count} тегів}}"
 }

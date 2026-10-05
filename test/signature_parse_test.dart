@@ -459,4 +459,27 @@ void main() {
       expect(parseSignatureAudit(out, limit: 10).checked, 1);
     });
   });
+
+  group('parseSignatureAudit edge records', () {
+    test('a malformed record is not counted as checked', () {
+      final out = [
+        'a1\x1fN\x1f\x1f\x1f\x1f\x1f\x1fAnn\x1fs',
+        'garbage-without-fields',
+      ].join('\x00');
+      final audit = parseSignatureAudit(out, limit: 10);
+      expect(audit.checked, 1);
+      expect(audit.unverified.single.sha, 'a1');
+    });
+
+    test('a leading newline on any record is dropped', () {
+      final out = [
+        '\na1\x1fN\x1f\x1f\x1f\x1f\x1f\x1fA\x1fs',
+        '\nb2\x1fN\x1f\x1f\x1f\x1f\x1f\x1fB\x1ft',
+      ].join('\x00');
+      expect(parseSignatureAudit(out, limit: 10).unverified.map((c) => c.sha), [
+        'a1',
+        'b2',
+      ]);
+    });
+  });
 }

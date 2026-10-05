@@ -138,6 +138,11 @@ class _Result extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(l.sigAuditFailed, style: body.copyWith(color: t.danger)),
+              if (missingVerifier(_reason(e)) case final program?)
+                Text(
+                  l.sigHintVerifierMissing(program),
+                  style: TextStyle(color: t.textMuted, fontSize: 12),
+                ),
               Text(
                 _reason(e),
                 style: TextStyle(color: t.textMuted, fontSize: 12),

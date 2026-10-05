@@ -195,4 +195,23 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('a verifier that could not start says what to do', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      audit: (_) async => throw GitException(
+        'signature verifier could not start',
+        const GitResult(
+          0,
+          '',
+          'error: cannot run gpg: No such file or directory',
+        ),
+      ),
+    );
+    expect(find.text('Could not check signatures'), findsOneWidget);
+    expect(find.textContaining('git could not start gpg'), findsOneWidget);
+    expect(find.textContaining('gpg.program'), findsOneWidget);
+  });
 }

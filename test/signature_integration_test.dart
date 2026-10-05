@@ -14,10 +14,11 @@ void main() {
   const svc = SystemGitService();
   // `ssh-keygen -?` exits non-zero with usage; only a missing binary throws.
   bool probe() {
+    // Any failure to probe means skip, never a broken file.
     try {
       Process.runSync('ssh-keygen', ['-?']);
       return true;
-    } on ProcessException {
+    } catch (_) {
       return false;
     }
   }

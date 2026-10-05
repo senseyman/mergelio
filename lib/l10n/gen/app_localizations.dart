@@ -6055,6 +6055,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'git could not start {program}, so nothing was checked. Install it or point git at it (gpg.program, gpg.ssh.program).'**
   String sigHintVerifierMissing(String program);
+
+  /// No description provided for @sigMoreTags.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{Verify 1 more tag} other{Verify {count} more tags}}'**
+  String sigMoreTags(int count);
 }
 
 class _AppLocalizationsDelegate

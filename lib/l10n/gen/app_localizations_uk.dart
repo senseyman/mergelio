@@ -3627,4 +3627,16 @@ class AppLocalizationsUk extends AppLocalizations {
   String sigHintVerifierMissing(String program) {
     return 'git не зміг запустити $program, тож нічого не перевірено. Встановіть його або вкажіть шлях для git (gpg.program, gpg.ssh.program).';
   }
+
+  @override
+  String sigMoreTags(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Перевірити ще $count тегів',
+      few: 'Перевірити ще $count теги',
+      one: 'Перевірити ще $count тег',
+    );
+    return '$_temp0';
+  }
 }

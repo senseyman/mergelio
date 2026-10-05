@@ -11,9 +11,9 @@ import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
+import 'package:mergelio/state/signatures.dart';
 import 'package:mergelio/state/workspace.dart';
 import 'package:mergelio/ui/shell/global_actions.dart';
-import 'package:mergelio/state/signatures.dart';
 import 'package:mergelio/ui/workspace/signature_audit_panel.dart';
 
 class _FakeGit implements GitService {

@@ -351,13 +351,16 @@ const kSignatureAuditFormat = '%H%x1f$kSignatureFormat%x1f%an%x1f%s';
 SignatureAudit parseSignatureAudit(String out, {required int limit}) {
   final records = [
     for (final r in out.split('\x00'))
-      if (r.trim().isNotEmpty) r.replaceAll(RegExp(r'^\n+'), ''),
+      if (r.trim().isNotEmpty) r.trimLeft(),
   ];
   final kept = records.take(limit).toList();
   final unverified = <UnverifiedCommit>[];
+  var checked = 0;
   for (final r in kept) {
     final f = r.split('\x1f');
+    // A record without every field was not checked as far as anyone can tell.
     if (f.length < _verdictFields + 3) continue;
+    checked++;
     final verdict = parseSignatureVerdict(
       f.sublist(1, 1 + _verdictFields).join('\x1f'),
     );
@@ -373,7 +376,7 @@ SignatureAudit parseSignatureAudit(String out, {required int limit}) {
     );
   }
   return SignatureAudit(
-    checked: kept.length,
+    checked: checked,
     truncated: records.length > limit,
     unverified: unverified,
   );

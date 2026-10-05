@@ -2284,5 +2284,7 @@
   "sigHintSignersUnreadable": "The allowed signers file ({path}) could not be opened, so git cannot name the signer.",
   "@sigHintSignersUnreadable": {"placeholders": {"path": {"type": "String"}}},
   "sigHintVerifierMissing": "git could not start {program}, so nothing was checked. Install it or point git at it (gpg.program, gpg.ssh.program).",
-  "@sigHintVerifierMissing": {"placeholders": {"program": {"type": "String"}}}
+  "@sigHintVerifierMissing": {"placeholders": {"program": {"type": "String"}}},
+  "sigMoreTags": "{count, plural, one{Verify 1 more tag} other{Verify {count} more tags}}",
+  "@sigMoreTags": {"placeholders": {"count": {"type": "int"}}}
 }

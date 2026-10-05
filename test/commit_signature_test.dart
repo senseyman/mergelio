@@ -86,6 +86,7 @@ void main() {
       'log',
       '-1',
       '--format=$kSignatureDetailFormat',
+      '--end-of-options',
       'abc123',
     ]);
   });
@@ -161,19 +162,22 @@ void main() {
     expect(git.cancels.single, same(cancel));
   });
 
-  test('disposing the audit provider cancels the running check', () async {
-    final git = _CapturingGit();
+  test('closing the audit while git runs cancels that run', () async {
+    final git = _HangingGit();
     final container = ProviderContainer(
       overrides: [gitServiceProvider.overrideWithValue(git)],
     );
     final key = (repo: '/repo', base: 'main');
     final sub = container.listen(signatureAuditProvider(key), (_, _) {});
-    await container.read(signatureAuditProvider(key).future);
-    expect(git.cancels.single!.isCancelled, isFalse);
+    // Let the provider start git; the run is still in flight.
+    await Future<void>.delayed(Duration.zero);
+    expect(git.started, isTrue);
+    expect(git.cancel!.isCancelled, isFalse);
 
     sub.close();
     container.dispose();
-    expect(git.cancels.single!.isCancelled, isTrue);
+    expect(git.cancel!.isCancelled, isTrue);
+    await expectLater(git.result, throwsA(isA<GitCancelledException>()));
   });
 
   test('signatureVerdict does not trust git\'s letter when the verifier '
@@ -227,4 +231,37 @@ void main() {
     final git = _CapturingGit('', 'fatal: bad object nope', 128);
     expect(await GitReader(git, '/repo').commit('nope'), isNull);
   });
+}
+
+/// A git that never finishes on its own: it waits until its cancel handle
+/// fires and then fails the way [SystemGitService] does.
+class _HangingGit implements GitService {
+  GitCancel? cancel;
+  bool started = false;
+  late Future<GitResult> result;
+
+  @override
+  Future<GitResult> run(
+    List<String> args, {
+    String? repoPath,
+    Duration? timeout,
+    Map<String, String>? environment,
+    GitCancel? cancel,
+    String? stdin,
+  }) {
+    this.cancel = cancel;
+    started = true;
+    return result = () async {
+      while (!cancel!.isCancelled) {
+        await Future<void>.delayed(const Duration(milliseconds: 1));
+      }
+      throw GitCancelledException('cancelled');
+    }();
+  }
+
+  @override
+  Future<String> version() async => 'git version 2';
+
+  @override
+  Future<bool> isRepository(String path) async => true;
 }

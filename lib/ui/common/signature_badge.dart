@@ -65,6 +65,21 @@ class _SignatureBadgeState extends State<SignatureBadge> {
   bool _open = false;
 
   @override
+  void didUpdateWidget(SignatureBadge old) {
+    super.didUpdateWidget(old);
+    // The same slot now shows another commit's or tag's signature; details
+    // opened for the previous one say nothing about this one.
+    if (!_sameSignature(old.verdict, widget.verdict)) _open = false;
+  }
+
+  static bool _sameSignature(SignatureVerdict a, SignatureVerdict b) =>
+      a.state == b.state &&
+      a.signer == b.signer &&
+      a.key == b.key &&
+      a.fingerprint == b.fingerprint &&
+      a.detail == b.detail;
+
+  @override
   Widget build(BuildContext context) {
     final t = context.tokens;
     final l = AppLocalizations.of(context);
@@ -198,8 +213,10 @@ class _Field extends StatelessWidget {
               style: TextStyle(color: t.textFaint, fontSize: 11.5),
             ),
           ),
+          // Selectable: keys and fingerprints are what gets pasted into a
+          // bug report or an allowed signers line.
           Expanded(
-            child: Text(
+            child: SelectableText(
               value,
               style: mono
                   ? AppFonts.mns(size: 11.5, color: t.textMuted)

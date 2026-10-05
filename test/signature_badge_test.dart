@@ -235,4 +235,45 @@ void main() {
     expect(find.textContaining('/gone/allowed'), findsOneWidget);
     expect(find.textContaining('not listed'), findsNothing);
   });
+
+  testWidgets('key and fingerprint can be selected and copied', (tester) async {
+    await pump(
+      tester,
+      const SignatureVerdict(
+        state: SignatureState.good,
+        signer: 't@x.io',
+        key: _fp,
+        fingerprint: _fp,
+      ),
+    );
+    await tester.tap(find.text('Verified signature'));
+    await tester.pump();
+    expect(
+      find.byWidgetPredicate((w) => w is SelectableText && w.data == _fp),
+      findsOneWidget,
+    );
+    expect(
+      find.byWidgetPredicate((w) => w is SelectableText && w.data == 't@x.io'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('a different verdict starts with its details closed', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      const SignatureVerdict(state: SignatureState.good, signer: 'Jane'),
+    );
+    await tester.tap(find.text('Verified signature'));
+    await tester.pump();
+    expect(find.text('Jane'), findsOneWidget);
+
+    // Same badge position, another commit selected.
+    await pump(
+      tester,
+      const SignatureVerdict(state: SignatureState.good, signer: 'Bob'),
+    );
+    expect(find.text('Bob'), findsNothing);
+  });
 }

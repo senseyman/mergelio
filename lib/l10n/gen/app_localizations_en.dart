@@ -3584,4 +3584,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String sigHintVerifierMissing(String program) {
     return 'git could not start $program, so nothing was checked. Install it or point git at it (gpg.program, gpg.ssh.program).';
   }
+
+  @override
+  String sigMoreTags(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Verify $count more tags',
+      one: 'Verify 1 more tag',
+    );
+    return '$_temp0';
+  }
 }
