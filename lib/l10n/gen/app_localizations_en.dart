@@ -3704,4 +3704,180 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get hkRewordSkip => 'Reword without hooks';
+
+  @override
+  String get dashTitle => 'Dashboard';
+
+  @override
+  String get dashTabTooltip => 'Every repository in this group at a glance';
+
+  @override
+  String dashRepoCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count repositories',
+      one: '1 repository',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get dashFetchAll => 'Fetch all';
+
+  @override
+  String get dashFetchAllTooltip =>
+      'Fetch every repository in this group, a few at a time';
+
+  @override
+  String get dashPullAll => 'Pull fast-forwardable';
+
+  @override
+  String get dashPullAllTooltip =>
+      'Fast-forward each clean branch that is only behind its upstream. Nothing is merged or committed; the rest are listed with the reason.';
+
+  @override
+  String get dashRefresh => 'Refresh';
+
+  @override
+  String get dashClearResults => 'Clear results';
+
+  @override
+  String get dashEmpty => 'No repositories in this group.';
+
+  @override
+  String get dashDetached => 'detached HEAD';
+
+  @override
+  String get dashUnborn => 'no commits yet';
+
+  @override
+  String get dashNoUpstream => 'no upstream';
+
+  @override
+  String get dashUpstreamGone => 'upstream gone';
+
+  @override
+  String dashUpstreamGoneTooltip(String upstream) {
+    return '$upstream no longer exists on the remote';
+  }
+
+  @override
+  String dashAheadBehindTooltip(int ahead, int behind, String upstream) {
+    return '$ahead ahead, $behind behind $upstream';
+  }
+
+  @override
+  String dashChanged(int count) {
+    return '$count changed';
+  }
+
+  @override
+  String dashConflicted(int count) {
+    return '$count conflicted';
+  }
+
+  @override
+  String dashUntracked(int count) {
+    return '$count untracked';
+  }
+
+  @override
+  String dashStashes(int count) {
+    return '$count stashed';
+  }
+
+  @override
+  String get dashClean => 'clean';
+
+  @override
+  String dashFetchedAgo(String age) {
+    return 'fetched $age';
+  }
+
+  @override
+  String get dashNeverFetched => 'never fetched';
+
+  @override
+  String get dashUnreadable => 'Could not read this repository';
+
+  @override
+  String get dashOpMerge => 'merging';
+
+  @override
+  String get dashOpRebase => 'rebasing';
+
+  @override
+  String get dashOpAm => 'applying patches';
+
+  @override
+  String get dashOpCherryPick => 'cherry-picking';
+
+  @override
+  String get dashOpRevert => 'reverting';
+
+  @override
+  String get dashOpBisect => 'bisecting';
+
+  @override
+  String get dashRunQueued => 'queued';
+
+  @override
+  String get dashRunFetched => 'fetched';
+
+  @override
+  String get dashRunPulled => 'pulled';
+
+  @override
+  String get dashRunFailed => 'failed';
+
+  @override
+  String get dashRunCancelled => 'cancelled';
+
+  @override
+  String get dashSkipNoRemote => 'skipped: no remote';
+
+  @override
+  String get dashSkipUnreadable => 'skipped: could not read';
+
+  @override
+  String get dashSkipOperation => 'skipped: operation in progress';
+
+  @override
+  String get dashSkipDetached => 'skipped: detached HEAD';
+
+  @override
+  String get dashSkipNoUpstream => 'skipped: no upstream';
+
+  @override
+  String get dashSkipUpstreamGone => 'skipped: upstream gone';
+
+  @override
+  String get dashSkipDirty => 'skipped: uncommitted changes';
+
+  @override
+  String get dashSkipDiverged => 'skipped: diverged, needs a merge or rebase';
+
+  @override
+  String get dashSkipUpToDate => 'skipped: up to date';
+
+  @override
+  String get dashFetchBusy => 'Fetching all repositories';
+
+  @override
+  String get dashPullBusy => 'Pulling fast-forwardable repositories';
+
+  @override
+  String get dashFetchDone => 'Fetch all finished';
+
+  @override
+  String get dashPullDone => 'Pull finished';
+
+  @override
+  String dashBatchSummary(int done, int failed, int skipped, int cancelled) {
+    return '$done done, $failed failed, $skipped skipped, $cancelled cancelled';
+  }
+
+  @override
+  String get dashPaletteOpen => 'Open dashboard';
 }

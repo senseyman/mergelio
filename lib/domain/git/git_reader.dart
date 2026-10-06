@@ -1,6 +1,10 @@
 import 'dart:convert';
+import 'dart:io';
+
+import 'package:path/path.dart' as pathlib;
 
 import 'commit_fields.dart';
+import 'dashboard.dart';
 import 'git_service.dart';
 import 'line_history.dart';
 import 'models.dart';
@@ -552,6 +556,68 @@ class GitReader {
       }
     }
     return out;
+  }
+
+  /// The dashboard's view of the repository: branch and upstream state,
+  /// change counts, stash count, any operation in progress and the last fetch
+  /// time. Two git processes — status and one `rev-parse --git-path` for every
+  /// state file — then plain stats, so a group of thirty repositories stays
+  /// cheap. `--git-path` keeps it right inside a linked worktree, whose state
+  /// lives under `.git/worktrees/<name>/` while its stash is shared.
+  Future<RepoSnapshot> snapshot() async {
+    final st = await _run([
+      'status',
+      '--porcelain=v2',
+      '--branch',
+      '-z',
+      '--untracked-files=normal',
+    ]);
+    if (!st.ok) throw GitException('git status failed', st);
+    const names = ['FETCH_HEAD', 'logs/refs/stash', ...dashboardStateFiles];
+    final rp = await _run([
+      'rev-parse',
+      for (final n in names) ...['--git-path', n],
+    ]);
+    if (!rp.ok) throw GitException('git rev-parse failed', rp);
+    final paths = rp.stdout.split('\n').map((l) => l.trim()).toList();
+    String? at(int i) {
+      if (i >= paths.length || paths[i].isEmpty) return null;
+      final p = paths[i];
+      return pathlib.isAbsolute(p) ? p : pathlib.join(repoPath, p);
+    }
+
+    final present = <String>{};
+    for (var i = 0; i < dashboardStateFiles.length; i++) {
+      final p = at(i + 2);
+      if (p != null &&
+          FileSystemEntity.typeSync(p) != FileSystemEntityType.notFound) {
+        present.add(dashboardStateFiles[i]);
+      }
+    }
+
+    DateTime? lastFetch;
+    final fetchHead = at(0);
+    if (fetchHead != null) {
+      final stat = FileStat.statSync(fetchHead);
+      if (stat.type != FileSystemEntityType.notFound) lastFetch = stat.modified;
+    }
+
+    var stashCount = 0;
+    final stashLog = at(1);
+    if (stashLog != null) {
+      try {
+        stashCount = countReflogEntries(File(stashLog).readAsStringSync());
+      } on FileSystemException {
+        // No stash yet: git has not created the reflog.
+      }
+    }
+
+    return RepoSnapshot(
+      summary: parseStatusSummary(st.stdout),
+      stashCount: stashCount,
+      op: opFromStateFiles(present),
+      lastFetch: lastFetch,
+    );
   }
 
   /// Unified diff of the unstaged changes to [path] (working tree vs index).

@@ -71,6 +71,10 @@ class RepoActions {
   /// read of the repository instead of racing each other through one.
   void _refresh() => _refreshes.schedule();
 
+  /// Schedules the same coalesced reload for a change made to this repository
+  /// from outside it — a fetch or pull the dashboard ran across a group.
+  void refresh() => _refresh();
+
   /// Drops a reload that has not run yet. The provider disposes this.
   void dispose() => _refreshes.cancel();
 

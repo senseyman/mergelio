@@ -114,6 +114,11 @@ void openGlobalPalette(BuildContext context, WidgetRef ref) {
       );
       if (edit != null) await actions.addRemote(edit.name, edit.url);
     }),
+    PaletteCommand(
+      l.dashPaletteOpen,
+      Icons.space_dashboard_outlined,
+      () async => ref.read(workspaceProvider.notifier).showDashboard(),
+    ),
     for (final b in data?.branches ?? const [])
       PaletteCommand(
         l.gaCheckoutBranch(b.name),

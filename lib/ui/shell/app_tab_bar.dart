@@ -148,8 +148,14 @@ class AppTabBar extends ConsumerWidget {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
+                  if (ws.tabs.isNotEmpty) _DashboardTab(active: ws.dashboard),
                   for (final tab in ws.visibleTabs)
-                    _Tab(tab: tab, active: tab.id == ws.activeTabId),
+                    _Tab(
+                      tab: tab,
+                      // The dashboard covers the active tab, which stays
+                      // selected underneath but is not what is showing.
+                      active: !ws.dashboard && tab.id == ws.activeTabId,
+                    ),
                 ],
               ),
             ),
@@ -472,6 +478,58 @@ class GroupRail extends ConsumerWidget {
             onTap: () => _createGroup(context, ref),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Pinned first in the strip: shows the dashboard over the active group.
+class _DashboardTab extends ConsumerWidget {
+  final bool active;
+  const _DashboardTab({required this.active});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
+    final t = context.tokens;
+    return Tooltip(
+      message: l.dashTabTooltip,
+      child: Material(
+        color: active ? t.bgPanel : Colors.transparent,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+        child: InkWell(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+          hoverColor: t.hover,
+          onTap: () => ref.read(workspaceProvider.notifier).showDashboard(),
+          child: Container(
+            height: 30,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            decoration: active
+                ? BoxDecoration(
+                    border: Border(top: BorderSide(color: t.accent, width: 2)),
+                  )
+                : null,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.space_dashboard_outlined,
+                  size: 14,
+                  color: active ? t.accent : t.textMuted,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  l.dashTitle,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: active ? t.textPrimary : t.textMuted,
+                    fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
