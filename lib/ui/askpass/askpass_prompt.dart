@@ -13,12 +13,17 @@ import '../../l10n/gen/app_localizations.dart';
 /// keeps no copy and stores nothing.
 class AskpassPrompt extends StatefulWidget {
   final String prompt;
+
+  /// The repository the asking command runs for, when the main app named one.
+  /// Several fetches can ask at once, and git's own prompt names only the host.
+  final ({String name, String path})? repo;
   final void Function(String answer) onAnswer;
   final VoidCallback onCancel;
 
   const AskpassPrompt({
     super.key,
     required this.prompt,
+    this.repo,
     required this.onAnswer,
     required this.onCancel,
   });
@@ -53,75 +58,127 @@ class _AskpassPromptState extends State<AskpassPrompt> {
       },
       child: Material(
         color: t.bgApp,
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Row(
+        // Scrolls rather than clipping when the window is at its minimum size
+        // or the text runs long; centred while it fits.
+        child: LayoutBuilder(
+          builder: (context, box) => SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: (box.maxHeight - 40).clamp(0, double.infinity),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.lock_outline, size: 18, color: t.textPrimary),
-                  const SizedBox(width: 8),
+                  Row(
+                    children: [
+                      Icon(Icons.lock_outline, size: 18, color: t.textPrimary),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          l.askpassTitle,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppFonts.disp(size: 16, color: t.textPrimary),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (widget.repo case final repo?) ...[
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.folder_outlined,
+                          size: 14,
+                          color: t.textMuted,
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            repo.name,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: t.textPrimary,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    // Two clones can share a folder name; the path tells them
+                    // apart.
+                    Tooltip(
+                      message: repo.path,
+                      child: Text(
+                        repo.path,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: t.textFaint, fontSize: 11.5),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  // Verbatim: the host, key file or URL git named is the only way to
+                  // tell which of several remotes is asking.
                   Text(
-                    l.askpassTitle,
-                    style: AppFonts.disp(size: 16, color: t.textPrimary),
+                    prompt.isEmpty ? l.askpassFallback : prompt,
+                    style: TextStyle(
+                      color: t.textMuted,
+                      fontSize: 13,
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  if (!confirm)
+                    TextField(
+                      controller: _controller,
+                      autofocus: true,
+                      obscureText: _kind == AskpassKind.secret,
+                      onSubmitted: (_) => _submit(),
+                      style: TextStyle(color: t.textPrimary, fontSize: 13),
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    alignment: WrapAlignment.end,
+                    spacing: 10,
+                    runSpacing: 8,
+                    children: confirm
+                        ? [
+                            // ssh wants the word, not a dead helper: answering "no"
+                            // ends the connection cleanly with a reason.
+                            TextButton(
+                              onPressed: () => widget.onAnswer('no'),
+                              child: Text(l.askpassNo),
+                            ),
+                            FilledButton(
+                              // Nothing else takes focus in this mode, and the
+                              // Escape binding above needs something that has it.
+                              autofocus: true,
+                              onPressed: () => widget.onAnswer('yes'),
+                              child: Text(l.askpassYes),
+                            ),
+                          ]
+                        : [
+                            TextButton(
+                              onPressed: widget.onCancel,
+                              child: Text(l.cancel),
+                            ),
+                            FilledButton(
+                              onPressed: _submit,
+                              child: Text(l.askpassSubmit),
+                            ),
+                          ],
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              // Verbatim: the host, key file or URL git named is the only way to
-              // tell which of several remotes is asking.
-              Text(
-                prompt.isEmpty ? l.askpassFallback : prompt,
-                style: TextStyle(color: t.textMuted, fontSize: 13, height: 1.4),
-              ),
-              const SizedBox(height: 14),
-              if (!confirm)
-                TextField(
-                  controller: _controller,
-                  autofocus: true,
-                  obscureText: _kind == AskpassKind.secret,
-                  onSubmitted: (_) => _submit(),
-                  style: TextStyle(color: t.textPrimary, fontSize: 13),
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              const SizedBox(height: 16),
-              Wrap(
-                alignment: WrapAlignment.end,
-                spacing: 10,
-                runSpacing: 8,
-                children: confirm
-                    ? [
-                        // ssh wants the word, not a dead helper: answering "no"
-                        // ends the connection cleanly with a reason.
-                        TextButton(
-                          onPressed: () => widget.onAnswer('no'),
-                          child: Text(l.askpassNo),
-                        ),
-                        FilledButton(
-                          // Nothing else takes focus in this mode, and the
-                          // Escape binding above needs something that has it.
-                          autofocus: true,
-                          onPressed: () => widget.onAnswer('yes'),
-                          child: Text(l.askpassYes),
-                        ),
-                      ]
-                    : [
-                        TextButton(
-                          onPressed: widget.onCancel,
-                          child: Text(l.cancel),
-                        ),
-                        FilledButton(
-                          onPressed: _submit,
-                          child: Text(l.askpassSubmit),
-                        ),
-                      ],
-              ),
-            ],
+            ),
           ),
         ),
       ),

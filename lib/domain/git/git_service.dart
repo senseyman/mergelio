@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import '../../core/concurrency.dart';
 import '../../core/logging.dart';
+import 'askpass.dart';
 import 'git_toolchain.dart';
 
 /// Result of a git invocation. [stdout]/[stderr] are the raw, undecorated
@@ -153,8 +154,13 @@ String sshCommandWith(String? base) {
 /// watchdog options are appended to. [askpass] is the helper git and ssh ask
 /// for a passphrase or password with; without one there is nowhere for a
 /// credential to come from, and an authentication that needs input can only
-/// fail.
-Map<String, String> networkEnv({String? sshCommand, String? askpass}) => {
+/// fail. [repo] is the repository the command runs for, named to the helper
+/// so its prompt can say which one is asking.
+Map<String, String> networkEnv({
+  String? sshCommand,
+  String? askpass,
+  String? repo,
+}) => {
   'GIT_SSH_COMMAND': sshCommandWith(sshCommand),
   // A GUI app has no terminal to prompt on. Left enabled, git opens /dev/tty
   // and waits for input that never arrives; disabled, it fails with a message
@@ -166,17 +172,21 @@ Map<String, String> networkEnv({String? sshCommand, String? askpass}) => {
     // ssh only falls back to the helper when it finds no terminal, and it may
     // well find the one the app was launched from. `force` skips that check.
     'SSH_ASKPASS_REQUIRE': 'force',
+    if (repo != null && repo.trim().isNotEmpty) askpassRepoVariable: repo,
   },
 };
 
 /// [networkEnv] with the ssh command git itself would pick, following git's own
 /// precedence: an inherited `GIT_SSH_COMMAND` first, then `core.sshCommand`
 /// from [repoPath]'s config — global and system config when there is no
-/// repository yet, as with a clone.
+/// repository yet, as with a clone. [askpassRepo] names the repository to
+/// the prompt when it is not [repoPath] — a clone's destination, which has no
+/// config to read yet.
 Future<Map<String, String>> resolveNetworkEnv(
   GitService git, {
   String? repoPath,
   String? askpass,
+  String? askpassRepo,
 }) async {
   var base = Platform.environment['GIT_SSH_COMMAND'];
   if (base == null || base.trim().isEmpty) {
@@ -187,7 +197,11 @@ Future<Map<String, String>> resolveNetworkEnv(
     ], repoPath: repoPath);
     base = configured.ok ? configured.out : null;
   }
-  return networkEnv(sshCommand: base, askpass: askpass);
+  return networkEnv(
+    sshCommand: base,
+    askpass: askpass,
+    repo: askpassRepo ?? repoPath,
+  );
 }
 
 /// Abstraction over the Git engine. UI never shells out directly; it depends

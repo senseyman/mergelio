@@ -100,7 +100,11 @@ class RepoBootstrap {
         timeout: const Duration(minutes: 15),
         // No repository exists yet, so this reads the global and system config
         // for the ssh command the user set.
-        environment: await resolveNetworkEnv(_git, askpass: askpassHelper),
+        environment: await resolveNetworkEnv(
+          _git,
+          askpass: askpassHelper,
+          askpassRepo: target,
+        ),
         cancel: cancel,
       );
       if (!r.ok) {

@@ -13,6 +13,7 @@ void main() {
     String prompt, {
     void Function(String)? onAnswer,
     VoidCallback? onCancel,
+    ({String name, String path})? repo,
   }) => tester.pumpWidget(
     MaterialApp(
       localizationsDelegates: const [
@@ -24,6 +25,7 @@ void main() {
       theme: ThemeData(extensions: [AppTokens.dark()]),
       home: AskpassPrompt(
         prompt: prompt,
+        repo: repo,
         onAnswer: onAnswer ?? (_) {},
         onCancel: onCancel ?? () {},
       ),
@@ -34,6 +36,46 @@ void main() {
     await pump(tester, "Enter passphrase for key '/k/id_ed25519': ");
 
     expect(find.textContaining('id_ed25519'), findsOneWidget);
+  });
+
+  testWidgets('names the repository that is asking', (tester) async {
+    await pump(
+      tester,
+      "Username for 'https://github.com': ",
+      repo: (name: 'api', path: '/work/services/api'),
+    );
+
+    expect(find.text('api'), findsOneWidget);
+    expect(find.text('/work/services/api'), findsOneWidget);
+    // git's own prompt is still shown as it was.
+    expect(find.textContaining('github.com'), findsOneWidget);
+  });
+
+  testWidgets('without a repository nothing extra is shown', (tester) async {
+    await pump(tester, "Username for 'https://github.com': ");
+
+    expect(find.byIcon(Icons.folder_outlined), findsNothing);
+  });
+
+  testWidgets('fits the smallest window, named repository or not', (
+    tester,
+  ) async {
+    // The askpass window's minimum size.
+    tester.view.physicalSize = const Size(360, 220);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    for (final repo in [
+      null,
+      (
+        name: 'a-repository-with-a-rather-long-folder-name',
+        path:
+            '/Users/someone/work/clients/acme/services/'
+            'a-repository-with-a-rather-long-folder-name',
+      ),
+    ]) {
+      await pump(tester, "Username for 'https://github.com': ", repo: repo);
+      expect(tester.takeException(), isNull, reason: 'repo: $repo');
+    }
   });
 
   testWidgets('hides a passphrase while it is typed', (tester) async {
