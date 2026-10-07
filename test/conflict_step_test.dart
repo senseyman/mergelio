@@ -31,4 +31,27 @@ void main() {
       expect(stepConflict(0, null, forward: false), isNull);
     });
   });
+
+  group('conflictAtPart', () {
+    // Parts: context, hunk, context, hunk, context.
+    const hunks = [1, 3];
+
+    test('above the first conflict there is none', () {
+      expect(conflictAtPart(hunks, 0), isNull);
+    });
+
+    test('a conflict at the top is the one being read', () {
+      expect(conflictAtPart(hunks, 1), 0);
+      expect(conflictAtPart(hunks, 3), 1);
+    });
+
+    test('context below a conflict still counts as that conflict', () {
+      expect(conflictAtPart(hunks, 2), 0);
+      expect(conflictAtPart(hunks, 4), 1);
+    });
+
+    test('a file with no conflicts has none to be at', () {
+      expect(conflictAtPart(const [], 0), isNull);
+    });
+  });
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -329,21 +330,41 @@ class _ConflictView extends StatefulWidget {
 class _ConflictViewState extends State<_ConflictView> {
   final _scroll = ScrollController();
 
-  /// One key per hunk, by part index, so a jump can scroll its card into view.
-  final _hunkKeys = <int, GlobalKey>{};
+  /// One key per part, by index, so a jump can find a hunk's card and the
+  /// position bar can tell which part sits at the top of the view.
+  final _partKeys = <int, GlobalKey>{};
 
-  /// Which of the file's conflicts the last jump landed on, counted in file
-  /// order; null until the user jumps.
+  /// Which of the file's conflicts the reader is at, counted in file order:
+  /// where the last jump landed, or the conflict at the top of the view after
+  /// a hand scroll. Null until the user moves.
   int? _current;
+
+  /// Jumps in flight. Their scrolling is not a hand scroll, so it must not
+  /// overwrite the conflict the jump is heading for.
+  int _jumps = 0;
+
+  /// Bumped by every jump, so a newer one — a held-down key — takes over
+  /// from any still searching.
+  int _jumpGen = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _scroll.addListener(_onScroll);
+  }
 
   @override
   void didUpdateWidget(_ConflictView old) {
     super.didUpdateWidget(old);
-    // Another file starts from its top with no conflict selected.
-    if (old.file.path != widget.file.path) {
+    // Another file — or this one parsed afresh, with hunks that may have
+    // moved or gone — starts with no conflict selected.
+    if (old.file.path != widget.file.path ||
+        !identical(old.file.parts, widget.file.parts)) {
       _current = null;
-      _hunkKeys.clear();
-      if (_scroll.hasClients) _scroll.jumpTo(0);
+      _partKeys.clear();
+    }
+    if (old.file.path != widget.file.path && _scroll.hasClients) {
+      _scroll.jumpTo(0);
     }
   }
 
@@ -353,6 +374,95 @@ class _ConflictViewState extends State<_ConflictView> {
     super.dispose();
   }
 
+  /// Where part [i]'s top sits in scroll coordinates, and its height; null
+  /// while the lazy list has not laid it out.
+  (double, double)? _partSpan(int i) {
+    final box = _partKeys[i]?.currentContext?.findRenderObject();
+    if (box is! RenderBox || !box.attached || !box.hasSize) return null;
+    final top = RenderAbstractViewport.of(box).getOffsetToReveal(box, 0).offset;
+    return (top, box.size.height);
+  }
+
+  void _onScroll() {
+    if (_jumps > 0 || widget.file.wholeFile) return;
+    final pixels = _scroll.position.pixels;
+    int? atTop;
+    for (var i = 0; i < widget.file.parts.length; i++) {
+      final span = _partSpan(i);
+      if (span != null && span.$1 + span.$2 > pixels) {
+        atTop = i;
+        break;
+      }
+    }
+    if (atTop == null) return;
+    final at = conflictAtPart(widget.file.hunkIndices, atTop);
+    if (at != _current) setState(() => _current = at);
+  }
+
+  /// How tall part [i] is likely to be, in lines; hunk sides sit side by side
+  /// under a header and a row of buttons.
+  int _weight(int i) => switch (widget.file.parts[i]) {
+    final ContextBlock b => b.lines.length,
+    final ConflictHunk h =>
+      (h.ours.length > h.theirs.length ? h.ours.length : h.theirs.length) + 6,
+  };
+
+  /// A guess at where part [target] starts, scaled from the parts the list
+  /// has laid out — the one nearest the target anchors it.
+  double _estimateTop(int target) {
+    final pos = _scroll.position;
+    var px = 0.0, weight = 0;
+    int? anchor;
+    for (var i = 0; i < widget.file.parts.length; i++) {
+      final span = _partSpan(i);
+      if (span == null) continue;
+      px += span.$2;
+      weight += _weight(i);
+      if (anchor == null || (i - target).abs() < (anchor - target).abs()) {
+        anchor = i;
+      }
+    }
+    if (anchor == null || weight == 0) return pos.pixels;
+    final perLine = px / weight;
+    var top = _partSpan(anchor)!.$1;
+    for (var i = anchor; i < target; i++) {
+      top += _weight(i) * perLine;
+    }
+    for (var i = target; i < anchor; i++) {
+      top -= _weight(i) * perLine;
+    }
+    return top.clamp(pos.minScrollExtent, pos.maxScrollExtent);
+  }
+
+  /// Scrolls part [part] to the top of the view. A lazy list only builds what
+  /// is near the viewport, so a far-off hunk has no card yet: jump to where
+  /// it should be, let a frame lay that stretch out, and look again — each
+  /// pass measures more of the file, so the guess tightens.
+  Future<void> _reveal(int part) async {
+    final gen = ++_jumpGen;
+    _jumps++;
+    try {
+      for (var pass = 0; pass < 12; pass++) {
+        // Measure after this frame's rebuild, not before it.
+        await WidgetsBinding.instance.endOfFrame;
+        if (!mounted || !_scroll.hasClients || gen != _jumpGen) return;
+        final ctx = _partKeys[part]?.currentContext;
+        if (ctx != null) {
+          if (!ctx.mounted) return;
+          await Scrollable.ensureVisible(
+            ctx,
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOutCubic,
+          );
+          return;
+        }
+        _scroll.jumpTo(_estimateTop(part));
+      }
+    } finally {
+      _jumps--;
+    }
+  }
+
   /// Scrolls the next (or previous) conflict to the top of the view.
   void step({required bool forward}) {
     if (widget.file.wholeFile) return;
@@ -360,13 +470,7 @@ class _ConflictViewState extends State<_ConflictView> {
     final target = stepConflict(hunks.length, _current, forward: forward);
     if (target == null) return;
     setState(() => _current = target);
-    final ctx = _hunkKeys[hunks[target]]?.currentContext;
-    if (ctx == null) return;
-    Scrollable.ensureVisible(
-      ctx,
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeOutCubic,
-    );
+    _reveal(hunks[target]);
   }
 
   @override
@@ -395,35 +499,33 @@ class _ConflictViewState extends State<_ConflictView> {
     }
     final total = file.hunkIndices.length;
     final current = _current;
-    // Every part is built up front, unlike a lazy list, so a hunk far down a
-    // big file has a context to scroll to.
-    final body = SingleChildScrollView(
+    final body = ListView.builder(
       controller: _scroll,
       padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (var i = 0; i < file.parts.length; i++)
-            if (file.parts[i] case final ConflictHunk hunk)
-              _HunkCard(
-                key: _hunkKeys.putIfAbsent(i, GlobalKey.new),
-                hunk: hunk,
-                oursLabel: oursLabel,
-                theirsLabel: theirsLabel,
-                resolution: file.resolutions[i],
-                custom: file.custom[i],
-                onAccept: (r, {lines}) => onResolve(i, r, lines: lines),
-              )
-            else if (file.parts[i] case final ContextBlock block)
-              if (block.lines.any((l) => l.trim().isNotEmpty))
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Text(
-                    expandTabs(block.lines.join('\n')),
-                    style: AppFonts.mns(size: 12.5, color: t.textFaint),
-                  ),
-                ),
-        ],
+      itemCount: file.parts.length,
+      itemBuilder: (context, i) => KeyedSubtree(
+        key: _partKeys.putIfAbsent(i, GlobalKey.new),
+        child: switch (file.parts[i]) {
+          final ConflictHunk hunk => _HunkCard(
+            key: ValueKey('$i'),
+            hunk: hunk,
+            oursLabel: oursLabel,
+            theirsLabel: theirsLabel,
+            resolution: file.resolutions[i],
+            custom: file.custom[i],
+            onAccept: (r, {lines}) => onResolve(i, r, lines: lines),
+          ),
+          final ContextBlock block
+              when block.lines.any((l) => l.trim().isNotEmpty) =>
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Text(
+                expandTabs(block.lines.join('\n')),
+                style: AppFonts.mns(size: 12.5, color: t.textFaint),
+              ),
+            ),
+          ContextBlock() => const SizedBox.shrink(),
+        },
       ),
     );
     if (total == 0) return body;
@@ -440,12 +542,18 @@ class _ConflictViewState extends State<_ConflictView> {
           child: Row(
             children: [
               Expanded(
-                child: Text(
-                  current == null
-                      ? l.mtConflictCount(total)
-                      : l.mtConflictPosition(current + 1, total),
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: t.textMuted, fontSize: 12),
+                // Announced as it changes, so a screen reader hears where a
+                // jump landed.
+                child: Semantics(
+                  container: true,
+                  liveRegion: true,
+                  child: Text(
+                    current == null
+                        ? l.mtConflictCount(total)
+                        : l.mtConflictPosition(current + 1, total),
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: t.textMuted, fontSize: 12),
+                  ),
                 ),
               ),
               IconButton(
