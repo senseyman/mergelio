@@ -3709,7 +3709,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dashTitle => 'Dashboard';
 
   @override
-  String get dashTabTooltip => 'Every repository in this group at a glance';
+  String get dashToolbarTooltip => 'Every repository in this group at a glance';
 
   @override
   String dashRepoCount(int count) {

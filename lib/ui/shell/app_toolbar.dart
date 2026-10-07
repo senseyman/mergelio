@@ -50,6 +50,28 @@ class AppToolbar extends ConsumerWidget {
           const Spacer(),
           Builder(
             builder: (_) {
+              // A view switch, not a tab: pressed again it goes back to the
+              // repository it covered.
+              final (hasTabs, on) = ref.watch(
+                workspaceProvider.select(
+                  (w) => (w.tabs.isNotEmpty, w.dashboard),
+                ),
+              );
+              final ctl = ref.read(workspaceProvider.notifier);
+              return BarIconButton(
+                icon: Icons.space_dashboard_outlined,
+                tooltip: l.dashToolbarTooltip,
+                active: on,
+                onPressed: !hasTabs
+                    ? null
+                    : on
+                    ? ctl.hideDashboard
+                    : ctl.showDashboard,
+              );
+            },
+          ),
+          Builder(
+            builder: (_) {
               // Watched, not read: the icon and tooltip flip with the mode.
               final tab = ref.watch(
                 workspaceProvider.select((w) => w.shownTab),

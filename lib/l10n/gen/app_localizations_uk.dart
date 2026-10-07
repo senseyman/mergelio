@@ -3753,7 +3753,8 @@ class AppLocalizationsUk extends AppLocalizations {
   String get dashTitle => 'Панель';
 
   @override
-  String get dashTabTooltip => 'Усі репозиторії цієї групи з першого погляду';
+  String get dashToolbarTooltip =>
+      'Усі репозиторії цієї групи з першого погляду';
 
   @override
   String dashRepoCount(int count) {

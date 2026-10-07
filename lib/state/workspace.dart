@@ -339,6 +339,9 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
     state = state.copyWith(dashboard: true);
   }
 
+  /// Leaves the dashboard for the tab it was covering.
+  void hideDashboard() => state = state.copyWith(dashboard: false);
+
   /// Switches one tab between the history workspace and the file browser. The
   /// choice is per tab, so each open repo keeps the view it was left in.
   void setViewMode(int id, RepoViewMode mode) {

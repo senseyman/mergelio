@@ -1343,7 +1343,7 @@
   "hkFailLinked": "Хук посилається на файл в іншому місці; змініть режим того файлу.",
   "hkRewordSkip": "Змінити без хуків",
   "dashTitle": "Панель",
-  "dashTabTooltip": "Усі репозиторії цієї групи з першого погляду",
+  "dashToolbarTooltip": "Усі репозиторії цієї групи з першого погляду",
   "dashRepoCount": "{count, plural, one{{count} репозиторій} few{{count} репозиторії} many{{count} репозиторіїв} other{{count} репозиторію}}",
   "dashFetchAll": "Отримати все",
   "dashFetchAllTooltip": "Виконати fetch для кожного репозиторію групи, по кілька одночасно",

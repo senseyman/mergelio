@@ -6254,11 +6254,11 @@ abstract class AppLocalizations {
   /// **'Dashboard'**
   String get dashTitle;
 
-  /// No description provided for @dashTabTooltip.
+  /// No description provided for @dashToolbarTooltip.
   ///
   /// In en, this message translates to:
   /// **'Every repository in this group at a glance'**
-  String get dashTabTooltip;
+  String get dashToolbarTooltip;
 
   /// No description provided for @dashRepoCount.
   ///
