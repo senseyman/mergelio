@@ -91,12 +91,18 @@ class DashboardBatchController extends StateNotifier<DashboardBatch?> {
   GitCancel? _cancel;
 
   DashboardBatchController(this._ref) : super(null) {
-    // Results are per repository, and another group shows other repositories:
-    // a finished batch's results would only sit on rows that never ran. A
-    // running batch keeps its rows until it ends.
-    _ref.listen(workspaceProvider.select((w) => w.activeGroupId), (_, _) {
-      dismiss();
-    });
+    // Results describe the moment the batch ran and go stale after: a skip
+    // for uncommitted changes outlives the commit that fixed it. They are
+    // read on the dashboard and cleared when the user leaves it — or
+    // switches group, whose rows never ran. A running batch keeps its rows
+    // until it ends, so one left running is still there to read on return.
+    _ref.listen(
+      workspaceProvider.select((w) => (w.dashboard, w.activeGroupId)),
+      (prev, next) {
+        final left = (prev?.$1 ?? false) && !next.$1;
+        if (left || prev?.$2 != next.$2) _clearFinished();
+      },
+    );
   }
 
   /// Fetches every repository in [paths] that has a remote. Holds the fetch
@@ -159,8 +165,7 @@ class DashboardBatchController extends StateNotifier<DashboardBatch?> {
   /// start.
   void cancel() => _cancel?.cancel();
 
-  /// Clears a finished batch's per-row results.
-  void dismiss() {
+  void _clearFinished() {
     if (state?.running ?? false) return;
     state = null;
   }

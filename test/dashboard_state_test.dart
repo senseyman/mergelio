@@ -363,10 +363,38 @@ void main() {
     expect(await run, isNotNull);
   });
 
-  test('dismiss clears a finished batch', () async {
-    await batch.fetchAll(repos(1), label: 'Fetch all');
-    expect(container.read(dashboardBatchProvider), isNotNull);
-    batch.dismiss();
+  for (final (how, leave) in <(String, void Function(WorkspaceController))>[
+    ('the toolbar toggle', (ws) => ws.hideDashboard()),
+    ('a repository tab', (ws) => ws.setActive(ws.state.tabs.first.id)),
+  ]) {
+    test('leaving by $how clears a finished batch', () async {
+      final ws = container.read(workspaceProvider.notifier);
+      ws.openRepo('/r/0');
+      ws.showDashboard();
+      await batch.fetchAll(repos(1), label: 'Fetch all');
+      expect(container.read(dashboardBatchProvider), isNotNull);
+      leave(ws);
+      expect(container.read(dashboardBatchProvider), isNull);
+    });
+  }
+
+  test('a batch left running is still there to read on return', () async {
+    final ws = container.read(workspaceProvider.notifier);
+    ws.openRepo('/r/0');
+    ws.showDashboard();
+    git.hold = Completer<void>();
+    final run = batch.fetchAll(repos(1), label: 'Fetch all');
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+    ws.hideDashboard();
+    git.hold!.complete();
+    await run;
+    ws.showDashboard();
+    expect(
+      container.read(dashboardBatchProvider)!.rows['/r/0']!.state,
+      RowRunState.done,
+    );
+    // Seen once, it goes the next time the user leaves.
+    ws.hideDashboard();
     expect(container.read(dashboardBatchProvider), isNull);
   });
 }

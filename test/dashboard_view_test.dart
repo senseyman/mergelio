@@ -226,6 +226,8 @@ void main() {
     expect(find.text('skipped: uncommitted changes'), findsOneWidget);
     expect(find.text('failed'), findsOneWidget);
     expect(find.text('fatal: nope'), findsOneWidget);
+    // Results clear on their own when the user leaves; there is no button.
+    expect(find.text('Clear results'), findsNothing);
   });
 
   for (final (locale, text) in [

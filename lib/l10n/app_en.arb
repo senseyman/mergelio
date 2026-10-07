@@ -2333,7 +2333,6 @@
   "dashPullAll": "Pull fast-forwardable",
   "dashPullAllTooltip": "Fast-forward each clean branch that is only behind its upstream. Nothing is merged or committed; the rest are listed with the reason.",
   "dashRefresh": "Refresh",
-  "dashClearResults": "Clear results",
   "dashEmpty": "No repositories in this group.",
   "dashDetached": "detached HEAD",
   "dashUnborn": "no commits yet",

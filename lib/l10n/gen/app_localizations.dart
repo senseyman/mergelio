@@ -6296,12 +6296,6 @@ abstract class AppLocalizations {
   /// **'Refresh'**
   String get dashRefresh;
 
-  /// No description provided for @dashClearResults.
-  ///
-  /// In en, this message translates to:
-  /// **'Clear results'**
-  String get dashClearResults;
-
   /// No description provided for @dashEmpty.
   ///
   /// In en, this message translates to:

@@ -3740,9 +3740,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dashRefresh => 'Refresh';
 
   @override
-  String get dashClearResults => 'Clear results';
-
-  @override
   String get dashEmpty => 'No repositories in this group.';
 
   @override

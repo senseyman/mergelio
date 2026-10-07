@@ -3787,9 +3787,6 @@ class AppLocalizationsUk extends AppLocalizations {
   String get dashRefresh => 'Оновити';
 
   @override
-  String get dashClearResults => 'Очистити результати';
-
-  @override
   String get dashEmpty => 'У цій групі немає репозиторіїв.';
 
   @override

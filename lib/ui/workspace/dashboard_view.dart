@@ -118,12 +118,6 @@ class DashboardView extends ConsumerWidget {
                   label: Text(l.dashPullAll),
                 ),
               ),
-              if (batch != null && !running)
-                TextButton(
-                  onPressed: () =>
-                      ref.read(dashboardBatchProvider.notifier).dismiss(),
-                  child: Text(l.dashClearResults),
-                ),
               IconButton(
                 tooltip: l.dashRefresh,
                 onPressed: refreshAll,
