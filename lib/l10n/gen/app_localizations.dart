@@ -578,6 +578,12 @@ abstract class AppLocalizations {
   /// **'Rebase to here…'**
   String get menuRebaseHere;
 
+  /// No description provided for @menuCreateFixup.
+  ///
+  /// In en, this message translates to:
+  /// **'Prepare fixup for this commit'**
+  String get menuCreateFixup;
+
   /// No description provided for @menuResetMixed.
   ///
   /// In en, this message translates to:
@@ -2360,6 +2366,30 @@ abstract class AppLocalizations {
   /// **'A merge is open. Review the staged files, then commit it.'**
   String get wtpMergeOpenBody;
 
+  /// No description provided for @wtpBreakPausedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The rebase is paused at a break. Look around, commit or amend if you like, then continue it.'**
+  String get wtpBreakPausedBody;
+
+  /// No description provided for @wtpExecFailedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The exec step `{command}` failed. Fix the problem and commit the fix, then continue — the command is not run again.'**
+  String wtpExecFailedBody(String command);
+
+  /// No description provided for @wtpShowOutput.
+  ///
+  /// In en, this message translates to:
+  /// **'Show output'**
+  String get wtpShowOutput;
+
+  /// No description provided for @wtpHideOutput.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide output'**
+  String get wtpHideOutput;
+
   /// No description provided for @wtpContinueOp.
   ///
   /// In en, this message translates to:
@@ -3883,6 +3913,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Pick an action for each commit, or drag to reorder them.'**
   String get rbCustomizeHint;
+
+  /// No description provided for @rbAutosquash.
+  ///
+  /// In en, this message translates to:
+  /// **'Fold fixup commits into their targets'**
+  String get rbAutosquash;
+
+  /// No description provided for @rbAutosquashHint.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{1 fixup!/squash! commit found — it moves under the commit it names.} other{{count} fixup!/squash! commits found — each moves under the commit it names.}}'**
+  String rbAutosquashHint(int count);
+
+  /// No description provided for @rbFoldsInto.
+  ///
+  /// In en, this message translates to:
+  /// **'↳ into {target}'**
+  String rbFoldsInto(String target);
+
+  /// No description provided for @rbUpdateRefs.
+  ///
+  /// In en, this message translates to:
+  /// **'Move stacked branches too'**
+  String get rbUpdateRefs;
+
+  /// No description provided for @rbUpdateRefsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'{branches} point at these commits and will follow them.'**
+  String rbUpdateRefsHint(String branches);
+
+  /// No description provided for @rbAddExec.
+  ///
+  /// In en, this message translates to:
+  /// **'Add exec step'**
+  String get rbAddExec;
+
+  /// No description provided for @rbAddBreak.
+  ///
+  /// In en, this message translates to:
+  /// **'Add break'**
+  String get rbAddBreak;
+
+  /// No description provided for @rbExecFieldHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Shell command, e.g. flutter test'**
+  String get rbExecFieldHint;
+
+  /// No description provided for @rbRemoveStep.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove step'**
+  String get rbRemoveStep;
+
+  /// No description provided for @rbExecConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Run these commands?'**
+  String get rbExecConfirmTitle;
+
+  /// No description provided for @rbExecConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{This command runs in the repository between commits, exactly as written. If it fails, the rebase pauses there.} other{These {count} commands run in the repository between commits, exactly as written. If one fails, the rebase pauses there.}}'**
+  String rbExecConfirmBody(int count);
+
+  /// No description provided for @rbExecConfirmRun.
+  ///
+  /// In en, this message translates to:
+  /// **'Run rebase'**
+  String get rbExecConfirmRun;
 
   /// No description provided for @dlgEditCommitMessage.
   ///

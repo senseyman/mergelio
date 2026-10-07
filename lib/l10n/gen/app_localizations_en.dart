@@ -251,6 +251,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get menuRebaseHere => 'Rebase to here…';
 
   @override
+  String get menuCreateFixup => 'Prepare fixup for this commit';
+
+  @override
   String get menuResetMixed => 'Reset here (--mixed)';
 
   @override
@@ -1347,6 +1350,21 @@ class AppLocalizationsEn extends AppLocalizations {
       'A merge is open. Review the staged files, then commit it.';
 
   @override
+  String get wtpBreakPausedBody =>
+      'The rebase is paused at a break. Look around, commit or amend if you like, then continue it.';
+
+  @override
+  String wtpExecFailedBody(String command) {
+    return 'The exec step `$command` failed. Fix the problem and commit the fix, then continue — the command is not run again.';
+  }
+
+  @override
+  String get wtpShowOutput => 'Show output';
+
+  @override
+  String get wtpHideOutput => 'Hide output';
+
+  @override
   String wtpContinueOp(String name) {
     return 'Continue $name';
   }
@@ -2234,6 +2252,65 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get rbCustomizeHint =>
       'Pick an action for each commit, or drag to reorder them.';
+
+  @override
+  String get rbAutosquash => 'Fold fixup commits into their targets';
+
+  @override
+  String rbAutosquashHint(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count fixup!/squash! commits found — each moves under the commit it names.',
+      one:
+          '1 fixup!/squash! commit found — it moves under the commit it names.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String rbFoldsInto(String target) {
+    return '↳ into $target';
+  }
+
+  @override
+  String get rbUpdateRefs => 'Move stacked branches too';
+
+  @override
+  String rbUpdateRefsHint(String branches) {
+    return '$branches point at these commits and will follow them.';
+  }
+
+  @override
+  String get rbAddExec => 'Add exec step';
+
+  @override
+  String get rbAddBreak => 'Add break';
+
+  @override
+  String get rbExecFieldHint => 'Shell command, e.g. flutter test';
+
+  @override
+  String get rbRemoveStep => 'Remove step';
+
+  @override
+  String get rbExecConfirmTitle => 'Run these commands?';
+
+  @override
+  String rbExecConfirmBody(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'These $count commands run in the repository between commits, exactly as written. If one fails, the rebase pauses there.',
+      one: 'This command runs in the repository between commits, exactly as written. If it fails, the rebase pauses there.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get rbExecConfirmRun => 'Run rebase';
 
   @override
   String get dlgEditCommitMessage => 'Edit commit message';

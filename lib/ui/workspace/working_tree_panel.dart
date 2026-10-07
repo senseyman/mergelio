@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme.dart';
 import '../../core/tokens.dart';
 import '../../domain/git/commit_message.dart';
 import '../../domain/git/git_providers.dart';
 import '../../domain/git/git_reader.dart';
 import '../../domain/git/lfs.dart';
 import '../../domain/git/models.dart';
+import '../../domain/git/rebase_plan.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/diff_target.dart';
 import '../../state/feedback.dart';
@@ -188,8 +190,11 @@ class WorkingTreePanel extends ConsumerWidget {
                 repoPath: repoPath,
                 stagedCount: staged.length,
                 // A paused sequence commits through its own --continue; a stray
-                // commit here would strand the rest of the sequence.
-                sequencePaused: pending?.continues ?? false,
+                // commit here would strand the rest of the sequence. A rebase
+                // stopped on a break or a failed exec is the exception: making
+                // or amending a commit there is what the stop is for.
+                sequencePaused:
+                    (pending?.continues ?? false) && pending?.stop == null,
                 merging: pending?.kind == MergeKind.merge,
               ),
           ],
@@ -266,14 +271,18 @@ class _PendingOpBar extends ConsumerWidget {
                 child: Text(
                   // Not always a resolution the app just staged: a merge or
                   // rebase started in a terminal lands here the same way.
-                  pending.continues
-                      ? l.wtpOpPausedBody(name)
-                      : l.wtpMergeOpenBody,
+                  switch (pending.stop) {
+                    RebaseStop(:final command?) => l.wtpExecFailedBody(command),
+                    RebaseStop() => l.wtpBreakPausedBody,
+                    null when pending.continues => l.wtpOpPausedBody(name),
+                    null => l.wtpMergeOpenBody,
+                  },
                   style: TextStyle(color: t.textMuted, fontSize: 11.5),
                 ),
               ),
             ],
           ),
+          if (pending.stop?.isExec ?? false) _ExecOutput(repoPath: repoPath),
           const SizedBox(height: 8),
           Row(
             children: [
@@ -599,6 +608,56 @@ class _FileRow extends StatelessWidget {
   }
 }
 
+/// What the failed exec step printed, folded away until asked for: it can be
+/// a whole test run, and the bar above the file lists is no place to dump it.
+class _ExecOutput extends ConsumerStatefulWidget {
+  final String repoPath;
+  const _ExecOutput({required this.repoPath});
+
+  @override
+  ConsumerState<_ExecOutput> createState() => _ExecOutputState();
+}
+
+class _ExecOutputState extends ConsumerState<_ExecOutput> {
+  var _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final out = ref.watch(rebaseExecOutputProvider(widget.repoPath));
+    if (out == null || out.isEmpty) return const SizedBox.shrink();
+    final l = AppLocalizations.of(context);
+    final t = context.tokens;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton(
+            onPressed: () => setState(() => _open = !_open),
+            child: Text(_open ? l.wtpHideOutput : l.wtpShowOutput),
+          ),
+        ),
+        if (_open)
+          Container(
+            constraints: const BoxConstraints(maxHeight: 180),
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: t.bgElevated,
+              border: Border.all(color: t.border),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: SingleChildScrollView(
+              child: SelectableText(
+                out,
+                style: AppFonts.mns(size: 11, color: t.textMuted),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 class _Composer extends ConsumerStatefulWidget {
   final String repoPath;
   final int stagedCount;
@@ -642,6 +701,30 @@ class _ComposerState extends ConsumerState<_Composer> {
   void initState() {
     super.initState();
     if (widget.merging) _prefillMergeMessage();
+    // A message another part of the app prepared (a fixup, say) — whether it
+    // was set before this composer existed or while it is on screen.
+    ref.listenManual(
+      composerPrefillProvider(widget.repoPath),
+      (_, next) => _takePrefill(next),
+      fireImmediately: true,
+    );
+  }
+
+  /// Puts [message] in the summary field and clears the request, so a rebuild
+  /// does not apply it twice. Asked for explicitly, so it replaces what is
+  /// typed rather than waiting for an empty field.
+  void _takePrefill(String? message) {
+    if (message == null) return;
+    _summary.text = message;
+    // Not inside the notification itself: a provider cannot be written while
+    // it is still telling its listeners about the last write.
+    Future.microtask(() {
+      if (!mounted) return;
+      final prefill = ref.read(
+        composerPrefillProvider(widget.repoPath).notifier,
+      );
+      if (prefill.state == message) prefill.state = null;
+    });
   }
 
   /// Offers git's prepared merge message ("Merge branch 'x'") once a merge is

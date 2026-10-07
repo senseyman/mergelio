@@ -210,6 +210,12 @@ change never needs a second window.*
   drop a branch onto it and the merge lands on its local counterpart. Merging
   from a remote offers to fetch first, showing how long ago you last did.
 - **Interactive rebase** — reorder, reword, squash, fixup and drop.
+  **Autosquash** folds `fixup!` / `squash!` commits under the commit they name
+  and shows the pairing; **exec** steps run a command between commits (shown in
+  full and confirmed first — a failure pauses the rebase with its output) and
+  **break** steps pause it for you; **stacked branches** sitting on the rebased
+  commits can move with them (`update-ref`). "Prepare fixup for this commit" in
+  the graph menu pre-fills a `fixup! …` message — you stage and commit it.
 - Cherry-pick, revert, reset (soft / hard), and reset-to-remote.
 - Stash push, apply, pop, drop — with undo.
 - Tags: create, push, delete.
