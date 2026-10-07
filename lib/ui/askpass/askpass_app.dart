@@ -24,7 +24,8 @@ Future<void> runAskpassApp(String prompt, {bool marked = false}) async {
   windowManager.addListener(_CloseIsRefusal());
   await windowManager.waitUntilReadyToShow(
     const WindowOptions(
-      size: Size(460, 260),
+      // Tall enough for the repository line under the title as well.
+      size: Size(460, 300),
       minimumSize: Size(360, 220),
       center: true,
       title: 'Mergelio',
@@ -38,6 +39,7 @@ Future<void> runAskpassApp(String prompt, {bool marked = false}) async {
   runApp(
     AskpassApp(
       prompt: prompt,
+      repo: askpassRepoOf(Platform.environment),
       onAnswer: (answer) async {
         stdout.writeln(askpassAnswerLine(answer, marked: marked));
         await stdout.flush();
@@ -62,12 +64,14 @@ class _CloseIsRefusal extends WindowListener {
 
 class AskpassApp extends StatelessWidget {
   final String prompt;
+  final ({String name, String path})? repo;
   final void Function(String answer) onAnswer;
   final VoidCallback onCancel;
 
   const AskpassApp({
     super.key,
     required this.prompt,
+    this.repo,
     required this.onAnswer,
     required this.onCancel,
   });
@@ -90,6 +94,7 @@ class AskpassApp extends StatelessWidget {
       darkTheme: buildTheme(Brightness.dark),
       home: AskpassPrompt(
         prompt: prompt,
+        repo: repo,
         onAnswer: onAnswer,
         onCancel: onCancel,
       ),

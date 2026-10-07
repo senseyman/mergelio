@@ -17,6 +17,23 @@ const askpassMarkerFlag = '--marked';
 /// ssh take the first line they get as the credential.
 const askpassMarker = 'MERGELIO-ASKPASS:';
 
+/// Environment variable naming the repository a network command runs for.
+/// git and ssh hand their environment down to the helper, so the prompt can
+/// say which repository is asking — their own prompt names only the host,
+/// which several repositories share.
+const askpassRepoVariable = 'MERGELIO_ASKPASS_REPO';
+
+/// The repository [env] names for the prompt: its folder name and full path,
+/// or null when the command ran for none.
+({String name, String path})? askpassRepoOf(Map<String, String> env) {
+  final path = env[askpassRepoVariable]?.trim() ?? '';
+  if (path.isEmpty) return null;
+  final name = path
+      .split(RegExp(r'[/\\]'))
+      .lastWhere((s) => s.isNotEmpty, orElse: () => path);
+  return (name: name, path: path);
+}
+
 /// What the prompt is asking for, which decides how it is answered.
 enum AskpassKind {
   /// A passphrase or password: masked, and never written anywhere.

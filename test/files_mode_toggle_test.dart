@@ -68,6 +68,18 @@ void main() {
     expect(workspace.state.activeTab!.viewMode, RepoViewMode.graph);
   });
 
+  testWidgets('the toolbar button leaves the tab under the dashboard alone', (
+    tester,
+  ) async {
+    final workspace = WorkspaceController()..openRepo('/r');
+    workspace.showDashboard();
+    await tester.pumpWidget(_wrap(const AppToolbar(), workspace));
+
+    await tester.tap(find.byIcon(Icons.folder_outlined));
+    await tester.pump();
+    expect(workspace.state.activeTab!.viewMode, RepoViewMode.graph);
+  });
+
   testWidgets('the toolbar button is disabled with no repo open', (
     tester,
   ) async {

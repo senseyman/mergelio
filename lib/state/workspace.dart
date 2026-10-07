@@ -60,6 +60,10 @@ abstract class WorkspaceState with _$WorkspaceState {
     @Default([]) List<RepoGroup> groups,
     // null = "All": no group filter applied.
     int? activeGroupId,
+    // The dashboard over the active group is showing in place of the active
+    // tab, which stays selected underneath. Not persisted: a relaunch lands
+    // in a repository.
+    @Default(false) bool dashboard,
   }) = _WorkspaceState;
 
   /// A repo is "open" (workspace shown) only when the active tab is visible
@@ -81,6 +85,12 @@ abstract class WorkspaceState with _$WorkspaceState {
           for (final t in tabs)
             if (t.groupId == activeGroupId) t,
         ];
+
+  /// The tab whose repository is on screen: [activeTab], except while the
+  /// dashboard covers it. Anything that acts on "the current repository" —
+  /// shortcuts, search, the palette — goes through this, so it never reaches
+  /// a repository the user cannot see.
+  RepoTab? get shownTab => dashboard ? null : activeTab;
 
   RepoGroup? groupById(int? id) {
     for (final g in groups) {
@@ -291,6 +301,7 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
         // group is left untouched, and a tab already in g is only activated.
         state = state.copyWith(
           activeTabId: t.id,
+          dashboard: false,
           tabs: (g == null || t.groupId == g)
               ? state.tabs
               : [
@@ -309,12 +320,27 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
       path: path,
       groupId: state.activeGroupId,
     );
-    state = state.copyWith(tabs: [...state.tabs, tab], activeTabId: tab.id);
+    state = state.copyWith(
+      tabs: [...state.tabs, tab],
+      activeTabId: tab.id,
+      dashboard: false,
+    );
     _persist();
     return tab;
   }
 
-  void setActive(int id) => state = state.copyWith(activeTabId: id);
+  void setActive(int id) =>
+      state = state.copyWith(activeTabId: id, dashboard: false);
+
+  /// Shows the dashboard over the active group. Needs a repository open: with
+  /// none there is nothing to show and the welcome screen stays.
+  void showDashboard() {
+    if (state.tabs.isEmpty) return;
+    state = state.copyWith(dashboard: true);
+  }
+
+  /// Leaves the dashboard for the tab it was covering.
+  void hideDashboard() => state = state.copyWith(dashboard: false);
 
   /// Switches one tab between the history workspace and the file browser. The
   /// choice is per tab, so each open repo keeps the view it was left in.
@@ -346,7 +372,11 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
   }
 
   void closeTab(int id) {
-    state = state.copyWith(tabs: state.tabs.where((t) => t.id != id).toList());
+    final tabs = state.tabs.where((t) => t.id != id).toList();
+    state = state.copyWith(
+      tabs: tabs,
+      dashboard: state.dashboard && tabs.isNotEmpty,
+    );
     _normalizeActive();
     _persist();
   }
@@ -400,6 +430,7 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
     state = state.copyWith(
       tabs: keep,
       activeTabId: keep.isEmpty ? null : id,
+      dashboard: false,
       // Jump to the kept tab's group so it stays visible.
       activeGroupId: keep.isEmpty ? state.activeGroupId : keep.first.groupId,
     );

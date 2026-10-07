@@ -58,7 +58,8 @@ Future<Duration?> _lastFetchAge(String repoPath) async {
   return age.isNegative ? Duration.zero : age;
 }
 
-String _ageLabel(AppLocalizations l, Duration d) {
+/// Short "how long ago" for a fetch age: moments, minutes, hours or days.
+String fetchAgeLabel(AppLocalizations l, Duration d) {
   if (d.inMinutes < 1) return l.rmcMomentsAgo;
   if (d.inHours < 1) return l.rmcMinutesAgo(d.inMinutes);
   if (d.inDays < 1) return l.rmcHoursAgo(d.inHours);
@@ -84,7 +85,7 @@ class _LastFetchLine extends StatelessWidget {
         return Text(
           snap.data == null
               ? l.rmcNotFetched
-              : l.rmcLastFetched(_ageLabel(l, snap.data!)),
+              : l.rmcLastFetched(fetchAgeLabel(l, snap.data!)),
           style: TextStyle(color: t.textFaint, fontSize: 12),
         );
       },

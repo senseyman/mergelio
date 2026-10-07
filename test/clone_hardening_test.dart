@@ -122,6 +122,8 @@ void main() {
 
     expect(git.cloneEnv?['GIT_ASKPASS'], '/support/askpass.sh');
     expect(git.cloneEnv?['SSH_ASKPASS_REQUIRE'], 'force');
+    // The prompt names the clone it is for, not the folder it lands in.
+    expect(git.cloneEnv?[askpassRepoVariable], '${work.path}/repo');
   });
 
   test('a running clone can be given up on', () async {

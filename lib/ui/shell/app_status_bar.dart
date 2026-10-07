@@ -20,7 +20,9 @@ class AppStatusBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context);
     final t = context.tokens;
-    final tab = ref.watch(workspaceProvider).activeTab;
+    // The hidden repository's branch would only mislead under the dashboard.
+    final ws = ref.watch(workspaceProvider);
+    final tab = ws.shownTab;
     final branches = tab == null
         ? const <Branch>[]
         : (ref.watch(repoDataProvider(tab.path)).valueOrNull?.branches ??
@@ -74,7 +76,9 @@ class AppStatusBar extends ConsumerWidget {
               ),
             ),
             _dot(t),
-            Text(tab?.name ?? l.sbarNoRepository),
+            Text(
+              tab?.name ?? (ws.dashboard ? l.dashTitle : l.sbarNoRepository),
+            ),
             if (tab != null) ...[
               _dot(t),
               Icon(Icons.call_split, size: 12, color: t.textMuted),

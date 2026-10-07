@@ -50,9 +50,31 @@ class AppToolbar extends ConsumerWidget {
           const Spacer(),
           Builder(
             builder: (_) {
+              // A view switch, not a tab: pressed again it goes back to the
+              // repository it covered.
+              final (hasTabs, on) = ref.watch(
+                workspaceProvider.select(
+                  (w) => (w.tabs.isNotEmpty, w.dashboard),
+                ),
+              );
+              final ctl = ref.read(workspaceProvider.notifier);
+              return BarIconButton(
+                icon: Icons.space_dashboard_outlined,
+                tooltip: l.dashToolbarTooltip,
+                active: on,
+                onPressed: !hasTabs
+                    ? null
+                    : on
+                    ? ctl.hideDashboard
+                    : ctl.showDashboard,
+              );
+            },
+          ),
+          Builder(
+            builder: (_) {
               // Watched, not read: the icon and tooltip flip with the mode.
               final tab = ref.watch(
-                workspaceProvider.select((w) => w.activeTab),
+                workspaceProvider.select((w) => w.shownTab),
               );
               final files = tab?.viewMode == RepoViewMode.files;
               return BarIconButton(
@@ -84,7 +106,7 @@ class AppToolbar extends ConsumerWidget {
             icon: Icons.terminal_outlined,
             tooltip: l.tooltipTerminal,
             onPressed: () {
-              if (ref.read(workspaceProvider).activeTab == null) {
+              if (ref.read(workspaceProvider).shownTab == null) {
                 soon(l.tbTerminal);
                 return;
               }
@@ -95,7 +117,7 @@ class AppToolbar extends ConsumerWidget {
             icon: Icons.search,
             tooltip: l.tooltipSearch,
             onPressed: () {
-              if (ref.read(workspaceProvider).activeTab == null) {
+              if (ref.read(workspaceProvider).shownTab == null) {
                 soon(l.tbGlobalSearch);
                 return;
               }
@@ -106,7 +128,10 @@ class AppToolbar extends ConsumerWidget {
             icon: Icons.keyboard_command_key,
             tooltip: l.tooltipPalette,
             onPressed: () {
-              if (ref.read(workspaceProvider).activeTab == null) {
+              // The dashboard has a palette of its own: the way into each
+              // repository.
+              final ws = ref.read(workspaceProvider);
+              if (ws.shownTab == null && !ws.dashboard) {
                 soon(l.tbCommandPalette);
                 return;
               }

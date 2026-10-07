@@ -137,6 +137,24 @@ void main() {
       expect(ctl.scheduledInterval, isNull);
     });
 
+    test('no timer while the dashboard hides the panel, back after', () async {
+      final c = _container();
+      addTearDown(c.dispose);
+      final ctl = c.read(forgeRefreshProvider);
+      await _settle();
+      expect(ctl.scheduledInterval, isNotNull);
+
+      final ws = c.read(workspaceProvider.notifier);
+      ws.showDashboard();
+      await _settle();
+      // Nobody can see the panel; refreshing it would only spend budget.
+      expect(ctl.scheduledInterval, isNull);
+
+      ws.hideDashboard();
+      await _settle();
+      expect(ctl.scheduledInterval, isNotNull);
+    });
+
     test('a timer starts once a token and host both resolve', () async {
       final c = _container(
         settings: const AppSettings(forgeRefreshIntervalSeconds: 300),

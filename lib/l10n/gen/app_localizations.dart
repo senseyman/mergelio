@@ -6247,6 +6247,306 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Reword without hooks'**
   String get hkRewordSkip;
+
+  /// No description provided for @dashTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Dashboard'**
+  String get dashTitle;
+
+  /// No description provided for @dashToolbarTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Every repository in this group at a glance (⌘⇧D)'**
+  String get dashToolbarTooltip;
+
+  /// No description provided for @dashRepoCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 repository} other{{count} repositories}}'**
+  String dashRepoCount(int count);
+
+  /// No description provided for @dashFetchAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetch all'**
+  String get dashFetchAll;
+
+  /// No description provided for @dashFetchAllTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetch every repository in this group, a few at a time'**
+  String get dashFetchAllTooltip;
+
+  /// No description provided for @dashPullAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Pull fast-forwardable'**
+  String get dashPullAll;
+
+  /// No description provided for @dashPullAllTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Fast-forward each clean branch that is only behind its upstream. Nothing is merged or committed; the rest are listed with the reason.'**
+  String get dashPullAllTooltip;
+
+  /// No description provided for @dashRefresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get dashRefresh;
+
+  /// No description provided for @dashEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No repositories in this group.'**
+  String get dashEmpty;
+
+  /// No description provided for @dashDetached.
+  ///
+  /// In en, this message translates to:
+  /// **'detached HEAD'**
+  String get dashDetached;
+
+  /// No description provided for @dashUnborn.
+  ///
+  /// In en, this message translates to:
+  /// **'no commits yet'**
+  String get dashUnborn;
+
+  /// No description provided for @dashNoUpstream.
+  ///
+  /// In en, this message translates to:
+  /// **'no upstream'**
+  String get dashNoUpstream;
+
+  /// No description provided for @dashUpstreamGone.
+  ///
+  /// In en, this message translates to:
+  /// **'upstream gone'**
+  String get dashUpstreamGone;
+
+  /// No description provided for @dashUpstreamGoneTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'{upstream} no longer exists on the remote'**
+  String dashUpstreamGoneTooltip(String upstream);
+
+  /// No description provided for @dashAheadBehindTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'{ahead} ahead, {behind} behind {upstream}'**
+  String dashAheadBehindTooltip(int ahead, int behind, String upstream);
+
+  /// No description provided for @dashChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} changed'**
+  String dashChanged(int count);
+
+  /// No description provided for @dashConflicted.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} conflicted'**
+  String dashConflicted(int count);
+
+  /// No description provided for @dashUntracked.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} untracked'**
+  String dashUntracked(int count);
+
+  /// No description provided for @dashStashes.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} stashed'**
+  String dashStashes(int count);
+
+  /// No description provided for @dashClean.
+  ///
+  /// In en, this message translates to:
+  /// **'clean'**
+  String get dashClean;
+
+  /// No description provided for @dashFetchedAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'fetched {age}'**
+  String dashFetchedAgo(String age);
+
+  /// No description provided for @dashNeverFetched.
+  ///
+  /// In en, this message translates to:
+  /// **'never fetched'**
+  String get dashNeverFetched;
+
+  /// No description provided for @dashUnreadable.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read this repository'**
+  String get dashUnreadable;
+
+  /// No description provided for @dashOpMerge.
+  ///
+  /// In en, this message translates to:
+  /// **'merging'**
+  String get dashOpMerge;
+
+  /// No description provided for @dashOpRebase.
+  ///
+  /// In en, this message translates to:
+  /// **'rebasing'**
+  String get dashOpRebase;
+
+  /// No description provided for @dashOpAm.
+  ///
+  /// In en, this message translates to:
+  /// **'applying patches'**
+  String get dashOpAm;
+
+  /// No description provided for @dashOpCherryPick.
+  ///
+  /// In en, this message translates to:
+  /// **'cherry-picking'**
+  String get dashOpCherryPick;
+
+  /// No description provided for @dashOpRevert.
+  ///
+  /// In en, this message translates to:
+  /// **'reverting'**
+  String get dashOpRevert;
+
+  /// No description provided for @dashOpBisect.
+  ///
+  /// In en, this message translates to:
+  /// **'bisecting'**
+  String get dashOpBisect;
+
+  /// No description provided for @dashRunQueued.
+  ///
+  /// In en, this message translates to:
+  /// **'queued'**
+  String get dashRunQueued;
+
+  /// No description provided for @dashRunFetched.
+  ///
+  /// In en, this message translates to:
+  /// **'fetched'**
+  String get dashRunFetched;
+
+  /// No description provided for @dashRunPulled.
+  ///
+  /// In en, this message translates to:
+  /// **'pulled'**
+  String get dashRunPulled;
+
+  /// No description provided for @dashRunFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'failed'**
+  String get dashRunFailed;
+
+  /// No description provided for @dashRunCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'cancelled'**
+  String get dashRunCancelled;
+
+  /// No description provided for @dashSkipNoRemote.
+  ///
+  /// In en, this message translates to:
+  /// **'skipped: no remote'**
+  String get dashSkipNoRemote;
+
+  /// No description provided for @dashSkipUnreadable.
+  ///
+  /// In en, this message translates to:
+  /// **'skipped: could not read'**
+  String get dashSkipUnreadable;
+
+  /// No description provided for @dashSkipOperation.
+  ///
+  /// In en, this message translates to:
+  /// **'skipped: operation in progress'**
+  String get dashSkipOperation;
+
+  /// No description provided for @dashSkipDetached.
+  ///
+  /// In en, this message translates to:
+  /// **'skipped: detached HEAD'**
+  String get dashSkipDetached;
+
+  /// No description provided for @dashSkipNoUpstream.
+  ///
+  /// In en, this message translates to:
+  /// **'skipped: no upstream'**
+  String get dashSkipNoUpstream;
+
+  /// No description provided for @dashSkipUpstreamGone.
+  ///
+  /// In en, this message translates to:
+  /// **'skipped: upstream gone'**
+  String get dashSkipUpstreamGone;
+
+  /// No description provided for @dashSkipDirty.
+  ///
+  /// In en, this message translates to:
+  /// **'skipped: uncommitted changes'**
+  String get dashSkipDirty;
+
+  /// No description provided for @dashSkipDiverged.
+  ///
+  /// In en, this message translates to:
+  /// **'skipped: diverged, needs a merge or rebase'**
+  String get dashSkipDiverged;
+
+  /// No description provided for @dashSkipUpToDate.
+  ///
+  /// In en, this message translates to:
+  /// **'skipped: up to date'**
+  String get dashSkipUpToDate;
+
+  /// No description provided for @dashFetchBusy.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetching all repositories'**
+  String get dashFetchBusy;
+
+  /// No description provided for @dashPullBusy.
+  ///
+  /// In en, this message translates to:
+  /// **'Pulling fast-forwardable repositories'**
+  String get dashPullBusy;
+
+  /// No description provided for @dashFetchDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetch all finished'**
+  String get dashFetchDone;
+
+  /// No description provided for @dashPullDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Pull finished'**
+  String get dashPullDone;
+
+  /// No description provided for @dashBatchSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{done} done, {failed} failed, {skipped} skipped, {cancelled} cancelled'**
+  String dashBatchSummary(int done, int failed, int skipped, int cancelled);
+
+  /// No description provided for @dashPaletteOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open dashboard'**
+  String get dashPaletteOpen;
+
+  /// No description provided for @dashPaletteGoTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to {name}'**
+  String dashPaletteGoTo(String name);
 }
 
 class _AppLocalizationsDelegate

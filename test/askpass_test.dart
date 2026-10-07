@@ -242,10 +242,23 @@ void main() {
     });
 
     test('leaves the askpass variables unset when there is no helper', () {
-      final env = networkEnv();
+      final env = networkEnv(repo: '/w/api');
 
       expect(env.containsKey('GIT_ASKPASS'), isFalse);
       expect(env.containsKey('SSH_ASKPASS'), isFalse);
+      expect(env.containsKey(askpassRepoVariable), isFalse);
+    });
+
+    test('tells the helper which repository is asking', () {
+      final env = networkEnv(askpass: '/tmp/askpass.sh', repo: '/w/api');
+
+      expect(env[askpassRepoVariable], '/w/api');
+    });
+
+    test('names no repository when none is given', () {
+      final env = networkEnv(askpass: '/tmp/askpass.sh', repo: '  ');
+
+      expect(env.containsKey(askpassRepoVariable), isFalse);
     });
   });
 
@@ -263,10 +276,52 @@ void main() {
       },
     );
 
+    test('names the repository it reads the config of', () async {
+      final env = await resolveNetworkEnv(
+        _FakeGit(),
+        repoPath: '/w/api',
+        askpass: '/tmp/a.sh',
+      );
+
+      expect(env[askpassRepoVariable], '/w/api');
+    });
+
+    test('a repository still being cloned is named apart', () async {
+      final git = _FakeGit();
+      final env = await resolveNetworkEnv(
+        git,
+        askpass: '/tmp/a.sh',
+        askpassRepo: '/w/new-clone',
+      );
+
+      expect(env[askpassRepoVariable], '/w/new-clone');
+      // The config is still read globally: the clone does not exist yet.
+      expect(git.calls.single, ['config', '--get', 'core.sshCommand']);
+    });
+
     test('falls back to plain ssh when nothing is configured', () async {
       final env = await resolveNetworkEnv(_FakeGit());
 
       expect(env['GIT_SSH_COMMAND'], startsWith('ssh -o '));
+    });
+  });
+
+  group('askpassRepoOf', () {
+    test('reads the repository the main app named', () {
+      expect(askpassRepoOf({askpassRepoVariable: '/w/api'}), (
+        name: 'api',
+        path: '/w/api',
+      ));
+    });
+
+    test('takes the last segment past a trailing separator', () {
+      expect(askpassRepoOf({askpassRepoVariable: '/w/api/'})?.name, 'api');
+      expect(askpassRepoOf({askpassRepoVariable: r'C:\w\api'})?.name, 'api');
+    });
+
+    test('is null when nothing or only blanks were passed', () {
+      expect(askpassRepoOf(const {}), isNull);
+      expect(askpassRepoOf({askpassRepoVariable: ' '}), isNull);
     });
   });
 }

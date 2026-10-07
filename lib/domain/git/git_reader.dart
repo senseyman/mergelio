@@ -1,6 +1,10 @@
 import 'dart:convert';
+import 'dart:io';
+
+import 'package:path/path.dart' as pathlib;
 
 import 'commit_fields.dart';
+import 'dashboard.dart';
 import 'git_service.dart';
 import 'line_history.dart';
 import 'models.dart';
@@ -552,6 +556,73 @@ class GitReader {
       }
     }
     return out;
+  }
+
+  /// The dashboard's view of the repository: branch and upstream state,
+  /// change counts, stash count, any operation in progress and the last fetch
+  /// time. Two git processes — status and one `rev-parse --git-path` for every
+  /// state file — then plain stats, so a group of thirty repositories stays
+  /// cheap. `--git-path` keeps it right inside a linked worktree, whose state
+  /// lives under `.git/worktrees/<name>/` while its stash is shared.
+  Future<RepoSnapshot> snapshot() async {
+    final st = await _run([
+      'status',
+      '--porcelain=v2',
+      '--branch',
+      '-z',
+      '--untracked-files=normal',
+    ]);
+    if (!st.ok) throw GitException('git status failed', st);
+    const names = ['FETCH_HEAD', 'logs/refs/stash', ...dashboardStateFiles];
+    final rp = await _run([
+      'rev-parse',
+      for (final n in names) ...['--git-path', n],
+    ]);
+    if (!rp.ok) throw GitException('git rev-parse failed', rp);
+    final paths = rp.stdout.split('\n').map((l) => l.trim()).toList();
+    String? at(int i) {
+      if (i >= paths.length || paths[i].isEmpty) return null;
+      final p = paths[i];
+      return pathlib.isAbsolute(p) ? p : pathlib.join(repoPath, p);
+    }
+
+    Future<FileStat?> stat(int i) async {
+      final p = at(i);
+      if (p == null) return null;
+      final s = await FileStat.stat(p);
+      return s.type == FileSystemEntityType.notFound ? null : s;
+    }
+
+    Future<int> stashCount() async {
+      final p = at(1);
+      if (p == null) return 0;
+      try {
+        return countReflogEntries(await File(p).readAsString());
+      } on FileSystemException {
+        // No stash yet: git has not created the reflog.
+        return 0;
+      }
+    }
+
+    // Async, and all at once: the dashboard reads a whole group of
+    // repositories, and blocking stats would stall the UI for each of them.
+    final (stats, stashes) = await (
+      Future.wait([
+        for (var i = 0; i < dashboardStateFiles.length + 2; i++) stat(i),
+      ]),
+      stashCount(),
+    ).wait;
+    final present = <String>{
+      for (var i = 0; i < dashboardStateFiles.length; i++)
+        if (stats[i + 2] != null) dashboardStateFiles[i],
+    };
+
+    return RepoSnapshot(
+      summary: parseStatusSummary(st.stdout),
+      stashCount: stashes,
+      op: opFromStateFiles(present),
+      lastFetch: stats[0]?.modified,
+    );
   }
 
   /// Unified diff of the unstaged changes to [path] (working tree vs index).

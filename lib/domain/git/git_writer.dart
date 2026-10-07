@@ -198,6 +198,13 @@ class GitWriter {
     cancel: cancel,
   );
 
+  /// Pulls the current branch's upstream only when that is a fast-forward.
+  /// `--no-rebase` beside `--ff-only` so a `pull.rebase` preference cannot
+  /// turn a bulk pull into a rebase: either the branch moves forward or
+  /// nothing changes.
+  Future<void> pullFastForward({GitCancel? cancel}) =>
+      _net(['pull', '--ff-only', '--no-rebase'], 'git pull', cancel: cancel);
+
   /// Prunes remote-tracking refs under [remote] that no longer exist upstream.
   Future<void> pruneRemote(String remote, {GitCancel? cancel}) =>
       _net(['remote', 'prune', remote], 'git remote prune', cancel: cancel);

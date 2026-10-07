@@ -3748,4 +3748,186 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get hkRewordSkip => 'Змінити без хуків';
+
+  @override
+  String get dashTitle => 'Панель';
+
+  @override
+  String get dashToolbarTooltip =>
+      'Усі репозиторії цієї групи з першого погляду (⌘⇧D)';
+
+  @override
+  String dashRepoCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count репозиторію',
+      many: '$count репозиторіїв',
+      few: '$count репозиторії',
+      one: '$count репозиторій',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get dashFetchAll => 'Отримати все';
+
+  @override
+  String get dashFetchAllTooltip =>
+      'Виконати fetch для кожного репозиторію групи, по кілька одночасно';
+
+  @override
+  String get dashPullAll => 'Pull із перемотуванням';
+
+  @override
+  String get dashPullAllTooltip =>
+      'Перемотати вперед кожну чисту гілку, яка лише відстає від upstream. Нічого не зливається й не комітиться; решту перелічено з причиною.';
+
+  @override
+  String get dashRefresh => 'Оновити';
+
+  @override
+  String get dashEmpty => 'У цій групі немає репозиторіїв.';
+
+  @override
+  String get dashDetached => 'відʼєднаний HEAD';
+
+  @override
+  String get dashUnborn => 'ще немає комітів';
+
+  @override
+  String get dashNoUpstream => 'без upstream';
+
+  @override
+  String get dashUpstreamGone => 'upstream зник';
+
+  @override
+  String dashUpstreamGoneTooltip(String upstream) {
+    return '$upstream більше не існує на віддаленому репозиторії';
+  }
+
+  @override
+  String dashAheadBehindTooltip(int ahead, int behind, String upstream) {
+    return 'попереду на $ahead, позаду на $behind відносно $upstream';
+  }
+
+  @override
+  String dashChanged(int count) {
+    return 'змінено: $count';
+  }
+
+  @override
+  String dashConflicted(int count) {
+    return 'конфліктів: $count';
+  }
+
+  @override
+  String dashUntracked(int count) {
+    return 'невідстежуваних: $count';
+  }
+
+  @override
+  String dashStashes(int count) {
+    return 'у схованці: $count';
+  }
+
+  @override
+  String get dashClean => 'чисто';
+
+  @override
+  String dashFetchedAgo(String age) {
+    return 'fetch $age';
+  }
+
+  @override
+  String get dashNeverFetched => 'fetch ще не виконувався';
+
+  @override
+  String get dashUnreadable => 'Не вдалося прочитати цей репозиторій';
+
+  @override
+  String get dashOpMerge => 'злиття';
+
+  @override
+  String get dashOpRebase => 'rebase';
+
+  @override
+  String get dashOpAm => 'застосування патчів';
+
+  @override
+  String get dashOpCherryPick => 'cherry-pick';
+
+  @override
+  String get dashOpRevert => 'скасування коміту';
+
+  @override
+  String get dashOpBisect => 'bisect';
+
+  @override
+  String get dashRunQueued => 'у черзі';
+
+  @override
+  String get dashRunFetched => 'отримано';
+
+  @override
+  String get dashRunPulled => 'оновлено';
+
+  @override
+  String get dashRunFailed => 'помилка';
+
+  @override
+  String get dashRunCancelled => 'скасовано';
+
+  @override
+  String get dashSkipNoRemote => 'пропущено: немає віддаленого репозиторію';
+
+  @override
+  String get dashSkipUnreadable => 'пропущено: не вдалося прочитати';
+
+  @override
+  String get dashSkipOperation => 'пропущено: триває операція';
+
+  @override
+  String get dashSkipDetached => 'пропущено: відʼєднаний HEAD';
+
+  @override
+  String get dashSkipNoUpstream => 'пропущено: без upstream';
+
+  @override
+  String get dashSkipUpstreamGone => 'пропущено: upstream зник';
+
+  @override
+  String get dashSkipDirty => 'пропущено: незакомічені зміни';
+
+  @override
+  String get dashSkipDiverged =>
+      'пропущено: гілки розійшлися, потрібне злиття або rebase';
+
+  @override
+  String get dashSkipUpToDate => 'пропущено: актуально';
+
+  @override
+  String get dashFetchBusy => 'Fetch усіх репозиторіїв';
+
+  @override
+  String get dashPullBusy => 'Pull репозиторіїв із перемотуванням';
+
+  @override
+  String get dashFetchDone => 'Fetch усіх завершено';
+
+  @override
+  String get dashPullDone => 'Pull завершено';
+
+  @override
+  String dashBatchSummary(int done, int failed, int skipped, int cancelled) {
+    return 'успішно: $done, помилок: $failed, пропущено: $skipped, скасовано: $cancelled';
+  }
+
+  @override
+  String get dashPaletteOpen => 'Відкрити панель';
+
+  @override
+  String dashPaletteGoTo(String name) {
+    return 'Перейти до $name';
+  }
 }

@@ -19,6 +19,7 @@ import '../common/progress_top_bar.dart';
 import '../common/toast_overlay.dart';
 import '../profiles/first_profile_screen.dart';
 import '../welcome/welcome_screen.dart';
+import '../workspace/dashboard_view.dart';
 import '../workspace/workspace_view.dart';
 import 'app_bottom_bar.dart';
 import 'app_status_bar.dart';
@@ -53,6 +54,7 @@ class AppShell extends ConsumerWidget {
     }
 
     final hasRepo = ref.watch(workspaceProvider.select((w) => w.hasRepo));
+    final dashboard = ref.watch(workspaceProvider.select((w) => w.dashboard));
 
     return Scaffold(
       body: QuitGuard(
@@ -64,7 +66,7 @@ class AppShell extends ConsumerWidget {
                   const AppToolbar(),
                   const AppTabBar(),
                   Expanded(
-                    child: hasRepo
+                    child: dashboard || hasRepo
                         ? Row(
                             children: [
                               // 'rail' group-switcher style docks a vertical
@@ -76,20 +78,28 @@ class AppShell extends ConsumerWidget {
                                   ) ==
                                   'rail')
                                 const GroupRail(),
-                              Expanded(
-                                child: Column(
-                                  children: [
-                                    const Expanded(child: WorkspaceView()),
-                                    if (ref.watch(
-                                      settingsProvider.select(
-                                        (st) => st.terminalOpen,
-                                      ),
-                                    ))
-                                      const TerminalPanel(),
-                                    const AppBottomBar(),
-                                  ],
+                              // The terminal and the bottom bar belong to one
+                              // repository — its working directory, its push
+                              // and pull — so they step aside with it while
+                              // the dashboard shows; an open terminal returns
+                              // with the repository.
+                              if (dashboard)
+                                const Expanded(child: DashboardView())
+                              else
+                                Expanded(
+                                  child: Column(
+                                    children: [
+                                      const Expanded(child: WorkspaceView()),
+                                      if (ref.watch(
+                                        settingsProvider.select(
+                                          (st) => st.terminalOpen,
+                                        ),
+                                      ))
+                                        const TerminalPanel(),
+                                      const AppBottomBar(),
+                                    ],
+                                  ),
                                 ),
-                              ),
                             ],
                           )
                         : const WelcomeScreen(),

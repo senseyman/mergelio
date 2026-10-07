@@ -34,8 +34,8 @@ final forgeRefreshEligibleProvider = FutureProvider.family<bool, String>((
 ///
 /// A tick may only run while three things hold at once: a token is on file
 /// for the active repository ([forgeRefreshEligibleProvider] folds this
-/// together with the host check), the window has focus, and there is an
-/// active tab at all. Losing any of them cancels the timer outright — with
+/// together with the host check), the window has focus, and a repository is
+/// on screen — an active tab the dashboard is not covering. Losing any of them cancels the timer outright — with
 /// no token, one tick spends up to 21 of the unauthenticated hourly budget
 /// of 60, which is not something a background schedule may spend on its own.
 ///
@@ -52,9 +52,11 @@ class ForgeRefreshController extends PollingScheduler {
 
   ForgeRefreshController(super.ref, {super.interval}) {
     // A tab switch or a repo closing changes which repository (if any) the
-    // scheduler tracks, and re-points the eligibility watch at it.
+    // scheduler tracks, and re-points the eligibility watch at it. The tab on
+    // screen, not merely the active one: under the dashboard nobody can see
+    // the panel, so — like an unfocused window — it is not worth the budget.
     ref.listen<String?>(
-      workspaceProvider.select((w) => w.activeTab?.path),
+      workspaceProvider.select((w) => w.shownTab?.path),
       (_, path) => _onPathChanged(path),
       fireImmediately: true,
     );

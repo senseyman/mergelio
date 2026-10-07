@@ -88,6 +88,13 @@ change never needs a second window.*
 - **Repository groups** to scope tabs into named sets (e.g. `Work` / `OSS`),
   with three switcher styles (dropdown, pills, side rail); create, rename and
   delete groups from any of them.
+- **Dashboard** over the active group: one row per repository with its branch,
+  ahead/behind, changed and untracked counts, stashes, last fetch, any merge or
+  rebase in progress, and branches whose upstream is missing or gone. **Fetch
+  all** runs a few repositories at a time and can be cancelled; **Pull
+  fast-forwardable** only fast-forwards clean branches that are just behind,
+  and lists the rest with the reason they were skipped. Nothing is merged or
+  committed.
 - **Profiles** — separate identities, SSH keys and per-profile workspaces.
   SSH keys are generated through the system `ssh-keygen`, so key material stays
   with the OS tooling.
@@ -562,7 +569,9 @@ Mergelio has no accounts and phones home to nothing by default.
   from this repository's releases once a day — no account, no identifiers, and
   nothing about your repositories is sent.
 - Credentials are handled by your existing git credential helper and
-  `ssh-agent`; Mergelio does not store passwords or tokens itself.
+  `ssh-agent`; Mergelio does not store passwords or tokens itself. When git or
+  ssh has to ask, the prompt names the repository it is for, so several asking
+  at once can be told apart.
 - Everything else — settings, recents, open tabs, the operation journal — stays
   in a local SQLite database in your OS application-support directory.
 - Diagnostic logs are written to `logs/mergelio.log` in that same directory

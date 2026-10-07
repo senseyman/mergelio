@@ -149,7 +149,12 @@ class AppTabBar extends ConsumerWidget {
               child: Row(
                 children: [
                   for (final tab in ws.visibleTabs)
-                    _Tab(tab: tab, active: tab.id == ws.activeTabId),
+                    _Tab(
+                      tab: tab,
+                      // The dashboard covers the active tab, which stays
+                      // selected underneath but is not what is showing.
+                      active: !ws.dashboard && tab.id == ws.activeTabId,
+                    ),
                 ],
               ),
             ),
