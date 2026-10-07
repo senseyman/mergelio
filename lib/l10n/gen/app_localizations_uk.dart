@@ -1904,6 +1904,9 @@ class AppLocalizationsUk extends AppLocalizations {
   String get pfScNextPrevMatch => 'Наступний / попередній збіг';
 
   @override
+  String get pfScPrevNextConflict => 'Попередній / наступний конфлікт (злиття)';
+
+  @override
   String get pfScCommit => 'Коміт (у редакторі)';
 
   @override
@@ -2132,6 +2135,30 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get mtBothDeleted => 'Видалено в обох гілках.';
+
+  @override
+  String mtConflictCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count конфлікту',
+      many: '$count конфліктів',
+      few: '$count конфлікти',
+      one: '$count конфлікт',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String mtConflictPosition(int current, int total) {
+    return 'Конфлікт $current з $total';
+  }
+
+  @override
+  String get mtPrevConflict => 'Попередній конфлікт (⌥↑)';
+
+  @override
+  String get mtNextConflict => 'Наступний конфлікт (⌥↓)';
 
   @override
   String get rbPick => 'залишити цей коміт як є';

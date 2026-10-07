@@ -29,6 +29,7 @@ class MergeTool extends ConsumerStatefulWidget {
 
 class _MergeToolState extends ConsumerState<MergeTool> {
   int _fileIndex = 0;
+  final _view = GlobalKey<_ConflictViewState>();
 
   MergeSession? get _session => ref.read(mergeSessionProvider(widget.repoPath));
 
@@ -53,7 +54,7 @@ class _MergeToolState extends ConsumerState<MergeTool> {
         .replaceFile(_fileIndex, session.files[_fileIndex].withFileChoice(r));
   }
 
-  /// True when a text field currently has focus, so letter shortcuts (N) must
+  /// True when a text field currently has focus, so the tool's shortcuts must
   /// not fire — they'd be swallowed keystrokes in the hunk editor.
   bool _isEditingText() {
     final ctx = FocusManager.instance.primaryFocus?.context;
@@ -92,12 +93,19 @@ class _MergeToolState extends ConsumerState<MergeTool> {
         ?.name;
 
     return CallbackShortcuts(
-      // N jumps to the next unresolved conflict — but not while the user is
-      // typing a custom resolution into a hunk editor.
+      // N jumps to the next unresolved file, ⌥↑/⌥↓ step through the open
+      // file's conflicts — but not while the user is typing a custom
+      // resolution into a hunk editor.
       bindings: {
         const SingleActivator(LogicalKeyboardKey.keyN): () {
           if (_isEditingText()) return;
           if (!session.allResolved) _nextUnresolved(session);
+        },
+        const SingleActivator(LogicalKeyboardKey.arrowUp, alt: true): () {
+          if (!_isEditingText()) _view.currentState?.step(forward: false);
+        },
+        const SingleActivator(LogicalKeyboardKey.arrowDown, alt: true): () {
+          if (!_isEditingText()) _view.currentState?.step(forward: true);
         },
       },
       child: Focus(
@@ -132,6 +140,7 @@ class _MergeToolState extends ConsumerState<MergeTool> {
                     Container(width: 1, color: t.border),
                     Expanded(
                       child: _ConflictView(
+                        key: _view,
                         repoPath: widget.repoPath,
                         file: file,
                         oursLabel: into == null
@@ -296,7 +305,7 @@ class _FileList extends StatelessWidget {
   }
 }
 
-class _ConflictView extends StatelessWidget {
+class _ConflictView extends StatefulWidget {
   final String repoPath;
   final ConflictFile file;
   final String oursLabel;
@@ -304,6 +313,7 @@ class _ConflictView extends StatelessWidget {
   final void Function(int hunk, Resolution r, {List<String>? lines}) onResolve;
   final ValueChanged<FileResolution> onResolveFile;
   const _ConflictView({
+    super.key,
     required this.repoPath,
     required this.file,
     required this.oursLabel,
@@ -313,8 +323,62 @@ class _ConflictView extends StatelessWidget {
   });
 
   @override
+  State<_ConflictView> createState() => _ConflictViewState();
+}
+
+class _ConflictViewState extends State<_ConflictView> {
+  final _scroll = ScrollController();
+
+  /// One key per hunk, by part index, so a jump can scroll its card into view.
+  final _hunkKeys = <int, GlobalKey>{};
+
+  /// Which of the file's conflicts the last jump landed on, counted in file
+  /// order; null until the user jumps.
+  int? _current;
+
+  @override
+  void didUpdateWidget(_ConflictView old) {
+    super.didUpdateWidget(old);
+    // Another file starts from its top with no conflict selected.
+    if (old.file.path != widget.file.path) {
+      _current = null;
+      _hunkKeys.clear();
+      if (_scroll.hasClients) _scroll.jumpTo(0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  /// Scrolls the next (or previous) conflict to the top of the view.
+  void step({required bool forward}) {
+    if (widget.file.wholeFile) return;
+    final hunks = widget.file.hunkIndices;
+    final target = stepConflict(hunks.length, _current, forward: forward);
+    if (target == null) return;
+    setState(() => _current = target);
+    final ctx = _hunkKeys[hunks[target]]?.currentContext;
+    if (ctx == null) return;
+    Scrollable.ensureVisible(
+      ctx,
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = context.tokens;
+    final file = widget.file;
+    final repoPath = widget.repoPath;
+    final oursLabel = widget.oursLabel;
+    final theirsLabel = widget.theirsLabel;
+    final onResolve = widget.onResolve;
+    final onResolveFile = widget.onResolveFile;
     if (file.wholeFile) {
       return ListView(
         padding: const EdgeInsets.all(12),
@@ -329,29 +393,79 @@ class _ConflictView extends StatelessWidget {
         ],
       );
     }
-    return ListView(
+    final total = file.hunkIndices.length;
+    final current = _current;
+    // Every part is built up front, unlike a lazy list, so a hunk far down a
+    // big file has a context to scroll to.
+    final body = SingleChildScrollView(
+      controller: _scroll,
       padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < file.parts.length; i++)
+            if (file.parts[i] case final ConflictHunk hunk)
+              _HunkCard(
+                key: _hunkKeys.putIfAbsent(i, GlobalKey.new),
+                hunk: hunk,
+                oursLabel: oursLabel,
+                theirsLabel: theirsLabel,
+                resolution: file.resolutions[i],
+                custom: file.custom[i],
+                onAccept: (r, {lines}) => onResolve(i, r, lines: lines),
+              )
+            else if (file.parts[i] case final ContextBlock block)
+              if (block.lines.any((l) => l.trim().isNotEmpty))
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Text(
+                    expandTabs(block.lines.join('\n')),
+                    style: AppFonts.mns(size: 12.5, color: t.textFaint),
+                  ),
+                ),
+        ],
+      ),
+    );
+    if (total == 0) return body;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (var i = 0; i < file.parts.length; i++)
-          if (file.parts[i] case final ConflictHunk hunk)
-            _HunkCard(
-              key: ValueKey('$i'),
-              hunk: hunk,
-              oursLabel: oursLabel,
-              theirsLabel: theirsLabel,
-              resolution: file.resolutions[i],
-              custom: file.custom[i],
-              onAccept: (r, {lines}) => onResolve(i, r, lines: lines),
-            )
-          else if (file.parts[i] case final ContextBlock block)
-            if (block.lines.any((l) => l.trim().isNotEmpty))
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
+        Container(
+          height: 34,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: t.bgPanel,
+            border: Border(bottom: BorderSide(color: t.border)),
+          ),
+          child: Row(
+            children: [
+              Expanded(
                 child: Text(
-                  expandTabs(block.lines.join('\n')),
-                  style: AppFonts.mns(size: 12.5, color: t.textFaint),
+                  current == null
+                      ? l.mtConflictCount(total)
+                      : l.mtConflictPosition(current + 1, total),
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: t.textMuted, fontSize: 12),
                 ),
               ),
+              IconButton(
+                tooltip: l.mtPrevConflict,
+                iconSize: 18,
+                visualDensity: VisualDensity.compact,
+                onPressed: () => step(forward: false),
+                icon: const Icon(Icons.keyboard_arrow_up),
+              ),
+              IconButton(
+                tooltip: l.mtNextConflict,
+                iconSize: 18,
+                visualDensity: VisualDensity.compact,
+                onPressed: () => step(forward: true),
+                icon: const Icon(Icons.keyboard_arrow_down),
+              ),
+            ],
+          ),
+        ),
+        Expanded(child: body),
       ],
     );
   }

@@ -1418,6 +1418,7 @@
   "pfScCommandPalette": "Command palette",
   "pfScSearchCommits": "Search commits",
   "pfScNextPrevMatch": "Next / previous search match",
+  "pfScPrevNextConflict": "Previous / next conflict (merge tool)",
   "pfScCommit": "Commit (in composer)",
   "pfScCreateBranch": "Create branch",
   "pfScCollapsePanel": "Collapse left panel",
@@ -1537,6 +1538,27 @@
   "mtAddedByUs": "Added on this branch only.",
   "mtAddedByThem": "Added by the incoming branch only.",
   "mtBothDeleted": "Deleted on both branches.",
+  "mtConflictCount": "{count, plural, one{{count} conflict} other{{count} conflicts}}",
+  "@mtConflictCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "mtConflictPosition": "Conflict {current} of {total}",
+  "@mtConflictPosition": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "mtPrevConflict": "Previous conflict (⌥↑)",
+  "mtNextConflict": "Next conflict (⌥↓)",
   "rbPick": "keep this commit as it is",
   "rbReword": "keep this commit, change its message",
   "rbSquash": "merge into the commit above, keep both messages",

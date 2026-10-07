@@ -229,6 +229,7 @@ class _ShortcutsTab extends StatelessWidget {
     ('⌘K / ⌘⇧P', l.pfScCommandPalette),
     ('⌘F', l.pfScSearchCommits),
     ('N / ⇧N', l.pfScNextPrevMatch),
+    ('⌥↑ / ⌥↓', l.pfScPrevNextConflict),
     ('⌘⏎', l.pfScCommit),
     ('⌘B', l.pfScCreateBranch),
     ('⌘\\', l.pfScCollapsePanel),
@@ -269,7 +270,13 @@ class _ShortcutsTab extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 12),
-                Text(desc, style: TextStyle(color: t.textMuted, fontSize: 13)),
+                // Wraps rather than overflowing when a translation runs long.
+                Expanded(
+                  child: Text(
+                    desc,
+                    style: TextStyle(color: t.textMuted, fontSize: 13),
+                  ),
+                ),
               ],
             ),
           ),

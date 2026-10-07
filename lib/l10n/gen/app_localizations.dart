@@ -3314,6 +3314,12 @@ abstract class AppLocalizations {
   /// **'Next / previous search match'**
   String get pfScNextPrevMatch;
 
+  /// No description provided for @pfScPrevNextConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous / next conflict (merge tool)'**
+  String get pfScPrevNextConflict;
+
   /// No description provided for @pfScCommit.
   ///
   /// In en, this message translates to:
@@ -3733,6 +3739,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Deleted on both branches.'**
   String get mtBothDeleted;
+
+  /// No description provided for @mtConflictCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{{count} conflict} other{{count} conflicts}}'**
+  String mtConflictCount(int count);
+
+  /// No description provided for @mtConflictPosition.
+  ///
+  /// In en, this message translates to:
+  /// **'Conflict {current} of {total}'**
+  String mtConflictPosition(int current, int total);
+
+  /// No description provided for @mtPrevConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous conflict (⌥↑)'**
+  String get mtPrevConflict;
+
+  /// No description provided for @mtNextConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'Next conflict (⌥↓)'**
+  String get mtNextConflict;
 
   /// No description provided for @rbPick.
   ///
