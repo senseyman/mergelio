@@ -91,7 +91,8 @@ void main() {
     }),
   ];
 
-  Widget app(Widget body) => MaterialApp(
+  Widget app(Widget body, {Locale? locale}) => MaterialApp(
+    locale: locale,
     localizationsDelegates: AppLocalizations.localizationsDelegates,
     supportedLocales: AppLocalizations.supportedLocales,
     theme: ThemeData(extensions: [AppTokens.dark()]),
@@ -226,6 +227,36 @@ void main() {
     expect(find.text('failed'), findsOneWidget);
     expect(find.text('fatal: nope'), findsOneWidget);
   });
+
+  for (final (locale, text) in [
+    (const Locale('en'), 'An operation is already running'),
+    (const Locale('uk'), 'Операція вже виконується'),
+  ]) {
+    testWidgets('a refused batch says so in ${locale.languageCode}', (
+      tester,
+    ) async {
+      ws.openRepo('/r/a');
+      ws.showDashboard();
+      snaps['/r/a'] = _snap();
+      final container = ProviderContainer(overrides: overrides());
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: app(const DashboardView(), locale: locale),
+        ),
+      );
+      await tester.pumpAndSettle();
+      // The controller refuses (another batch or a lane got there first).
+      batch.result = null;
+      await tester.tap(find.byType(OutlinedButton).first);
+      await tester.pump();
+      final toasts = container.read(toastProvider);
+      expect(toasts.single.title, text);
+      expect(toasts.single.kind, ToastKind.warning);
+      await tester.pump(const Duration(seconds: 7));
+    });
+  }
 
   testWidgets('buttons are disabled while a batch or a lane is busy', (
     tester,

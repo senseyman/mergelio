@@ -101,7 +101,8 @@ class DashboardBatchController extends StateNotifier<DashboardBatch?> {
 
   /// Fetches every repository in [paths] that has a remote. Holds the fetch
   /// lane for the whole batch: auto-fetch and a manual fetch wait it out.
-  /// Returns the finished batch, or null when it could not start.
+  /// Returns the finished batch, or null when it could not start because
+  /// another batch or the lane's own operation is running.
   Future<DashboardBatch?> fetchAll(
     List<String> paths, {
     required String label,
@@ -173,12 +174,8 @@ class DashboardBatchController extends StateNotifier<DashboardBatch?> {
     required Future<RowRun> Function(GitService git, String path, GitCancel c)
     each,
   }) async {
-    if ((state?.running ?? false) || _ref.read(slot) != null) {
-      _ref
-          .read(toastProvider.notifier)
-          .show('An operation is already running', kind: ToastKind.warning);
-      return null;
-    }
+    // Refused without a word: the caller tells the user, in their language.
+    if ((state?.running ?? false) || _ref.read(slot) != null) return null;
     final cancel = _cancel = GitCancel();
     final git = _ref.read(gitServiceProvider);
     state = DashboardBatch(kind, {

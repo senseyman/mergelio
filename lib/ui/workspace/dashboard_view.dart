@@ -36,7 +36,10 @@ class DashboardView extends ConsumerWidget {
       final out = kind == DashboardBatchKind.fetch
           ? await ctl.fetchAll(paths, label: l.dashFetchBusy)
           : await ctl.pullAll(paths, label: l.dashPullBusy);
-      if (out == null) return;
+      if (out == null) {
+        toasts.show(l.bbOperationRunning, kind: ToastKind.warning);
+        return;
+      }
       final failed = out.count(RowRunState.failed);
       toasts.show(
         kind == DashboardBatchKind.fetch ? l.dashFetchDone : l.dashPullDone,

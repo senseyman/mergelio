@@ -188,7 +188,8 @@ void main() {
       final out = await batch.fetchAll(repos(2), label: 'Fetch all');
       expect(out, isNull);
       expect(git.calls.where((c) => c.$2.startsWith('fetch')), isEmpty);
-      expect(container.read(toastProvider), hasLength(1));
+      // The caller says so, in the user's language.
+      expect(container.read(toastProvider), isEmpty);
     });
 
     test('the lane busy state carries progress and a cancel', () async {
