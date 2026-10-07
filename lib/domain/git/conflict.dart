@@ -133,3 +133,24 @@ String resolveConflicts(
   }
   return '${out.join('\n')}\n';
 }
+
+/// Which of [count] conflicts a next/previous jump from [current] lands on,
+/// wrapping at either end. With none selected yet, next starts at the first
+/// conflict and previous at the last. Null when there is nothing to jump to.
+int? stepConflict(int count, int? current, {required bool forward}) {
+  if (count == 0) return null;
+  if (current == null) return forward ? 0 : count - 1;
+  return (current + (forward ? 1 : -1)) % count;
+}
+
+/// Which conflict, counted in file order, a reader is at when part [part] of
+/// the file sits at the top of the view: the last hunk at or before it, so
+/// the context below a conflict still counts as that conflict. Null above the
+/// first hunk.
+int? conflictAtPart(List<int> hunkIndices, int part) {
+  int? at;
+  for (var n = 0; n < hunkIndices.length && hunkIndices[n] <= part; n++) {
+    at = n;
+  }
+  return at;
+}

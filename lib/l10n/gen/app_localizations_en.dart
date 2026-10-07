@@ -1895,6 +1895,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pfScNextPrevMatch => 'Next / previous search match';
 
   @override
+  String get pfScPrevNextConflict => 'Previous / next conflict (merge tool)';
+
+  @override
   String get pfScCommit => 'Commit (in composer)';
 
   @override
@@ -2124,6 +2127,28 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mtBothDeleted => 'Deleted on both branches.';
+
+  @override
+  String mtConflictCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count conflicts',
+      one: '$count conflict',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String mtConflictPosition(int current, int total) {
+    return 'Conflict $current of $total';
+  }
+
+  @override
+  String get mtPrevConflict => 'Previous conflict (⌥↑)';
+
+  @override
+  String get mtNextConflict => 'Next conflict (⌥↓)';
 
   @override
   String get rbPick => 'keep this commit as it is';

@@ -289,6 +289,7 @@ change never needs a second window.*
 | `⌘S` | Save the file open in the editor |
 | `⌘F` | Find and replace, with an editor focused |
 | `⌘+` / `⌘-` / `⌘0` | Zoom in / out / reset |
+| `⌥↑` / `⌥↓` | Previous / next conflict in the merge tool (`Alt` elsewhere) |
 | `Esc` | Dismiss the top notification |
 
 The full list lives in **Preferences → Shortcuts**.
