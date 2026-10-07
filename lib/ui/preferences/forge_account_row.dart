@@ -137,6 +137,9 @@ class _ForgeAccountRowState extends ConsumerState<ForgeAccountRow> {
           .show(l.forgeTokenRejected(_forgeName), kind: ToastKind.error);
       return;
     }
+    // The active tab even under the dashboard: its credential helper config
+    // decides where the token is stored, and that must not change just
+    // because the dashboard is showing.
     final path = ref.read(workspaceProvider).activeTab?.path;
     final credentials = _credentialsFor(path);
     final approved = await credentials.approve(

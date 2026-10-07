@@ -3754,7 +3754,7 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get dashToolbarTooltip =>
-      'Усі репозиторії цієї групи з першого погляду';
+      'Усі репозиторії цієї групи з першого погляду (⌘⇧D)';
 
   @override
   String dashRepoCount(int count) {

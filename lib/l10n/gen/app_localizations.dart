@@ -6257,7 +6257,7 @@ abstract class AppLocalizations {
   /// No description provided for @dashToolbarTooltip.
   ///
   /// In en, this message translates to:
-  /// **'Every repository in this group at a glance'**
+  /// **'Every repository in this group at a glance (⌘⇧D)'**
   String get dashToolbarTooltip;
 
   /// No description provided for @dashRepoCount.

@@ -85,6 +85,8 @@ class AutoFetchController extends PollingScheduler {
   /// only when a fetch actually ran and failed; a skipped tick reports true so
   /// it does not trigger the backoff.
   Future<bool> fetchNow() async {
+    // The active tab, not the one on screen: under the dashboard it is still
+    // the user's repository and should be current when they return to it.
     final tab = ref.read(workspaceProvider).activeTab;
     if (tab == null) return true;
     final remotes = await GitReader(

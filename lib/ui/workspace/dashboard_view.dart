@@ -255,7 +255,9 @@ class _Row extends ConsumerWidget {
             ? (m.branch == null
                   ? l.dashUnborn
                   : '${m.branch} · ${l.dashUnborn}')
-            : m.branch ?? l.dashDetached,
+            // Git always names a branch or says detached; a status that does
+            // neither was not read properly.
+            : m.branch ?? l.dashUnreadable,
         color: t.textMuted,
       ),
       if (s.op != null)

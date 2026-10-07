@@ -78,6 +78,11 @@ class AppShell extends ConsumerWidget {
                                   ) ==
                                   'rail')
                                 const GroupRail(),
+                              // The terminal and the bottom bar belong to one
+                              // repository — its working directory, its push
+                              // and pull — so they step aside with it while
+                              // the dashboard shows; an open terminal returns
+                              // with the repository.
                               if (dashboard)
                                 const Expanded(child: DashboardView())
                               else

@@ -38,6 +38,8 @@ class _FakeGit implements GitService {
   final calls = <(String, String)>[];
   late ProviderContainer container;
   Completer<void>? hold;
+  Completer<void>? statusHold;
+  void Function()? onRemote;
   int running = 0;
   int maxRunning = 0;
   final lanes = <(bool repo, bool fetch)>[];
@@ -57,6 +59,7 @@ class _FakeGit implements GitService {
       case 'config':
         return const GitResult(1, '', '');
       case 'status':
+        await statusHold?.future;
         final s = status[repo];
         return s == null
             ? const GitResult(128, '', 'fatal: not a git repository')
@@ -64,6 +67,7 @@ class _FakeGit implements GitService {
       case 'rev-parse':
         return const GitResult(0, '', '');
       case 'remote':
+        onRemote?.call();
         return GitResult(0, remotes[repo] ?? 'origin\n', '');
       case 'fetch' || 'pull':
         lanes.add((
@@ -120,6 +124,34 @@ void main() {
   List<String> repos(int n) => [for (var i = 0; i < n; i++) '/r/$i'];
 
   group('snapshot provider', () {
+    test('containers do not share one pool of reads', () async {
+      git.statusHold = Completer<void>();
+      final subs = [
+        for (var i = 0; i < kDashboardParallelism; i++)
+          container.listen(repoSnapshotProvider('/r/$i'), (_, _) {}),
+      ];
+      addTearDown(() {
+        for (final s in subs) {
+          s.close();
+        }
+      });
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+      // Every slot of the first container is held; a second one still reads.
+      final other = ProviderContainer(
+        overrides: [
+          gitServiceProvider.overrideWithValue(git),
+          kvStoreProvider.overrideWithValue(kv),
+        ],
+      );
+      addTearDown(other.dispose);
+      final calls = git.calls.length;
+      final sub = other.listen(repoSnapshotProvider('/r/x'), (_, _) {});
+      addTearDown(sub.close);
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+      expect(git.calls.length, calls + 1);
+      git.statusHold!.complete();
+    });
+
     test('reads one repository', () async {
       git.status['/r/a'] = _status(behind: 2);
       final s = await container.read(repoSnapshotProvider('/r/a').future);
@@ -220,6 +252,47 @@ void main() {
         kDashboardParallelism,
       );
       expect(container.read(fetchBusyProvider), isNull);
+    });
+
+    test('a cancelled row is read again, like a finished one', () async {
+      final sub = container.listen(
+        dashboardRowGenerationProvider('/r/0'),
+        (_, _) {},
+      );
+      addTearDown(sub.close);
+      git.hold = Completer<void>();
+      final run = batch.fetchAll(repos(1), label: 'Fetch all');
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      container.read(fetchBusyProvider)!.onCancel!();
+      final out = await run;
+      expect(out!.rows['/r/0']!.state, RowRunState.cancelled);
+      // A killed git can leave the repository changed; the row must show it.
+      expect(sub.read(), 1);
+    });
+
+    test('a row that settles on a skip after cancel reads cancelled', () async {
+      git.remotes['/r/0'] = '';
+      git.onRemote = () => container.read(fetchBusyProvider)!.onCancel!();
+      final out = await batch.fetchAll(repos(1), label: 'Fetch all');
+      expect(out!.rows['/r/0']!.state, RowRunState.cancelled);
+    });
+
+    test('a container torn down mid-batch ends the batch quietly', () async {
+      final other = ProviderContainer(
+        overrides: [
+          gitServiceProvider.overrideWithValue(git),
+          kvStoreProvider.overrideWithValue(kv),
+        ],
+      );
+      git.container = other;
+      git.hold = Completer<void>();
+      final run = other
+          .read(dashboardBatchProvider.notifier)
+          .fetchAll(repos(2), label: 'Fetch all');
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      other.dispose();
+      git.hold!.complete();
+      expect(await run, isNull);
     });
 
     test('each fetched repository gets a journal record', () async {

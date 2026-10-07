@@ -2325,7 +2325,7 @@
   "hkFailLinked": "The hook links to a file elsewhere; change that file's mode instead.",
   "hkRewordSkip": "Reword without hooks",
   "dashTitle": "Dashboard",
-  "dashToolbarTooltip": "Every repository in this group at a glance",
+  "dashToolbarTooltip": "Every repository in this group at a glance (⌘⇧D)",
   "dashRepoCount": "{count, plural, =1{1 repository} other{{count} repositories}}",
   "@dashRepoCount": {"placeholders": {"count": {"type": "int"}}},
   "dashFetchAll": "Fetch all",

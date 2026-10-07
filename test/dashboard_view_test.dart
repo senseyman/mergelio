@@ -159,6 +159,20 @@ void main() {
     expect(find.textContaining(' · '), findsNothing);
   });
 
+  testWidgets('a status that names no branch at all reads as unreadable', (
+    tester,
+  ) async {
+    ws.openRepo('/r/odd');
+    ws.showDashboard();
+    snaps['/r/odd'] = const RepoSnapshot(
+      summary: StatusSummary(),
+      stashCount: 0,
+    );
+    await pump(tester);
+    expect(find.text('detached HEAD'), findsNothing);
+    expect(find.text('Could not read this repository'), findsOneWidget);
+  });
+
   testWidgets('says so for a repository it cannot read', (tester) async {
     ws.openRepo('/r/gone');
     ws.showDashboard();

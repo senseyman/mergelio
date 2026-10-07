@@ -25,9 +25,12 @@ const kDashboardParallelism = 4;
 final dashboardRowGenerationProvider = StateProvider.autoDispose
     .family<int, String>((ref, path) => 0);
 
-// Shared by every row, so opening the dashboard over a large group reads a few
-// repositories at a time rather than all of them at once.
-final _snapshotGate = ConcurrencyGate(kDashboardParallelism);
+/// Shared by every row, so opening the dashboard over a large group reads a
+/// few repositories at a time rather than all of them at once. One per
+/// container, so independent containers never wait on each other's reads.
+final dashboardSnapshotGateProvider = Provider<ConcurrencyGate>(
+  (ref) => ConcurrencyGate(kDashboardParallelism),
+);
 
 /// One dashboard row's state. Disposed with the dashboard, so opening it again
 /// always reads fresh.
@@ -35,7 +38,8 @@ final repoSnapshotProvider = FutureProvider.autoDispose
     .family<RepoSnapshot, String>((ref, path) {
       ref.watch(dashboardRowGenerationProvider(path));
       final git = ref.watch(gitServiceProvider);
-      return _snapshotGate.run(() => GitReader(git, path).snapshot());
+      final gate = ref.watch(dashboardSnapshotGateProvider);
+      return gate.run(() => GitReader(git, path).snapshot());
     });
 
 enum DashboardBatchKind { fetch, pull }
@@ -228,14 +232,23 @@ class DashboardBatchController extends StateNotifier<DashboardBatch?> {
             } on Object {
               out = const RowRun(RowRunState.failed);
             }
-            // A cancel that landed while git was finishing still means the
-            // user gave up on this row; a finished one keeps its result.
-            if (cancel.isCancelled && out.state == RowRunState.failed) {
+            // A cancel that landed while the row was settling still means the
+            // user gave up on it, whether git failed under the kill or the row
+            // was about to be skipped; one that finished keeps its result.
+            if (cancel.isCancelled &&
+                (out.state == RowRunState.failed ||
+                    out.state == RowRunState.skipped)) {
               out = const RowRun(RowRunState.cancelled);
             }
+            // The container went while git ran (the app is closing): nothing
+            // is left to show the row on, or to refresh.
+            if (!mounted) return;
             set(path, out);
+            // A cancelled row is read again too: a git killed part-way can
+            // leave the repository changed, e.g. a pull stopped mid-merge.
             if (out.state == RowRunState.done ||
-                out.state == RowRunState.failed) {
+                out.state == RowRunState.failed ||
+                out.state == RowRunState.cancelled) {
               _ref.read(dashboardRowGenerationProvider(path).notifier).state++;
               // Only a repository whose graph is already loaded is reloaded:
               // asking for it would load the graph of every repository in the
@@ -247,16 +260,18 @@ class DashboardBatchController extends StateNotifier<DashboardBatch?> {
             // A pull can bring LFS pointers in; their state is read apart
             // from git status.
             if (kind == DashboardBatchKind.pull &&
-                out.state == RowRunState.done) {
+                (out.state == RowRunState.done ||
+                    out.state == RowRunState.cancelled)) {
               _ref.read(lfsGenerationProvider(path).notifier).state++;
             }
           }),
       ]);
     } finally {
-      _ref.read(slot.notifier).state = null;
+      // Torn down mid-batch, the lane went with the container.
+      if (mounted) _ref.read(slot.notifier).state = null;
       if (identical(_cancel, cancel)) _cancel = null;
     }
-    return state;
+    return mounted ? state : null;
   }
 
   /// Runs [op] under a journal record for [path], so a crash mid-batch is

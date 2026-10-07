@@ -46,6 +46,13 @@ class KeyboardShortcuts extends ConsumerWidget {
       if (path != null) showBranchDialog(context, ref, path);
     }
 
+    void toggleDashboard() {
+      final ctl = ref.read(workspaceProvider.notifier);
+      ref.read(workspaceProvider).dashboard
+          ? ctl.hideDashboard()
+          : ctl.showDashboard();
+    }
+
     void dismissTopToast() {
       final toasts = ref.read(toastProvider);
       if (toasts.isNotEmpty) {
@@ -74,6 +81,13 @@ class KeyboardShortcuts extends ConsumerWidget {
           shift: true,
         ): openPalette,
         ...chord(LogicalKeyboardKey.keyF, openSearch),
+        const SingleActivator(LogicalKeyboardKey.keyD, meta: true, shift: true):
+            toggleDashboard,
+        const SingleActivator(
+          LogicalKeyboardKey.keyD,
+          control: true,
+          shift: true,
+        ): toggleDashboard,
         ...chord(LogicalKeyboardKey.keyB, createBranch),
         ...chord(
           LogicalKeyboardKey.comma,

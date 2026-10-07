@@ -124,6 +124,28 @@ void main() {
     expect(git.calls, isEmpty);
   });
 
+  testWidgets('⌘⇧D toggles the dashboard', (tester) async {
+    await pump(tester);
+    final a = ws().openRepo('/r/api');
+    await tester.pumpAndSettle();
+
+    Future<void> press() async {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyD);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+      await tester.pumpAndSettle();
+    }
+
+    await press();
+    expect(container.read(workspaceProvider).dashboard, isTrue);
+    await press();
+    final state = container.read(workspaceProvider);
+    expect(state.dashboard, isFalse);
+    expect(state.activeTabId, a.id);
+  });
+
   testWidgets('the same shortcuts still reach a repository that is shown', (
     tester,
   ) async {
