@@ -116,6 +116,21 @@ void main() {
     expect(find.text('FAIL: login_test'), findsOneWidget);
   });
 
+  testWidgets('a rejected reword is explained, its output readable', (
+    tester,
+  ) async {
+    await pumpStop(tester, const RebaseStop.reword(), out: 'hook-says-no');
+
+    expect(
+      find.textContaining('message for a commit was rejected'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('printf'), findsNothing);
+    await tester.tap(find.text('Show output'));
+    await tester.pumpAndSettle();
+    expect(find.text('hook-says-no'), findsOneWidget);
+  });
+
   testWidgets('no output toggle when there is no output', (tester) async {
     await pumpStop(tester, const RebaseStop.exec('make'));
     expect(find.text('Show output'), findsNothing);

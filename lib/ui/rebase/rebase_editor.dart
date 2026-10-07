@@ -82,8 +82,8 @@ class _RebaseEditorState extends State<_RebaseEditor> {
 
   bool get _custom => _preset == null;
 
-  /// Squashing needs something to squash into.
-  bool get _canSquash => _steps.length > 1;
+  /// Squashing needs something to squash into; exec and break rows are not.
+  bool get _canSquash => _steps.where((s) => s.isCommit).length > 1;
 
   /// How many commits ask to be folded into another; the autosquash switch
   /// is only offered when there is something for it to do.

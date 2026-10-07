@@ -1048,6 +1048,7 @@
   },
   "wtpMergeOpenBody": "A merge is open. Review the staged files, then commit it.",
   "wtpBreakPausedBody": "The rebase is paused at a break. Look around, commit or amend if you like, then continue it.",
+  "wtpRewordRejectedBody": "The rebase is paused: the new message for a commit was rejected, usually by a commit hook. Amend the message yourself, or continue to keep the old one.",
   "wtpExecFailedBody": "The exec step `{command}` failed. Fix the problem and commit the fix, then continue — the command is not run again.",
   "@wtpExecFailedBody": {
     "placeholders": {

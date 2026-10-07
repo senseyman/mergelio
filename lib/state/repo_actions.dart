@@ -2180,11 +2180,21 @@ class RepoActions {
     _ref
         .read(toastProvider.notifier)
         .show(
-          stop.isExec ? 'Exec step failed' : 'Rebase paused at a break',
-          description: stop.isExec
-              ? '`${stop.command}` failed. Fix it, commit, then continue from '
-                    'the Changes panel.'
-              : 'Look around or amend, then continue from the Changes panel.',
+          switch (stop.kind) {
+            RebaseStopKind.exec => 'Exec step failed',
+            RebaseStopKind.reword => 'New commit message was rejected',
+            RebaseStopKind.breakpoint => 'Rebase paused at a break',
+          },
+          description: switch (stop.kind) {
+            RebaseStopKind.exec =>
+              '`${stop.command}` failed. Fix it, commit, then continue from '
+                  'the Changes panel.',
+            RebaseStopKind.reword =>
+              'git refused it — usually a commit hook. Amend the message '
+                  'yourself, or continue to keep the old one.',
+            RebaseStopKind.breakpoint =>
+              'Look around or amend, then continue from the Changes panel.',
+          },
           kind: ToastKind.warning,
         );
   }
@@ -2477,7 +2487,7 @@ class RepoActions {
         // offer Continue and Abort; unwinding here would throw away every
         // commit already replayed.
         final stop = await _rebaseStop();
-        if (stop != null && stop.isExec) {
+        if (stop != null && stop.failed) {
           _pausedAt(stop, prev, output: _output(e));
           return;
         }
@@ -2667,7 +2677,7 @@ class RepoActions {
       if (pending.kind == MergeKind.rebase &&
           await _rebaseDone() != doneBefore) {
         final stop = await _rebaseStop();
-        if (stop != null && stop.isExec) {
+        if (stop != null && stop.failed) {
           _pausedAt(
             stop,
             _ref.read(_opBaseProvider(path)) ?? '',

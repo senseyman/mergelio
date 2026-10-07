@@ -106,6 +106,21 @@ void main() {
       expect(todo, 'pick aaa\nupdate-ref refs/heads/one\npick ccc\n');
     });
 
+    test('a branch on a folded commit lands on the folded result', () {
+      final todo = buildRebaseTodo(
+        [pick('aaa'), const RebaseStep('fff', RebaseAction.fixup), pick('bbb')],
+        updateRefs: {
+          'aaa': ['on-target'],
+          'fff': ['on-fixup'],
+        },
+      );
+      expect(
+        todo,
+        'pick aaa\nfixup fff\nupdate-ref refs/heads/on-target\n'
+        'update-ref refs/heads/on-fixup\npick bbb\n',
+      );
+    });
+
     test('a branch on a commit outside the plan is ignored', () {
       final todo = buildRebaseTodo(
         [pick('aaa')],
@@ -359,6 +374,14 @@ void main() {
         const RebaseStop.breakpoint(),
       );
       expect(parseRebaseStop('pick aaa\nb\n'), const RebaseStop.breakpoint());
+    });
+
+    test('a rejected reword is its own stop, not an exec the user wrote', () {
+      final todo = buildRebaseTodo([
+        const RebaseStep('aaa', RebaseAction.reword, message: 'new'),
+      ]);
+      expect(parseRebaseStop(todo), const RebaseStop.reword());
+      expect(const RebaseStop.reword().isExec, isFalse);
     });
 
     test('anything else is not a break or exec stop', () {

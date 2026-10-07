@@ -7,6 +7,7 @@ import 'askpass.dart';
 import 'commit_message.dart';
 import 'git_service.dart';
 import 'hooks.dart';
+import 'rebase_plan.dart';
 import 'stash.dart';
 
 /// The flag [shell] wants in front of a command string.
@@ -555,12 +556,7 @@ class GitWriter {
           onto,
         ],
         'git rebase',
-        // Rewording is an exec of its own, but a quick one; only steps the
-        // user added run something of unknown length.
-        timeout:
-            RegExp(r"^exec (?!printf '%b' )", multiLine: true).hasMatch(todo)
-            ? rebaseSequenceTimeout
-            : null,
+        timeout: todoRunsUserExec(todo) ? rebaseSequenceTimeout : null,
         environment: {
           // Quoted: the editor line is run by a shell, and the temp path can
           // contain spaces (e.g. Windows user profiles).

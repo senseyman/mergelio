@@ -1383,10 +1383,9 @@ class _CommitContextMenu extends ConsumerWidget {
             stackedBranches: [for (final b in stacked.values) ...b],
           );
           if (plan == null) return;
-          // Moving a stacked branch is a change of its own, even when the
-          // commits replay exactly as they were.
-          if (!plan.updateRefs &&
-              await actions.isRebaseRedundant(sha, steps, plan.steps)) {
+          // Unchanged picks onto an ancestor replay to the same shas, so a
+          // stacked branch has nowhere to move either.
+          if (await actions.isRebaseRedundant(sha, steps, plan.steps)) {
             ref
                 .read(toastProvider.notifier)
                 .show(

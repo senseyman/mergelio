@@ -2372,6 +2372,12 @@ abstract class AppLocalizations {
   /// **'The rebase is paused at a break. Look around, commit or amend if you like, then continue it.'**
   String get wtpBreakPausedBody;
 
+  /// No description provided for @wtpRewordRejectedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The rebase is paused: the new message for a commit was rejected, usually by a commit hook. Amend the message yourself, or continue to keep the old one.'**
+  String get wtpRewordRejectedBody;
+
   /// No description provided for @wtpExecFailedBody.
   ///
   /// In en, this message translates to:

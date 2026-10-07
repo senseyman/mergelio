@@ -227,6 +227,38 @@ void main() {
       expect(ids(result), ['aaa']);
     });
 
+    testWidgets('an exec row being typed in can be removed', (tester) async {
+      await open(tester, [pick('aaa', 'A')]);
+      await customize(tester);
+      await tapText(tester, 'Add exec step');
+      await tester.enterText(
+        find.byKey(const ValueKey('rebase-exec-field-exec1')),
+        'make',
+      );
+      await tester.tap(find.byTooltip('Remove step'));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      await start(tester);
+
+      expect(ids(result), ['aaa']);
+    });
+
+    testWidgets('a break row does not make one commit squashable', (
+      tester,
+    ) async {
+      await open(tester, [pick('aaa', 'A')]);
+      await customize(tester);
+      await tapText(tester, 'Add break');
+
+      final squash = tester.widget<RadioListTile<RebasePreset>>(
+        find.widgetWithText(
+          RadioListTile<RebasePreset>,
+          'Squash into one commit',
+        ),
+      );
+      expect(squash.enabled, isFalse);
+    });
+
     testWidgets('a preset keeps exec and break steps', (tester) async {
       await open(tester, [pick('aaa', 'A'), pick('bbb', 'B')]);
       await customize(tester);

@@ -106,7 +106,7 @@ String buildRebaseTodo(
         // exec across lines git reads as separate instructions. `printf %b`
         // turns the escaped one-liner back into the real multi-line message.
         lines.add(
-          "exec printf '%b' ${_shellQuote(_escapeNewlines(s.message))} "
+          '$_rewordExec${_shellQuote(_escapeNewlines(s.message))} '
           '| git commit --amend ${s.sign ? '-S ' : ''}'
           '${s.noVerify ? '--no-verify ' : ''}-F -',
         );
@@ -122,20 +122,21 @@ String buildRebaseTodo(
       case RebaseAction.breakpoint:
         lines.add('break');
     }
-    final branches = s.isCommit ? updateRefs[s.sha] : null;
-    if (branches == null) continue;
-    // A squash or fixup below this commit is still part of it; the branch
-    // should land on the folded result, not on the commit before folding.
+    if (!s.isCommit) continue;
+    // A squash or fixup below this commit is still part of it, so a branch on
+    // either one lands on the folded result — and only once it is complete.
     var end = i;
     while (end + 1 < steps.length && _folds(steps[end + 1].action)) {
       end++;
     }
-    if (end > i) {
-      for (final f in steps.sublist(i + 1, end + 1)) {
-        lines.add('${f.action.name} ${f.sha}');
-      }
-      i = end;
+    final branches = [
+      for (final c in steps.sublist(i, end + 1)) ...?updateRefs[c.sha],
+    ];
+    if (branches.isEmpty) continue;
+    for (final f in steps.sublist(i + 1, end + 1)) {
+      lines.add('${f.action.name} ${f.sha}');
     }
+    i = end;
     for (final b in branches) {
       lines.add('update-ref refs/heads/$b');
     }
@@ -157,6 +158,16 @@ bool isNoOpPlan(List<RebaseStep> original, List<RebaseStep> steps) {
   }
   return true;
 }
+
+/// Whether [todo] runs a command the user added — which may take any length
+/// of time — rather than only the quick amends a reword is made of.
+bool todoRunsUserExec(String todo) => todo
+    .split('\n')
+    .any((l) => l.startsWith('exec ') && !l.startsWith(_rewordExec));
+
+/// How every reword's exec line starts. A stop on one of these is the new
+/// message being refused, not a command the user wrote.
+const _rewordExec = "exec printf '%b' ";
 
 String _shellQuote(String s) => "'${s.replaceAll("'", r"'\''")}'";
 
@@ -374,25 +385,38 @@ String fixupSubject(String subject) => 'fixup! $subject';
 
 // --- Stops ----------------------------------------------------------------------
 
-/// Why a rebase is sitting still when no file is conflicted: a [breakpoint]
-/// the plan asked for, or an exec whose [command] failed.
-class RebaseStop {
-  final String? command;
-  const RebaseStop.exec(String this.command);
-  const RebaseStop.breakpoint() : command = null;
+/// What a [RebaseStop] is.
+enum RebaseStopKind { breakpoint, exec, reword }
 
-  bool get isExec => command != null;
+/// Why a rebase is sitting still when no file is conflicted: a break the plan
+/// asked for, an exec whose [command] failed, or a reword whose new message a
+/// commit hook refused.
+class RebaseStop {
+  final RebaseStopKind kind;
+
+  /// The failed command, for [RebaseStopKind.exec]; null otherwise.
+  final String? command;
+  const RebaseStop.exec(String this.command) : kind = RebaseStopKind.exec;
+  const RebaseStop.breakpoint()
+    : kind = RebaseStopKind.breakpoint,
+      command = null;
+  const RebaseStop.reword() : kind = RebaseStopKind.reword, command = null;
+
+  bool get isExec => kind == RebaseStopKind.exec;
+
+  /// Whether a step failed, with output worth showing, as opposed to a pause
+  /// the plan asked for.
+  bool get failed => kind != RebaseStopKind.breakpoint;
 
   @override
   bool operator ==(Object other) =>
-      other is RebaseStop && other.command == command;
+      other is RebaseStop && other.kind == kind && other.command == command;
 
   @override
-  int get hashCode => command.hashCode;
+  int get hashCode => Object.hash(kind, command);
 
   @override
-  String toString() =>
-      isExec ? 'RebaseStop.exec($command)' : 'RebaseStop.break';
+  String toString() => 'RebaseStop.${kind.name}(${command ?? ''})';
 }
 
 /// Reads the stop out of git's `done` file (the steps already run, the one it
@@ -406,6 +430,7 @@ RebaseStop? parseRebaseStop(String done) {
   if (lines.isEmpty) return null;
   final last = lines.last;
   if (last == 'break' || last == 'b') return const RebaseStop.breakpoint();
+  if (last.startsWith(_rewordExec)) return const RebaseStop.reword();
   for (final verb in const ['exec ', 'x ']) {
     if (last.startsWith(verb)) {
       return RebaseStop.exec(last.substring(verb.length).trim());

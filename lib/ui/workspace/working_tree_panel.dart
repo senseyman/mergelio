@@ -273,6 +273,8 @@ class _PendingOpBar extends ConsumerWidget {
                   // rebase started in a terminal lands here the same way.
                   switch (pending.stop) {
                     RebaseStop(:final command?) => l.wtpExecFailedBody(command),
+                    RebaseStop(kind: RebaseStopKind.reword) =>
+                      l.wtpRewordRejectedBody,
                     RebaseStop() => l.wtpBreakPausedBody,
                     null when pending.continues => l.wtpOpPausedBody(name),
                     null => l.wtpMergeOpenBody,
@@ -282,7 +284,7 @@ class _PendingOpBar extends ConsumerWidget {
               ),
             ],
           ),
-          if (pending.stop?.isExec ?? false) _ExecOutput(repoPath: repoPath),
+          if (pending.stop?.failed ?? false) _ExecOutput(repoPath: repoPath),
           const SizedBox(height: 8),
           Row(
             children: [
@@ -608,7 +610,7 @@ class _FileRow extends StatelessWidget {
   }
 }
 
-/// What the failed exec step printed, folded away until asked for: it can be
+/// What the failed step printed, folded away until asked for: it can be
 /// a whole test run, and the bar above the file lists is no place to dump it.
 class _ExecOutput extends ConsumerStatefulWidget {
   final String repoPath;

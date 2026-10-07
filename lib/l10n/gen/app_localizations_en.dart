@@ -1354,6 +1354,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'The rebase is paused at a break. Look around, commit or amend if you like, then continue it.';
 
   @override
+  String get wtpRewordRejectedBody =>
+      'The rebase is paused: the new message for a commit was rejected, usually by a commit hook. Amend the message yourself, or continue to keep the old one.';
+
+  @override
   String wtpExecFailedBody(String command) {
     return 'The exec step `$command` failed. Fix the problem and commit the fix, then continue — the command is not run again.';
   }

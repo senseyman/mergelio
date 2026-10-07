@@ -196,6 +196,28 @@ void main() {
       },
     );
 
+    test('a reword a hook rejects pauses as a rejected reword', () async {
+      final hook = File('${dir.path}/.git/hooks/commit-msg');
+      await hook.writeAsString(
+        '#!/bin/sh\ngrep -q BAD "\$1" && { echo hook-says-no; exit 1; }\n'
+        'exit 0\n',
+      );
+      await Process.run('chmod', ['+x', hook.path]);
+      await actions.rebase(base, [
+        RebaseStep(c1, RebaseAction.reword, message: 'BAD message'),
+        RebaseStep(c2, RebaseAction.pick),
+      ]);
+
+      expect(rebasing(), isTrue);
+      expect((await actions.pendingOp())?.stop, const RebaseStop.reword());
+      expect(toastTitles(), contains('New commit message was rejected'));
+      expect(toastTitles(), isNot(contains('Exec step failed')));
+      expect(
+        c.read(rebaseExecOutputProvider(dir.path)),
+        contains('hook-says-no'),
+      );
+    });
+
     test('aborting clears the kept output', () async {
       await actions.rebase(base, [
         RebaseStep(c1, RebaseAction.pick),
