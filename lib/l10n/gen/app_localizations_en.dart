@@ -3880,4 +3880,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dashPaletteOpen => 'Open dashboard';
+
+  @override
+  String dashPaletteGoTo(String name) {
+    return 'Go to $name';
+  }
 }

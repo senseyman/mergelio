@@ -1391,5 +1391,6 @@
   "dashFetchDone": "Fetch усіх завершено",
   "dashPullDone": "Pull завершено",
   "dashBatchSummary": "успішно: {done}, помилок: {failed}, пропущено: {skipped}, скасовано: {cancelled}",
-  "dashPaletteOpen": "Відкрити панель"
+  "dashPaletteOpen": "Відкрити панель",
+  "dashPaletteGoTo": "Перейти до {name}"
 }

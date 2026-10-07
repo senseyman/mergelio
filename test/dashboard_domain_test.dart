@@ -120,6 +120,21 @@ void main() {
       expect(s.untracked, 2);
     });
 
+    test('a malformed ab line is tolerated, not thrown', () {
+      final s = parseStatusSummary(
+        _z([
+          '# branch.oid 1234567890abcdef1234567890abcdef12345678',
+          '# branch.head main',
+          '# branch.upstream origin/main',
+          // A doubled space, and a segment with no sign at all.
+          '# branch.ab +2  -3 x',
+        ]),
+      );
+      expect(s.ahead, 2);
+      expect(s.behind, 3);
+      expect(s.upstreamGone, isFalse);
+    });
+
     test('an empty answer is a clean, unknown state rather than a crash', () {
       final s = parseStatusSummary('');
       expect(s.branch, isNull);

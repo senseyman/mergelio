@@ -586,37 +586,42 @@ class GitReader {
       return pathlib.isAbsolute(p) ? p : pathlib.join(repoPath, p);
     }
 
-    final present = <String>{};
-    for (var i = 0; i < dashboardStateFiles.length; i++) {
-      final p = at(i + 2);
-      if (p != null &&
-          FileSystemEntity.typeSync(p) != FileSystemEntityType.notFound) {
-        present.add(dashboardStateFiles[i]);
-      }
+    Future<FileStat?> stat(int i) async {
+      final p = at(i);
+      if (p == null) return null;
+      final s = await FileStat.stat(p);
+      return s.type == FileSystemEntityType.notFound ? null : s;
     }
 
-    DateTime? lastFetch;
-    final fetchHead = at(0);
-    if (fetchHead != null) {
-      final stat = FileStat.statSync(fetchHead);
-      if (stat.type != FileSystemEntityType.notFound) lastFetch = stat.modified;
-    }
-
-    var stashCount = 0;
-    final stashLog = at(1);
-    if (stashLog != null) {
+    Future<int> stashCount() async {
+      final p = at(1);
+      if (p == null) return 0;
       try {
-        stashCount = countReflogEntries(File(stashLog).readAsStringSync());
+        return countReflogEntries(await File(p).readAsString());
       } on FileSystemException {
         // No stash yet: git has not created the reflog.
+        return 0;
       }
     }
+
+    // Async, and all at once: the dashboard reads a whole group of
+    // repositories, and blocking stats would stall the UI for each of them.
+    final (stats, stashes) = await (
+      Future.wait([
+        for (var i = 0; i < dashboardStateFiles.length + 2; i++) stat(i),
+      ]),
+      stashCount(),
+    ).wait;
+    final present = <String>{
+      for (var i = 0; i < dashboardStateFiles.length; i++)
+        if (stats[i + 2] != null) dashboardStateFiles[i],
+    };
 
     return RepoSnapshot(
       summary: parseStatusSummary(st.stdout),
-      stashCount: stashCount,
+      stashCount: stashes,
       op: opFromStateFiles(present),
-      lastFetch: lastFetch,
+      lastFetch: stats[0]?.modified,
     );
   }
 

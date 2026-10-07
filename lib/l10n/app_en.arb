@@ -2382,5 +2382,7 @@
   "dashPullDone": "Pull finished",
   "dashBatchSummary": "{done} done, {failed} failed, {skipped} skipped, {cancelled} cancelled",
   "@dashBatchSummary": {"placeholders": {"done": {"type": "int"}, "failed": {"type": "int"}, "skipped": {"type": "int"}, "cancelled": {"type": "int"}}},
-  "dashPaletteOpen": "Open dashboard"
+  "dashPaletteOpen": "Open dashboard",
+  "dashPaletteGoTo": "Go to {name}",
+  "@dashPaletteGoTo": {"placeholders": {"name": {"type": "String"}}}
 }

@@ -3927,4 +3927,9 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get dashPaletteOpen => 'Відкрити панель';
+
+  @override
+  String dashPaletteGoTo(String name) {
+    return 'Перейти до $name';
+  }
 }

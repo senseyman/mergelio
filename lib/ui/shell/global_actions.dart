@@ -28,14 +28,33 @@ import 'repo_op_dialogs.dart';
 
 /// Opens the commit search bar over the graph. No-op without an open repo.
 void openGlobalSearch(WidgetRef ref) {
-  if (ref.read(workspaceProvider).activeTab == null) return;
+  if (ref.read(workspaceProvider).shownTab == null) return;
   ref.read(searchQueryProvider.notifier).state = const CommitQuery(text: '');
 }
 
 /// Opens the command palette with network ops, checkouts and fly-to commits.
 void openGlobalPalette(BuildContext context, WidgetRef ref) {
   final l = AppLocalizations.of(context);
-  final path = ref.read(workspaceProvider).activeTab?.path;
+  final ws = ref.read(workspaceProvider);
+  if (ws.dashboard) {
+    // Nothing on the dashboard belongs to one repository, so the palette
+    // offers the way into each rather than commands for the one hidden
+    // underneath.
+    final ctl = ref.read(workspaceProvider.notifier);
+    showCommandPalette(
+      context,
+      commands: [
+        for (final tab in ws.visibleTabs)
+          PaletteCommand(
+            l.dashPaletteGoTo(tab.name),
+            Icons.folder_outlined,
+            () async => ctl.setActive(tab.id),
+          ),
+      ],
+    );
+    return;
+  }
+  final path = ws.shownTab?.path;
   if (path == null) return;
   final actions = ref.read(repoActionsProvider(path));
   final data = ref.read(repoDataProvider(path)).valueOrNull;

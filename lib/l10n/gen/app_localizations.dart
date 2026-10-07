@@ -6547,6 +6547,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Open dashboard'**
   String get dashPaletteOpen;
+
+  /// No description provided for @dashPaletteGoTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to {name}'**
+  String dashPaletteGoTo(String name);
 }
 
 class _AppLocalizationsDelegate

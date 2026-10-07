@@ -11,6 +11,7 @@ import 'package:mergelio/state/feedback.dart';
 import 'package:mergelio/state/lfs.dart';
 import 'package:mergelio/state/operation_journal.dart';
 import 'package:mergelio/state/repo_data.dart';
+import 'package:mergelio/state/workspace.dart';
 
 /// Porcelain v2 status for a branch with the given ahead/behind counts.
 String _status({
@@ -254,8 +255,24 @@ void main() {
     });
 
     test('finished rows have their generation bumped', () async {
+      final sub = container.listen(
+        dashboardRowGenerationProvider('/r/0'),
+        (_, _) {},
+      );
+      addTearDown(sub.close);
       await batch.fetchAll(repos(1), label: 'Fetch all');
-      expect(container.read(dashboardRowGenerationProvider('/r/0')), 1);
+      expect(sub.read(), 1);
+    });
+
+    test('a row generation is dropped once no row shows it', () async {
+      final sub = container.listen(
+        dashboardRowGenerationProvider('/r/0'),
+        (_, _) {},
+      );
+      container.read(dashboardRowGenerationProvider('/r/0').notifier).state++;
+      sub.close();
+      await Future<void>.delayed(Duration.zero);
+      expect(container.exists(dashboardRowGenerationProvider('/r/0')), isFalse);
     });
 
     test('a second batch cannot start while one runs', () async {
@@ -323,6 +340,26 @@ void main() {
       expect(out!.rows['/r/0']!.state, RowRunState.failed);
       expect(out.rows['/r/0']!.message, contains('could not read'));
     });
+  });
+
+  test('switching group clears a finished batch', () async {
+    final ws = container.read(workspaceProvider.notifier);
+    ws.openRepo('/r/0');
+    await batch.fetchAll(repos(1), label: 'Fetch all');
+    ws.setActiveGroup(ws.createGroup('Other').id);
+    expect(container.read(dashboardBatchProvider), isNull);
+  });
+
+  test('switching group leaves a running batch alone', () async {
+    final ws = container.read(workspaceProvider.notifier);
+    ws.openRepo('/r/0');
+    git.hold = Completer<void>();
+    final run = batch.fetchAll(repos(1), label: 'Fetch all');
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+    ws.setActiveGroup(ws.createGroup('Other').id);
+    expect(container.read(dashboardBatchProvider), isNotNull);
+    git.hold!.complete();
+    expect(await run, isNotNull);
   });
 
   test('dismiss clears a finished batch', () async {

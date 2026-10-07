@@ -13,16 +13,17 @@ import 'lfs.dart';
 import 'operation_journal.dart';
 import 'repo_actions.dart';
 import 'repo_data.dart';
+import 'workspace.dart';
 
 /// How many repositories the dashboard reads, fetches or pulls at once. A
 /// group of thirty must not start thirty fetches, and the shared git gate is
 /// sized for one repository's reads, not a fleet's.
 const kDashboardParallelism = 4;
 
-/// Bumped to make one dashboard row read its repository again.
-final dashboardRowGenerationProvider = StateProvider.family<int, String>(
-  (ref, path) => 0,
-);
+/// Bumped to make one dashboard row read its repository again. Dropped with
+/// the row: a dashboard opened afresh reads fresh anyway.
+final dashboardRowGenerationProvider = StateProvider.autoDispose
+    .family<int, String>((ref, path) => 0);
 
 // Shared by every row, so opening the dashboard over a large group reads a few
 // repositories at a time rather than all of them at once.
@@ -89,7 +90,14 @@ class DashboardBatchController extends StateNotifier<DashboardBatch?> {
   final Ref _ref;
   GitCancel? _cancel;
 
-  DashboardBatchController(this._ref) : super(null);
+  DashboardBatchController(this._ref) : super(null) {
+    // Results are per repository, and another group shows other repositories:
+    // a finished batch's results would only sit on rows that never ran. A
+    // running batch keeps its rows until it ends.
+    _ref.listen(workspaceProvider.select((w) => w.activeGroupId), (_, _) {
+      dismiss();
+    });
+  }
 
   /// Fetches every repository in [paths] that has a remote. Holds the fetch
   /// lane for the whole batch: auto-fetch and a manual fetch wait it out.

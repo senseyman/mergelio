@@ -255,7 +255,9 @@ class _Row extends ConsumerWidget {
         text: m.detached
             ? l.dashDetached
             : m.unborn
-            ? '${m.branch ?? ''} · ${l.dashUnborn}'
+            ? (m.branch == null
+                  ? l.dashUnborn
+                  : '${m.branch} · ${l.dashUnborn}')
             : m.branch ?? l.dashDetached,
         color: t.textMuted,
       ),

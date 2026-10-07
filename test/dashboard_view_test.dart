@@ -144,6 +144,20 @@ void main() {
     expect(find.text('2 repositories'), findsOneWidget);
   });
 
+  testWidgets('an unborn HEAD with no branch name reads plainly', (
+    tester,
+  ) async {
+    ws.openRepo('/r/new');
+    ws.showDashboard();
+    snaps['/r/new'] = const RepoSnapshot(
+      summary: StatusSummary(unborn: true),
+      stashCount: 0,
+    );
+    await pump(tester);
+    expect(find.text('no commits yet'), findsOneWidget);
+    expect(find.textContaining(' · '), findsNothing);
+  });
+
   testWidgets('says so for a repository it cannot read', (tester) async {
     ws.openRepo('/r/gone');
     ws.showDashboard();

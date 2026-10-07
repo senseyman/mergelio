@@ -24,7 +24,7 @@ class KeyboardShortcuts extends ConsumerWidget {
         ref.read(settingsProvider.notifier).toggleLeftCollapsed();
 
     RepoActions? activeActions() {
-      final path = ref.read(workspaceProvider).activeTab?.path;
+      final path = ref.read(workspaceProvider).shownTab?.path;
       return path == null ? null : ref.read(repoActionsProvider(path));
     }
 
@@ -32,7 +32,7 @@ class KeyboardShortcuts extends ConsumerWidget {
     void redo() => activeActions()?.redo();
 
     void toggleTerminal() {
-      if (ref.read(workspaceProvider).activeTab == null) return;
+      if (ref.read(workspaceProvider).shownTab == null) return;
       ref.read(settingsProvider.notifier).toggleTerminal();
     }
 
@@ -42,7 +42,7 @@ class KeyboardShortcuts extends ConsumerWidget {
     void openPalette() => openGlobalPalette(context, ref);
 
     void createBranch() {
-      final path = ref.read(workspaceProvider).activeTab?.path;
+      final path = ref.read(workspaceProvider).shownTab?.path;
       if (path != null) showBranchDialog(context, ref, path);
     }
 

@@ -89,4 +89,40 @@ void main() {
     await tester.pump();
     expect(find.text('No repository'), findsOneWidget);
   });
+
+  testWidgets('names no branch while the dashboard covers the repository', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gitServiceProvider.overrideWithValue(_FakeGit()),
+          settingsProvider.overrideWith(
+            (ref) => SettingsController(
+              InMemorySettingsRepository(),
+              const AppSettings(),
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          theme: ThemeData(extensions: [AppTokens.dark()]),
+          home: const Scaffold(body: AppStatusBar()),
+        ),
+      ),
+    );
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(AppStatusBar)),
+    );
+    final ws = container.read(workspaceProvider.notifier);
+    ws.openRepo('/r');
+    ws.showDashboard();
+    await tester.pumpAndSettle();
+
+    expect(find.text('feature'), findsNothing);
+    expect(find.text('↑2 ↓1'), findsNothing);
+    expect(find.text('No repository'), findsNothing);
+    expect(find.text('Dashboard'), findsOneWidget);
+  });
 }

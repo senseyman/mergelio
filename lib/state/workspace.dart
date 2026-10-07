@@ -86,6 +86,12 @@ abstract class WorkspaceState with _$WorkspaceState {
             if (t.groupId == activeGroupId) t,
         ];
 
+  /// The tab whose repository is on screen: [activeTab], except while the
+  /// dashboard covers it. Anything that acts on "the current repository" —
+  /// shortcuts, search, the palette — goes through this, so it never reaches
+  /// a repository the user cannot see.
+  RepoTab? get shownTab => dashboard ? null : activeTab;
+
   RepoGroup? groupById(int? id) {
     for (final g in groups) {
       if (g.id == id) return g;

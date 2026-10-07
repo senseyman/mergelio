@@ -111,9 +111,14 @@ StatusSummary parseStatusSummary(String out) {
         case 'branch.ab':
           sawAb = true;
           for (final part in value.split(' ')) {
+            final plus = part.startsWith('+');
+            if (!plus && !part.startsWith('-')) continue;
             final n = int.tryParse(part.substring(1)) ?? 0;
-            if (part.startsWith('+')) ahead = n;
-            if (part.startsWith('-')) behind = n;
+            if (plus) {
+              ahead = n;
+            } else {
+              behind = n;
+            }
           }
       }
       continue;
