@@ -2166,6 +2166,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get rbDrop => 'remove this commit entirely';
 
   @override
+  String get rbExec =>
+      'run a shell command here; if it fails, the rebase pauses';
+
+  @override
+  String get rbBreak =>
+      'pause here so you can look around or amend, then continue';
+
+  @override
   String get rbPresetAsIs => 'Move commits as-is';
 
   @override

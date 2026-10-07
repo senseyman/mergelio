@@ -524,11 +524,17 @@ class GitWriter {
 
   // --- Interactive rebase ---------------------------------------------------
 
+  /// Ceiling for a rebase that runs exec steps. Each one is whatever the user
+  /// typed — a full test suite, typically — so the ordinary default would kill
+  /// the sequence partway through its first run.
+  static const rebaseSequenceTimeout = Duration(hours: 2);
+
   /// Runs an interactive rebase onto [onto], driving the sequence editor with
   /// [todo] (so no terminal editor is needed). GIT_EDITOR is a no-op so squash
   /// messages auto-accept; reword is handled by exec lines in [todo]. [sign]
-  /// signs every replayed commit. Throws on conflict (the caller inspects
-  /// [GitReader.conflictedFiles]).
+  /// signs every replayed commit. Throws on conflict or a failed exec (the
+  /// caller inspects [GitReader.conflictedFiles]); a `break` returns normally
+  /// with the rebase still in progress.
   Future<void> rebase(
     String onto,
     String todo, {
@@ -549,6 +555,12 @@ class GitWriter {
           onto,
         ],
         'git rebase',
+        // Rewording is an exec of its own, but a quick one; only steps the
+        // user added run something of unknown length.
+        timeout:
+            RegExp(r"^exec (?!printf '%b' )", multiLine: true).hasMatch(todo)
+            ? rebaseSequenceTimeout
+            : null,
         environment: {
           // Quoted: the editor line is run by a shell, and the temp path can
           // contain spaces (e.g. Windows user profiles).
@@ -582,10 +594,13 @@ class GitWriter {
   /// because the commit already reached the base under a different sha.
   Future<void> rebaseSkip() => _ok(['rebase', '--skip'], 'git rebase --skip');
 
-  /// Continues a paused rebase after conflicts were resolved and staged.
+  /// Continues a paused rebase after conflicts were resolved and staged. The
+  /// rest of the sequence may hold exec steps, so it gets the same ceiling as
+  /// the rebase that queued them.
   Future<void> rebaseContinue({String? authorName, String? authorEmail}) => _ok(
     [..._identity(authorName, authorEmail), 'rebase', '--continue'],
     'git rebase --continue',
+    timeout: rebaseSequenceTimeout,
     environment: {'GIT_EDITOR': 'true'},
   );
 

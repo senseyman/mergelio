@@ -2177,6 +2177,14 @@ class AppLocalizationsUk extends AppLocalizations {
   String get rbDrop => 'повністю вилучити цей коміт';
 
   @override
+  String get rbExec =>
+      'виконати команду оболонки тут; якщо вона завершиться з помилкою, перебазування призупиниться';
+
+  @override
+  String get rbBreak =>
+      'зупинитися тут, щоб роззирнутися чи виправити коміт, потім продовжити';
+
+  @override
   String get rbPresetAsIs => 'Перемістити коміти як є';
 
   @override

@@ -1564,6 +1564,8 @@
   "rbSquash": "merge into the commit above, keep both messages",
   "rbFixup": "merge into the commit above, drop its message",
   "rbDrop": "remove this commit entirely",
+  "rbExec": "run a shell command here; if it fails, the rebase pauses",
+  "rbBreak": "pause here so you can look around or amend, then continue",
   "rbPresetAsIs": "Move commits as-is",
   "rbPresetSquashAll": "Squash into one commit",
   "rbPresetSquashKeepFirst": "Squash, keep first message",

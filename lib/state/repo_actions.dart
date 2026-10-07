@@ -2028,8 +2028,14 @@ class RepoActions {
     );
   }
 
-  /// Runs an interactive rebase of the plan [steps] onto [base].
-  Future<void> rebase(String base, List<RebaseStep> steps) async {
+  /// Runs an interactive rebase of the plan [steps] onto [base]. [updateRefs]
+  /// moves every branch stacked on a replayed commit along with it (see
+  /// [rebaseStackedBranches]).
+  Future<void> rebase(
+    String base,
+    List<RebaseStep> steps, {
+    bool updateRefs = false,
+  }) async {
     // Replaying a signed commit without -S would quietly drop its signature.
     // Signing needs a configured key, though, and a rebase that dies on its
     // first commit strands the repository mid-rebase — so an unsignable branch
@@ -2037,10 +2043,14 @@ class RepoActions {
     final sign =
         steps.any((s) => s.sign && s.action != RebaseAction.drop) &&
         await _canSign();
+    final todo = buildRebaseTodo(
+      steps,
+      updateRefs: updateRefs ? await rebaseStackedBranches(base) : const {},
+    );
     await _runRebase(
       () => _writer.rebase(
         base,
-        buildRebaseTodo(steps),
+        todo,
         authorName: _identity.name,
         authorEmail: _identity.email,
         sign: sign,
@@ -2089,6 +2099,94 @@ class RepoActions {
           : '${merges == 1 ? 'A merge commit was' : '$merges merge commits were'} '
                 'flattened into a linear history. Undo restores them.',
     );
+  }
+
+  /// Local branches pointing at a commit in [base]..HEAD, by commit sha: the
+  /// branches stacked on this one, which a rebase can carry along. A branch
+  /// checked out anywhere — this checkout's own included — is left out: git
+  /// refuses to move a ref another worktree has checked out, and the current
+  /// branch moves anyway.
+  Future<Map<String, List<String>>> rebaseStackedBranches(String base) async {
+    final range = (await _out([
+      'rev-list',
+      base.isEmpty || base == '--root' ? 'HEAD' : '$base..HEAD',
+    ])).split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty).toSet();
+    if (range.isEmpty) return const {};
+    final held = {
+      for (final w in await GitReader(_git, path).worktrees())
+        if (w.branch != null) w.branch!,
+    };
+    final refs = await _out([
+      'for-each-ref',
+      '--format=%(objectname)%00%(refname:short)',
+      'refs/heads',
+    ]);
+    final out = <String, List<String>>{};
+    for (final line in refs.split('\n')) {
+      final parts = line.split('\x00');
+      if (parts.length != 2) continue;
+      final (sha, name) = (parts[0], parts[1]);
+      if (!range.contains(sha) || held.contains(name)) continue;
+      (out[sha] ??= []).add(name);
+    }
+    return out;
+  }
+
+  /// Why the rebase in progress is stopped when nothing is conflicted: a break,
+  /// or a failed exec. Read off git's record of the steps it has run.
+  Future<RebaseStop?> _rebaseStop() async {
+    final done = await _stateFilePath('rebase-merge/done');
+    if (done == null || !File(done).existsSync()) return null;
+    return parseRebaseStop(await File(done).readAsString());
+  }
+
+  Future<String> _rebaseDone() async {
+    final done = await _stateFilePath('rebase-merge/done');
+    if (done == null || !File(done).existsSync()) return '';
+    return File(done).readAsString();
+  }
+
+  /// Pre-fills the commit composer with a fixup for the commit titled
+  /// [subject]. Nothing is committed: the user stages the fix and commits it,
+  /// and a later autosquash rebase folds it into place.
+  void prepareFixup(String subject) {
+    _ref.read(composerPrefillProvider(path).notifier).state = fixupSubject(
+      subject,
+    );
+    _ref
+        .read(toastProvider.notifier)
+        .show(
+          'Fixup message ready',
+          description:
+              'Stage the fix and commit it; an autosquash rebase folds it in.',
+        );
+  }
+
+  /// Everything git printed for [e], stdout first: an exec's own output lands
+  /// on git's stdout, and its errors interleave with git's on stderr.
+  static String _output(GitException e) => [
+    e.result?.stdout.trim() ?? '',
+    e.result?.stderr.trim() ?? '',
+  ].where((s) => s.isNotEmpty).join('\n');
+
+  /// Tells the user the rebase is waiting on them, and remembers [prev] so the
+  /// rebase stays undoable once it is continued to the end.
+  void _pausedAt(RebaseStop stop, String prev, {String? output}) {
+    _ref.read(_opBaseProvider(path).notifier).state = prev.isEmpty
+        ? null
+        : prev;
+    _ref.read(rebaseExecOutputProvider(path).notifier).state = output;
+    _refresh();
+    _ref
+        .read(toastProvider.notifier)
+        .show(
+          stop.isExec ? 'Exec step failed' : 'Rebase paused at a break',
+          description: stop.isExec
+              ? '`${stop.command}` failed. Fix it, commit, then continue from '
+                    'the Changes panel.'
+              : 'Look around or amend, then continue from the Changes panel.',
+          kind: ToastKind.warning,
+        );
   }
 
   /// True while the repository sits mid-rebase. Asks git for the path rather
@@ -2337,9 +2435,17 @@ class RepoActions {
       return;
     }
     final prev = await _headSha();
+    _ref.read(rebaseExecOutputProvider(path).notifier).state = null;
     _ref.read(busyProvider.notifier).state = const BusyState('Rebase');
     try {
       await _timed('Rebase', op);
+      // A break stops the sequence without failing it: git exits cleanly with
+      // the rebase still open, and calling that finished would record an undo
+      // for half a rebase.
+      if (await isRebaseInProgress()) {
+        _pausedAt(await _rebaseStop() ?? const RebaseStop.breakpoint(), prev);
+        return;
+      }
       _ref
           .read(undoProvider(path).notifier)
           .record(
@@ -2370,6 +2476,11 @@ class RepoActions {
         // case, and it wants a skip. Leave it and let the working-tree panel
         // offer Continue and Abort; unwinding here would throw away every
         // commit already replayed.
+        final stop = await _rebaseStop();
+        if (stop != null && stop.isExec) {
+          _pausedAt(stop, prev, output: _output(e));
+          return;
+        }
         if (await isRebasePartlyDone()) {
           // Same base the conflict path records, so continuing stays undoable.
           _ref.read(_opBaseProvider(path).notifier).state = prev.isEmpty
@@ -2502,12 +2613,18 @@ class RepoActions {
   Future<void> _continueOp(PendingOp pending) async {
     final id = _identity;
     // A resolution that matches HEAD leaves nothing to commit. git refuses
-    // `--continue` there and wants the paused commit skipped instead.
-    final empty = (await _git.run([
-      'diff',
-      '--cached',
-      '--quiet',
-    ], repoPath: path)).ok;
+    // `--continue` there and wants the paused commit skipped instead. A break
+    // or failed exec has no paused commit: nothing staged is normal there, and
+    // a skip would hard-reset away whatever the user changed meanwhile.
+    final empty =
+        pending.stop == null &&
+        (await _git.run(['diff', '--cached', '--quiet'], repoPath: path)).ok;
+    final doneBefore = pending.kind == MergeKind.rebase
+        ? await _rebaseDone()
+        : '';
+    if (pending.kind == MergeKind.rebase) {
+      _ref.read(rebaseExecOutputProvider(path).notifier).state = null;
+    }
     try {
       switch (pending.kind) {
         case MergeKind.rebase:
@@ -2541,13 +2658,35 @@ class RepoActions {
         case MergeKind.stash:
           return;
       }
-    } on GitException {
+    } on GitException catch (e) {
       // git reports stopping on the next conflict as a failure. It is not one:
       // hand the fresh conflicts back to the merge tool. Anything else is.
-      if (!await _reopenIfStillConflicted(pending)) rethrow;
-      return;
+      if (await _reopenIfStillConflicted(pending)) return;
+      // Nor is the next exec failing — but only if git got that far. A
+      // refusal to continue at all (a dirty tree) leaves the record as it was.
+      if (pending.kind == MergeKind.rebase &&
+          await _rebaseDone() != doneBefore) {
+        final stop = await _rebaseStop();
+        if (stop != null && stop.isExec) {
+          _pausedAt(
+            stop,
+            _ref.read(_opBaseProvider(path)) ?? '',
+            output: _output(e),
+          );
+          return;
+        }
+      }
+      rethrow;
     }
     if (await _reopenIfStillConflicted(pending)) return;
+    // Continued cleanly into the next break.
+    if (pending.kind == MergeKind.rebase && await isRebaseInProgress()) {
+      _pausedAt(
+        await _rebaseStop() ?? const RebaseStop.breakpoint(),
+        _ref.read(_opBaseProvider(path)) ?? '',
+      );
+      return;
+    }
     final base = _ref.read(_opBaseProvider(path));
     // Skipping the paused commit of a lone cherry-pick or revert ends the
     // sequence with HEAD where it started — nothing to undo. A rebase is a
@@ -2579,7 +2718,7 @@ class RepoActions {
     // leave CHERRY_PICK_HEAD beside the rebase state while one is conflicted.
     // Continuing the pick rather than the rebase would strand the rebase.
     if (await isRebaseInProgress()) {
-      return const PendingOp(kind: MergeKind.rebase);
+      return PendingOp(kind: MergeKind.rebase, stop: await _rebaseStop());
     }
     final seq = await _sequencerKind();
     if (seq != null) {
@@ -3029,6 +3168,7 @@ class RepoActions {
     }
     _ref.read(mergeSessionProvider(path).notifier).state = null;
     _ref.read(_opBaseProvider(path).notifier).state = null;
+    _ref.read(rebaseExecOutputProvider(path).notifier).state = null;
     _refresh();
   }
 
@@ -3171,6 +3311,20 @@ class RepoActions {
 /// back to it. Null when the operation was found already in progress, which
 /// records no undo entry.
 final _opBaseProvider = StateProvider.family<String?, String>(
+  (ref, path) => null,
+);
+
+/// What the exec step a rebase stopped on printed, kept until the rebase is
+/// continued or aborted so the user can read why it failed. Null when the
+/// rebase is not stopped on a failed exec.
+final rebaseExecOutputProvider = StateProvider.family<String?, String>(
+  (ref, path) => null,
+);
+
+/// A commit message for the composer to take up — set by actions that prepare
+/// a commit for the user to make (a fixup, say), cleared by the composer once
+/// it has filled itself in.
+final composerPrefillProvider = StateProvider.family<String?, String>(
   (ref, path) => null,
 );
 

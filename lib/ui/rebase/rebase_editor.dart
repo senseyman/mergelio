@@ -29,6 +29,8 @@ String rebaseActionSummary(AppLocalizations l, RebaseAction a) => switch (a) {
   RebaseAction.squash => l.rbSquash,
   RebaseAction.fixup => l.rbFixup,
   RebaseAction.drop => l.rbDrop,
+  RebaseAction.exec => l.rbExec,
+  RebaseAction.breakpoint => l.rbBreak,
 };
 
 String _presetTitle(AppLocalizations l, RebasePreset p) => switch (p) {
@@ -242,7 +244,7 @@ class _RebaseEditorState extends State<_RebaseEditor> {
     padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
     child: Text(
       [
-        for (final a in RebaseAction.values)
+        for (final a in rebaseCommitActions)
           '${a.name} — ${rebaseActionSummary(l, a)}',
       ].join('  ·  '),
       style: TextStyle(color: t.textFaint, fontSize: 11.5, height: 1.5),
@@ -355,7 +357,7 @@ class _StepRow extends StatelessWidget {
               // The closed button shows only the action name; the open menu is
               // where there is room to say what it does.
               selectedItemBuilder: (_) => [
-                for (final a in RebaseAction.values)
+                for (final a in rebaseCommitActions)
                   Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
@@ -365,7 +367,7 @@ class _StepRow extends StatelessWidget {
                   ),
               ],
               items: [
-                for (final a in RebaseAction.values)
+                for (final a in rebaseCommitActions)
                   DropdownMenuItem(
                     value: a,
                     child: Text.rich(

@@ -3794,6 +3794,18 @@ abstract class AppLocalizations {
   /// **'remove this commit entirely'**
   String get rbDrop;
 
+  /// No description provided for @rbExec.
+  ///
+  /// In en, this message translates to:
+  /// **'run a shell command here; if it fails, the rebase pauses'**
+  String get rbExec;
+
+  /// No description provided for @rbBreak.
+  ///
+  /// In en, this message translates to:
+  /// **'pause here so you can look around or amend, then continue'**
+  String get rbBreak;
+
   /// No description provided for @rbPresetAsIs.
   ///
   /// In en, this message translates to:

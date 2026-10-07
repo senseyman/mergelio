@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/git/conflict.dart';
 import '../domain/git/models.dart';
+import '../domain/git/rebase_plan.dart';
 
 /// A conflicted file inside a merge session: its parsed [parts] plus the
 /// per-hunk [resolutions] chosen so far.
@@ -105,7 +106,11 @@ class PendingOp {
   /// The branch or short sha the operation is bringing in, when git records
   /// one. Empty for a rebase, which has no single source to name.
   final String branch;
-  const PendingOp({required this.kind, this.branch = ''});
+
+  /// For a rebase sitting still with nothing conflicted: the break it was told
+  /// to stop at, or the exec that failed. Null otherwise.
+  final RebaseStop? stop;
+  const PendingOp({required this.kind, this.branch = '', this.stop});
 
   /// Whether finishing this means `--continue` rather than a plain commit.
   bool get continues => kind != MergeKind.merge && kind != MergeKind.stash;
