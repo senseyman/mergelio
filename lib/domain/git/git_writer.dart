@@ -7,6 +7,7 @@ import 'askpass.dart';
 import 'commit_message.dart';
 import 'git_service.dart';
 import 'hooks.dart';
+import 'rebase_plan.dart';
 import 'stash.dart';
 
 /// The flag [shell] wants in front of a command string.
@@ -524,17 +525,25 @@ class GitWriter {
 
   // --- Interactive rebase ---------------------------------------------------
 
+  /// Ceiling for a rebase that runs exec steps. Each one is whatever the user
+  /// typed — a full test suite, typically — so the ordinary default would kill
+  /// the sequence partway through its first run.
+  static const rebaseSequenceTimeout = Duration(hours: 2);
+
   /// Runs an interactive rebase onto [onto], driving the sequence editor with
   /// [todo] (so no terminal editor is needed). GIT_EDITOR is a no-op so squash
   /// messages auto-accept; reword is handled by exec lines in [todo]. [sign]
-  /// signs every replayed commit. Throws on conflict (the caller inspects
-  /// [GitReader.conflictedFiles]).
+  /// signs every replayed commit. Throws on conflict or a failed exec (the
+  /// caller inspects [GitReader.conflictedFiles]); a `break` returns normally
+  /// with the rebase still in progress. [cancel] kills git, which leaves the
+  /// rebase stopped on the step it was running.
   Future<void> rebase(
     String onto,
     String todo, {
     String? authorName,
     String? authorEmail,
     bool sign = false,
+    GitCancel? cancel,
   }) async {
     final tmp = await Directory.systemTemp.createTemp('mergelio_rebase_');
     final todoFile = File('${tmp.path}/todo');
@@ -549,6 +558,8 @@ class GitWriter {
           onto,
         ],
         'git rebase',
+        timeout: todoRunsUserExec(todo) ? rebaseSequenceTimeout : null,
+        cancel: cancel,
         environment: {
           // Quoted: the editor line is run by a shell, and the temp path can
           // contain spaces (e.g. Windows user profiles).
@@ -582,10 +593,18 @@ class GitWriter {
   /// because the commit already reached the base under a different sha.
   Future<void> rebaseSkip() => _ok(['rebase', '--skip'], 'git rebase --skip');
 
-  /// Continues a paused rebase after conflicts were resolved and staged.
-  Future<void> rebaseContinue({String? authorName, String? authorEmail}) => _ok(
+  /// Continues a paused rebase after conflicts were resolved and staged. The
+  /// rest of the sequence may hold exec steps, so it gets the same ceiling as
+  /// the rebase that queued them.
+  Future<void> rebaseContinue({
+    String? authorName,
+    String? authorEmail,
+    GitCancel? cancel,
+  }) => _ok(
     [..._identity(authorName, authorEmail), 'rebase', '--continue'],
     'git rebase --continue',
+    timeout: rebaseSequenceTimeout,
+    cancel: cancel,
     environment: {'GIT_EDITOR': 'true'},
   );
 

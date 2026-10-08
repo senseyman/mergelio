@@ -24,11 +24,11 @@ void main() {
           body: Builder(
             builder: (context) => Center(
               child: ElevatedButton(
-                onPressed: () async => result = await showRebaseEditor(
+                onPressed: () async => result = (await showRebaseEditor(
                   context,
                   steps: initial,
                   onto: onto,
-                ),
+                ))?.steps,
                 child: const Text('open'),
               ),
             ),

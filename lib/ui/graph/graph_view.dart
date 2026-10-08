@@ -1374,14 +1374,18 @@ class _CommitContextMenu extends ConsumerWidget {
                 );
             return;
           }
+          final stacked = await actions.rebaseStackedBranches(sha);
           if (!context.mounted) return;
           final plan = await showRebaseEditor(
             context,
             steps: steps,
             onto: commit.shortSha,
+            stackedBranches: [for (final b in stacked.values) ...b],
           );
           if (plan == null) return;
-          if (await actions.isRebaseRedundant(sha, steps, plan)) {
+          // Unchanged picks onto an ancestor replay to the same shas, so a
+          // stacked branch has nowhere to move either.
+          if (await actions.isRebaseRedundant(sha, steps, plan.steps)) {
             ref
                 .read(toastProvider.notifier)
                 .show(
@@ -1390,8 +1394,9 @@ class _CommitContextMenu extends ConsumerWidget {
                 );
             return;
           }
-          await actions.rebase(sha, plan);
+          await actions.rebase(sha, plan.steps, updateRefs: plan.updateRefs);
         }),
+        item(l.menuCreateFixup, () => actions.prepareFixup(commit.message)),
         item(l.menuResetMixed, () async {
           final ok = await confirmDestructive(
             ref,

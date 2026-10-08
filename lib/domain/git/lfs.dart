@@ -7,6 +7,8 @@ import 'dart:math' show max;
 
 import 'package:path/path.dart' as p;
 
+import 'git_toolchain.dart';
+
 /// The version line every LFS pointer opens with.
 const lfsPointerVersion = 'version https://git-lfs.github.com/spec/v1';
 
@@ -95,11 +97,10 @@ final _lfsVersion = RegExp(r'^git-lfs/(\d+\.\d+\.\d+)');
 String? parseLfsVersion(String out) =>
     _lfsVersion.firstMatch(out.trim())?.group(1);
 
-final _gitVersion = RegExp(r'git version (\d+)\.(\d+)');
-
 /// Whether `git check-attr --source` exists, which is what lets a commit's
 /// own attributes answer for it. Added in git 2.40.
-bool supportsCheckAttrSource(String gitVersion) => _atLeast(gitVersion, 2, 40);
+bool supportsCheckAttrSource(String gitVersion) =>
+    gitVersionAtLeast(gitVersion, 2, 40);
 
 /// The arguments that name [rev] to a git command that also takes options,
 /// or null when that cannot be done safely.
@@ -109,17 +110,9 @@ bool supportsCheckAttrSource(String gitVersion) => _atLeast(gitVersion, 2, 40);
 /// revision. Older git has no such marker, so a revision starting with `-`
 /// is refused there rather than passed where git would read it as a flag.
 List<String>? revisionArgs(String rev, String gitVersion) {
-  if (_atLeast(gitVersion, 2, 24)) return ['--end-of-options', rev];
+  if (gitVersionAtLeast(gitVersion, 2, 24)) return ['--end-of-options', rev];
   if (rev.startsWith('-')) return null;
   return [rev];
-}
-
-bool _atLeast(String gitVersion, int major, int minor) {
-  final m = _gitVersion.firstMatch(gitVersion);
-  if (m == null) return false;
-  final gotMajor = int.parse(m.group(1)!);
-  final gotMinor = int.parse(m.group(2)!);
-  return gotMajor > major || (gotMajor == major && gotMinor >= minor);
 }
 
 /// Where downloaded LFS objects live. [commonDir] is `git rev-parse

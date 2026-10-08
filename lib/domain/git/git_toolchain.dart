@@ -10,6 +10,19 @@ library;
 
 import 'dart:io';
 
+final _gitVersion = RegExp(r'git version (\d+)\.(\d+)');
+
+/// Whether the `git --version` answer [gitVersion] names [major].[minor] or
+/// later. An answer that cannot be read counts as too old: a feature gated on
+/// it is then left off rather than handed to a git that may reject it.
+bool gitVersionAtLeast(String gitVersion, int major, int minor) {
+  final m = _gitVersion.firstMatch(gitVersion);
+  if (m == null) return false;
+  final gotMajor = int.parse(m.group(1)!);
+  final gotMinor = int.parse(m.group(2)!);
+  return gotMajor > major || (gotMajor == major && gotMinor >= minor);
+}
+
 /// Absolute paths worth trying before falling back to a PATH lookup, in order
 /// of preference.
 ///

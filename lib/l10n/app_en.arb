@@ -80,6 +80,7 @@
   "menuCherryPick": "Cherry-pick",
   "menuRevert": "Revert",
   "menuRebaseHere": "Rebase to here…",
+  "menuCreateFixup": "Prepare fixup for this commit",
   "menuResetMixed": "Reset here (--mixed)",
   "menuResetHard": "Reset here (--hard)",
   "menuEditMessage": "Edit message…",
@@ -1046,6 +1047,18 @@
     }
   },
   "wtpMergeOpenBody": "A merge is open. Review the staged files, then commit it.",
+  "wtpBreakPausedBody": "The rebase is paused at a break. Look around, commit or amend if you like, then continue it.",
+  "wtpRewordRejectedBody": "The rebase is paused: the new message for a commit was rejected, usually by a commit hook. Amend the message yourself, or continue to keep the old one.",
+  "wtpExecFailedBody": "The exec step `{command}` failed. Fix the problem and commit the fix, then continue — the command is not run again.",
+  "@wtpExecFailedBody": {
+    "placeholders": {
+      "command": {
+        "type": "String"
+      }
+    }
+  },
+  "wtpShowOutput": "Show output",
+  "wtpHideOutput": "Hide output",
   "wtpContinueOp": "Continue {name}",
   "@wtpContinueOp": {
     "placeholders": {
@@ -1564,6 +1577,8 @@
   "rbSquash": "merge into the commit above, keep both messages",
   "rbFixup": "merge into the commit above, drop its message",
   "rbDrop": "remove this commit entirely",
+  "rbExec": "run a shell command here; if it fails, the rebase pauses",
+  "rbBreak": "pause here so you can look around or amend, then continue",
   "rbPresetAsIs": "Move commits as-is",
   "rbPresetSquashAll": "Squash into one commit",
   "rbPresetSquashKeepFirst": "Squash, keep first message",
@@ -1615,6 +1630,46 @@
   "rbNeedsTwo": "Needs at least 2 commits.",
   "rbCustomize": "Customize per commit",
   "rbCustomizeHint": "Pick an action for each commit, or drag to reorder them.",
+  "rbAutosquash": "Fold fixup commits into their targets",
+  "rbAutosquashHint": "{count, plural, one{1 fixup!/squash! commit found — it moves under the commit it names.} other{{count} fixup!/squash! commits found — each moves under the commit it names.}}",
+  "@rbAutosquashHint": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "rbFoldsInto": "↳ into {target}",
+  "@rbFoldsInto": {
+    "placeholders": {
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "rbUpdateRefs": "Move stacked branches too",
+  "rbUpdateRefsHint": "{branches} point at these commits and will follow them.",
+  "@rbUpdateRefsHint": {
+    "placeholders": {
+      "branches": {
+        "type": "String"
+      }
+    }
+  },
+  "rbAddExec": "Add exec step",
+  "rbAddBreak": "Add break",
+  "rbExecFieldHint": "Shell command, e.g. flutter test",
+  "rbRemoveStep": "Remove step",
+  "rbExecConfirmTitle": "Run these commands?",
+  "rbExecConfirmBody": "{count, plural, one{This command runs in the repository between commits, exactly as written. If it fails, the rebase pauses there.} other{These {count} commands run in the repository between commits, exactly as written. If one fails, the rebase pauses there.}}",
+  "@rbExecConfirmBody": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "rbExecConfirmRun": "Run rebase",
   "dlgEditCommitMessage": "Edit commit message",
   "dlgUnsavedOne": "{path} has changes that are not on disk.",
   "@dlgUnsavedOne": {

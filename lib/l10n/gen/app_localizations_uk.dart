@@ -251,6 +251,9 @@ class AppLocalizationsUk extends AppLocalizations {
   String get menuRebaseHere => 'Перебазувати сюди…';
 
   @override
+  String get menuCreateFixup => 'Підготувати fixup для цього коміту';
+
+  @override
   String get menuResetMixed => 'Скинути сюди (--mixed)';
 
   @override
@@ -1354,6 +1357,25 @@ class AppLocalizationsUk extends AppLocalizations {
       'Триває злиття. Перегляньте проіндексовані файли, потім зробіть коміт.';
 
   @override
+  String get wtpBreakPausedBody =>
+      'Перебазування призупинено на зупинці. Роззирніться, за потреби зробіть коміт чи виправте його, потім продовжте.';
+
+  @override
+  String get wtpRewordRejectedBody =>
+      'Перебазування призупинено: нове повідомлення коміту відхилено, зазвичай хуком. Виправте повідомлення самостійно або продовжте, щоб залишити старе.';
+
+  @override
+  String wtpExecFailedBody(String command) {
+    return 'Крок exec `$command` завершився з помилкою. Виправте проблему й закомітьте виправлення, потім продовжте — команда повторно не виконується.';
+  }
+
+  @override
+  String get wtpShowOutput => 'Показати вивід';
+
+  @override
+  String get wtpHideOutput => 'Сховати вивід';
+
+  @override
   String wtpContinueOp(String name) {
     return 'Продовжити $name';
   }
@@ -2177,6 +2199,14 @@ class AppLocalizationsUk extends AppLocalizations {
   String get rbDrop => 'повністю вилучити цей коміт';
 
   @override
+  String get rbExec =>
+      'виконати команду оболонки тут; якщо вона завершиться з помилкою, перебазування призупиниться';
+
+  @override
+  String get rbBreak =>
+      'зупинитися тут, щоб роззирнутися чи виправити коміт, потім продовжити';
+
+  @override
   String get rbPresetAsIs => 'Перемістити коміти як є';
 
   @override
@@ -2242,6 +2272,69 @@ class AppLocalizationsUk extends AppLocalizations {
   @override
   String get rbCustomizeHint =>
       'Виберіть дію для кожного коміту або перетягніть, щоб змінити порядок.';
+
+  @override
+  String get rbAutosquash => 'Вбудувати fixup-коміти в їхні цілі';
+
+  @override
+  String rbAutosquashHint(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'Знайдено $count коміту fixup!/squash! — кожен переміститься під коміт, який називає.',
+      many:
+          'Знайдено $count комітів fixup!/squash! — кожен переміститься під коміт, який називає.',
+      few:
+          'Знайдено $count коміти fixup!/squash! — кожен переміститься під коміт, який називає.',
+      one:
+          'Знайдено $count коміт fixup!/squash! — він переміститься під коміт, який називає.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String rbFoldsInto(String target) {
+    return '↳ у $target';
+  }
+
+  @override
+  String get rbUpdateRefs => 'Перемістити й гілки зверху';
+
+  @override
+  String rbUpdateRefsHint(String branches) {
+    return '$branches вказують на ці коміти й підуть за ними.';
+  }
+
+  @override
+  String get rbAddExec => 'Додати крок exec';
+
+  @override
+  String get rbAddBreak => 'Додати зупинку';
+
+  @override
+  String get rbExecFieldHint => 'Команда оболонки, напр. flutter test';
+
+  @override
+  String get rbRemoveStep => 'Вилучити крок';
+
+  @override
+  String get rbExecConfirmTitle => 'Виконати ці команди?';
+
+  @override
+  String rbExecConfirmBody(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'Ці команди ($count) виконаються в репозиторії між комітами точно так, як написано. Якщо одна завершиться з помилкою, перебазування там призупиниться.',
+      one: 'Ця команда виконається в репозиторії між комітами точно так, як написано. Якщо вона завершиться з помилкою, перебазування там призупиниться.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get rbExecConfirmRun => 'Запустити перебазування';
 
   @override
   String get dlgEditCommitMessage => 'Редагувати повідомлення коміту';
