@@ -116,6 +116,46 @@ void main() {
     expect(head, contains('a body'));
   });
 
+  test('trailers land in one block that git reads back', () async {
+    await write('a.txt', 'l1\nl2\nl3\nl4\n');
+    await writer().stageFile('a.txt');
+    await writer().commit(
+      'add l4',
+      description: 'Body\n\nReviewed-by: R <r@x>',
+      coauthors: ['A <a@x>'],
+      trailers: [(key: 'Fixes', value: '#7')],
+    );
+
+    final trailers = (await svc.run([
+      'log',
+      '-1',
+      '--format=%(trailers:only,unfold)',
+    ], repoPath: dir.path)).out;
+    expect(trailers.split('\n'), [
+      'Reviewed-by: R <r@x>',
+      'Fixes: #7',
+      'Co-authored-by: A <a@x>',
+    ]);
+  });
+
+  test('signoff adds a Signed-off-by for the committing identity', () async {
+    await write('a.txt', 'l1\nl2\nl3\nl4\n');
+    await writer().stageFile('a.txt');
+    await writer().commit(
+      'add l4',
+      signoff: true,
+      authorName: 'Pro File',
+      authorEmail: 'p@example.com',
+    );
+
+    final body = (await svc.run([
+      'log',
+      '-1',
+      '--format=%B',
+    ], repoPath: dir.path)).out;
+    expect(body, contains('Signed-off-by: Pro File <p@example.com>'));
+  });
+
   test('amend replaces the top commit', () async {
     final before = (await svc.run([
       'rev-parse',

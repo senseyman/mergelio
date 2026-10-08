@@ -880,7 +880,9 @@ class RepoActions {
     bool amend = false,
     bool sign = false,
     bool noVerify = false,
+    bool signoff = false,
     List<String> coauthors = const [],
+    List<CommitTrailer> trailers = const [],
   }) async {
     if (_blockedByRepoOp) return const CommitOutcome();
     final profile = _ref.read(profilesProvider).active;
@@ -898,7 +900,9 @@ class RepoActions {
         amend: amend,
         sign: sign,
         noVerify: noVerify,
+        signoff: signoff,
         coauthors: coauthors,
+        trailers: trailers,
         authorName: profile?.name,
         authorEmail: profile?.email,
       );

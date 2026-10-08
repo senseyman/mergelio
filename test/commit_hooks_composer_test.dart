@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/core/tokens.dart';
 import 'package:mergelio/data/settings_repository.dart';
+import 'package:mergelio/domain/git/commit_message.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/domain/git/hooks.dart';
@@ -46,7 +47,9 @@ class _FakeActions implements RepoActions {
     bool amend = false,
     bool sign = false,
     bool noVerify = false,
+    bool signoff = false,
     List<String> coauthors = const [],
+    List<CommitTrailer> trailers = const [],
   }) async {
     calls.add((summary: summary, noVerify: noVerify));
     return next;

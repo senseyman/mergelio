@@ -2510,6 +2510,132 @@ abstract class AppLocalizations {
   /// **'+ Co-author'**
   String get wtpAddCoauthor;
 
+  /// No description provided for @wtpTrailers.
+  ///
+  /// In en, this message translates to:
+  /// **'Trailers'**
+  String get wtpTrailers;
+
+  /// No description provided for @wtpSignoff.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign off'**
+  String get wtpSignoff;
+
+  /// No description provided for @wtpSignoffTip.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a Signed-off-by trailer for the committing identity'**
+  String get wtpSignoffTip;
+
+  /// No description provided for @wtpRefsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Refs: #12, #34'**
+  String get wtpRefsHint;
+
+  /// No description provided for @wtpFixesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Fixes: #12'**
+  String get wtpFixesHint;
+
+  /// No description provided for @wtpComposerMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Composer options'**
+  String get wtpComposerMenu;
+
+  /// No description provided for @wtpConventional.
+  ///
+  /// In en, this message translates to:
+  /// **'Conventional Commits'**
+  String get wtpConventional;
+
+  /// No description provided for @wtpSubjectLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'Subject limit: {limit}'**
+  String wtpSubjectLimit(int limit);
+
+  /// No description provided for @wtpEditTemplate.
+  ///
+  /// In en, this message translates to:
+  /// **'Message template…'**
+  String get wtpEditTemplate;
+
+  /// No description provided for @wtpWrapDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Wrap description to {width} columns'**
+  String wtpWrapDescription(int width);
+
+  /// No description provided for @wtpRecentMessages.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent messages'**
+  String get wtpRecentMessages;
+
+  /// No description provided for @wtpNoRecent.
+  ///
+  /// In en, this message translates to:
+  /// **'No recent messages'**
+  String get wtpNoRecent;
+
+  /// No description provided for @wtpScopeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'scope'**
+  String get wtpScopeHint;
+
+  /// No description provided for @wtpTypeNone.
+  ///
+  /// In en, this message translates to:
+  /// **'no type'**
+  String get wtpTypeNone;
+
+  /// No description provided for @wtpBreaking.
+  ///
+  /// In en, this message translates to:
+  /// **'Breaking'**
+  String get wtpBreaking;
+
+  /// No description provided for @wtpBreakingTip.
+  ///
+  /// In en, this message translates to:
+  /// **'Marks the subject with ! as a breaking change'**
+  String get wtpBreakingTip;
+
+  /// No description provided for @wtpTemplateUntouched.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit the template first'**
+  String get wtpTemplateUntouched;
+
+  /// No description provided for @wtpTemplateUntouchedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The message is still exactly the template.'**
+  String get wtpTemplateUntouchedBody;
+
+  /// No description provided for @wtpTemplateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Message template'**
+  String get wtpTemplateTitle;
+
+  /// No description provided for @wtpTemplateBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Starts every new commit message in this repository. Lines beginning with {char} are guidance and are left out of the commit. Leave it empty to use git\'s commit.template or .gitmessage.'**
+  String wtpTemplateBody(String char);
+
+  /// No description provided for @wtpTemplateClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get wtpTemplateClear;
+
   /// No description provided for @wtpCommit.
   ///
   /// In en, this message translates to:

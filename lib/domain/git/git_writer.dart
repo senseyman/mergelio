@@ -1033,20 +1033,20 @@ class GitWriter {
     bool amend = false,
     bool sign = false,
     bool noVerify = false,
+    bool signoff = false,
     List<String> coauthors = const [],
+    List<CommitTrailer> trailers = const [],
     String? authorName,
     String? authorEmail,
   }) async {
-    final body = StringBuffer(summary);
-    if (description.trim().isNotEmpty) {
-      body.write('\n\n${description.trim()}');
-    }
-    if (coauthors.isNotEmpty) {
-      body.write('\n');
-      for (final c in coauthors) {
-        body.write('\nCo-authored-by: $c');
-      }
-    }
+    final message = buildCommitMessage(
+      summary,
+      description,
+      trailers: [
+        ...trailers,
+        ...buildTrailers(coauthors: coauthors),
+      ],
+    );
     await _traced([
       // Per-commit identity via -c, applied before the subcommand.
       if (authorName != null) ...['-c', 'user.name=$authorName'],
@@ -1055,8 +1055,11 @@ class GitWriter {
       if (amend) '--amend',
       if (sign) '-S',
       if (noVerify) '--no-verify',
+      // git appends Signed-off-by to the trailer block itself, from the
+      // committing identity set above.
+      if (signoff) '--signoff',
       '-m',
-      body.toString(),
+      message,
     ]);
   }
 

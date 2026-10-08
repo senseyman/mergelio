@@ -1431,6 +1431,77 @@ class AppLocalizationsEn extends AppLocalizations {
   String get wtpAddCoauthor => '+ Co-author';
 
   @override
+  String get wtpTrailers => 'Trailers';
+
+  @override
+  String get wtpSignoff => 'Sign off';
+
+  @override
+  String get wtpSignoffTip =>
+      'Add a Signed-off-by trailer for the committing identity';
+
+  @override
+  String get wtpRefsHint => 'Refs: #12, #34';
+
+  @override
+  String get wtpFixesHint => 'Fixes: #12';
+
+  @override
+  String get wtpComposerMenu => 'Composer options';
+
+  @override
+  String get wtpConventional => 'Conventional Commits';
+
+  @override
+  String wtpSubjectLimit(int limit) {
+    return 'Subject limit: $limit';
+  }
+
+  @override
+  String get wtpEditTemplate => 'Message template…';
+
+  @override
+  String wtpWrapDescription(int width) {
+    return 'Wrap description to $width columns';
+  }
+
+  @override
+  String get wtpRecentMessages => 'Recent messages';
+
+  @override
+  String get wtpNoRecent => 'No recent messages';
+
+  @override
+  String get wtpScopeHint => 'scope';
+
+  @override
+  String get wtpTypeNone => 'no type';
+
+  @override
+  String get wtpBreaking => 'Breaking';
+
+  @override
+  String get wtpBreakingTip => 'Marks the subject with ! as a breaking change';
+
+  @override
+  String get wtpTemplateUntouched => 'Edit the template first';
+
+  @override
+  String get wtpTemplateUntouchedBody =>
+      'The message is still exactly the template.';
+
+  @override
+  String get wtpTemplateTitle => 'Message template';
+
+  @override
+  String wtpTemplateBody(String char) {
+    return 'Starts every new commit message in this repository. Lines beginning with $char are guidance and are left out of the commit. Leave it empty to use git\'s commit.template or .gitmessage.';
+  }
+
+  @override
+  String get wtpTemplateClear => 'Clear';
+
+  @override
   String get wtpCommit => 'Commit';
 
   @override
