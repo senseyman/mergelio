@@ -2048,13 +2048,17 @@ class RepoActions {
       updateRefs: updateRefs ? await rebaseStackedBranches(base) : const {},
     );
     await _runRebase(
-      () => _writer.rebase(
+      (cancel) => _writer.rebase(
         base,
         todo,
         authorName: _identity.name,
         authorEmail: _identity.email,
         sign: sign,
+        cancel: cancel,
       ),
+      // A command the user typed can run for as long as it likes; a rebase of
+      // picks alone is quick, and killing one mid-pick gains nothing.
+      cancellable: todoRunsUserExec(todo),
     );
   }
 
@@ -2088,7 +2092,7 @@ class RepoActions {
     // linear. Count them first — afterwards they are gone — and say so.
     final merges = await _mergeCount(target);
     await _runRebase(
-      () => _writer.rebaseOnto(
+      (_) => _writer.rebaseOnto(
         target,
         authorName: _identity.name,
         authorEmail: _identity.email,
@@ -2106,7 +2110,11 @@ class RepoActions {
   /// checked out anywhere — this checkout's own included — is left out: git
   /// refuses to move a ref another worktree has checked out, and the current
   /// branch moves anyway.
+  /// Empty when this git is too old to move them (see [supportsUpdateRefTodo]).
   Future<Map<String, List<String>>> rebaseStackedBranches(String base) async {
+    if (!supportsUpdateRefTodo(await _ref.read(gitVersionProvider.future))) {
+      return const {};
+    }
     final range = (await _out([
       'rev-list',
       base.isEmpty || base == '--root' ? 'HEAD' : '$base..HEAD',
@@ -2140,10 +2148,13 @@ class RepoActions {
     return parseRebaseStop(await File(done).readAsString());
   }
 
-  Future<String> _rebaseDone() async {
-    final done = await _stateFilePath('rebase-merge/done');
-    if (done == null || !File(done).existsSync()) return '';
-    return File(done).readAsString();
+  Future<String> _rebaseDone() => _rebaseFile('done');
+
+  /// The rebase state file [name], or empty when there is none.
+  Future<String> _rebaseFile(String name) async {
+    final f = await _stateFilePath('rebase-merge/$name');
+    if (f == null || !File(f).existsSync()) return '';
+    return File(f).readAsString();
   }
 
   /// Pre-fills the commit composer with a fixup for the commit titled
@@ -2171,12 +2182,33 @@ class RepoActions {
 
   /// Tells the user the rebase is waiting on them, and remembers [prev] so the
   /// rebase stays undoable once it is continued to the end.
-  void _pausedAt(RebaseStop stop, String prev, {String? output}) {
+  /// [cancelled] when the user stopped the step themselves.
+  void _pausedAt(
+    RebaseStop stop,
+    String prev, {
+    String? output,
+    bool cancelled = false,
+  }) {
     _ref.read(_opBaseProvider(path).notifier).state = prev.isEmpty
         ? null
         : prev;
-    _ref.read(rebaseExecOutputProvider(path).notifier).state = output;
+    _ref.read(rebaseExecOutputProvider(path).notifier).state =
+        output == null || output.isEmpty ? null : output;
     _refresh();
+    if (cancelled) {
+      _ref
+          .read(toastProvider.notifier)
+          .show(
+            'Rebase cancelled',
+            // Only git itself is killed (see GitCancel.cancel): the command it
+            // was running can outlive it.
+            description:
+                'Stopped at `${stop.command ?? stop.kind.name}`. Anything it '
+                'started may still be running. Continue without it, or abort.',
+            kind: ToastKind.warning,
+          );
+      return;
+    }
     _ref
         .read(toastProvider.notifier)
         .show(
@@ -2424,7 +2456,14 @@ class RepoActions {
 
   /// Runs [op] as a rebase, with [note] added to the success toast when the
   /// result needs explaining.
-  Future<void> _runRebase(Future<void> Function() op, {String? note}) async {
+  ///
+  /// [cancellable] puts Cancel on the busy bar; [op] is handed the handle it
+  /// cancels, or null.
+  Future<void> _runRebase(
+    Future<void> Function(GitCancel? cancel) op, {
+    String? note,
+    bool cancellable = false,
+  }) async {
     if (_blockedByRepoOp) return;
     if (await isRebaseInProgress()) {
       _ref
@@ -2446,9 +2485,13 @@ class RepoActions {
     }
     final prev = await _headSha();
     _ref.read(rebaseExecOutputProvider(path).notifier).state = null;
-    _ref.read(busyProvider.notifier).state = const BusyState('Rebase');
+    final cancel = cancellable ? GitCancel() : null;
+    _ref.read(busyProvider.notifier).state = BusyState(
+      'Rebase',
+      onCancel: cancel?.cancel,
+    );
     try {
-      await _timed('Rebase', op);
+      await _timed('Rebase', () => op(cancel));
       // A break stops the sequence without failing it: git exits cleanly with
       // the rebase still open, and calling that finished would record an undo
       // for half a rebase.
@@ -2467,7 +2510,7 @@ class RepoActions {
               },
               // Re-run the same rebase op to redo it.
               redo: () async {
-                await op();
+                await op(null);
                 _refresh();
               },
             ),
@@ -2488,7 +2531,12 @@ class RepoActions {
         // commit already replayed.
         final stop = await _rebaseStop();
         if (stop != null && stop.failed) {
-          _pausedAt(stop, prev, output: _output(e));
+          _pausedAt(
+            stop,
+            prev,
+            output: _output(e),
+            cancelled: e is GitCancelledException,
+          );
           return;
         }
         if (await isRebasePartlyDone()) {
@@ -2610,9 +2658,19 @@ class RepoActions {
       MergeKind.cherryPick => 'Continue cherry-pick ${pending.branch}',
       _ => 'Continue revert ${pending.branch}',
     };
-    _ref.read(busyProvider.notifier).state = BusyState(label);
+    // Steps still queued may include a command of the user's, which can run
+    // for as long as it likes.
+    final cancel =
+        pending.kind == MergeKind.rebase &&
+            todoRunsUserExec(await _rebaseFile('git-rebase-todo'))
+        ? GitCancel()
+        : null;
+    _ref.read(busyProvider.notifier).state = BusyState(
+      label,
+      onCancel: cancel?.cancel,
+    );
     try {
-      await _timed(label, () => _continueOp(pending));
+      await _timed(label, () => _continueOp(pending, cancel));
     } on GitException catch (e) {
       _toastErr(label, e);
     } finally {
@@ -2620,7 +2678,7 @@ class RepoActions {
     }
   }
 
-  Future<void> _continueOp(PendingOp pending) async {
+  Future<void> _continueOp(PendingOp pending, GitCancel? cancel) async {
     final id = _identity;
     // A resolution that matches HEAD leaves nothing to commit. git refuses
     // `--continue` there and wants the paused commit skipped instead. A break
@@ -2644,6 +2702,7 @@ class RepoActions {
             await _writer.rebaseContinue(
               authorName: id.name,
               authorEmail: id.email,
+              cancel: cancel,
             );
           }
         case MergeKind.cherryPick:
@@ -2682,6 +2741,7 @@ class RepoActions {
             stop,
             _ref.read(_opBaseProvider(path)) ?? '',
             output: _output(e),
+            cancelled: e is GitCancelledException,
           );
           return;
         }

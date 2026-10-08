@@ -1,3 +1,5 @@
+import 'git_toolchain.dart';
+
 /// What to do with a commit during an interactive rebase — or, for [exec] and
 /// [breakpoint], a step of the plan that is not a commit at all: a command run
 /// between commits, and a stop that hands the repository back to the user.
@@ -64,13 +66,17 @@ class RebaseStep {
       action != RebaseAction.exec && action != RebaseAction.breakpoint;
 
   /// This commit step with [action] (and, when given, [message]) swapped in.
-  RebaseStep withAction(RebaseAction action, {String? message}) => RebaseStep(
-    sha,
-    action,
-    message: message ?? this.message,
-    sign: sign,
-    noVerify: noVerify,
-  );
+  /// Exec and break steps have no sha to carry over.
+  RebaseStep withAction(RebaseAction action, {String? message}) {
+    assert(isCommit, 'withAction on a ${this.action.name} step');
+    return RebaseStep(
+      sha,
+      action,
+      message: message ?? this.message,
+      sign: sign,
+      noVerify: noVerify,
+    );
+  }
 }
 
 /// What the rebase editor hands back: the plan, and whether branches stacked
@@ -163,11 +169,24 @@ bool isNoOpPlan(List<RebaseStep> original, List<RebaseStep> steps) {
 /// of time — rather than only the quick amends a reword is made of.
 bool todoRunsUserExec(String todo) => todo
     .split('\n')
-    .any((l) => l.startsWith('exec ') && !l.startsWith(_rewordExec));
+    .any((l) => l.startsWith('exec ') && !_rewordLine.hasMatch(l));
 
-/// How every reword's exec line starts. A stop on one of these is the new
-/// message being refused, not a command the user wrote.
+/// How every reword's exec line starts.
 const _rewordExec = "exec printf '%b' ";
+
+/// A whole reword line, as [buildRebaseTodo] writes it: the quoted message
+/// piped into the amend, and nothing else. A user command that merely starts
+/// the same way is still the user's.
+final _rewordLine = RegExp(
+  r"^exec printf '%b' '(?:[^']|'\\'')*' \| git commit --amend "
+  r'(?:-S )?(?:--no-verify )?-F -$',
+);
+
+/// Whether git [gitVersion] understands an `update-ref` line in a todo (added
+/// in git 2.38). Older git rejects the whole todo — after it has already
+/// created its rebase state, leaving the repository mid-rebase.
+bool supportsUpdateRefTodo(String gitVersion) =>
+    gitVersionAtLeast(gitVersion, 2, 38);
 
 String _shellQuote(String s) => "'${s.replaceAll("'", r"'\''")}'";
 
@@ -430,7 +449,7 @@ RebaseStop? parseRebaseStop(String done) {
   if (lines.isEmpty) return null;
   final last = lines.last;
   if (last == 'break' || last == 'b') return const RebaseStop.breakpoint();
-  if (last.startsWith(_rewordExec)) return const RebaseStop.reword();
+  if (_rewordLine.hasMatch(last)) return const RebaseStop.reword();
   for (final verb in const ['exec ', 'x ']) {
     if (last.startsWith(verb)) {
       return RebaseStop.exec(last.substring(verb.length).trim());

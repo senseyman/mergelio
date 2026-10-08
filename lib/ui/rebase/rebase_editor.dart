@@ -97,9 +97,6 @@ class _RebaseEditorState extends State<_RebaseEditor> {
 
   var _updateRefs = false;
 
-  /// Names the exec and break steps this editor adds; they have no sha.
-  var _added = 0;
-
   TextEditingController _controllerFor(RebaseStep s) =>
       _controllers.putIfAbsent(
         s.id,
@@ -143,7 +140,14 @@ class _RebaseEditorState extends State<_RebaseEditor> {
       setState(() => _steps[i] = _steps[i].withAction(a));
 
   void _add(RebaseAction a) => setState(() {
-    final id = '${_verb(a)}${++_added}';
+    // Exec and break steps have no sha to go by. Numbered past any id already
+    // in the plan, so a plan that arrives with such steps keeps them apart.
+    final taken = {for (final s in _steps) s.id};
+    var n = 1;
+    while (taken.contains('${_verb(a)}$n')) {
+      n++;
+    }
+    final id = '${_verb(a)}$n';
     _steps.add(
       a == RebaseAction.exec
           ? RebaseStep.exec('', id: id)

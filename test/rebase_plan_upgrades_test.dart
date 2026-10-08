@@ -121,6 +121,41 @@ void main() {
       );
     });
 
+    test('a branch on an autosquash target is moved once, after the fold', () {
+      final r = autosquash([
+        pick('aaa', 'A'),
+        pick('bbb', 'B'),
+        pick('fff', 'fixup! A'),
+      ]);
+      final todo = buildRebaseTodo(
+        r.steps,
+        updateRefs: {
+          'aaa': ['on-a'],
+        },
+      );
+      expect(
+        todo,
+        'pick aaa\nfixup fff\nupdate-ref refs/heads/on-a\npick bbb\n',
+      );
+    });
+
+    test(
+      'leading exec and break steps never get an update-ref of their own',
+      () {
+        final todo = buildRebaseTodo(
+          [
+            const RebaseStep.exec('make', id: 'x'),
+            const RebaseStep.breakpoint(id: 'b'),
+            pick('aaa'),
+          ],
+          updateRefs: {
+            'aaa': ['one'],
+          },
+        );
+        expect(todo, 'exec make\nbreak\npick aaa\nupdate-ref refs/heads/one\n');
+      },
+    );
+
     test('a branch on a commit outside the plan is ignored', () {
       final todo = buildRebaseTodo(
         [pick('aaa')],
@@ -384,11 +419,57 @@ void main() {
       expect(const RebaseStop.reword().isExec, isFalse);
     });
 
+    test(
+      'a user exec that happens to start like a reword is still an exec',
+      () {
+        const line = "exec printf '%b' \"\$MSG\" > out.txt";
+        expect(
+          parseRebaseStop('pick aaa\n$line\n'),
+          isA<RebaseStop>().having((s) => s.kind, 'kind', RebaseStopKind.exec),
+        );
+        expect(todoRunsUserExec('pick aaa\n$line\n'), isTrue);
+      },
+    );
+
+    test('only a reword amend counts as the internal exec', () {
+      final todo = buildRebaseTodo([
+        const RebaseStep(
+          'aaa',
+          RebaseAction.reword,
+          message: 'x',
+          sign: true,
+          noVerify: true,
+        ),
+      ]);
+      expect(todoRunsUserExec(todo), isFalse);
+      expect(parseRebaseStop(todo), const RebaseStop.reword());
+    });
+
     test('anything else is not a break or exec stop', () {
       expect(parseRebaseStop('pick aaa\n'), isNull);
       expect(parseRebaseStop(''), isNull);
       expect(parseRebaseStop('exec make\npick aaa\n'), isNull);
     });
+  });
+
+  test('withAction is for commit steps only', () {
+    expect(
+      () =>
+          const RebaseStep.exec('make', id: 'x').withAction(RebaseAction.pick),
+      throwsA(isA<AssertionError>()),
+    );
+  });
+
+  group('supportsUpdateRefTodo', () {
+    for (final (v, want) in [
+      ('git version 2.37.1', false),
+      ('git version 2.38.0', true),
+      ('git version 2.55.0.windows.1', true),
+      ('git version 3.0.0', true),
+      ('not git', false),
+    ]) {
+      test(v, () => expect(supportsUpdateRefTodo(v), want));
+    }
   });
 
   test('fixupSubject prefixes the target subject', () {

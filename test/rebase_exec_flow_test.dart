@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/domain/git/rebase_plan.dart';
 import 'package:mergelio/state/feedback.dart';
@@ -275,6 +276,157 @@ void main() {
         RebaseStep(c1, RebaseAction.pick),
       ]);
       expect(await out(['rev-parse', 'part1']), c1);
+    });
+  });
+
+  group('git too old for update-ref', () {
+    late ProviderContainer old;
+    late RepoActions oldActions;
+
+    setUp(() {
+      old = ProviderContainer(
+        overrides: [
+          gitVersionProvider.overrideWith((ref) async => 'git version 2.37.1'),
+        ],
+      );
+      oldActions = old.read(repoActionsProvider(dir.path));
+    });
+    tearDown(() => old.dispose());
+
+    test('offers no stacked branches', () async {
+      await g(['branch', 'part1', c1]);
+      expect(await oldActions.rebaseStackedBranches(base), isEmpty);
+    });
+
+    test('a rebase asked to move them still runs, without them', () async {
+      await g(['branch', 'part1', c1]);
+      await oldActions.rebase(base, [
+        RebaseStep(c2, RebaseAction.pick),
+        RebaseStep(c1, RebaseAction.pick),
+      ], updateRefs: true);
+
+      expect(rebasing(), isFalse);
+      expect(await subjects(), ['C1', 'C2', 'base']);
+      expect(await out(['rev-parse', 'part1']), c1);
+    });
+  });
+
+  test(
+    'an unchanged plan onto an ancestor is redundant and moves no branch',
+    () async {
+      await g(['branch', 'part1', c1]);
+      final steps = [
+        RebaseStep(c1, RebaseAction.pick),
+        RebaseStep(c2, RebaseAction.pick),
+      ];
+      expect(await actions.isRebaseRedundant(base, steps, steps), isTrue);
+      // Even run anyway, the replay lands on the same shas: nothing to move.
+      await actions.rebase(base, steps, updateRefs: true);
+      expect(await out(['rev-parse', 'part1']), c1);
+      expect(await out(['rev-parse', 'HEAD']), c2);
+    },
+  );
+
+  group('a rebase started in a terminal', () {
+    Future<void> gitRebase(String todo) async {
+      final f = File('${dir.path}-todo');
+      await f.writeAsString(todo);
+      addTearDown(() => f.delete());
+      await svc.run(
+        ['rebase', '-i', base],
+        repoPath: dir.path,
+        environment: {'GIT_SEQUENCE_EDITOR': 'cp "${f.path}"'},
+      );
+    }
+
+    test('stopped at a break reads as a break', () async {
+      await gitRebase('pick $c1\nbreak\npick $c2\n');
+      expect((await actions.pendingOp())?.stop, const RebaseStop.breakpoint());
+    });
+
+    test('stopped on a failed exec reads as that exec', () async {
+      await gitRebase('pick $c1\nexec false\npick $c2\n');
+      expect((await actions.pendingOp())?.stop, const RebaseStop.exec('false'));
+    });
+  });
+
+  group('cancel', () {
+    /// Every busy state the rebase showed, so a test can reach its Cancel.
+    List<BusyState?> watchBusy() {
+      final seen = <BusyState?>[];
+      c.listen(busyProvider, (_, next) => seen.add(next));
+      return seen;
+    }
+
+    Future<void> cancelWhenOffered(List<BusyState?> seen) async {
+      final until = DateTime.now().add(const Duration(seconds: 10));
+      while (DateTime.now().isBefore(until)) {
+        final cancel = seen.lastOrNull?.onCancel;
+        if (cancel != null) {
+          // Let git get into the exec first.
+          await Future<void>.delayed(const Duration(milliseconds: 400));
+          return cancel();
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+      fail('Cancel was never offered');
+    }
+
+    test(
+      'a rebase running an exec can be cancelled, and pauses there',
+      () async {
+        final seen = watchBusy();
+        final watch = Stopwatch()..start();
+        final run = actions.rebase(base, [
+          RebaseStep(c1, RebaseAction.pick),
+          const RebaseStep.exec('sleep 20', id: 'x'),
+          RebaseStep(c2, RebaseAction.pick),
+        ]);
+        await cancelWhenOffered(seen);
+        await run;
+
+        expect(watch.elapsed, lessThan(const Duration(seconds: 15)));
+        expect(rebasing(), isTrue);
+        expect(
+          (await actions.pendingOp())?.stop,
+          const RebaseStop.exec('sleep 20'),
+        );
+        expect(toastTitles(), contains('Rebase cancelled'));
+        expect(c.read(busyProvider), isNull);
+      },
+    );
+
+    test('a rebase without exec steps offers no cancel', () async {
+      final seen = watchBusy();
+      await actions.rebase(base, [
+        RebaseStep(c2, RebaseAction.pick),
+        RebaseStep(c1, RebaseAction.pick),
+      ]);
+      expect(seen.whereType<BusyState>(), isNotEmpty);
+      expect(
+        seen.whereType<BusyState>().every((b) => b.onCancel == null),
+        isTrue,
+      );
+    });
+
+    test('continuing into an exec can be cancelled too', () async {
+      await actions.rebase(base, [
+        RebaseStep(c1, RebaseAction.pick),
+        const RebaseStep.breakpoint(id: 'b'),
+        const RebaseStep.exec('sleep 20', id: 'x'),
+        RebaseStep(c2, RebaseAction.pick),
+      ]);
+      final seen = watchBusy();
+      final run = actions.continueOp();
+      await cancelWhenOffered(seen);
+      await run;
+
+      expect(rebasing(), isTrue);
+      expect(
+        (await actions.pendingOp())?.stop,
+        const RebaseStop.exec('sleep 20'),
+      );
+      expect(toastTitles(), contains('Rebase cancelled'));
     });
   });
 

@@ -259,6 +259,29 @@ void main() {
       expect(squash.enabled, isFalse);
     });
 
+    testWidgets('steps it adds never reuse an id already in the plan', (
+      tester,
+    ) async {
+      await open(tester, [
+        pick('aaa', 'A'),
+        const RebaseStep.exec('make', id: 'exec1'),
+      ]);
+      await customize(tester);
+      await tapText(tester, 'Add exec step');
+      final added = tester.widgetList<TextField>(
+        find.byWidgetPredicate(
+          (w) =>
+              w is TextField &&
+              (w.key as ValueKey?)?.value.toString().startsWith(
+                    'rebase-exec-field-',
+                  ) ==
+                  true,
+        ),
+      );
+      expect(added.map((f) => f.key).toSet(), hasLength(2));
+      expect(added.last.controller?.text, isEmpty);
+    });
+
     testWidgets('a preset keeps exec and break steps', (tester) async {
       await open(tester, [pick('aaa', 'A'), pick('bbb', 'B')]);
       await customize(tester);

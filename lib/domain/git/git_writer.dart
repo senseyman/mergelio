@@ -535,13 +535,15 @@ class GitWriter {
   /// messages auto-accept; reword is handled by exec lines in [todo]. [sign]
   /// signs every replayed commit. Throws on conflict or a failed exec (the
   /// caller inspects [GitReader.conflictedFiles]); a `break` returns normally
-  /// with the rebase still in progress.
+  /// with the rebase still in progress. [cancel] kills git, which leaves the
+  /// rebase stopped on the step it was running.
   Future<void> rebase(
     String onto,
     String todo, {
     String? authorName,
     String? authorEmail,
     bool sign = false,
+    GitCancel? cancel,
   }) async {
     final tmp = await Directory.systemTemp.createTemp('mergelio_rebase_');
     final todoFile = File('${tmp.path}/todo');
@@ -557,6 +559,7 @@ class GitWriter {
         ],
         'git rebase',
         timeout: todoRunsUserExec(todo) ? rebaseSequenceTimeout : null,
+        cancel: cancel,
         environment: {
           // Quoted: the editor line is run by a shell, and the temp path can
           // contain spaces (e.g. Windows user profiles).
@@ -593,10 +596,15 @@ class GitWriter {
   /// Continues a paused rebase after conflicts were resolved and staged. The
   /// rest of the sequence may hold exec steps, so it gets the same ceiling as
   /// the rebase that queued them.
-  Future<void> rebaseContinue({String? authorName, String? authorEmail}) => _ok(
+  Future<void> rebaseContinue({
+    String? authorName,
+    String? authorEmail,
+    GitCancel? cancel,
+  }) => _ok(
     [..._identity(authorName, authorEmail), 'rebase', '--continue'],
     'git rebase --continue',
     timeout: rebaseSequenceTimeout,
+    cancel: cancel,
     environment: {'GIT_EDITOR': 'true'},
   );
 
