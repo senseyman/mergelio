@@ -1435,7 +1435,75 @@ class AppLocalizationsUk extends AppLocalizations {
   String get wtpSign => 'Підписати';
 
   @override
-  String get wtpAddCoauthor => '+ Співавтор';
+  String get wtpTrailers => 'Трейлери';
+
+  @override
+  String get wtpSignoff => 'Засвідчити';
+
+  @override
+  String get wtpSignoffTip =>
+      'Додати трейлер Signed-off-by від імені того, хто робить коміт';
+
+  @override
+  String get wtpRefsHint => 'Refs: #12, #34';
+
+  @override
+  String get wtpFixesHint => 'Fixes: #12';
+
+  @override
+  String get wtpComposerMenu => 'Параметри повідомлення';
+
+  @override
+  String get wtpConventional => 'Conventional Commits';
+
+  @override
+  String wtpSubjectLimit(int limit) {
+    return 'Ліміт заголовка: $limit';
+  }
+
+  @override
+  String get wtpEditTemplate => 'Шаблон повідомлення…';
+
+  @override
+  String wtpWrapDescription(int width) {
+    return 'Перенести опис до $width колонок';
+  }
+
+  @override
+  String get wtpRecentMessages => 'Нещодавні повідомлення';
+
+  @override
+  String get wtpNoRecent => 'Нещодавніх повідомлень немає';
+
+  @override
+  String get wtpScopeHint => 'область';
+
+  @override
+  String get wtpTypeNone => 'без типу';
+
+  @override
+  String get wtpBreaking => 'Несумісне';
+
+  @override
+  String get wtpBreakingTip => 'Позначає заголовок знаком ! як несумісну зміну';
+
+  @override
+  String get wtpTemplateUntouched => 'Спершу відредагуйте шаблон';
+
+  @override
+  String get wtpTemplateUntouchedBody =>
+      'Повідомлення досі точно збігається з шаблоном.';
+
+  @override
+  String get wtpTemplateTitle => 'Шаблон повідомлення';
+
+  @override
+  String wtpTemplateBody(String char) {
+    return 'Початок кожного нового повідомлення коміту в цьому репозиторії. Рядки, що починаються з $char, — підказки, у коміт вони не потрапляють. Залиште порожнім, щоб використовувати commit.template з git або .gitmessage у корені репозиторію.';
+  }
+
+  @override
+  String get wtpTemplateClear => 'Очистити';
 
   @override
   String get wtpCommit => 'Коміт';

@@ -158,7 +158,20 @@ change never needs a second window.*
 - Edit uncommitted files in place from the diff sheet, syntax-highlighted like
   the diff. Saving writes the working tree, leaves the change unstaged, and is
   undoable.
-- Commit, amend, sign (`-S`) and add co-authors.
+- Commit, amend, sign (`-S`) and sign off (`--signoff`).
+- **Commit composer.** An empty message starts from the repository's
+  template — one saved in Mergelio, else git's `commit.template`, else a
+  `.gitmessage` at the root (which the git CLI only uses when
+  `commit.template` points at it) — with comment lines stripped, and a message
+  left exactly as the template offered is refused, as git does. An optional
+  **Conventional Commits** mode adds type, scope and breaking-change pickers.
+  A live meter counts the subject against a per-repository limit (50, 72 or
+  100), and **Wrap description** rewraps prose to 72 columns while leaving
+  lists, quotes, code and trailers alone. **Trailers** adds co-authors and
+  `Refs` / `Fixes` issue references, completed from the forge's open issues
+  when one is set up. Messages recently committed from Mergelio can be
+  recalled, and an unfinished
+  message is kept per branch, so it survives a branch switch or a restart.
 - **Git hooks.** When a hook refuses a commit, a reword, a merge or a
   cherry-pick/revert continue, Mergelio names the hook and shows what it
   printed; the commit message you typed is kept. **Skip hooks** sends the next

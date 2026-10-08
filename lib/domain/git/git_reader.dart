@@ -279,6 +279,39 @@ class GitReader {
     return r.ok ? r.stdout.trimRight() : '';
   }
 
+  /// The repository's message template: `commit.template` (a relative path
+  /// is taken from the repository, as git takes it from the working
+  /// directory). Failing that, a `.gitmessage` at the repository root — a
+  /// convention, not something git reads unless `commit.template` names it,
+  /// so here the composer goes further than the git CLI does. Raw —
+  /// the comment lines are still in it — along with the comment character
+  /// that marks them. Empty when there is none or it cannot be read.
+  Future<({String template, String commentChar})> commitTemplate() async {
+    final results = await Future.wait([
+      _run(['config', '--path', '--get', 'commit.template']),
+      _run(['config', '--get', 'core.commentChar']),
+    ]);
+    final configured = results[0].ok ? results[0].out : '';
+    final char = results[1].ok ? results[1].out : '';
+    final commentChar = char.length == 1 ? char : '#';
+    String? read(String path) {
+      try {
+        final f = File(
+          pathlib.isAbsolute(path) ? path : pathlib.join(repoPath, path),
+        );
+        return f.existsSync() ? f.readAsStringSync() : null;
+      } on FileSystemException {
+        return null;
+      }
+    }
+
+    final template =
+        (configured.isEmpty ? null : read(configured)) ??
+        read('.gitmessage') ??
+        '';
+    return (template: template, commentChar: commentChar);
+  }
+
   Future<List<String>> tags() async {
     final r = await _run(['tag', '--sort=-creatordate']);
     if (!r.ok) throw GitException('git tag failed', r);
