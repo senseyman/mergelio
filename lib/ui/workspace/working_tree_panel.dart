@@ -837,12 +837,23 @@ class _ComposerState extends ConsumerState<_Composer> {
   void _saveDraft([String? branch]) {
     _draftTimer?.cancel();
     if (!_draftReady || _amend) return;
-    _store.saveDraft(branch ?? widget.branch, _draft);
+    _quietly(_store.saveDraft(branch ?? widget.branch, _draft));
   }
+
+  /// Drafts and recent messages are a convenience: a store that cannot be
+  /// written loses them, and nothing else — never the commit's own outcome.
+  Future<void> _quietly(Future<void> write) => write.catchError((Object _) {});
 
   Future<void> _restoreDraft() async {
     final branch = widget.branch;
-    final draft = await _store.draft(branch);
+    final draft = await _store
+        .draft(branch)
+        .then<ComposerDraft?>(
+          (d) => d,
+          // A store that cannot be read means no draft, not a composer that can
+          // never be typed in.
+          onError: (Object _) => null,
+        );
     if (!mounted || branch != widget.branch) return;
     setState(() => _draftReady = true);
     if (draft != null && _pristine) {
@@ -883,7 +894,7 @@ class _ComposerState extends ConsumerState<_Composer> {
   }
 
   Future<void> _loadRecent() async {
-    final recent = await _store.recent();
+    final recent = await _store.recent().catchError((Object _) => <String>[]);
     if (mounted) setState(() => _recent = recent);
   }
 
@@ -1068,9 +1079,14 @@ class _ComposerState extends ConsumerState<_Composer> {
       }
       ref.read(skipHooks.notifier).state = false;
       _draftTimer?.cancel();
-      await _store.saveDraft(branch, const ComposerDraft());
-      await _store.remember(message);
+      await _quietly(_store.saveDraft(branch, const ComposerDraft()));
+      await _quietly(_store.remember(message));
+      _loadRecent();
       if (!mounted) return;
+      toasts.show(l.wtpCommitted, kind: ToastKind.success);
+      // The checkout moved while the commit ran: what is on screen now is the
+      // other branch's message, not the one that was committed.
+      if (branch != widget.branch) return;
       for (final c in _controllers) {
         c.clear();
       }
@@ -1082,8 +1098,6 @@ class _ComposerState extends ConsumerState<_Composer> {
         _appliedTemplate = null;
       });
       _applyTemplateIfPristine();
-      _loadRecent();
-      toasts.show(l.wtpCommitted, kind: ToastKind.success);
     } on Object catch (e) {
       toasts.show(l.wtpCommitFailed, description: '$e', kind: ToastKind.error);
     }

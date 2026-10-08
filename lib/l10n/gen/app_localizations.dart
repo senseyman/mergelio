@@ -2621,7 +2621,7 @@ abstract class AppLocalizations {
   /// No description provided for @wtpTemplateBody.
   ///
   /// In en, this message translates to:
-  /// **'Starts every new commit message in this repository. Lines beginning with {char} are guidance and are left out of the commit. Leave it empty to use git\'s commit.template or .gitmessage.'**
+  /// **'Starts every new commit message in this repository. Lines beginning with {char} are guidance and are left out of the commit. Leave it empty to use git\'s commit.template, or a .gitmessage at the repository root.'**
   String wtpTemplateBody(String char);
 
   /// No description provided for @wtpTemplateClear.

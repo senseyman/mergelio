@@ -1022,8 +1022,10 @@ class GitWriter {
   }
 
   /// Creates a commit. [amend] replaces the top commit; [sign] adds an SSH/GPG
-  /// signature (requires the repo to be configured for it). [description] and
-  /// [coauthors] are appended to the message body. [authorName]/[authorEmail],
+  /// signature (requires the repo to be configured for it). [description]
+  /// follows the summary; [trailers] and then [coauthors] (as
+  /// `Co-authored-by`) form the trailer block after it. [signoff] has git add
+  /// `Signed-off-by` for the committing identity. [authorName]/[authorEmail],
   /// when given, set the commit identity for this commit (the active profile).
   /// [noVerify] skips the hooks listed in [noVerifyHooks].
   /// A hook's refusal throws [HookRejectedException].

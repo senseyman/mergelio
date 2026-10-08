@@ -41,6 +41,15 @@ Future<({String text, String commentChar})> _template(ProviderContainer c) {
   return c.read(commitTemplateProvider('/r').future);
 }
 
+/// Reads fail, writes succeed: a store whose stored value is unreadable.
+class _UnreadableStore implements KeyValueStore {
+  @override
+  Future<String?> get(String key) async => throw StateError('disk I/O');
+
+  @override
+  Future<void> put(String key, String value) async {}
+}
+
 void main() {
   group('ComposerStore', () {
     late InMemoryKeyValueStore kv;
@@ -96,8 +105,12 @@ void main() {
       expect(await s.draft('main'), isNull);
     });
 
-    test('a type alone is not worth keeping as a draft', () {
+    test('the type row alone is not worth keeping as a draft', () {
       expect(const ComposerDraft(type: 'feat').isEmpty, isTrue);
+      expect(
+        const ComposerDraft(type: 'feat', scope: 'ui', breaking: true).isEmpty,
+        isTrue,
+      );
       expect(const ComposerDraft(fixes: '#1').isEmpty, isFalse);
     });
 
@@ -148,6 +161,40 @@ void main() {
   });
 
   group('ComposerPrefsController', () {
+    test('prefs that cannot be read leave the defaults usable', () async {
+      final c = ProviderContainer(
+        overrides: [kvStoreProvider.overrideWithValue(_UnreadableStore())],
+      );
+      addTearDown(c.dispose);
+      final sub = c.listen(composerPrefsProvider('/r'), (_, _) {});
+      addTearDown(sub.close);
+      final prefs = c.read(composerPrefsProvider('/r').notifier);
+      await prefs.loaded;
+      await prefs.update((p) => p.copyWith(subjectLimit: 50));
+      expect(c.read(composerPrefsProvider('/r')).subjectLimit, 50);
+    });
+
+    test('updates made back to back are both kept', () async {
+      final kv = InMemoryKeyValueStore();
+      final c = ProviderContainer(
+        overrides: [kvStoreProvider.overrideWithValue(kv)],
+      );
+      addTearDown(c.dispose);
+      final sub = c.listen(composerPrefsProvider('/r'), (_, _) {});
+      addTearDown(sub.close);
+      final prefs = c.read(composerPrefsProvider('/r').notifier);
+      await Future.wait([
+        prefs.update((p) => p.copyWith(subjectLimit: 50)),
+        prefs.update((p) => p.copyWith(conventional: true)),
+      ]);
+      final state = c.read(composerPrefsProvider('/r'));
+      expect(state.subjectLimit, 50);
+      expect(state.conventional, isTrue);
+      final stored = await ComposerStore(kv, '/r').prefs();
+      expect(stored.subjectLimit, 50);
+      expect(stored.conventional, isTrue);
+    });
+
     test('loads the stored prefs and persists updates', () async {
       final kv = InMemoryKeyValueStore();
       await ComposerStore(

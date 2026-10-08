@@ -106,6 +106,8 @@ void main() {
 
     test('an unknown type or plain text does not parse', () {
       expect(parseConventionalSubject('wip: stuff'), isNull);
+      // Not rewritten to `feat:` behind the user's back: kept as typed.
+      expect(parseConventionalSubject('Feat: x'), isNull);
       expect(parseConventionalSubject('Fix the parser'), isNull);
       expect(parseConventionalSubject('fixup! feat: x'), isNull);
     });

@@ -1492,7 +1492,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String wtpTemplateBody(String char) {
-    return 'Starts every new commit message in this repository. Lines beginning with $char are guidance and are left out of the commit. Leave it empty to use git\'s commit.template or .gitmessage.';
+    return 'Starts every new commit message in this repository. Lines beginning with $char are guidance and are left out of the commit. Leave it empty to use git\'s commit.template, or a .gitmessage at the repository root.';
   }
 
   @override

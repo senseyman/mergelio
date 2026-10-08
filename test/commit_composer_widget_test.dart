@@ -59,6 +59,9 @@ class _FakeActions implements RepoActions {
   final calls = <_Call>[];
   var mergeMessage = '';
 
+  /// When set, a commit does not finish until it completes.
+  Completer<void>? gate;
+
   @override
   Future<String> pendingMergeMessage() async => mergeMessage;
 
@@ -80,6 +83,7 @@ class _FakeActions implements RepoActions {
       coauthors: coauthors,
       trailers: trailers,
     ));
+    await gate?.future;
     return const CommitOutcome(committed: true);
   }
 
@@ -102,6 +106,16 @@ class _SlowStore implements KeyValueStore {
 
   @override
   Future<void> put(String key, String value) => inner.put(key, value);
+}
+
+/// A store that can neither read nor write, as a damaged database would.
+class _BrokenStore implements KeyValueStore {
+  @override
+  Future<String?> get(String key) async => throw StateError('disk I/O');
+
+  @override
+  Future<void> put(String key, String value) async =>
+      throw StateError('disk I/O');
 }
 
 const _staged = WorkingFile(path: 'staged.txt', index: GitChange.modified);
@@ -484,6 +498,93 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.widget<TextField>(_field('Summary')).readOnly, isFalse);
     expect(_text(tester, 'Summary'), 'stored draft');
+  });
+
+  testWidgets(
+    'a store that cannot be read or written does not get in the way',
+    (tester) async {
+      final actions = _FakeActions();
+      await _pump(tester, _harness(actions, _BrokenStore()));
+      expect(tester.widget<TextField>(_field('Summary')).readOnly, isFalse);
+      await tester.enterText(_field('Summary'), 'still works');
+      await tester.pump(const Duration(seconds: 1));
+      await tester.tap(find.text('Commit'));
+      await tester.pumpAndSettle();
+      expect(actions.calls.single.summary, 'still works');
+      // The commit went through; a store that cannot keep drafts does not turn
+      // that into a failure.
+      final toasts = ProviderScope.containerOf(
+        tester.element(find.byType(WorkingTreePanel)),
+      ).read(toastProvider);
+      expect(toasts.map((t) => t.title), ['Committed']);
+    },
+  );
+
+  testWidgets('a commit that finishes after a branch switch leaves the new '
+      'branch alone', (tester) async {
+    final kv = InMemoryKeyValueStore();
+    await ComposerStore(
+      kv,
+      '/r',
+    ).saveDraft('topic', const ComposerDraft(summary: 'topic work'));
+    final actions = _FakeActions()..gate = Completer<void>();
+    await _pump(tester, _harness(actions, kv));
+    await tester.enterText(_field('Summary'), 'on main');
+    await tester.tap(find.text('Commit'));
+    await tester.pump();
+
+    await tester.pumpWidget(_harness(actions, kv, branch: 'topic'));
+    await tester.pumpAndSettle();
+    expect(_text(tester, 'Summary'), 'topic work');
+
+    actions.gate!.complete();
+    await tester.pumpAndSettle();
+    expect(_text(tester, 'Summary'), 'topic work');
+    expect(await ComposerStore(kv, '/r').draft('main'), isNull);
+    expect(
+      (await ComposerStore(kv, '/r').draft('topic'))?.summary,
+      'topic work',
+    );
+  });
+
+  testWidgets('a template reshaped by the Conventional Commits toggle is '
+      'still not a draft', (tester) async {
+    final kv = InMemoryKeyValueStore();
+    await _pump(tester, _harness(_FakeActions(), kv, template: 'fix: what'));
+    await _openMenu(tester);
+    await tester.tap(find.text('Conventional Commits'));
+    await tester.pumpAndSettle();
+    expect(_text(tester, 'Summary'), 'what');
+    await tester.pump(const Duration(seconds: 1));
+    expect(await ComposerStore(kv, '/r').draft('main'), isNull);
+  });
+
+  testWidgets('the template editor can clear or be cancelled', (tester) async {
+    final kv = InMemoryKeyValueStore();
+    await ComposerStore(kv, '/r').savePrefs(const ComposerPrefs(template: 'T'));
+    await _pump(tester, _harness(_FakeActions(), kv));
+    Future<void> open() async {
+      await _openMenu(tester);
+      await tester.tap(find.text('Message template…'));
+      await tester.pumpAndSettle();
+    }
+
+    await open();
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect((await ComposerStore(kv, '/r').prefs()).template, 'T');
+
+    await open();
+    await tester.tap(find.text('Clear'));
+    await tester.pumpAndSettle();
+    expect((await ComposerStore(kv, '/r').prefs()).template, '');
+  });
+
+  testWidgets('recent messages says so when there are none', (tester) async {
+    await _pump(tester, _harness(_FakeActions(), InMemoryKeyValueStore()));
+    await tester.tap(find.byTooltip('Recent messages'));
+    await tester.pumpAndSettle();
+    expect(find.text('No recent messages'), findsOneWidget);
   });
 
   testWidgets('a stored draft is restored when the composer opens', (

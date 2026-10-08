@@ -1499,7 +1499,7 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String wtpTemplateBody(String char) {
-    return 'Початок кожного нового повідомлення коміту в цьому репозиторії. Рядки, що починаються з $char, — підказки, у коміт вони не потрапляють. Залиште порожнім, щоб використовувати commit.template або .gitmessage з git.';
+    return 'Початок кожного нового повідомлення коміту в цьому репозиторії. Рядки, що починаються з $char, — підказки, у коміт вони не потрапляють. Залиште порожнім, щоб використовувати commit.template з git або .gitmessage у корені репозиторію.';
   }
 
   @override

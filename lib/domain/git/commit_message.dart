@@ -115,14 +115,15 @@ String formatConventionalSubject(ConventionalSubject s) {
       '${s.breaking ? '!' : ''}: $description';
 }
 
-final _conventional = RegExp(r'^([a-zA-Z]+)(?:\(([^()\n]*)\))?(!)?: (.*)$');
+final _conventional = RegExp(r'^([a-z]+)(?:\(([^()\n]*)\))?(!)?: (.*)$');
 
 /// The parts of [subject] when it is conventional and its type is one the
-/// picker offers; null otherwise, so the caller keeps the text as typed.
+/// picker offers, spelled as the picker spells it; null otherwise, so the
+/// caller keeps the text as typed — `Feat:` is not quietly rewritten.
 ConventionalSubject? parseConventionalSubject(String subject) {
   final m = _conventional.firstMatch(subject.trim());
   if (m == null) return null;
-  final type = m[1]!.toLowerCase();
+  final type = m[1]!;
   if (!kConventionalTypes.contains(type)) return null;
   return (
     type: type,

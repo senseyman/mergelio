@@ -70,15 +70,14 @@ class ComposerDraft {
     this.breaking = false,
   });
 
-  /// Nothing typed. The Conventional Commits picks alone are not a message
-  /// worth bringing back.
+  /// Nothing typed. The Conventional Commits row alone — type, scope,
+  /// breaking — is not a message worth bringing back.
   bool get isEmpty => [
     summary,
     description,
     coauthors,
     refs,
     fixes,
-    scope,
   ].every((s) => s.trim().isEmpty);
 
   Map<String, Object> toJson() => {
@@ -184,18 +183,34 @@ class ComposerPrefsController extends StateNotifier<ComposerPrefs> {
   late final Future<void> loaded;
 
   ComposerPrefsController(this._store) : super(const ComposerPrefs()) {
-    loaded = _store.prefs().then((p) {
-      if (mounted) state = p;
-    });
+    loaded = _store.prefs().then(
+      (p) {
+        if (mounted) state = p;
+      },
+      // Unreadable prefs leave the defaults in place rather than every later
+      // update failing on the same error.
+      onError: (Object _) {},
+    );
   }
 
-  Future<void> update(ComposerPrefs Function(ComposerPrefs) change) async {
-    await loaded;
-    final next = change(state);
-    // Stored before it is announced, so a listener that reads the store back
-    // sees the new value.
-    await _store.savePrefs(next);
-    if (mounted) state = next;
+  // The last update queued; the next one starts only once it is done.
+  Future<void> _pending = Future.value();
+
+  /// Applies [change] to the latest prefs. Updates run one after another, so
+  /// two made back to back each see the other's result instead of both
+  /// starting from the same state and the later write dropping the earlier.
+  Future<void> update(ComposerPrefs Function(ComposerPrefs) change) {
+    final run = _pending.then((_) async {
+      await loaded;
+      final next = change(state);
+      // Stored before it is announced, so a listener that reads the store
+      // back sees the new value.
+      await _store.savePrefs(next);
+      if (mounted) state = next;
+    });
+    // A failed save must not wedge every later update behind it.
+    _pending = run.catchError((Object _) {});
+    return run;
   }
 }
 
