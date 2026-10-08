@@ -134,6 +134,7 @@ Widget _harness(
   String headMessage = '',
   PendingOp? pending,
   Future<void>? templateGate,
+  String Function()? templateSource,
 }) => ProviderScope(
   overrides: [
     lfsLocksProvider.overrideWith((ref, repo) async => LfsLockState.none),
@@ -143,7 +144,7 @@ Widget _harness(
     kvStoreProvider.overrideWithValue(kv),
     commitTemplateProvider.overrideWith((ref, path) async {
       await templateGate;
-      return (text: template, commentChar: '#');
+      return (text: templateSource?.call() ?? template, commentChar: '#');
     }),
     issuePanelProvider.overrideWith((ref, path) async => issues),
     settingsProvider.overrideWith(
@@ -395,6 +396,50 @@ void main() {
     await tester.tap(find.text('Commit'));
     await tester.pumpAndSettle();
     expect(actions.calls.single.summary, 'new subject');
+  });
+
+  testWidgets('after an amend commit, matching text typed later is the '
+      'user\'s', (tester) async {
+    final actions = _FakeActions();
+    await _pump(
+      tester,
+      _harness(actions, InMemoryKeyValueStore(), headMessage: 'old subject'),
+    );
+    await tester.tap(find.text('Amend').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Amend').last); // the commit button
+    await tester.pumpAndSettle();
+    expect(actions.calls, hasLength(1));
+
+    // Retyped by hand, then Amend toggled on and off: nothing was prefilled
+    // this time, so nothing is the toggle's to clear.
+    await tester.enterText(_field('Summary'), 'old subject');
+    await tester.tap(find.text('Amend').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Amend').first);
+    await tester.pumpAndSettle();
+    expect(_text(tester, 'Summary'), 'old subject');
+  });
+
+  testWidgets('the template is read again after a commit', (tester) async {
+    var template = 'Old: ';
+    final actions = _FakeActions();
+    await _pump(
+      tester,
+      _harness(
+        actions,
+        InMemoryKeyValueStore(),
+        templateSource: () => template,
+      ),
+    );
+    expect(_text(tester, 'Summary'), 'Old:');
+
+    // Changed from the built-in terminal: the window never lost focus.
+    template = 'New: ';
+    await tester.enterText(_field('Summary'), 'Old: done');
+    await tester.tap(find.text('Commit'));
+    await tester.pumpAndSettle();
+    expect(_text(tester, 'Summary'), 'New:');
   });
 
   testWidgets('an edited type row is kept when Amend turns off', (

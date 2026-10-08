@@ -7,6 +7,7 @@ import '../domain/git/commit_message.dart';
 import '../domain/git/git_providers.dart';
 import '../domain/git/git_reader.dart';
 import 'operation_journal.dart';
+import 'window_focus.dart';
 
 /// How the commit composer behaves in one repository.
 class ComposerPrefs {
@@ -111,6 +112,18 @@ class ComposerStore {
   final String _repo;
   ComposerStore(this._kv, this._repo);
 
+  // The last write queued. Drafts and recent messages are read, changed and
+  // written back whole, so two writes left to overlap would each start from
+  // the same stored value and the later would drop the earlier's change.
+  Future<void> _writes = Future.value();
+
+  Future<void> _serial(Future<void> Function() write) {
+    final run = _writes.then((_) => write());
+    // A failed write must not wedge every later one behind it.
+    _writes = run.catchError((Object _) {});
+    return run;
+  }
+
   String get _prefsKey => 'composer:prefs:$_repo';
   String get _draftsKey => 'composer:drafts:$_repo';
   String get _recentKey => 'composer:recent:$_repo';
@@ -133,7 +146,7 @@ class ComposerStore {
   }
 
   Future<void> savePrefs(ComposerPrefs prefs) =>
-      _kv.put(_prefsKey, jsonEncode(prefs.toJson()));
+      _serial(() => _kv.put(_prefsKey, jsonEncode(prefs.toJson())));
 
   Future<Map<String, dynamic>> _drafts() async {
     final j = await _read(_draftsKey);
@@ -146,15 +159,16 @@ class ComposerStore {
   }
 
   /// Keeps [draft] for [branch]; an empty one forgets the branch's draft.
-  Future<void> saveDraft(String branch, ComposerDraft draft) async {
-    final all = await _drafts();
-    if (draft.isEmpty) {
-      if (all.remove(branch) == null) return;
-    } else {
-      all[branch] = draft.toJson();
-    }
-    await _kv.put(_draftsKey, jsonEncode(all));
-  }
+  Future<void> saveDraft(String branch, ComposerDraft draft) =>
+      _serial(() async {
+        final all = await _drafts();
+        if (draft.isEmpty) {
+          if (all.remove(branch) == null) return;
+        } else {
+          all[branch] = draft.toJson();
+        }
+        await _kv.put(_draftsKey, jsonEncode(all));
+      });
 
   Future<List<String>> recent() async {
     final j = await _read(_recentKey);
@@ -166,8 +180,10 @@ class ComposerStore {
         : const [];
   }
 
-  Future<void> remember(String message) async =>
-      _kv.put(_recentKey, jsonEncode(pushRecent(await recent(), message)));
+  Future<void> remember(String message) => _serial(
+    () async =>
+        _kv.put(_recentKey, jsonEncode(pushRecent(await recent(), message))),
+  );
 }
 
 final composerStoreProvider = Provider.family<ComposerStore, String>(
@@ -228,8 +244,12 @@ final composerPrefsProvider =
 /// stripped: the one saved in Mergelio, else git's own.
 final commitTemplateProvider = FutureProvider.autoDispose
     .family<({String text, String commentChar}), String>((ref, path) async {
-      // Re-read when the saved template changes.
+      // Re-read when the saved template changes, and on coming back to the
+      // window: git's template file may have been edited in another app.
       ref.watch(composerPrefsProvider(path).select((p) => p.template));
+      ref.listen<bool>(windowFocusedProvider, (was, focused) {
+        if (focused && was == false) ref.invalidateSelf();
+      });
       final saved =
           (await ref.read(composerStoreProvider(path)).prefs()).template;
       final git = await GitReader(

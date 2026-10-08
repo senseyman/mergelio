@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/data/kv_store.dart';
@@ -5,6 +7,7 @@ import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/state/commit_composer.dart';
 import 'package:mergelio/state/operation_journal.dart';
+import 'package:mergelio/state/window_focus.dart';
 
 /// Answers `git config` reads from a map; every other call is empty.
 class _ConfigGit implements GitService {
@@ -39,6 +42,24 @@ Future<({String text, String commentChar})> _template(ProviderContainer c) {
   final sub = c.listen(commitTemplateProvider('/r'), (_, _) {});
   addTearDown(sub.close);
   return c.read(commitTemplateProvider('/r').future);
+}
+
+/// The first write fails, as a briefly locked database would; the rest work.
+class _FailOnceStore implements KeyValueStore {
+  final _inner = InMemoryKeyValueStore();
+  var _failed = false;
+
+  @override
+  Future<String?> get(String key) => _inner.get(key);
+
+  @override
+  Future<void> put(String key, String value) async {
+    if (!_failed) {
+      _failed = true;
+      throw StateError('database is locked');
+    }
+    await _inner.put(key, value);
+  }
 }
 
 /// Reads fail, writes succeed: a store whose stored value is unreadable.
@@ -114,6 +135,34 @@ void main() {
       expect(const ComposerDraft(fixes: '#1').isEmpty, isFalse);
     });
 
+    test('drafts saved at the same moment are all kept', () async {
+      final s = ComposerStore(kv, '/r');
+      await Future.wait([
+        s.saveDraft('a', const ComposerDraft(summary: 'on a')),
+        s.saveDraft('b', const ComposerDraft(summary: 'on b')),
+        s.saveDraft('c', const ComposerDraft(summary: 'on c')),
+      ]);
+      expect((await s.draft('a'))?.summary, 'on a');
+      expect((await s.draft('b'))?.summary, 'on b');
+      expect((await s.draft('c'))?.summary, 'on c');
+    });
+
+    test('messages remembered at the same moment are all kept', () async {
+      final s = ComposerStore(kv, '/r');
+      await Future.wait([s.remember('one'), s.remember('two')]);
+      expect(await s.recent(), unorderedEquals(['one', 'two']));
+    });
+
+    test('a failed write does not hold up the ones after it', () async {
+      final s = ComposerStore(_FailOnceStore(), '/r');
+      await expectLater(
+        s.saveDraft('a', const ComposerDraft(summary: 'x')),
+        throwsStateError,
+      );
+      await s.saveDraft('b', const ComposerDraft(summary: 'y'));
+      expect((await s.draft('b'))?.summary, 'y');
+    });
+
     test('recent messages are remembered newest first, capped at 10', () async {
       final s = ComposerStore(kv, '/r');
       for (var i = 0; i < 12; i++) {
@@ -151,6 +200,30 @@ void main() {
       final c = container({}, kv);
       final t = await _template(c);
       expect(t.text, 'saved');
+    });
+
+    test('the template is read again when the window regains focus', () async {
+      final dir = await Directory.systemTemp.createTemp('mergelio_tpl_focus_');
+      addTearDown(() => dir.delete(recursive: true));
+      final file = File('${dir.path}/.gitmessage')..writeAsStringSync('first');
+      final c = ProviderContainer(
+        overrides: [
+          kvStoreProvider.overrideWithValue(InMemoryKeyValueStore()),
+          gitServiceProvider.overrideWithValue(_ConfigGit({})),
+        ],
+      );
+      addTearDown(c.dispose);
+      final provider = commitTemplateProvider(dir.path);
+      final sub = c.listen(provider, (_, _) {});
+      addTearDown(sub.close);
+      expect((await c.read(provider.future)).text, 'first');
+
+      // Edited in another app while Mergelio was in the background.
+      file.writeAsStringSync('second');
+      c.read(windowFocusedProvider.notifier).state = false;
+      expect((await c.read(provider.future)).text, 'first');
+      c.read(windowFocusedProvider.notifier).state = true;
+      expect((await c.read(provider.future)).text, 'second');
     });
 
     test('no template anywhere is empty', () async {

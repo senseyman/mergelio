@@ -1092,12 +1092,17 @@ class _ComposerState extends ConsumerState<_Composer> {
       }
       setState(() {
         _amend = false;
+        _amendPrefillSubject = null;
+        _amendPrefillDescription = null;
         _type = '';
         _breaking = false;
         _showTrailers = false;
         _appliedTemplate = null;
       });
       _applyTemplateIfPristine();
+      // The next message starts from the template as it is now: it may have
+      // been edited in the built-in terminal, which never takes focus away.
+      ref.invalidate(commitTemplateProvider(widget.repoPath));
     } on Object catch (e) {
       toasts.show(l.wtpCommitFailed, description: '$e', kind: ToastKind.error);
     }
