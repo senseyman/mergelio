@@ -1435,9 +1435,6 @@ class AppLocalizationsUk extends AppLocalizations {
   String get wtpSign => 'Підписати';
 
   @override
-  String get wtpAddCoauthor => '+ Співавтор';
-
-  @override
   String get wtpTrailers => 'Трейлери';
 
   @override

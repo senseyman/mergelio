@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,6 +16,7 @@ import 'package:mergelio/state/commit_composer.dart';
 import 'package:mergelio/state/feedback.dart';
 import 'package:mergelio/state/forge.dart';
 import 'package:mergelio/state/lfs.dart';
+import 'package:mergelio/state/merge_session.dart';
 import 'package:mergelio/state/operation_journal.dart';
 import 'package:mergelio/state/repo_actions.dart';
 import 'package:mergelio/state/repo_data.dart';
@@ -22,6 +25,10 @@ import 'package:mergelio/state/settings_controller.dart';
 import 'package:mergelio/ui/workspace/working_tree_panel.dart';
 
 class _FakeGit implements GitService {
+  /// What `git log -1 --format=%B` answers: HEAD's message, for amend.
+  final String headMessage;
+  _FakeGit([this.headMessage = '']);
+
   @override
   Future<GitResult> run(
     List<String> args, {
@@ -30,7 +37,9 @@ class _FakeGit implements GitService {
     Map<String, String>? environment,
     GitCancel? cancel,
     String? stdin,
-  }) async => const GitResult(0, '', '');
+  }) async => args.first == 'log'
+      ? GitResult(0, headMessage, '')
+      : const GitResult(0, '', '');
 
   @override
   Future<String> version() async => 'git version 2';
@@ -48,6 +57,10 @@ typedef _Call = ({
 
 class _FakeActions implements RepoActions {
   final calls = <_Call>[];
+  var mergeMessage = '';
+
+  @override
+  Future<String> pendingMergeMessage() async => mergeMessage;
 
   @override
   Future<CommitOutcome> commit(
@@ -74,6 +87,23 @@ class _FakeActions implements RepoActions {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+/// A store whose drafts arrive only once [release] is called, to hold the
+/// composer in the moment before its branch's draft has loaded.
+class _SlowStore implements KeyValueStore {
+  final inner = InMemoryKeyValueStore();
+  final _gate = Completer<void>();
+  void release() => _gate.complete();
+
+  @override
+  Future<String?> get(String key) async {
+    if (key.startsWith('composer:drafts:')) await _gate.future;
+    return inner.get(key);
+  }
+
+  @override
+  Future<void> put(String key, String value) => inner.put(key, value);
+}
+
 const _staged = WorkingFile(path: 'staged.txt', index: GitChange.modified);
 
 RepoData _data(String branch) => RepoData(
@@ -87,15 +117,20 @@ Widget _harness(
   String branch = 'main',
   String template = '',
   List<Issue> issues = const [],
+  String headMessage = '',
+  PendingOp? pending,
+  Future<void>? templateGate,
 }) => ProviderScope(
   overrides: [
     lfsLocksProvider.overrideWith((ref, repo) async => LfsLockState.none),
-    gitServiceProvider.overrideWithValue(_FakeGit()),
+    gitServiceProvider.overrideWithValue(_FakeGit(headMessage)),
+    pendingOpProvider('/r').overrideWith((ref) async => pending),
     repoActionsProvider.overrideWith((ref, path) => actions),
     kvStoreProvider.overrideWithValue(kv),
-    commitTemplateProvider.overrideWith(
-      (ref, path) async => (text: template, commentChar: '#'),
-    ),
+    commitTemplateProvider.overrideWith((ref, path) async {
+      await templateGate;
+      return (text: template, commentChar: '#');
+    }),
     issuePanelProvider.overrideWith((ref, path) async => issues),
     settingsProvider.overrideWith(
       (ref) =>
@@ -260,6 +295,8 @@ void main() {
     await tester.tap(find.text('#12 Crash on start'));
     await tester.pumpAndSettle();
     expect(_text(tester, 'Fixes: #12'), '#3, #12');
+    // The pick is complete: the list does not reopen on the text it wrote.
+    expect(find.text('#12 Crash on start'), findsNothing);
   });
 
   testWidgets('a committed message can be recalled', (tester) async {
@@ -316,6 +353,137 @@ void main() {
       (await ComposerStore(kv, '/r').draft('main'))?.summary,
       'last words',
     );
+  });
+
+  testWidgets('turning Amend off clears the type row it filled in', (
+    tester,
+  ) async {
+    final kv = InMemoryKeyValueStore();
+    await ComposerStore(
+      kv,
+      '/r',
+    ).savePrefs(const ComposerPrefs(conventional: true));
+    final actions = _FakeActions();
+    await _pump(
+      tester,
+      _harness(actions, kv, headMessage: 'feat(ui)!: old subject\n\nold body'),
+    );
+    await tester.tap(find.text('Amend'));
+    await tester.pumpAndSettle();
+    expect(_text(tester, 'scope'), 'ui');
+
+    await tester.tap(find.text('Amend').first);
+    await tester.pumpAndSettle();
+    expect(_text(tester, 'Summary'), '');
+    expect(_text(tester, 'scope'), '');
+
+    await tester.enterText(_field('Summary'), 'new subject');
+    await tester.tap(find.text('Commit'));
+    await tester.pumpAndSettle();
+    expect(actions.calls.single.summary, 'new subject');
+  });
+
+  testWidgets('an edited type row is kept when Amend turns off', (
+    tester,
+  ) async {
+    final kv = InMemoryKeyValueStore();
+    await ComposerStore(
+      kv,
+      '/r',
+    ).savePrefs(const ComposerPrefs(conventional: true));
+    await _pump(
+      tester,
+      _harness(_FakeActions(), kv, headMessage: 'feat(ui): old subject'),
+    );
+    await tester.tap(find.text('Amend'));
+    await tester.pumpAndSettle();
+    await tester.enterText(_field('scope'), 'diff');
+    await tester.tap(find.text('Amend').first);
+    await tester.pumpAndSettle();
+    expect(_text(tester, 'scope'), 'diff');
+    expect(_text(tester, 'Summary'), 'old subject');
+  });
+
+  testWidgets('git\'s merge message is offered but not kept as a draft', (
+    tester,
+  ) async {
+    final kv = InMemoryKeyValueStore();
+    final actions = _FakeActions()..mergeMessage = "Merge branch 'topic'";
+    await _pump(
+      tester,
+      _harness(
+        actions,
+        kv,
+        pending: const PendingOp(kind: MergeKind.merge, branch: 'topic'),
+      ),
+    );
+    expect(_text(tester, 'Summary'), "Merge branch 'topic'");
+    await tester.pump(const Duration(seconds: 1));
+    expect(await ComposerStore(kv, '/r').draft('main'), isNull);
+
+    // Once edited it is the user's, and kept.
+    await tester.enterText(_field('Summary'), "Merge branch 'topic' early");
+    await tester.pump(const Duration(seconds: 1));
+    expect(
+      (await ComposerStore(kv, '/r').draft('main'))?.summary,
+      "Merge branch 'topic' early",
+    );
+  });
+
+  testWidgets('a template read late does not replace git\'s merge message', (
+    tester,
+  ) async {
+    final actions = _FakeActions()..mergeMessage = "Merge branch 'topic'";
+    final gate = Completer<void>();
+    await _pump(
+      tester,
+      _harness(
+        actions,
+        InMemoryKeyValueStore(),
+        template: 'Area: ',
+        pending: const PendingOp(kind: MergeKind.merge, branch: 'topic'),
+        templateGate: gate.future,
+      ),
+    );
+    expect(_text(tester, 'Summary'), "Merge branch 'topic'");
+    gate.complete();
+    await tester.pumpAndSettle();
+    expect(_text(tester, 'Summary'), "Merge branch 'topic'");
+  });
+
+  testWidgets('a prepared fixup keeps the description already typed', (
+    tester,
+  ) async {
+    await _pump(tester, _harness(_FakeActions(), InMemoryKeyValueStore()));
+    await tester.enterText(_field('Description'), 'why it changed');
+    final c = ProviderScope.containerOf(
+      tester.element(find.byType(WorkingTreePanel)),
+    );
+    c.read(composerPrefillProvider('/r').notifier).state = 'fixup! Old';
+    await tester.pumpAndSettle();
+    expect(_text(tester, 'Summary'), 'fixup! Old');
+    expect(_text(tester, 'Description'), 'why it changed');
+  });
+
+  testWidgets('the fields wait for the stored draft before taking input', (
+    tester,
+  ) async {
+    final kv = _SlowStore();
+    await kv.inner.put(
+      'composer:drafts:/r',
+      '{"main":{"summary":"stored draft"}}',
+    );
+    tester.view.physicalSize = const Size(1200, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(_harness(_FakeActions(), kv));
+    await tester.pump();
+    expect(tester.widget<TextField>(_field('Summary')).readOnly, isTrue);
+
+    kv.release();
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextField>(_field('Summary')).readOnly, isFalse);
+    expect(_text(tester, 'Summary'), 'stored draft');
   });
 
   testWidgets('a stored draft is restored when the composer opens', (

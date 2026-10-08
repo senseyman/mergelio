@@ -120,6 +120,9 @@ void main() {
     test('counts characters, not UTF-16 units', () {
       expect(subjectLength('fix: 🎉'), 6);
       expect(subjectLength('виправлено'), 10);
+      // One family emoji built from joined code points is one character.
+      expect(subjectLength('a 👨‍👩‍👧'), 3);
+      expect(subjectLength('é'), 1); // e + combining acute
     });
   });
 

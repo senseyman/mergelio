@@ -1428,9 +1428,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get wtpSign => 'Sign';
 
   @override
-  String get wtpAddCoauthor => '+ Co-author';
-
-  @override
   String get wtpTrailers => 'Trailers';
 
   @override

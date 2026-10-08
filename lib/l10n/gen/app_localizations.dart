@@ -2504,12 +2504,6 @@ abstract class AppLocalizations {
   /// **'Sign'**
   String get wtpSign;
 
-  /// No description provided for @wtpAddCoauthor.
-  ///
-  /// In en, this message translates to:
-  /// **'+ Co-author'**
-  String get wtpAddCoauthor;
-
   /// No description provided for @wtpTrailers.
   ///
   /// In en, this message translates to:

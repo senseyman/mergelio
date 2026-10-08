@@ -1,3 +1,5 @@
+import 'package:characters/characters.dart';
+
 import '../forge/models.dart';
 
 /// A commit message split the way the UI edits it: a one-line summary and
@@ -132,9 +134,10 @@ ConventionalSubject? parseConventionalSubject(String subject) {
 
 // --- Length and wrapping -----------------------------------------------------
 
-/// Length of a subject as the reader counts it: characters, not the UTF-16
-/// units a Dart string is measured in.
-int subjectLength(String subject) => subject.runes.length;
+/// Length of a subject as the reader counts it: user-perceived characters,
+/// so an accented letter or a joined emoji is one, not the several UTF-16
+/// units or code points a Dart string is measured in.
+int subjectLength(String subject) => subject.characters.length;
 
 final _listItem = RegExp(r'^([-*+]|\d+[.)])\s');
 final _trailerLine = RegExp(r'^[A-Za-z0-9][A-Za-z0-9-]*: \S');

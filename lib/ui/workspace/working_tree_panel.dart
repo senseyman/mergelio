@@ -194,6 +194,8 @@ class WorkingTreePanel extends ConsumerWidget {
               _Composer(
                 repoPath: repoPath,
                 stagedCount: staged.length,
+                // Every detached checkout shares the one `HEAD` draft: there is
+                // no branch to keep it for.
                 branch:
                     data.branches.where((b) => b.current).firstOrNull?.name ??
                     'HEAD',
@@ -716,9 +718,10 @@ class _ComposerState extends ConsumerState<_Composer> {
   var _sign = false;
   var _signoff = false;
   var _showTrailers = false;
-  // Text the amend toggle itself prefilled (summary + description), so turning
-  // it off can clear each field only if the user hasn't since edited it.
-  String? _amendPrefillSummary;
+  // What the amend toggle itself prefilled — the whole subject, type row
+  // included, and the description — so turning it off can clear each only if
+  // the user hasn't since edited it.
+  String? _amendPrefillSubject;
   String? _amendPrefillDescription;
 
   late final ComposerStore _store;
@@ -726,6 +729,9 @@ class _ComposerState extends ConsumerState<_Composer> {
   // The message as the template left it; while the composer still holds
   // exactly this it counts as empty — anything else may replace it.
   String? _appliedTemplate;
+  // Likewise git's prepared merge message: offered, but not the user's until
+  // edited, so it is neither kept as a draft nor protected from the template.
+  String? _offeredMerge;
   // The branch's draft has been looked up. Until then nothing is saved, so a
   // switch cannot overwrite the draft it is about to restore.
   var _draftReady = false;
@@ -797,11 +803,13 @@ class _ComposerState extends ConsumerState<_Composer> {
   bool get _trailersEmpty =>
       [_coauthors, _refs, _fixes].every((c) => c.text.trim().isEmpty);
 
-  /// Nothing of the user's in the composer: empty, or exactly the template.
+  /// Nothing of the user's in the composer: empty, or exactly what the
+  /// composer offered itself — the template or git's merge message.
   bool get _pristine =>
       _trailersEmpty &&
       (_message.isEmpty ||
-          (_appliedTemplate != null && _message == _appliedTemplate));
+          _message == _appliedTemplate ||
+          _message == _offeredMerge);
 
   void _edited() {
     if (!mounted) return;
@@ -836,7 +844,7 @@ class _ComposerState extends ConsumerState<_Composer> {
     final branch = widget.branch;
     final draft = await _store.draft(branch);
     if (!mounted || branch != widget.branch) return;
-    _draftReady = true;
+    setState(() => _draftReady = true);
     if (draft != null && _pristine) {
       setState(() {
         _summary.text = draft.summary;
@@ -866,9 +874,10 @@ class _ComposerState extends ConsumerState<_Composer> {
     _type = '';
     _breaking = false;
     _amend = false;
-    _amendPrefillSummary = null;
+    _amendPrefillSubject = null;
     _amendPrefillDescription = null;
     _appliedTemplate = null;
+    _offeredMerge = null;
     _showTrailers = false;
     _restoreDraft();
   }
@@ -881,6 +890,7 @@ class _ComposerState extends ConsumerState<_Composer> {
   void _applyTemplateIfPristine() {
     final t = _template;
     if (!_draftReady || t == null || !_pristine) return;
+    if (_offeredMerge != null && _message == _offeredMerge) return;
     if (t.text.isEmpty && _appliedTemplate == null) return;
     _putMessage(t.text);
     _appliedTemplate = t.text.isEmpty ? null : _message;
@@ -899,6 +909,7 @@ class _ComposerState extends ConsumerState<_Composer> {
       _summary.text = parsed?.description ?? summary;
       _description.text = description;
       _appliedTemplate = null;
+      _offeredMerge = null;
     });
   }
 
@@ -907,7 +918,8 @@ class _ComposerState extends ConsumerState<_Composer> {
   /// typed rather than waiting for an empty field.
   void _takePrefill(String? message) {
     if (message == null) return;
-    _putMessage(message);
+    // Only the subject is prepared; a description already typed stays.
+    _putMessage(joinCommitMessage(message, _description.text));
     // Not inside the notification itself: a provider cannot be written while
     // it is still telling its listeners about the last write.
     Future.microtask(() {
@@ -930,6 +942,7 @@ class _ComposerState extends ConsumerState<_Composer> {
     // Re-check after the await: the user may have started typing meanwhile.
     if (!mounted || msg.isEmpty || !_pristine) return;
     _putMessage(msg);
+    _offeredMerge = _message;
   }
 
   @override
@@ -951,16 +964,18 @@ class _ComposerState extends ConsumerState<_Composer> {
       // Clear each field on toggle-off only if it still holds exactly what the
       // toggle prefilled — an edited field is the user's, and is left alone.
       setState(() {
-        if (_amendPrefillSummary != null &&
-            _summary.text == _amendPrefillSummary) {
+        if (_amendPrefillSubject != null && _subject == _amendPrefillSubject) {
           _summary.clear();
+          _scope.clear();
+          _type = '';
+          _breaking = false;
         }
         if (_amendPrefillDescription != null &&
             _description.text == _amendPrefillDescription) {
           _description.clear();
         }
       });
-      _amendPrefillSummary = null;
+      _amendPrefillSubject = null;
       _amendPrefillDescription = null;
       _applyTemplateIfPristine();
       return;
@@ -974,7 +989,7 @@ class _ComposerState extends ConsumerState<_Composer> {
     // started typing while `git log` ran — never overwrite that.
     if (!mounted || !_amend || msg.isEmpty || !_pristine) return;
     _putMessage(msg);
-    _amendPrefillSummary = _summary.text;
+    _amendPrefillSubject = _subject;
     _amendPrefillDescription = _description.text;
   }
 
@@ -1226,6 +1241,7 @@ class _ComposerState extends ConsumerState<_Composer> {
                   Expanded(
                     child: TextField(
                       controller: _scope,
+                      readOnly: !_draftReady,
                       style: TextStyle(color: t.textMuted, fontSize: 12.5),
                       decoration: _dec(t, l.wtpScopeHint),
                     ),
@@ -1248,6 +1264,9 @@ class _ComposerState extends ConsumerState<_Composer> {
             ],
             TextField(
               controller: _summary,
+              // Typing before the branch's draft has been looked up would
+              // decide between the two silently; the wait is a moment.
+              readOnly: !_draftReady,
               style: TextStyle(color: t.textPrimary, fontSize: 13),
               decoration: _dec(t, l.wtpSummary).copyWith(
                 // A meter, not a rule: an over-long subject is still allowed.
@@ -1261,6 +1280,7 @@ class _ComposerState extends ConsumerState<_Composer> {
             const SizedBox(height: 8),
             TextField(
               controller: _description,
+              readOnly: !_draftReady,
               style: TextStyle(color: t.textMuted, fontSize: 12.5),
               maxLines: 3,
               minLines: 2,
@@ -1270,6 +1290,7 @@ class _ComposerState extends ConsumerState<_Composer> {
               const SizedBox(height: 8),
               TextField(
                 controller: _coauthors,
+                readOnly: !_draftReady,
                 style: TextStyle(color: t.textMuted, fontSize: 12),
                 decoration: _dec(t, l.wtpCoauthorsHint),
               ),
@@ -1277,12 +1298,14 @@ class _ComposerState extends ConsumerState<_Composer> {
               _IssueRefField(
                 repoPath: widget.repoPath,
                 controller: _refs,
+                readOnly: !_draftReady,
                 decoration: _dec(t, l.wtpRefsHint),
               ),
               const SizedBox(height: 8),
               _IssueRefField(
                 repoPath: widget.repoPath,
                 controller: _fixes,
+                readOnly: !_draftReady,
                 decoration: _dec(t, l.wtpFixesHint),
               ),
             ],
@@ -1523,10 +1546,12 @@ class _IssueRefField extends ConsumerStatefulWidget {
   final String repoPath;
   final TextEditingController controller;
   final InputDecoration decoration;
+  final bool readOnly;
   const _IssueRefField({
     required this.repoPath,
     required this.controller,
     required this.decoration,
+    required this.readOnly,
   });
 
   @override
@@ -1560,6 +1585,7 @@ class _IssueRefFieldState extends ConsumerState<_IssueRefField> {
       fieldViewBuilder: (context, controller, focus, _) => TextField(
         controller: controller,
         focusNode: focus,
+        readOnly: widget.readOnly,
         style: TextStyle(color: t.textMuted, fontSize: 12),
         decoration: widget.decoration,
       ),

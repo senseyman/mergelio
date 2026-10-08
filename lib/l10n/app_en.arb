@@ -1094,7 +1094,6 @@
   "wtpCoauthorsHint": "Co-authors: Name <email>, Name2 <email2>",
   "wtpAmend": "Amend",
   "wtpSign": "Sign",
-  "wtpAddCoauthor": "+ Co-author",
   "wtpTrailers": "Trailers",
   "wtpSignoff": "Sign off",
   "wtpSignoffTip": "Add a Signed-off-by trailer for the committing identity",

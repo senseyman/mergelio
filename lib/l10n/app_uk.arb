@@ -469,7 +469,6 @@
   "wtpCoauthorsHint": "Співавтори: Ім’я <email>, Ім’я2 <email2>",
   "wtpAmend": "Виправити",
   "wtpSign": "Підписати",
-  "wtpAddCoauthor": "+ Співавтор",
   "wtpTrailers": "Трейлери",
   "wtpSignoff": "Засвідчити",
   "wtpSignoffTip": "Додати трейлер Signed-off-by від імені того, хто робить коміт",

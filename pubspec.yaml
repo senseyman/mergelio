@@ -13,6 +13,8 @@ dependencies:
     sdk: flutter
   # i18n message formatting
   intl: ^0.20.2
+  # Grapheme-aware string length (pinned through the Flutter SDK)
+  characters: ^1.4.1
 
   # State management
   flutter_riverpod: ^2.6.1
