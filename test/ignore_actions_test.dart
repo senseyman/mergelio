@@ -191,6 +191,25 @@ void main() {
     expect(target.readAsStringSync(), 'keep\n');
   });
 
+  test('refuses a dangling .gitignore symlink pointing outside', () async {
+    final outside = await Directory.systemTemp.createTemp('mergelio_out_');
+    addTearDown(() => outside.delete(recursive: true));
+    final target = File('${outside.path}/created');
+    // The target does not exist yet, so the link reads as no file at all.
+    await Link('${dir.path}/.gitignore').create(target.path);
+    await put('x.log', 'x');
+
+    expect(
+      await actions().addIgnoreRule(
+        'x.log',
+        IgnoreScope.file,
+        IgnoreTarget.root,
+      ),
+      isFalse,
+    );
+    expect(target.existsSync(), isFalse);
+  });
+
   test('refuses while a working-tree operation runs', () async {
     c.read(busyProvider.notifier).state = const BusyState('Pull');
     await put('x.log', 'x');

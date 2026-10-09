@@ -998,9 +998,10 @@ class RepoActions {
         file = File(at);
     }
     // A .gitignore symlinked out of the repository must not be written
-    // through.
+    // through. A dangling link reads as no file at all, yet appending to it
+    // would create its target, so links are checked without following them.
     if (target != IgnoreTarget.exclude &&
-        await file.exists() &&
+        (await file.exists() || await FileSystemEntity.isLink(file.path)) &&
         !isInsideRepo(path, file.path)) {
       return false;
     }
