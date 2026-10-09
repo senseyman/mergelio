@@ -73,6 +73,11 @@ void main() {
       expect(ignoreRule('name  ', IgnoreScope.file), r'/name\ \ ');
     });
 
+    test('escapes only trailing spaces, leaving other whitespace as is', () {
+      expect(ignoreRule('name\t', IgnoreScope.file), '/name\t');
+      expect(ignoreRule('name\t ', IgnoreScope.file), '/name\t\\ ');
+    });
+
     test('refuses paths a single line cannot hold', () {
       expect(ignoreRule('a\nb', IgnoreScope.file), isNull);
       expect(ignoreRule('a\rb', IgnoreScope.file), isNull);

@@ -1000,6 +1000,8 @@ class RepoActions {
     // A .gitignore symlinked out of the repository must not be written
     // through. A dangling link reads as no file at all, yet appending to it
     // would create its target, so links are checked without following them.
+    // The exclude file is skipped on purpose: a linked worktree shares the
+    // main repository's, which lies outside this working tree.
     if (target != IgnoreTarget.exclude &&
         (await file.exists() || await FileSystemEntity.isLink(file.path)) &&
         !isInsideRepo(path, file.path)) {
@@ -1210,6 +1212,11 @@ class RepoActions {
       _refresh();
       if (handled?.call(e) != true) _toastErr(label, e);
       return false;
+    } on Object {
+      // A file write fails with a FileSystemException the caller reports.
+      // Left pending, the entry would read as a crash on the next launch.
+      await _journalFail(opId);
+      rethrow;
     } finally {
       // Clearing a flag this op never set would let the op that does own it
       // disappear from the progress bar mid-run.

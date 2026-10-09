@@ -58,9 +58,11 @@ String? ignoreRule(String relPath, IgnoreScope scope, {String baseDir = ''}) {
 /// spaces, which git strips unless quoted.
 String _escape(String s) {
   final globbed = s.replaceAllMapped(RegExp(r'[\\*?\[]'), (m) => '\\${m[0]}');
-  final trimmed = globbed.trimRight();
-  final trailing = globbed.length - trimmed.length;
-  return trimmed + r'\ ' * trailing;
+  // Only spaces: git leaves a trailing tab or other whitespace in place.
+  return globbed.replaceFirstMapped(
+    RegExp(r' +$'),
+    (m) => r'\ ' * m[0]!.length,
+  );
 }
 
 /// [existing] with [rule] appended as its own line, or null when that exact

@@ -2,9 +2,11 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mergelio/data/kv_store.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/domain/git/ignore.dart';
 import 'package:mergelio/state/feedback.dart';
+import 'package:mergelio/state/operation_journal.dart';
 import 'package:mergelio/state/repo_actions.dart';
 import 'package:mergelio/state/undo_stack.dart';
 
@@ -208,6 +210,64 @@ void main() {
       isFalse,
     );
     expect(target.existsSync(), isFalse);
+  });
+
+  test('escaped rules match only the literal name in git', () async {
+    await put('a[1]*.txt', 'x');
+    await put('a1x.txt', 'x');
+    await put('trail ', 'x');
+    await put('trail', 'x');
+    final a = actions();
+
+    await a.addIgnoreRule('a[1]*.txt', IgnoreScope.file, IgnoreTarget.root);
+    await a.addIgnoreRule('trail ', IgnoreScope.file, IgnoreTarget.root);
+    expect(await ignored('a[1]*.txt'), isTrue);
+    expect(await ignored('a1x.txt'), isFalse);
+    expect(await ignored('trail '), isTrue);
+    expect(await ignored('trail'), isFalse);
+  });
+
+  test('an extension rule reaches files at any depth', () async {
+    await put('deep/er/y.log', 'x');
+    await put('x.log', 'x');
+
+    await actions().addIgnoreRule(
+      'x.log',
+      IgnoreScope.extension,
+      IgnoreTarget.root,
+    );
+    expect(await ignored('deep/er/y.log'), isTrue);
+  });
+
+  test('a directory named .gitignore is not offered as nearest', () async {
+    await Directory('${dir.path}/pkg/.gitignore').create(recursive: true);
+    await put('pkg/x.txt', 'x');
+
+    expect(await actions().nearestIgnoreDir('pkg/x.txt'), isNull);
+  });
+
+  test('a failed write marks its journal entry failed, not pending', () async {
+    final kv = InMemoryKeyValueStore();
+    final jc = ProviderContainer(
+      overrides: [kvStoreProvider.overrideWithValue(kv)],
+    );
+    addTearDown(jc.dispose);
+    await put('.gitignore', 'build/\n');
+    await Process.run('chmod', ['444', f('.gitignore').path]);
+    addTearDown(() => Process.run('chmod', ['644', f('.gitignore').path]));
+    await put('x.log', 'x');
+
+    expect(
+      await jc
+          .read(repoActionsProvider(dir.path))
+          .addIgnoreRule('x.log', IgnoreScope.file, IgnoreTarget.root),
+      isFalse,
+    );
+    final j = OperationJournal(kv, dir.path);
+    await j.load();
+    // A pending entry would be reported as a crash on the next launch.
+    expect(j.interrupted, isEmpty);
+    expect(j.records.single.status, OpStatus.failed);
   });
 
   test('refuses while a working-tree operation runs', () async {
