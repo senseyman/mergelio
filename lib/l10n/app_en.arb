@@ -2550,5 +2550,19 @@
   },
   "wtpDiscardSelectedBody": "Tracked files go back to their committed state, dropping staged and unstaged changes; untracked files are deleted. You can undo it.",
   "wtpStageFolder": "Stage folder",
-  "wtpUnstageFolder": "Unstage folder"
+  "wtpUnstageFolder": "Unstage folder",
+  "wtpIgnore": "Ignore…",
+  "ignTitle": "Add an ignore rule",
+  "ignWhat": "What to ignore",
+  "ignScopeFile": "This file",
+  "ignScopeExtension": "Every {ext} file",
+  "@ignScopeExtension": { "placeholders": { "ext": { "type": "String" } } },
+  "ignScopeFolder": "The whole folder",
+  "ignWhere": "Write the rule to",
+  "ignTargetRoot": ".gitignore at the repository root",
+  "ignTargetNearest": "Nearest .gitignore ({path})",
+  "@ignTargetNearest": { "placeholders": { "path": { "type": "String" } } },
+  "ignTargetExclude": ".git/info/exclude",
+  "ignTargetExcludeHint": "Only this clone; never committed",
+  "ignAdd": "Add rule"
 }

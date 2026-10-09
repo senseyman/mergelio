@@ -36,6 +36,7 @@ import '../common/lfs_lock_chip.dart';
 import '../insight/file_insight_dialog.dart';
 import '../shell/repo_op_dialogs.dart';
 import 'hooks_panel.dart';
+import 'ignore_dialog.dart';
 import 'lfs_banner.dart';
 import 'lfs_lock_menu.dart';
 import 'lfs_locks_section.dart';
@@ -80,6 +81,12 @@ class WorkingTreePanel extends ConsumerWidget {
     // Watched so the menu gains or loses its LFS entries once git-lfs is known.
     ref.watch(lfsToolProvider);
     List<PopupMenuEntry<void>> trackItems(WorkingFile f, bool isLfs) => [
+      ...ignoreMenuItems(
+        context: context,
+        ref: ref,
+        repoPath: repoPath,
+        file: f,
+      ),
       ...lfsTrackMenuItems(
         context: context,
         ref: ref,

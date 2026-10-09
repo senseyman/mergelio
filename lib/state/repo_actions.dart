@@ -15,6 +15,7 @@ import '../domain/git/git_reader.dart';
 import '../domain/git/git_service.dart';
 import '../domain/git/git_writer.dart';
 import '../domain/git/hooks.dart';
+import '../domain/git/ignore.dart';
 import '../domain/git/lfs.dart';
 import '../domain/git/maintenance.dart';
 import '../domain/git/models.dart';
@@ -953,6 +954,108 @@ class RepoActions {
       return false;
     }
     return saved;
+  }
+
+  /// The repo-relative directory of the closest `.gitignore` above [relPath],
+  /// not counting the one at the root. Null when there is none.
+  Future<String?> nearestIgnoreDir(String relPath) async {
+    if (!isRepoRelativePath(relPath)) return null;
+    for (final d in ancestorDirs(relPath)) {
+      if (await File('$path/$d/.gitignore').exists()) return d;
+    }
+    return null;
+  }
+
+  /// Appends a rule ignoring [relPath] at [scope] to the [target] ignore
+  /// file, creating it when missing. Only ever appends; undo puts back the
+  /// exact bytes from before, or removes a file this created. Nothing is
+  /// staged. A rule already in the file is reported and not written again.
+  ///
+  /// Returns whether the path is now covered by the rule.
+  Future<bool> addIgnoreRule(
+    String relPath,
+    IgnoreScope scope,
+    IgnoreTarget target,
+  ) async {
+    if (_blockedByWorkingTreeOp) return false;
+    if (!isRepoRelativePath(relPath)) return false;
+    final String baseDir;
+    final File file;
+    switch (target) {
+      case IgnoreTarget.root:
+        baseDir = '';
+        file = File('$path/.gitignore');
+      case IgnoreTarget.nearest:
+        final d = await nearestIgnoreDir(relPath);
+        if (d == null) return false;
+        baseDir = d;
+        file = File('$path/$d/.gitignore');
+      case IgnoreTarget.exclude:
+        // Git names it, so a linked worktree gets the shared exclude file.
+        final at = await _stateFilePath('info/exclude');
+        if (at == null) return false;
+        baseDir = '';
+        file = File(at);
+    }
+    // A .gitignore symlinked out of the repository must not be written
+    // through.
+    if (target != IgnoreTarget.exclude &&
+        await file.exists() &&
+        !isInsideRepo(path, file.path)) {
+      return false;
+    }
+    final rule = ignoreRule(relPath, scope, baseDir: baseDir);
+    if (rule == null) return false;
+    final name = p.relative(file.path, from: path);
+    try {
+      final before = await file.exists() ? await file.readAsBytes() : null;
+      final existing = before == null
+          ? ''
+          : utf8.decode(before, allowMalformed: true);
+      final appended = appendIgnoreRule(existing, rule);
+      if (appended == null) {
+        _ref
+            .read(toastProvider.notifier)
+            .show('$rule is already in $name', kind: ToastKind.info);
+        return true;
+      }
+      // Appending, not rewriting, keeps whatever bytes are already there
+      // exactly as they were.
+      final tail = appended.substring(existing.length);
+      Future<void> write() async {
+        await file.parent.create(recursive: true);
+        await file.writeAsString(tail, mode: FileMode.append);
+      }
+
+      var written = false;
+      await _undoable(
+        'Ignore $rule',
+        () async {
+          await write();
+          written = true;
+        },
+        undo: () async {
+          if (before != null) {
+            await file.writeAsBytes(before);
+          } else if (await file.exists()) {
+            await file.delete();
+          }
+        },
+        redo: write,
+        // Only an ignore file is written, which no git lock guards.
+        claimsRepo: false,
+      );
+      return written;
+    } on FileSystemException catch (e) {
+      _ref
+          .read(toastProvider.notifier)
+          .show(
+            'Could not write $name',
+            description: e.osError?.message ?? e.message,
+            kind: ToastKind.error,
+          );
+      return false;
+    }
   }
 
   /// Commits what is staged and reports how it went. A hook's refusal comes

@@ -6925,6 +6925,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unstage folder'**
   String get wtpUnstageFolder;
+
+  /// No description provided for @wtpIgnore.
+  ///
+  /// In en, this message translates to:
+  /// **'Ignore…'**
+  String get wtpIgnore;
+
+  /// No description provided for @ignTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add an ignore rule'**
+  String get ignTitle;
+
+  /// No description provided for @ignWhat.
+  ///
+  /// In en, this message translates to:
+  /// **'What to ignore'**
+  String get ignWhat;
+
+  /// No description provided for @ignScopeFile.
+  ///
+  /// In en, this message translates to:
+  /// **'This file'**
+  String get ignScopeFile;
+
+  /// No description provided for @ignScopeExtension.
+  ///
+  /// In en, this message translates to:
+  /// **'Every {ext} file'**
+  String ignScopeExtension(String ext);
+
+  /// No description provided for @ignScopeFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'The whole folder'**
+  String get ignScopeFolder;
+
+  /// No description provided for @ignWhere.
+  ///
+  /// In en, this message translates to:
+  /// **'Write the rule to'**
+  String get ignWhere;
+
+  /// No description provided for @ignTargetRoot.
+  ///
+  /// In en, this message translates to:
+  /// **'.gitignore at the repository root'**
+  String get ignTargetRoot;
+
+  /// No description provided for @ignTargetNearest.
+  ///
+  /// In en, this message translates to:
+  /// **'Nearest .gitignore ({path})'**
+  String ignTargetNearest(String path);
+
+  /// No description provided for @ignTargetExclude.
+  ///
+  /// In en, this message translates to:
+  /// **'.git/info/exclude'**
+  String get ignTargetExclude;
+
+  /// No description provided for @ignTargetExcludeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Only this clone; never committed'**
+  String get ignTargetExcludeHint;
+
+  /// No description provided for @ignAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add rule'**
+  String get ignAdd;
 }
 
 class _AppLocalizationsDelegate

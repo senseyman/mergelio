@@ -1454,5 +1454,17 @@
   "wtpDiscardSelectedTitle": "{count, plural, one{Відкинути зміни в {count} файлі?} few{Відкинути зміни в {count} файлах?} many{Відкинути зміни в {count} файлах?} other{Відкинути зміни в {count} файла?}}",
   "wtpDiscardSelectedBody": "Відстежувані файли повернуться до закомічених версій, без індексованих і неіндексованих змін; невідстежувані файли буде видалено. Дію можна скасувати.",
   "wtpStageFolder": "Проіндексувати теку",
-  "wtpUnstageFolder": "Зняти індексацію з теки"
+  "wtpUnstageFolder": "Зняти індексацію з теки",
+  "wtpIgnore": "Ігнорувати…",
+  "ignTitle": "Додати правило ігнорування",
+  "ignWhat": "Що ігнорувати",
+  "ignScopeFile": "Цей файл",
+  "ignScopeExtension": "Усі файли {ext}",
+  "ignScopeFolder": "Усю теку",
+  "ignWhere": "Записати правило в",
+  "ignTargetRoot": ".gitignore у корені репозиторію",
+  "ignTargetNearest": "Найближчий .gitignore ({path})",
+  "ignTargetExclude": ".git/info/exclude",
+  "ignTargetExcludeHint": "Лише цей клон; не потрапляє в коміт",
+  "ignAdd": "Додати правило"
 }
