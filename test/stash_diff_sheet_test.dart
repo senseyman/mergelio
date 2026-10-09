@@ -6,9 +6,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/core/tokens.dart';
 import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
+import 'package:mergelio/domain/git/git_reader.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/state/diff_target.dart';
+import 'package:mergelio/state/diff_view_options.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
 import 'package:mergelio/ui/diff/diff_sheet.dart';
@@ -37,7 +39,11 @@ diff --git a/a.txt b/a.txt
   Future<bool> isRepository(String path) async => true;
 }
 
-Future<void> _open(WidgetTester tester, {required bool fromStash}) async {
+Future<void> _open(
+  WidgetTester tester, {
+  required bool fromStash,
+  DiffViewOptions options = const DiffViewOptions(),
+}) async {
   tester.view.physicalSize = const Size(1200, 600);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
@@ -45,6 +51,7 @@ Future<void> _open(WidgetTester tester, {required bool fromStash}) async {
     ProviderScope(
       overrides: [
         gitServiceProvider.overrideWithValue(_FakeGit()),
+        diffViewOptionsProvider.overrideWith((_) => options),
         settingsProvider.overrideWith(
           (ref) => SettingsController(
             InMemorySettingsRepository(),
@@ -90,5 +97,28 @@ void main() {
 
     expect(find.text('Apply hunk'), findsNothing);
     expect(find.text('Stage hunk'), findsNothing);
+  });
+
+  testWidgets('hidden whitespace withholds Apply hunk and says why', (
+    tester,
+  ) async {
+    await _open(
+      tester,
+      fromStash: true,
+      options: const DiffViewOptions(whitespace: DiffWhitespace.ignoreAll),
+    );
+
+    expect(find.text('Apply hunk'), findsNothing);
+    expect(find.textContaining('Whitespace is hidden'), findsOneWidget);
+  });
+
+  testWidgets('a plain comparison needs no whitespace notice', (tester) async {
+    await _open(
+      tester,
+      fromStash: false,
+      options: const DiffViewOptions(whitespace: DiffWhitespace.ignoreAll),
+    );
+
+    expect(find.textContaining('Whitespace is hidden'), findsNothing);
   });
 }

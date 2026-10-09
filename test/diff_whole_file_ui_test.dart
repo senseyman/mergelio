@@ -64,6 +64,14 @@ diff --git a/a.txt b/a.txt
   Future<bool> isRepository(String path) async => true;
 }
 
+/// Opens the diff options menu in the header and picks [label].
+Future<void> _pickOption(WidgetTester tester, String label) async {
+  await tester.tap(find.byTooltip('Diff options'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(label));
+  await tester.pumpAndSettle();
+}
+
 void main() {
   late _FakeGit git;
 
@@ -106,14 +114,13 @@ void main() {
 
   setUp(() => git = _FakeGit());
 
-  testWidgets('expand toggle switches the target to the whole file', (
+  testWidgets('the options menu switches the target to the whole file', (
     tester,
   ) async {
     final c = await open(tester);
     expect(find.text('first line'), findsNothing);
 
-    await tester.tap(find.byTooltip('Show whole file'));
-    await tester.pumpAndSettle();
+    await _pickOption(tester, 'Show whole file');
 
     expect(c.read(diffTargetProvider)!.wholeFile, isTrue);
     expect(find.text('first line'), findsOneWidget);
@@ -129,11 +136,9 @@ void main() {
     tester,
   ) async {
     final c = await open(tester);
-    await tester.tap(find.byTooltip('Show whole file'));
-    await tester.pumpAndSettle();
+    await _pickOption(tester, 'Show whole file');
 
-    await tester.tap(find.byTooltip('Show changes only'));
-    await tester.pumpAndSettle();
+    await _pickOption(tester, 'Context: 3 lines');
 
     expect(c.read(diffTargetProvider)!.wholeFile, isFalse);
     expect(find.text('first line'), findsNothing);
@@ -146,15 +151,14 @@ void main() {
     // The single hunk of a normal diff is a meaningful staging unit.
     expect(find.text('Stage hunk'), findsOneWidget);
 
-    await tester.tap(find.byTooltip('Show whole file'));
-    await tester.pumpAndSettle();
+    await _pickOption(tester, 'Show whole file');
 
     // With the whole file as one hunk, "stage hunk" would stage everything.
     expect(find.text('Stage hunk'), findsNothing);
     expect(find.text('Discard hunk'), findsNothing);
   });
 
-  testWidgets('expand toggle is hidden while editing', (tester) async {
+  testWidgets('the options menu is hidden while editing', (tester) async {
     // The editor reads the file from disk, which a widget test has none of.
     final c = await open(
       tester,
@@ -167,6 +171,6 @@ void main() {
     );
     c.read(diffEditingProvider.notifier).state = c.read(diffTargetProvider);
     await tester.pumpAndSettle();
-    expect(find.byTooltip('Show whole file'), findsNothing);
+    expect(find.byTooltip('Diff options'), findsNothing);
   });
 }

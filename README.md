@@ -155,8 +155,12 @@ change never needs a second window.*
   summary line gives the dimension and byte-size changes. Other binaries get a
   hex view of their opening bytes with the changed bytes marked. Files over
   32 MiB show their size only and are never loaded. SVG keeps its text diff.
-- Expand any diff to the **whole file** instead of just the changed regions, and
-  collapse it back — one toggle in the diff header.
+- **Diff options** in the diff header: 3, 5 or 10 lines of context, or the
+  **whole file**; and whitespace shown, changes in whitespace ignored, or all
+  whitespace ignored. Both choices are remembered, and blame ignores whitespace
+  along with the diff. While whitespace is hidden, hunk and line staging step
+  aside — those hunks no longer match the index — and a file that changed only
+  in whitespace says so.
 - Select and copy diff text — line numbers, change markers, hunk headers and the
   hunk buttons are left out, so you copy source and nothing else, with each line
   on its own line. In split view each column selects on its own, so a copy is

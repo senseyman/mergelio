@@ -2475,10 +2475,39 @@ class AppLocalizationsUk extends AppLocalizations {
   String get diffUnstageFile => 'Зняти індексацію з файлу';
 
   @override
-  String get diffShowChangesOnly => 'Показати лише зміни';
+  String get diffShowWholeFile => 'Показати весь файл';
 
   @override
-  String get diffShowWholeFile => 'Показати весь файл';
+  String get diffOptions => 'Параметри порівняння';
+
+  @override
+  String diffContextLines(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count рядка',
+      many: '$count рядків',
+      few: '$count рядки',
+      one: '$count рядок',
+    );
+    return 'Контекст: $_temp0';
+  }
+
+  @override
+  String get diffWhitespaceShow => 'Показувати пробіли';
+
+  @override
+  String get diffWhitespaceIgnoreChange => 'Ігнорувати зміни пробілів';
+
+  @override
+  String get diffWhitespaceIgnoreAll => 'Ігнорувати всі пробіли';
+
+  @override
+  String get diffWhitespaceNotice =>
+      'Пробіли приховано, тому фрагменти й рядки тут не можна індексувати чи відкидати. Покажіть пробіли, щоб скористатися цим.';
+
+  @override
+  String get diffWhitespaceOnly => 'Змінено лише пробіли';
 
   @override
   String get diffMoreActions => 'Інші дії';

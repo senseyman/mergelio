@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
 import '../../core/tokens.dart';
 import '../../domain/git/diff.dart';
+import '../../domain/git/git_reader.dart';
 import '../../domain/text_tabs.dart';
 import '../../domain/git/line_history.dart';
 import '../../domain/git/models.dart';
@@ -17,6 +18,7 @@ import '../../state/binary_diff.dart';
 import '../../state/diff_document.dart';
 import '../../state/compare_target.dart';
 import '../../state/diff_target.dart';
+import '../../state/diff_view_options.dart';
 import '../../state/feedback.dart';
 import '../../state/file_editor.dart';
 import '../../state/repo_actions.dart';
@@ -101,6 +103,7 @@ class DiffSheet extends ConsumerWidget {
               onDrag: (dy) => ctl.setDiffHeight(frac - dy / availableHeight),
             ),
             _DiffHeader(target: target, onClose: close),
+            if (!editing) _WhitespaceNotice(target: target),
             Expanded(
               child: editing
                   ? DiffEditor(target: target)
@@ -198,8 +201,57 @@ class _DiffHeader extends ConsumerWidget {
       ref.invalidate(diffDocumentProvider(target));
     }
 
-    void toggleWholeFile() => ref.read(diffTargetProvider.notifier).state =
-        target.withWholeFile(!target.wholeFile);
+    final options = ref.watch(diffViewOptionsProvider);
+    // Each write re-reads the diff, so picking what is already picked must
+    // write nothing.
+    void setWholeFile(bool wholeFile) {
+      if (wholeFile == target.wholeFile) return;
+      ref.read(diffTargetProvider.notifier).state = target.withWholeFile(
+        wholeFile,
+      );
+    }
+
+    // Applies to the open sheet and is stored for the next session.
+    void setOptions(DiffViewOptions next) {
+      if (next == options) return;
+      ref.read(diffViewOptionsProvider.notifier).state = next;
+      ctl.setDiffViewOptions(next.whitespace.name, next.contextLines);
+    }
+
+    void setContext(int lines) {
+      setOptions(options.copyWith(contextLines: lines));
+      setWholeFile(false);
+    }
+
+    void setWhitespace(DiffWhitespace mode) =>
+        setOptions(options.copyWith(whitespace: mode));
+
+    // Context and whitespace choices, shared by the options menu and the
+    // overflow menu so both always offer the same thing.
+    List<PopupMenuEntry<VoidCallback>> optionItems() => [
+      for (final n in kDiffContextChoices)
+        CheckedPopupMenuItem(
+          value: () => setContext(n),
+          checked: !target.wholeFile && options.contextLines == n,
+          child: Text(l.diffContextLines(n)),
+        ),
+      CheckedPopupMenuItem(
+        value: () => setWholeFile(true),
+        checked: target.wholeFile,
+        child: Text(l.diffShowWholeFile),
+      ),
+      const PopupMenuDivider(),
+      for (final (mode, label) in [
+        (DiffWhitespace.show, l.diffWhitespaceShow),
+        (DiffWhitespace.ignoreChange, l.diffWhitespaceIgnoreChange),
+        (DiffWhitespace.ignoreAll, l.diffWhitespaceIgnoreAll),
+      ])
+        CheckedPopupMenuItem(
+          value: () => setWhitespace(mode),
+          checked: options.whitespace == mode,
+          child: Text(label),
+        ),
+    ];
 
     // An LFS file shows its card, not its text. Editing it would mean
     // hand-editing pointer text, which staging would then commit as is.
@@ -209,9 +261,9 @@ class _DiffHeader extends ConsumerWidget {
     final stageLabel = (doc?.staged ?? false)
         ? l.diffUnstageFile
         : l.diffStageFile;
-    final wholeLabel = target.wholeFile
-        ? l.diffShowChangesOnly
-        : l.diffShowWholeFile;
+    // Lit while the diff is anything but git's plain default, so a hidden
+    // whitespace change is never silently missing from what the user reads.
+    final optionsActive = target.wholeFile || !options.isDefault;
 
     // Every action as a button, for when there is room for all of them.
     final full = Row(
@@ -243,13 +295,12 @@ class _DiffHeader extends ConsumerWidget {
           onSplit: () => ctl.setDiffSplit(true),
         ),
         if (!editing)
-          IconButton(
+          PopupMenuButton<VoidCallback>(
+            tooltip: l.diffOptions,
             iconSize: 18,
-            tooltip: wholeLabel,
-            icon: Icon(
-              target.wholeFile ? Icons.unfold_less : Icons.unfold_more,
-            ),
-            onPressed: toggleWholeFile,
+            icon: Icon(Icons.tune, color: optionsActive ? t.accent : null),
+            onSelected: (action) => action(),
+            itemBuilder: (_) => optionItems(),
           ),
       ],
     );
@@ -287,8 +338,7 @@ class _DiffHeader extends ConsumerWidget {
           checked: split,
           child: Text(l.diffViewSplit),
         ),
-        if (!editing)
-          PopupMenuItem(value: toggleWholeFile, child: Text(wholeLabel)),
+        if (!editing) ...[const PopupMenuDivider(), ...optionItems()],
       ],
     );
 
@@ -576,7 +626,7 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
             if (doc.isEmpty) {
               return Center(
                 child: Text(
-                  l.cdNoChanges,
+                  doc.whitespaceOnly ? l.diffWhitespaceOnly : l.cdNoChanges,
                   style: TextStyle(color: t.textFaint, fontSize: 12),
                 ),
               );
@@ -747,8 +797,8 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
                 stageLabel: doc.staged
                     ? l.diffUnstageSelectedLines
                     : l.diffStageSelectedLines,
-                onStageLines: hasRun && doc.editable ? applyRun : null,
-                onDiscardLines: hasRun && doc.editable && !doc.staged
+                onStageLines: hasRun && doc.canApplyPatches ? applyRun : null,
+                onDiscardLines: hasRun && doc.canApplyPatches && !doc.staged
                     ? discardRun
                     : null,
                 onLineHistory: runRange() == null
@@ -768,7 +818,9 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
             // A stash read against its base offers its hunks to the working
             // tree instead of the index.
             bool stashHunks(FileDiff f) =>
-                target.fromStash && canApplyStashHunks(f);
+                target.fromStash &&
+                !doc.whitespaceIgnored &&
+                canApplyStashHunks(f);
 
             Widget headerRow(
               _DiffItem it, {
@@ -780,7 +832,8 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
               // Line-level staging still applies.
               header: it.file.hunks[it.hunkIndex].header,
               editable:
-                  (doc.editable || stashHunks(it.file)) && !target.wholeFile,
+                  (doc.canApplyPatches || stashHunks(it.file)) &&
+                  !target.wholeFile,
               staged: doc.staged,
               actionLabel: stashHunks(it.file) ? l.stApplyHunk : null,
               onStage: stashHunks(it.file)
@@ -893,7 +946,7 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
                                   path: it.file.path,
                                   hunkIndex: it.hunkIndex,
                                   lineIndex: li,
-                                  editable: doc.editable,
+                                  editable: doc.canApplyPatches,
                                   staged: doc.staged,
                                   onStage: line.type == DiffLineType.context
                                       ? null
@@ -915,6 +968,42 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
             );
           },
         );
+  }
+}
+
+/// One muted line under the header while whitespace is hidden from a diff that
+/// would otherwise offer hunk actions, saying why those actions are missing.
+/// Nothing is shown where no action was lost: a read-only diff, an empty or
+/// binary one, or an LFS file shown as its card.
+class _WhitespaceNotice extends ConsumerWidget {
+  final DiffTarget target;
+  const _WhitespaceNotice({required this.target});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final doc = ref.watch(diffDocumentProvider(target)).valueOrNull;
+    if (doc == null ||
+        !doc.whitespaceIgnored ||
+        !(doc.editable || target.fromStash) ||
+        doc.isEmpty ||
+        doc.isBinary ||
+        doc.files.any((f) => f.lfs != null)) {
+      return const SizedBox.shrink();
+    }
+    final t = context.tokens;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: t.border)),
+      ),
+      child: Text(
+        AppLocalizations.of(context).diffWhitespaceNotice,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(color: t.textMuted, fontSize: 11.5),
+      ),
+    );
   }
 }
 
