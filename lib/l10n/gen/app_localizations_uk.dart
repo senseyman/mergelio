@@ -4118,4 +4118,93 @@ class AppLocalizationsUk extends AppLocalizations {
   String dashPaletteGoTo(String name) {
     return 'Перейти до $name';
   }
+
+  @override
+  String wtpSelectedCount(int count) {
+    return 'Вибрано: $count';
+  }
+
+  @override
+  String get wtpStage => 'Проіндексувати';
+
+  @override
+  String get wtpUnstage => 'Зняти індексацію';
+
+  @override
+  String wtpStageSelected(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Проіндексувати $count файла',
+      many: 'Проіндексувати $count файлів',
+      few: 'Проіндексувати $count файли',
+      one: 'Проіндексувати $count файл',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String wtpUnstageSelected(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Зняти індексацію з $count файла',
+      many: 'Зняти індексацію з $count файлів',
+      few: 'Зняти індексацію з $count файлів',
+      one: 'Зняти індексацію з $count файлу',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String wtpDiscardSelected(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Відкинути $count файла…',
+      many: 'Відкинути $count файлів…',
+      few: 'Відкинути $count файли…',
+      one: 'Відкинути $count файл…',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String wtpStashSelected(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Сховати $count файла…',
+      many: 'Сховати $count файлів…',
+      few: 'Сховати $count файли…',
+      one: 'Сховати $count файл…',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get wtpClearSelection => 'Зняти виділення';
+
+  @override
+  String wtpDiscardSelectedTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Відкинути зміни в $count файла?',
+      many: 'Відкинути зміни в $count файлах?',
+      few: 'Відкинути зміни в $count файлах?',
+      one: 'Відкинути зміни в $count файлі?',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get wtpDiscardSelectedBody =>
+      'Відстежувані файли повернуться до закомічених версій, без індексованих і неіндексованих змін; невідстежувані файли буде видалено. Дію можна скасувати.';
+
+  @override
+  String get wtpStageFolder => 'Проіндексувати теку';
+
+  @override
+  String get wtpUnstageFolder => 'Зняти індексацію з теки';
 }

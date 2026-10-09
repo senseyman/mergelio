@@ -6817,6 +6817,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Go to {name}'**
   String dashPaletteGoTo(String name);
+
+  /// No description provided for @wtpSelectedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} selected'**
+  String wtpSelectedCount(int count);
+
+  /// No description provided for @wtpStage.
+  ///
+  /// In en, this message translates to:
+  /// **'Stage'**
+  String get wtpStage;
+
+  /// No description provided for @wtpUnstage.
+  ///
+  /// In en, this message translates to:
+  /// **'Unstage'**
+  String get wtpUnstage;
+
+  /// No description provided for @wtpStageSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{Stage {count} file} other{Stage {count} files}}'**
+  String wtpStageSelected(int count);
+
+  /// No description provided for @wtpUnstageSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{Unstage {count} file} other{Unstage {count} files}}'**
+  String wtpUnstageSelected(int count);
+
+  /// No description provided for @wtpDiscardSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{Discard {count} file…} other{Discard {count} files…}}'**
+  String wtpDiscardSelected(int count);
+
+  /// No description provided for @wtpStashSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{Stash {count} file…} other{Stash {count} files…}}'**
+  String wtpStashSelected(int count);
+
+  /// No description provided for @wtpClearSelection.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear selection'**
+  String get wtpClearSelection;
+
+  /// No description provided for @wtpDiscardSelectedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{Discard changes to {count} file?} other{Discard changes to {count} files?}}'**
+  String wtpDiscardSelectedTitle(int count);
+
+  /// No description provided for @wtpDiscardSelectedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Tracked files go back to their committed state, dropping staged and unstaged changes; untracked files are deleted. You can undo it.'**
+  String get wtpDiscardSelectedBody;
+
+  /// No description provided for @wtpStageFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Stage folder'**
+  String get wtpStageFolder;
+
+  /// No description provided for @wtpUnstageFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Unstage folder'**
+  String get wtpUnstageFolder;
 }
 
 class _AppLocalizationsDelegate

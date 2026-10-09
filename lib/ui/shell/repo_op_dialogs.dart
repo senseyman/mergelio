@@ -209,15 +209,18 @@ class _TagBodyState extends ConsumerState<_TagBody> {
 
 /// Stash dialog: optional message, which files to take, and how: only the
 /// staged changes, keeping the index in place, or including untracked files.
+/// Given [only], just those files start ticked, and untracked files are taken
+/// when any of them is untracked.
 Future<void> showStashDialog(
   BuildContext context,
   WidgetRef ref,
-  String repoPath,
-) => showAppModal<void>(
+  String repoPath, {
+  List<WorkingFile>? only,
+}) => showAppModal<void>(
   context: context,
   title: AppLocalizations.of(context).ropStashChangesTitle,
   icon: Icons.inventory_2_outlined,
-  body: _StashBody(repoPath: repoPath),
+  body: _StashBody(repoPath: repoPath, only: only),
 );
 
 /// Push dialog: choose the remote to push to, optionally publish tags along
@@ -679,7 +682,8 @@ class _MergeBodyState extends ConsumerState<_MergeBody> {
 
 class _StashBody extends ConsumerStatefulWidget {
   final String repoPath;
-  const _StashBody({required this.repoPath});
+  final List<WorkingFile>? only;
+  const _StashBody({required this.repoPath, this.only});
 
   @override
   ConsumerState<_StashBody> createState() => _StashBodyState();
@@ -695,6 +699,23 @@ class _StashBodyState extends ConsumerState<_StashBody> {
   /// the dialog is open — or one revealed by including untracked files — starts
   /// out ticked, like everything else.
   final _excluded = <String>{};
+
+  /// Opened on a selection: everything outside it starts unticked, so these
+  /// are the ones the user ticked back in.
+  late final Set<String>? _only = widget.only == null
+      ? null
+      : {for (final f in widget.only!) f.path};
+  final _ticked = <String>{};
+
+  bool _isExcluded(String path) =>
+      _excluded.contains(path) ||
+      (_only != null && !_only.contains(path) && !_ticked.contains(path));
+
+  @override
+  void initState() {
+    super.initState();
+    _includeUntracked = widget.only?.any((f) => f.isUntracked) ?? false;
+  }
 
   StashPushOptions _options({List<String> exclude = const []}) =>
       StashPushOptions(
@@ -721,7 +742,7 @@ class _StashBodyState extends ConsumerState<_StashBody> {
     final candidates = stashCandidates(working, _options());
     final selected = {
       for (final f in candidates)
-        if (!_excluded.contains(f.path)) f.path,
+        if (!_isExcluded(f.path)) f.path,
     };
 
     Widget option(String label, bool value, ValueChanged<bool>? onChanged) =>
@@ -809,11 +830,15 @@ class _StashBodyState extends ConsumerState<_StashBody> {
                           ),
                         ),
                         value: selected.contains(f.path),
-                        onChanged: (v) => setState(
-                          () => v == true
-                              ? _excluded.remove(f.path)
-                              : _excluded.add(f.path),
-                        ),
+                        onChanged: (v) => setState(() {
+                          if (v == true) {
+                            _excluded.remove(f.path);
+                            _ticked.add(f.path);
+                          } else {
+                            _excluded.add(f.path);
+                            _ticked.remove(f.path);
+                          }
+                        }),
                       ),
                   ],
                 ),

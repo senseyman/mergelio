@@ -1,11 +1,13 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
 import '../../core/tokens.dart';
+import '../../domain/file_tree.dart';
 import '../../domain/forge/models.dart';
 import '../../domain/git/commit_message.dart';
 import '../../domain/git/git_providers.dart';
@@ -25,12 +27,14 @@ import '../../state/profiles.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
 import '../../state/settings_controller.dart';
+import '../../state/working_selection.dart';
 import '../common/confirm.dart';
 import '../common/dialogs.dart';
 import '../common/file_tree_view.dart';
 import '../common/lfs_chip.dart';
 import '../common/lfs_lock_chip.dart';
 import '../insight/file_insight_dialog.dart';
+import '../shell/repo_op_dialogs.dart';
 import 'hooks_panel.dart';
 import 'lfs_banner.dart';
 import 'lfs_lock_menu.dart';
@@ -61,6 +65,7 @@ class WorkingTreePanel extends ConsumerWidget {
     final hasConflicts = data.working.any((f) => f.isConflicted);
     final resolving = ref.watch(mergeSessionProvider(repoPath)) != null;
     final pending = ref.watch(pendingOpProvider(repoPath)).valueOrNull;
+    final selection = ref.watch(workingSelectionProvider(repoPath));
     // One lookup for every changed path; the sections pick from it.
     final lfs =
         ref
@@ -159,10 +164,27 @@ class WorkingTreePanel extends ConsumerWidget {
                           onBulk: actions.stageAll,
                           bulkLabel: l.wtpStageAll,
                           onToggle: (f) => actions.stageFile(f.path),
-                          onOpen: (f) => _open(ref, f.path, staged: false),
+                          onOpen: (f) => _pick(
+                            ref,
+                            WorkingSide.unstaged,
+                            f,
+                            displayOrder(unstaged, tree: tree),
+                          ),
                           onDiscard: (f) =>
                               _confirmDiscardFile(ref, context, repoPath, f),
                           trackItems: trackItems,
+                          picked: _picked(
+                            selection,
+                            WorkingSide.unstaged,
+                            unstaged,
+                            tree,
+                          ),
+                          onToggleMany: (files) => _stageMany(ref, files),
+                          onDiscardMany: (files) =>
+                              _confirmDiscardMany(ref, context, files),
+                          onStashMany: (files) =>
+                              _stashMany(ref, context, files),
+                          onClearPicked: () => _clearPicked(ref),
                         ),
                         _FileSection(
                           label: l.wtpStaged,
@@ -175,15 +197,28 @@ class WorkingTreePanel extends ConsumerWidget {
                           onBulk: actions.unstageAll,
                           bulkLabel: l.wtpUnstageAll,
                           onToggle: (f) => actions.unstageFile(f.path),
-                          onOpen: (f) => _open(
+                          onOpen: (f) => _pick(
                             ref,
-                            f.path,
+                            WorkingSide.staged,
+                            f,
+                            displayOrder(staged, tree: tree),
                             staged: true,
-                            origPath: f.origPath,
                           ),
                           onDiscard: (f) =>
                               _confirmDiscardFile(ref, context, repoPath, f),
                           trackItems: trackItems,
+                          picked: _picked(
+                            selection,
+                            WorkingSide.staged,
+                            staged,
+                            tree,
+                          ),
+                          onToggleMany: (files) => _unstageMany(ref, files),
+                          onDiscardMany: (files) =>
+                              _confirmDiscardMany(ref, context, files),
+                          onStashMany: (files) =>
+                              _stashMany(ref, context, files),
+                          onClearPicked: () => _clearPicked(ref),
                         ),
                       ],
                     ),
@@ -226,6 +261,102 @@ class WorkingTreePanel extends ConsumerWidget {
     staged: staged,
     origPath: origPath,
   );
+
+  /// A click on a row: Shift extends the pick from its anchor, Cmd (Ctrl off
+  /// macOS) toggles the row in or out, and a plain click picks only that row
+  /// and opens it. [order] is the side's display order, for Shift's run.
+  void _pick(
+    WidgetRef ref,
+    WorkingSide side,
+    WorkingFile f,
+    List<String> order, {
+    bool staged = false,
+  }) {
+    final keys = HardwareKeyboard.instance;
+    final toggle = defaultTargetPlatform == TargetPlatform.macOS
+        ? keys.isMetaPressed
+        : keys.isControlPressed;
+    final pick = ref.read(workingSelectionProvider(repoPath).notifier);
+    if (keys.isShiftPressed) {
+      pick.state = pick.state.extend(side, f.path, order);
+    } else if (toggle) {
+      pick.state = pick.state.toggle(side, f.path);
+    } else {
+      pick.state = pick.state.select(side, f.path);
+      _open(ref, f.path, staged: staged, origPath: staged ? f.origPath : null);
+    }
+  }
+
+  /// The files of [files] picked in [side], in display order.
+  static List<WorkingFile> _picked(
+    WorkingSelection selection,
+    WorkingSide side,
+    List<WorkingFile> files,
+    bool tree,
+  ) {
+    final byPath = {for (final f in files) f.path: f};
+    return [
+      for (final p in selection.within(side, displayOrder(files, tree: tree)))
+        byPath[p]!,
+    ];
+  }
+
+  void _clearPicked(WidgetRef ref) =>
+      ref.read(workingSelectionProvider(repoPath).notifier).state =
+          WorkingSelection.none;
+
+  Future<void> _stageMany(WidgetRef ref, List<WorkingFile> files) {
+    _clearPicked(ref);
+    return ref.read(repoActionsProvider(repoPath)).stageFiles([
+      for (final f in files) f.path,
+    ]);
+  }
+
+  Future<void> _unstageMany(WidgetRef ref, List<WorkingFile> files) {
+    _clearPicked(ref);
+    return ref.read(repoActionsProvider(repoPath)).unstageFiles([
+      for (final f in files) f.path,
+    ]);
+  }
+
+  Future<void> _confirmDiscardMany(
+    WidgetRef ref,
+    BuildContext context,
+    List<WorkingFile> files,
+  ) async {
+    final l = AppLocalizations.of(context);
+    final ok = await confirmDestructive(
+      ref,
+      context,
+      title: l.wtpDiscardSelectedTitle(files.length),
+      body: l.wtpDiscardSelectedBody,
+      confirmLabel: l.discard,
+    );
+    if (!ok) return;
+    _clearPicked(ref);
+    await ref.read(repoActionsProvider(repoPath)).discardFiles(files);
+  }
+
+  /// Kept picked: the dialog may be cancelled, and whatever it does stash
+  /// leaves the lists and so drops out of the pick by itself.
+  Future<void> _stashMany(
+    WidgetRef ref,
+    BuildContext context,
+    List<WorkingFile> files,
+  ) => showStashDialog(context, ref, repoPath, only: files);
+}
+
+/// [files] in the order their rows are drawn: path order when flat, the
+/// folder walk when shown as a tree. Collapsed folders count too, so a Shift
+/// run across one takes the files inside it.
+@visibleForTesting
+List<String> displayOrder(List<WorkingFile> files, {required bool tree}) {
+  final paths = [for (final f in files) f.path];
+  if (!tree) return paths;
+  return [
+    for (final r in buildFileTree(paths, const {}))
+      if (r is FileLeafRow) r.path,
+  ];
 }
 
 /// Sits above the file lists while git is still in the middle of an operation
@@ -397,6 +528,14 @@ class _FileSection extends StatelessWidget {
   final void Function(WorkingFile) onDiscard;
   final List<PopupMenuEntry<void>> Function(WorkingFile, bool) trackItems;
 
+  /// The files picked in this section, in display order. Two or more turn on
+  /// the selection bar and the bulk forms of the row actions.
+  final List<WorkingFile> picked;
+  final void Function(List<WorkingFile>) onToggleMany;
+  final void Function(List<WorkingFile>) onDiscardMany;
+  final void Function(List<WorkingFile>) onStashMany;
+  final VoidCallback onClearPicked;
+
   const _FileSection({
     required this.label,
     required this.repoPath,
@@ -411,12 +550,26 @@ class _FileSection extends StatelessWidget {
     required this.onOpen,
     required this.onDiscard,
     required this.trackItems,
+    required this.picked,
+    required this.onToggleMany,
+    required this.onDiscardMany,
+    required this.onStashMany,
+    required this.onClearPicked,
   });
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final t = context.tokens;
+    final pickedPaths = {for (final f in picked) f.path};
+    final many = picked.length >= 2 ? picked : const <WorkingFile>[];
+    // Built once per build, not per row: a large change set has thousands of
+    // rows and hundreds of folders.
+    final byPath = {for (final f in files) f.path: f};
+    final treeOrder = tree ? displayOrder(files, tree: true) : const <String>[];
+    List<WorkingFile> under(String dir) => [
+      for (final p in filesUnder(treeOrder, dir)) byPath[p]!,
+    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -450,11 +603,55 @@ class _FileSection extends StatelessWidget {
             ],
           ),
         ),
+        if (many.isNotEmpty)
+          _SelectionBar(
+            count: many.length,
+            staged: staged,
+            onToggle: () => onToggleMany(many),
+            onDiscard: () => onDiscardMany(many),
+            onStash: () => onStashMany(many),
+            onClear: onClearPicked,
+          ),
         FileTreeView(
           paths: [for (final f in files) f.path],
           tree: tree,
+          dirLeading: (dir) {
+            final inDir = under(dir);
+            return SizedBox(
+              width: 22,
+              height: 22,
+              child: Tooltip(
+                message: staged ? l.wtpUnstageFolder : l.wtpStageFolder,
+                child: Checkbox(
+                  value: _folderValue(inDir),
+                  tristate: true,
+                  visualDensity: VisualDensity.compact,
+                  onChanged: (_) => onToggleMany(inDir),
+                ),
+              ),
+            );
+          },
+          onDirSecondaryTap: (dir, position) => showContextMenu<void>(
+            context: context,
+            position: position,
+            items: [
+              PopupMenuItem(
+                height: 34,
+                onTap: () => onToggleMany(under(dir)),
+                child: Text(
+                  staged ? l.wtpUnstageFolder : l.wtpStageFolder,
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ),
+            ],
+          ),
           fileRow: (path, depth) => _FileRow(
             file: byPath[path]!,
+            selected: pickedPaths.contains(path),
+            many: pickedPaths.contains(path) ? many : const [],
+            onToggleMany: onToggleMany,
+            onDiscardMany: onDiscardMany,
+            onStashMany: onStashMany,
             repoPath: repoPath,
             staged: staged,
             indent: FileTreeView.indent(depth),
@@ -472,7 +669,11 @@ class _FileSection extends StatelessWidget {
     );
   }
 
-  Map<String, WorkingFile> get byPath => {for (final f in files) f.path: f};
+  /// A folder's checkbox: what its files' checkboxes agree on, else mixed.
+  bool? _folderValue(List<WorkingFile> under) {
+    if (under.any((f) => f.isPartial)) return null;
+    return staged;
+  }
 }
 
 class _FileRow extends StatelessWidget {
@@ -488,9 +689,22 @@ class _FileRow extends StatelessWidget {
   final void Function(WorkingFile) onOpen;
   final void Function(WorkingFile) onDiscard;
   final List<PopupMenuEntry<void>> Function(WorkingFile, bool) trackItems;
+  final bool selected;
+
+  /// The whole selection when this row is part of a multi-file pick, else
+  /// empty: the checkbox and the context menu then act on all of it.
+  final List<WorkingFile> many;
+  final void Function(List<WorkingFile>) onToggleMany;
+  final void Function(List<WorkingFile>) onDiscardMany;
+  final void Function(List<WorkingFile>) onStashMany;
 
   const _FileRow({
     required this.file,
+    required this.onToggleMany,
+    required this.onDiscardMany,
+    required this.onStashMany,
+    this.selected = false,
+    this.many = const [],
     required this.repoPath,
     required this.staged,
     required this.onToggle,
@@ -527,94 +741,206 @@ class _FileRow extends StatelessWidget {
     // unless partial.
     final bool? value = file.isPartial ? null : (staged ? true : false);
 
+    const menuText = TextStyle(fontSize: 13);
     return GestureDetector(
       onSecondaryTapUp: (d) => showContextMenu<void>(
         context: context,
         position: d.globalPosition,
-        items: [
-          PopupMenuItem(
-            height: 34,
-            onTap: () =>
-                showFileInsight(context, repoPath: repoPath, path: file.path),
-            child: Text(l.wtpFileHistory, style: TextStyle(fontSize: 13)),
-          ),
-          PopupMenuItem(
-            height: 34,
-            onTap: () => showFileInsight(
-              context,
-              repoPath: repoPath,
-              path: file.path,
-              initialTab: 1,
-            ),
-            child: Text(l.wtpBlame, style: TextStyle(fontSize: 13)),
-          ),
-          ...trackItems(file, lfs),
-          PopupMenuItem(
-            height: 34,
-            onTap: () => onDiscard(file),
-            child: Text(l.wtpDiscardChanges, style: TextStyle(fontSize: 13)),
-          ),
-        ],
-      ),
-      child: InkWell(
-        onTap: () => onOpen(file),
-        hoverColor: t.hover,
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(10 + indent, 4, 10, 4),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 22,
-                height: 22,
-                child: Checkbox(
-                  value: value,
-                  tristate: true,
-                  visualDensity: VisualDensity.compact,
-                  onChanged: (_) => onToggle(file),
-                ),
-              ),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  _label,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: t.textMuted, fontSize: 12.5),
-                ),
-              ),
-              if (lfs) const LfsChip(),
-              if (lfs && lock != null)
-                LfsLockChip(lock: lock!, ours: lockIsOurs),
-              if (file.isPartial)
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 6),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 5,
-                    vertical: 1,
-                  ),
-                  decoration: BoxDecoration(
-                    color: t.warning.withValues(alpha: 0.16),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
+        items: many.isNotEmpty
+            ? [
+                PopupMenuItem(
+                  height: 34,
+                  onTap: () => onToggleMany(many),
                   child: Text(
-                    'partial',
-                    style: TextStyle(
-                      color: t.warning,
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.w600,
+                    staged
+                        ? l.wtpUnstageSelected(many.length)
+                        : l.wtpStageSelected(many.length),
+                    style: menuText,
+                  ),
+                ),
+                PopupMenuItem(
+                  height: 34,
+                  onTap: () => onStashMany(many),
+                  child: Text(l.wtpStashSelected(many.length), style: menuText),
+                ),
+                PopupMenuItem(
+                  height: 34,
+                  onTap: () => onDiscardMany(many),
+                  child: Text(
+                    l.wtpDiscardSelected(many.length),
+                    style: menuText,
+                  ),
+                ),
+              ]
+            : [
+                PopupMenuItem(
+                  height: 34,
+                  onTap: () => showFileInsight(
+                    context,
+                    repoPath: repoPath,
+                    path: file.path,
+                  ),
+                  child: Text(l.wtpFileHistory, style: TextStyle(fontSize: 13)),
+                ),
+                PopupMenuItem(
+                  height: 34,
+                  onTap: () => showFileInsight(
+                    context,
+                    repoPath: repoPath,
+                    path: file.path,
+                    initialTab: 1,
+                  ),
+                  child: Text(l.wtpBlame, style: TextStyle(fontSize: 13)),
+                ),
+                ...trackItems(file, lfs),
+                PopupMenuItem(
+                  height: 34,
+                  onTap: () => onDiscard(file),
+                  child: Text(
+                    l.wtpDiscardChanges,
+                    style: TextStyle(fontSize: 13),
+                  ),
+                ),
+              ],
+      ),
+      child: Semantics(
+        selected: selected,
+        child: Material(
+          color: selected ? t.active : Colors.transparent,
+          child: InkWell(
+            onTap: () => onOpen(file),
+            hoverColor: t.hover,
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(10 + indent, 4, 10, 4),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: Checkbox(
+                      value: value,
+                      tristate: true,
+                      visualDensity: VisualDensity.compact,
+                      onChanged: (_) =>
+                          many.isNotEmpty ? onToggleMany(many) : onToggle(file),
                     ),
                   ),
-                ),
-              Text(
-                letter,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      _label,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: t.textMuted, fontSize: 12.5),
+                    ),
+                  ),
+                  if (lfs) const LfsChip(),
+                  if (lfs && lock != null)
+                    LfsLockChip(lock: lock!, ours: lockIsOurs),
+                  if (file.isPartial)
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 5,
+                        vertical: 1,
+                      ),
+                      decoration: BoxDecoration(
+                        color: t.warning.withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        'partial',
+                        style: TextStyle(
+                          color: t.warning,
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  Text(
+                    letter,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// The selection bar of a section: how many files are picked, and the
+/// actions that take all of them at once.
+class _SelectionBar extends StatelessWidget {
+  final int count;
+  final bool staged;
+  final VoidCallback onToggle;
+  final VoidCallback onDiscard;
+  final VoidCallback onStash;
+  final VoidCallback onClear;
+
+  const _SelectionBar({
+    required this.count,
+    required this.staged,
+    required this.onToggle,
+    required this.onDiscard,
+    required this.onStash,
+    required this.onClear,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final t = context.tokens;
+    Widget icon(IconData data, String tip, VoidCallback onPressed) =>
+        IconButton(
+          iconSize: 15,
+          visualDensity: VisualDensity.compact,
+          tooltip: tip,
+          icon: Icon(data, color: t.textMuted),
+          onPressed: onPressed,
+        );
+    return Container(
+      margin: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+      padding: const EdgeInsets.only(left: 8),
+      decoration: BoxDecoration(
+        color: t.active,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              l.wtpSelectedCount(count),
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: t.textPrimary, fontSize: 12),
+            ),
+          ),
+          TextButton(
+            onPressed: onToggle,
+            style: TextButton.styleFrom(
+              minimumSize: Size.zero,
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(
+              staged ? l.wtpUnstage : l.wtpStage,
+              style: const TextStyle(fontSize: 11),
+            ),
+          ),
+          icon(Icons.inventory_2_outlined, l.wtpStashSelected(count), onStash),
+          icon(
+            Icons.backspace_outlined,
+            l.wtpDiscardSelected(count),
+            onDiscard,
+          ),
+          icon(Icons.close, l.wtpClearSelection, onClear),
+        ],
       ),
     );
   }

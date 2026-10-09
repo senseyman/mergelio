@@ -31,6 +31,13 @@ class FileLeafRow extends FileTreeRow {
   }) : super(depth);
 }
 
+/// The paths of [paths] inside directory [dir], at any depth, in their given
+/// order. A sibling that merely starts with the same letters is not inside.
+List<String> filesUnder(List<String> paths, String dir) => [
+  for (final p in paths)
+    if (p.startsWith('$dir/')) p,
+];
+
 /// Groups [paths] into a directory tree and flattens it depth-first to ordered
 /// rows: at each level directories come first (sorted), then files (sorted by
 /// name). A directory whose full path is in [collapsed] is emitted but its

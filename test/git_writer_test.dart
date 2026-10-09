@@ -210,4 +210,77 @@ void main() {
     ], repoPath: dir.path)).out;
     expect(tree, isNot(contains('staged')));
   });
+
+  group('path lists', () {
+    Future<Map<String, dynamic>> status() async => {
+      for (final f in await reader().status()) f.path: f,
+    };
+
+    test('stagePaths stages exactly the named files', () async {
+      await write('a.txt', 'changed\n');
+      await write('b c.txt', 'spaced\n');
+      await write('файл.txt', 'non-ascii\n');
+      await write('*.txt', 'literal\n');
+      await write('left.txt', 'alone\n');
+      await writer().stagePaths(['a.txt', 'b c.txt', 'файл.txt', '*.txt']);
+      final s = await status();
+      expect(s['a.txt'].isStaged, isTrue);
+      expect(s['b c.txt'].isStaged, isTrue);
+      expect(s['файл.txt'].isStaged, isTrue);
+      expect(s['*.txt'].isStaged, isTrue);
+      expect(s['left.txt'].isUntracked, isTrue);
+    });
+
+    test('stagePaths stages a deletion', () async {
+      await File('${dir.path}/a.txt').delete();
+      await writer().stagePaths(['a.txt']);
+      expect((await status())['a.txt'].isStaged, isTrue);
+    });
+
+    test('stagePaths takes more paths than a command line holds', () async {
+      // Far past Windows' 32K command-line limit once joined.
+      final names = [for (var i = 0; i < 400; i++) '${'n' * 90}$i.txt'];
+      for (final n in names) {
+        await write(n, 'x\n');
+      }
+      await writer().stagePaths(names);
+      final s = await status();
+      expect(names.every((n) => s[n].isStaged), isTrue);
+    });
+
+    test('unstagePaths unstages exactly the named files', () async {
+      await write('a.txt', 'changed\n');
+      await write('b.txt', 'new\n');
+      await write('c.txt', 'kept\n');
+      await g(['add', '.']);
+      await writer().unstagePaths(['a.txt', 'b.txt']);
+      final s = await status();
+      expect(s['a.txt'].isStaged, isFalse);
+      expect(s['b.txt'].isUntracked, isTrue);
+      expect(s['c.txt'].isStaged, isTrue);
+    });
+
+    test('restorePathsFromHead reverts index and worktree', () async {
+      await write('b.txt', 'b\n');
+      await g(['add', '.']);
+      await g(['commit', '-q', '-m', 'b']);
+      await write('a.txt', 'staged\n');
+      await g(['add', 'a.txt']);
+      await write('a.txt', 'staged then edited\n');
+      await write('b.txt', 'edited\n');
+      await writer().restorePathsFromHead(['a.txt', 'b.txt']);
+      expect(await File('${dir.path}/a.txt').readAsString(), 'l1\nl2\nl3\n');
+      expect(await File('${dir.path}/b.txt').readAsString(), 'b\n');
+      expect(await status(), isEmpty);
+    });
+
+    test('an empty list runs nothing', () async {
+      await write('a.txt', 'changed\n');
+      await writer().stagePaths(const []);
+      await writer().unstagePaths(const []);
+      await writer().restorePathsFromHead(const []);
+      expect((await status())['a.txt'].isStaged, isFalse);
+      expect(await File('${dir.path}/a.txt').readAsString(), 'changed\n');
+    });
+  });
 }

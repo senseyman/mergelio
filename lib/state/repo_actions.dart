@@ -692,6 +692,26 @@ class RepoActions {
     _refresh();
   }
 
+  /// Stages exactly [paths] — a selection picked in the Changes panel.
+  Future<void> stageFiles(List<String> paths) async {
+    if (paths.isEmpty || _blockedByRepoOp) return;
+    await _timed(
+      'Stage ${paths.length} files',
+      () => _writer.stagePaths(paths),
+    );
+    _refresh();
+  }
+
+  /// Unstages exactly [paths], keeping their worktree content.
+  Future<void> unstageFiles(List<String> paths) async {
+    if (paths.isEmpty || _blockedByRepoOp) return;
+    await _timed(
+      'Unstage ${paths.length} files',
+      () => _writer.unstagePaths(paths),
+    );
+    _refresh();
+  }
+
   Future<void> applyPatch(String patch, {bool reverse = false}) async {
     if (_blockedByRepoOp) return;
     await _timed(
@@ -800,6 +820,70 @@ class RepoActions {
 
     await _undoable(
       'Discard all changes',
+      discard,
+      undo: restore,
+      redo: discard,
+    );
+  }
+
+  /// Discards every uncommitted change to [files] at once: tracked files
+  /// revert to HEAD, staged and unstaged alike, and untracked ones are
+  /// deleted. One undo entry puts the bytes back and re-stages what was
+  /// staged, as [discardAll] does for the whole tree.
+  Future<void> discardFiles(List<WorkingFile> files) async {
+    if (files.isEmpty || _blockedByRepoOp) return;
+    // A rename is undone through both names: the old one comes back.
+    final tracked = [
+      for (final f in files)
+        if (!f.isUntracked) ...[f.path, ?f.origPath],
+    ];
+    final untracked = [
+      for (final f in files)
+        if (f.isUntracked) f.path,
+    ];
+
+    final before = <String, List<int>?>{};
+    for (final p in {...tracked, ...untracked}) {
+      final file = File('$path/$p');
+      before[p] = await file.exists() ? await file.readAsBytes() : null;
+    }
+    // Literal, like the discard itself: a file named `*.txt` must not pull
+    // other files' staged changes into the patch undo re-applies.
+    final stagedPatch = tracked.isEmpty
+        ? ''
+        : (await _git.run([
+            '--literal-pathspecs',
+            'diff',
+            '--cached',
+            '--',
+            ...tracked,
+          ], repoPath: path)).stdout;
+
+    Future<void> discard() async {
+      await _writer.restorePathsFromHead(tracked);
+      for (final p in untracked) {
+        final file = File('$path/$p');
+        if (await file.exists()) await file.delete();
+      }
+    }
+
+    Future<void> restore() async {
+      for (final entry in before.entries) {
+        final file = File('$path/${entry.key}');
+        if (entry.value == null) {
+          if (await file.exists()) await file.delete();
+        } else {
+          await file.parent.create(recursive: true);
+          await file.writeAsBytes(entry.value!);
+        }
+      }
+      if (stagedPatch.trim().isNotEmpty) {
+        await _writer.applyToIndex(stagedPatch);
+      }
+    }
+
+    await _undoable(
+      'Discard ${files.length} files',
       discard,
       undo: restore,
       redo: discard,

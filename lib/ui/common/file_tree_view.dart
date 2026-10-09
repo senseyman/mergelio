@@ -46,11 +46,20 @@ class FileTreeView extends StatefulWidget {
   /// use [fileIndent] for the left inset so files line up under their folder.
   final Widget Function(String path, int depth) fileRow;
 
+  /// Placed on a folder row between its chevron and its icon — a control
+  /// acting on every file under folder [dir].
+  final Widget Function(String dir)? dirLeading;
+
+  /// A right-click on folder row [dir], at global [position].
+  final void Function(String dir, Offset position)? onDirSecondaryTap;
+
   const FileTreeView({
     super.key,
     required this.paths,
     required this.tree,
     required this.fileRow,
+    this.dirLeading,
+    this.onDirSecondaryTap,
   });
 
   /// Left inset for a row at [depth].
@@ -79,6 +88,10 @@ class _FileTreeViewState extends State<FileTreeView> {
           if (r is FileDirRow)
             _DirRow(
               row: r,
+              leading: widget.dirLeading?.call(r.path),
+              onSecondaryTap: widget.onDirSecondaryTap == null
+                  ? null
+                  : (position) => widget.onDirSecondaryTap!(r.path, position),
               onToggle: () => setState(() {
                 if (!_collapsed.remove(r.path)) _collapsed.add(r.path);
               }),
@@ -93,38 +106,56 @@ class _FileTreeViewState extends State<FileTreeView> {
 class _DirRow extends StatelessWidget {
   final FileDirRow row;
   final VoidCallback onToggle;
-  const _DirRow({required this.row, required this.onToggle});
+  final Widget? leading;
+  final ValueChanged<Offset>? onSecondaryTap;
+  const _DirRow({
+    required this.row,
+    required this.onToggle,
+    this.leading,
+    this.onSecondaryTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
-    return InkWell(
-      onTap: onToggle,
-      hoverColor: t.hover,
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(FileTreeView.indent(row.depth), 3, 10, 3),
-        child: Row(
-          children: [
-            Icon(
-              row.open ? Icons.expand_more : Icons.chevron_right,
-              size: 15,
-              color: t.textFaint,
-            ),
-            const SizedBox(width: 2),
-            Icon(
-              row.open ? Icons.folder_open_outlined : Icons.folder_outlined,
-              size: 13,
-              color: t.textFaint,
-            ),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Text(
-                row.name,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: t.textMuted, fontSize: 12),
+    return GestureDetector(
+      onSecondaryTapUp: onSecondaryTap == null
+          ? null
+          : (d) => onSecondaryTap!(d.globalPosition),
+      child: InkWell(
+        onTap: onToggle,
+        hoverColor: t.hover,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            FileTreeView.indent(row.depth),
+            3,
+            10,
+            3,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                row.open ? Icons.expand_more : Icons.chevron_right,
+                size: 15,
+                color: t.textFaint,
               ),
-            ),
-          ],
+              const SizedBox(width: 2),
+              ?leading,
+              Icon(
+                row.open ? Icons.folder_open_outlined : Icons.folder_outlined,
+                size: 13,
+                color: t.textFaint,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  row.name,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: t.textMuted, fontSize: 12),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

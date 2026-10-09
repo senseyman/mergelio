@@ -4065,4 +4065,83 @@ class AppLocalizationsEn extends AppLocalizations {
   String dashPaletteGoTo(String name) {
     return 'Go to $name';
   }
+
+  @override
+  String wtpSelectedCount(int count) {
+    return '$count selected';
+  }
+
+  @override
+  String get wtpStage => 'Stage';
+
+  @override
+  String get wtpUnstage => 'Unstage';
+
+  @override
+  String wtpStageSelected(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Stage $count files',
+      one: 'Stage $count file',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String wtpUnstageSelected(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Unstage $count files',
+      one: 'Unstage $count file',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String wtpDiscardSelected(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Discard $count files…',
+      one: 'Discard $count file…',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String wtpStashSelected(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Stash $count files…',
+      one: 'Stash $count file…',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get wtpClearSelection => 'Clear selection';
+
+  @override
+  String wtpDiscardSelectedTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Discard changes to $count files?',
+      one: 'Discard changes to $count file?',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get wtpDiscardSelectedBody =>
+      'Tracked files go back to their committed state, dropping staged and unstaged changes; untracked files are deleted. You can undo it.';
+
+  @override
+  String get wtpStageFolder => 'Stage folder';
+
+  @override
+  String get wtpUnstageFolder => 'Unstage folder';
 }
