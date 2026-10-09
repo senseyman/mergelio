@@ -563,6 +563,13 @@ class _FileSection extends StatelessWidget {
     final t = context.tokens;
     final pickedPaths = {for (final f in picked) f.path};
     final many = picked.length >= 2 ? picked : const <WorkingFile>[];
+    // Built once per build, not per row: a large change set has thousands of
+    // rows and hundreds of folders.
+    final byPath = {for (final f in files) f.path: f};
+    final treeOrder = tree ? displayOrder(files, tree: true) : const <String>[];
+    List<WorkingFile> under(String dir) => [
+      for (final p in filesUnder(treeOrder, dir)) byPath[p]!,
+    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -609,17 +616,17 @@ class _FileSection extends StatelessWidget {
           paths: [for (final f in files) f.path],
           tree: tree,
           dirLeading: (dir) {
-            final under = _under(dir);
+            final inDir = under(dir);
             return SizedBox(
               width: 22,
               height: 22,
               child: Tooltip(
                 message: staged ? l.wtpUnstageFolder : l.wtpStageFolder,
                 child: Checkbox(
-                  value: _folderValue(under),
+                  value: _folderValue(inDir),
                   tristate: true,
                   visualDensity: VisualDensity.compact,
-                  onChanged: (_) => onToggleMany(under),
+                  onChanged: (_) => onToggleMany(inDir),
                 ),
               ),
             );
@@ -630,7 +637,7 @@ class _FileSection extends StatelessWidget {
             items: [
               PopupMenuItem(
                 height: 34,
-                onTap: () => onToggleMany(_under(dir)),
+                onTap: () => onToggleMany(under(dir)),
                 child: Text(
                   staged ? l.wtpUnstageFolder : l.wtpStageFolder,
                   style: const TextStyle(fontSize: 13),
@@ -660,17 +667,6 @@ class _FileSection extends StatelessWidget {
         ),
       ],
     );
-  }
-
-  Map<String, WorkingFile> get byPath => {for (final f in files) f.path: f};
-
-  /// Every file of this section inside folder [dir], collapsed or not, in
-  /// the order the tree draws them.
-  List<WorkingFile> _under(String dir) {
-    final all = byPath;
-    return [
-      for (final p in filesUnder(displayOrder(files, tree: true), dir)) all[p]!,
-    ];
   }
 
   /// A folder's checkbox: what its files' checkboxes agree on, else mixed.
@@ -807,66 +803,69 @@ class _FileRow extends StatelessWidget {
                 ),
               ],
       ),
-      child: Material(
-        color: selected ? t.active : Colors.transparent,
-        child: InkWell(
-          onTap: () => onOpen(file),
-          hoverColor: t.hover,
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(10 + indent, 4, 10, 4),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 22,
-                  height: 22,
-                  child: Checkbox(
-                    value: value,
-                    tristate: true,
-                    visualDensity: VisualDensity.compact,
-                    onChanged: (_) =>
-                        many.isNotEmpty ? onToggleMany(many) : onToggle(file),
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    _label,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: t.textMuted, fontSize: 12.5),
-                  ),
-                ),
-                if (lfs) const LfsChip(),
-                if (lfs && lock != null)
-                  LfsLockChip(lock: lock!, ours: lockIsOurs),
-                if (file.isPartial)
-                  Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 6),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 5,
-                      vertical: 1,
+      child: Semantics(
+        selected: selected,
+        child: Material(
+          color: selected ? t.active : Colors.transparent,
+          child: InkWell(
+            onTap: () => onOpen(file),
+            hoverColor: t.hover,
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(10 + indent, 4, 10, 4),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: Checkbox(
+                      value: value,
+                      tristate: true,
+                      visualDensity: VisualDensity.compact,
+                      onChanged: (_) =>
+                          many.isNotEmpty ? onToggleMany(many) : onToggle(file),
                     ),
-                    decoration: BoxDecoration(
-                      color: t.warning.withValues(alpha: 0.16),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
                     child: Text(
-                      'partial',
-                      style: TextStyle(
-                        color: t.warning,
-                        fontSize: 9.5,
-                        fontWeight: FontWeight.w600,
+                      _label,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: t.textMuted, fontSize: 12.5),
+                    ),
+                  ),
+                  if (lfs) const LfsChip(),
+                  if (lfs && lock != null)
+                    LfsLockChip(lock: lock!, ours: lockIsOurs),
+                  if (file.isPartial)
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 5,
+                        vertical: 1,
+                      ),
+                      decoration: BoxDecoration(
+                        color: t.warning.withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        'partial',
+                        style: TextStyle(
+                          color: t.warning,
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
+                  Text(
+                    letter,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                Text(
-                  letter,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

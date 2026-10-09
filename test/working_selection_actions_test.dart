@@ -143,6 +143,24 @@ void main() {
       expect(await file('new.txt').exists(), isFalse);
     });
 
+    test('a file named like a glob snapshots only itself', () async {
+      await file('*.txt').writeAsString('committed star\n');
+      await g(['add', '--', ':(literal)*.txt']);
+      // Only the star file: b.txt's staged change has to stay staged.
+      await g(['commit', '-q', '-m', 'star', '--', ':(literal)*.txt']);
+      await file('*.txt').writeAsString('staged star\n');
+      await g(['add', '--', ':(literal)*.txt']);
+      final actions = container().read(repoActionsProvider(repo.path));
+
+      await actions.discardFiles(await picked(['*.txt']));
+      // b.txt's staged change was never discarded, so undo must not try to
+      // stage it a second time.
+      await actions.undo();
+
+      expect(await out(['show', ':*.txt']), 'staged star');
+      expect(await out(['show', ':b.txt']), 'staged b');
+    });
+
     test('an empty pick records nothing', () async {
       final c = container();
       await c.read(repoActionsProvider(repo.path)).discardFiles(const []);

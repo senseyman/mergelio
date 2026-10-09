@@ -176,6 +176,10 @@ void main() {
     expect(container.read(diffTargetProvider), isNull);
     expect(selection().paths, {'a.txt', 'd.txt'});
     expect(find.text('2 selected'), findsOneWidget);
+    expect(
+      tester.getSemantics(find.text('a.txt')),
+      isSemantics(isSelected: true),
+    );
   });
 
   desktopTest('Ctrl-click is the toggle off macOS', (tester) async {

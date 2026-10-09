@@ -847,9 +847,12 @@ class RepoActions {
       final file = File('$path/$p');
       before[p] = await file.exists() ? await file.readAsBytes() : null;
     }
+    // Literal, like the discard itself: a file named `*.txt` must not pull
+    // other files' staged changes into the patch undo re-applies.
     final stagedPatch = tracked.isEmpty
         ? ''
         : (await _git.run([
+            '--literal-pathspecs',
             'diff',
             '--cached',
             '--',
