@@ -6877,6 +6877,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Tracked files go back to their committed state, dropping staged and unstaged changes; untracked files are deleted. You can undo it.'**
   String get wtpDiscardSelectedBody;
+
+  /// No description provided for @wtpStageFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Stage folder'**
+  String get wtpStageFolder;
+
+  /// No description provided for @wtpUnstageFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Unstage folder'**
+  String get wtpUnstageFolder;
 }
 
 class _AppLocalizationsDelegate

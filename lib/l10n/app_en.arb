@@ -2535,5 +2535,7 @@
       }
     }
   },
-  "wtpDiscardSelectedBody": "Tracked files go back to their committed state, dropping staged and unstaged changes; untracked files are deleted. You can undo it."
+  "wtpDiscardSelectedBody": "Tracked files go back to their committed state, dropping staged and unstaged changes; untracked files are deleted. You can undo it.",
+  "wtpStageFolder": "Stage folder",
+  "wtpUnstageFolder": "Unstage folder"
 }

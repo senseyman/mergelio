@@ -68,11 +68,25 @@ const _data = RepoData(
   ],
 );
 
+const _nested = RepoData(
+  working: [
+    WorkingFile(path: 'src/x.txt', worktree: GitChange.modified),
+    WorkingFile(path: 'src/deep/y.txt', worktree: GitChange.untracked),
+    WorkingFile(path: 'top.txt', worktree: GitChange.modified),
+    WorkingFile(path: 'src/s.txt', index: GitChange.modified),
+    WorkingFile(path: 'src/deep/t.txt', index: GitChange.added),
+  ],
+);
+
 void main() {
   late _RecordingActions actions;
   late ProviderContainer container;
 
-  Future<void> pump(WidgetTester tester, {double width = 400}) async {
+  Future<void> pump(
+    WidgetTester tester, {
+    double width = 400,
+    RepoData data = _data,
+  }) async {
     tester.view.physicalSize = Size(width, 1000);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -94,7 +108,7 @@ void main() {
               GitWriter(_FakeGit(), path),
             ),
           ),
-          repoDataProvider.overrideWith((ref, path) async => _data),
+          repoDataProvider.overrideWith((ref, path) async => data),
         ],
         child: MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -104,7 +118,7 @@ void main() {
             body: Consumer(
               builder: (context, ref, _) {
                 container = ProviderScope.containerOf(context);
-                return WorkingTreePanel(repoPath: '/r', data: _data);
+                return WorkingTreePanel(repoPath: '/r', data: data);
               },
             ),
           ),
@@ -337,6 +351,76 @@ void main() {
       'src/b.txt',
       'z.txt',
     ]);
+  });
+
+  group('folders', () {
+    Finder dirCheckbox(String label, {int at = 0}) => find
+        .descendant(
+          of: find.ancestor(of: find.text(label), matching: find.byType(Row)),
+          matching: find.byType(Checkbox),
+        )
+        .at(at);
+
+    desktopTest('a folder\'s checkbox stages every file under it', (
+      tester,
+    ) async {
+      await pump(tester, data: _nested);
+      // UNSTAGED lists first, so its `src` row comes first.
+      await tester.tap(dirCheckbox('src'));
+      await tester.pump();
+      expect(actions.calls, ['stage src/deep/y.txt,src/x.txt']);
+    });
+
+    desktopTest('in the staged list it unstages them', (tester) async {
+      await pump(tester, data: _nested);
+      await tester.tap(
+        find
+            .descendant(
+              of: find.ancestor(
+                of: find.text('src').last,
+                matching: find.byType(Row),
+              ),
+              matching: find.byType(Checkbox),
+            )
+            .first,
+      );
+      await tester.pump();
+      expect(actions.calls, ['unstage src/deep/t.txt,src/s.txt']);
+    });
+
+    desktopTest('a nested folder takes only its own files', (tester) async {
+      await pump(tester, data: _nested);
+      await tester.tap(dirCheckbox('deep'));
+      await tester.pump();
+      expect(actions.calls, ['stage src/deep/y.txt']);
+    });
+
+    desktopTest('right-clicking a folder offers staging it', (tester) async {
+      await pump(tester, data: _nested);
+      await tester.tap(find.text('src').first, buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Stage folder'));
+      await tester.pumpAndSettle();
+      expect(actions.calls, ['stage src/deep/y.txt,src/x.txt']);
+
+      await tester.tap(find.text('src').last, buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Unstage folder'));
+      await tester.pumpAndSettle();
+      expect(actions.calls.last, 'unstage src/deep/t.txt,src/s.txt');
+    });
+
+    desktopTest('a collapsed folder still stages what it hides', (
+      tester,
+    ) async {
+      await pump(tester, data: _nested);
+      await tester.tap(find.text('src').first);
+      await tester.pump();
+      expect(find.text('x.txt'), findsNothing);
+      await tester.tap(dirCheckbox('src'));
+      await tester.pump();
+      expect(actions.calls, ['stage src/deep/y.txt,src/x.txt']);
+    });
   });
 
   for (final width in [336.0, 400.0, 600.0]) {

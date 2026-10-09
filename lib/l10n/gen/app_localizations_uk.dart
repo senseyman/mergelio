@@ -4201,4 +4201,10 @@ class AppLocalizationsUk extends AppLocalizations {
   @override
   String get wtpDiscardSelectedBody =>
       'Відстежувані файли повернуться до закомічених версій, без індексованих і неіндексованих змін; невідстежувані файли буде видалено. Дію можна скасувати.';
+
+  @override
+  String get wtpStageFolder => 'Проіндексувати теку';
+
+  @override
+  String get wtpUnstageFolder => 'Зняти індексацію з теки';
 }

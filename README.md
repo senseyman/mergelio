@@ -144,6 +144,8 @@ change never needs a second window.*
   add one, shift-click for a run — then stage, unstage, stash or discard them
   together from the selection bar, a selected row's checkbox, or its
   right-click menu. Discarding a selection is one undo step.
+- In tree view a folder row has its own checkbox and right-click entry that
+  stage or unstage every file under it, collapsed or not.
 - Side-by-side or unified diffs with word-level intra-line highlighting and
   syntax colouring. Long lines scroll sideways instead of being cut off, and in
   split view each column scrolls on its own — a new file's empty left half no

@@ -608,6 +608,36 @@ class _FileSection extends StatelessWidget {
         FileTreeView(
           paths: [for (final f in files) f.path],
           tree: tree,
+          dirLeading: (dir) {
+            final under = _under(dir);
+            return SizedBox(
+              width: 22,
+              height: 22,
+              child: Tooltip(
+                message: staged ? l.wtpUnstageFolder : l.wtpStageFolder,
+                child: Checkbox(
+                  value: _folderValue(under),
+                  tristate: true,
+                  visualDensity: VisualDensity.compact,
+                  onChanged: (_) => onToggleMany(under),
+                ),
+              ),
+            );
+          },
+          onDirSecondaryTap: (dir, position) => showContextMenu<void>(
+            context: context,
+            position: position,
+            items: [
+              PopupMenuItem(
+                height: 34,
+                onTap: () => onToggleMany(_under(dir)),
+                child: Text(
+                  staged ? l.wtpUnstageFolder : l.wtpStageFolder,
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ),
+            ],
+          ),
           fileRow: (path, depth) => _FileRow(
             file: byPath[path]!,
             selected: pickedPaths.contains(path),
@@ -633,6 +663,21 @@ class _FileSection extends StatelessWidget {
   }
 
   Map<String, WorkingFile> get byPath => {for (final f in files) f.path: f};
+
+  /// Every file of this section inside folder [dir], collapsed or not, in
+  /// the order the tree draws them.
+  List<WorkingFile> _under(String dir) {
+    final all = byPath;
+    return [
+      for (final p in filesUnder(displayOrder(files, tree: true), dir)) all[p]!,
+    ];
+  }
+
+  /// A folder's checkbox: what its files' checkboxes agree on, else mixed.
+  bool? _folderValue(List<WorkingFile> under) {
+    if (under.any((f) => f.isPartial)) return null;
+    return staged;
+  }
 }
 
 class _FileRow extends StatelessWidget {

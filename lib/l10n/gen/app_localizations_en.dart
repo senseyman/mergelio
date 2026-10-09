@@ -4138,4 +4138,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get wtpDiscardSelectedBody =>
       'Tracked files go back to their committed state, dropping staged and unstaged changes; untracked files are deleted. You can undo it.';
+
+  @override
+  String get wtpStageFolder => 'Stage folder';
+
+  @override
+  String get wtpUnstageFolder => 'Unstage folder';
 }
