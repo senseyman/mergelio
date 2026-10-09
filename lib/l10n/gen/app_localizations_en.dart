@@ -2455,10 +2455,37 @@ class AppLocalizationsEn extends AppLocalizations {
   String get diffUnstageFile => 'Unstage file';
 
   @override
-  String get diffShowChangesOnly => 'Show changes only';
+  String get diffShowWholeFile => 'Show whole file';
 
   @override
-  String get diffShowWholeFile => 'Show whole file';
+  String get diffOptions => 'Diff options';
+
+  @override
+  String diffContextLines(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count lines',
+      one: '$count line',
+    );
+    return 'Context: $_temp0';
+  }
+
+  @override
+  String get diffWhitespaceShow => 'Show whitespace';
+
+  @override
+  String get diffWhitespaceIgnoreChange => 'Ignore whitespace changes';
+
+  @override
+  String get diffWhitespaceIgnoreAll => 'Ignore all whitespace';
+
+  @override
+  String get diffWhitespaceNotice =>
+      'Whitespace is hidden, so hunks and lines can\'t be staged or discarded here. Show whitespace to use them.';
+
+  @override
+  String get diffWhitespaceOnly => 'Only whitespace changed';
 
   @override
   String get diffMoreActions => 'More actions';

@@ -68,6 +68,10 @@ abstract class AppSettings with _$AppSettings {
     @Default(0.0) double graphRailWidth,
     // Diff sheet: split vs inline view.
     @Default(false) bool diffSplit,
+    // Diff sheet: 'show' | 'ignoreChange' | 'ignoreAll' whitespace handling,
+    // and lines of context around each change.
+    @Default('show') String diffWhitespace,
+    @Default(3) int diffContextLines,
     // General preferences.
     @Default(false) bool autoFetch,
     // Auto-fetch poll interval in seconds (only used while autoFetch is on).

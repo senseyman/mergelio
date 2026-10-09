@@ -4238,17 +4238,53 @@ abstract class AppLocalizations {
   /// **'Unstage file'**
   String get diffUnstageFile;
 
-  /// No description provided for @diffShowChangesOnly.
-  ///
-  /// In en, this message translates to:
-  /// **'Show changes only'**
-  String get diffShowChangesOnly;
-
   /// No description provided for @diffShowWholeFile.
   ///
   /// In en, this message translates to:
   /// **'Show whole file'**
   String get diffShowWholeFile;
+
+  /// No description provided for @diffOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Diff options'**
+  String get diffOptions;
+
+  /// No description provided for @diffContextLines.
+  ///
+  /// In en, this message translates to:
+  /// **'Context: {count, plural, one{{count} line} other{{count} lines}}'**
+  String diffContextLines(int count);
+
+  /// No description provided for @diffWhitespaceShow.
+  ///
+  /// In en, this message translates to:
+  /// **'Show whitespace'**
+  String get diffWhitespaceShow;
+
+  /// No description provided for @diffWhitespaceIgnoreChange.
+  ///
+  /// In en, this message translates to:
+  /// **'Ignore whitespace changes'**
+  String get diffWhitespaceIgnoreChange;
+
+  /// No description provided for @diffWhitespaceIgnoreAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Ignore all whitespace'**
+  String get diffWhitespaceIgnoreAll;
+
+  /// No description provided for @diffWhitespaceNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Whitespace is hidden, so hunks and lines can\'t be staged or discarded here. Show whitespace to use them.'**
+  String get diffWhitespaceNotice;
+
+  /// No description provided for @diffWhitespaceOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Only whitespace changed'**
+  String get diffWhitespaceOnly;
 
   /// No description provided for @diffMoreActions.
   ///

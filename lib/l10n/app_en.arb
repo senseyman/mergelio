@@ -1735,8 +1735,21 @@
   "diffUncommittedWorkingTree": "Uncommitted changes · working tree",
   "diffStageFile": "Stage file",
   "diffUnstageFile": "Unstage file",
-  "diffShowChangesOnly": "Show changes only",
   "diffShowWholeFile": "Show whole file",
+  "diffOptions": "Diff options",
+  "diffContextLines": "Context: {count, plural, one{{count} line} other{{count} lines}}",
+  "@diffContextLines": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "diffWhitespaceShow": "Show whitespace",
+  "diffWhitespaceIgnoreChange": "Ignore whitespace changes",
+  "diffWhitespaceIgnoreAll": "Ignore all whitespace",
+  "diffWhitespaceNotice": "Whitespace is hidden, so hunks and lines can't be staged or discarded here. Show whitespace to use them.",
+  "diffWhitespaceOnly": "Only whitespace changed",
   "diffMoreActions": "More actions",
   "diffViewInline": "Inline",
   "diffViewSplit": "Split",

@@ -200,6 +200,10 @@ class SettingsController extends StateNotifier<AppSettings> {
 
   void setDiffSplit(bool split) => _update(state.copyWith(diffSplit: split));
 
+  void setDiffViewOptions(String whitespace, int contextLines) => _update(
+    state.copyWith(diffWhitespace: whitespace, diffContextLines: contextLines),
+  );
+
   void setDiffHeight(double h) =>
       _update(state.copyWith(diffHeight: h.clamp(0.28, 0.86)));
 

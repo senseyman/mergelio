@@ -19,6 +19,27 @@ import 'worktree.dart';
 /// source file; git clamps to the file length.
 const kWholeFileContext = 1000000;
 
+/// How a diff treats whitespace. Anything but [show] makes the hunks blind to
+/// some of what changed, so they no longer describe the index and must not be
+/// turned into patches.
+enum DiffWhitespace {
+  show,
+
+  /// `--ignore-space-change`: a run of whitespace counts the same as any other
+  /// run, but adding whitespace where there was none still shows.
+  ignoreChange,
+
+  /// `--ignore-all-space`: whitespace never counts.
+  ignoreAll,
+}
+
+/// The git flags for [mode].
+List<String> whitespaceArgs(DiffWhitespace mode) => switch (mode) {
+  DiffWhitespace.show => const [],
+  DiffWhitespace.ignoreChange => const ['--ignore-space-change'],
+  DiffWhitespace.ignoreAll => const ['--ignore-all-space'],
+};
+
 /// Reads a repository's refs, commits and working-tree state through a
 /// [GitService] and parses the raw output into domain [models]. Kept separate
 /// from [GitService] (a thin process runner) so the parsing is reusable if the
@@ -662,11 +683,17 @@ class GitReader {
   ///
   /// [context] sets the number of surrounding context lines; null leaves git's
   /// default of 3. Pass [kWholeFileContext] to render the entire file.
-  Future<String> workingDiff(String path, {int? context}) async {
+  /// [whitespace] picks how whitespace-only edits are treated.
+  Future<String> workingDiff(
+    String path, {
+    int? context,
+    DiffWhitespace whitespace = DiffWhitespace.show,
+  }) async {
     final r = await _run([
       'diff',
       '--no-color',
       ..._contextArgs(context),
+      ...whitespaceArgs(whitespace),
       '--',
       path,
     ]);
@@ -675,17 +702,20 @@ class GitReader {
   }
 
   /// Unified diff of the staged changes to [path] (index vs HEAD). Pass
-  /// [origPath] for a staged rename. See [workingDiff] for [context].
+  /// [origPath] for a staged rename. See [workingDiff] for [context] and
+  /// [whitespace].
   Future<String> stagedDiff(
     String path, {
     int? context,
     String? origPath,
+    DiffWhitespace whitespace = DiffWhitespace.show,
   }) async {
     final r = await _run([
       'diff',
       '--no-color',
       '--cached',
       ..._contextArgs(context),
+      ...whitespaceArgs(whitespace),
       '--',
       ..._renamePathspec(path, origPath),
     ]);
@@ -696,12 +726,17 @@ class GitReader {
   /// Full content of an untracked [path] rendered as an all-added diff, via
   /// `git diff --no-index` against /dev/null. That command exits 1 when there
   /// is a difference, which is expected here — not an error.
-  Future<String> untrackedDiff(String path, {int? context}) async {
+  Future<String> untrackedDiff(
+    String path, {
+    int? context,
+    DiffWhitespace whitespace = DiffWhitespace.show,
+  }) async {
     final r = await _run([
       'diff',
       '--no-color',
       '--no-index',
       ..._contextArgs(context),
+      ...whitespaceArgs(whitespace),
       '--',
       '/dev/null',
       path,
@@ -710,12 +745,14 @@ class GitReader {
   }
 
   /// Unified diff introduced by [sha] for [path], against its first parent.
-  /// Pass [origPath] for a renamed file. See [workingDiff] for [context].
+  /// Pass [origPath] for a renamed file. See [workingDiff] for [context] and
+  /// [whitespace].
   Future<String> commitDiff(
     String sha,
     String path, {
     int? context,
     String? origPath,
+    DiffWhitespace whitespace = DiffWhitespace.show,
   }) async {
     final r = await _run([
       'show',
@@ -723,6 +760,7 @@ class GitReader {
       '--format=',
       '--first-parent',
       ..._contextArgs(context),
+      ...whitespaceArgs(whitespace),
       sha,
       '--',
       ..._renamePathspec(path, origPath),
@@ -976,9 +1014,21 @@ class GitReader {
 
   /// Raw `git blame --line-porcelain` output for [path] (parse with
   /// [parseBlame]). Annotates the file as of [rev] when given, else the
-  /// working-tree copy.
-  Future<String> blame(String path, {String? rev}) async {
-    final r = await _run(['blame', '--line-porcelain', ?rev, '--', path]);
+  /// working-tree copy. [ignoreWhitespace] credits a line to the commit that
+  /// last changed more than its whitespace.
+  Future<String> blame(
+    String path, {
+    String? rev,
+    bool ignoreWhitespace = false,
+  }) async {
+    final r = await _run([
+      'blame',
+      '--line-porcelain',
+      if (ignoreWhitespace) '-w',
+      ?rev,
+      '--',
+      path,
+    ]);
     if (!r.ok) throw GitException('git blame failed', r);
     return r.stdout;
   }
@@ -1026,19 +1076,21 @@ class GitReader {
 
   /// Unified diff of [path] between [from] and [to], matching what
   /// [compareFiles] listed. Pass [origPath] for a renamed file. See
-  /// [workingDiff] for [context].
+  /// [workingDiff] for [context] and [whitespace].
   Future<String> compareDiff(
     String from,
     String to,
     String path, {
     int? context,
     String? origPath,
+    DiffWhitespace whitespace = DiffWhitespace.show,
   }) async {
     final r = await _run([
       'diff',
       '--no-color',
       '--find-renames',
       ..._contextArgs(context),
+      ...whitespaceArgs(whitespace),
       from,
       to,
       '--',
