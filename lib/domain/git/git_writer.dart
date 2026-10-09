@@ -115,12 +115,14 @@ class GitWriter {
     Duration? timeout,
     Map<String, String>? environment,
     GitCancel? cancel,
+    String? stdin,
   }) => git.run(
     args,
     repoPath: repoPath,
     timeout: timeout,
     environment: environment,
     cancel: cancel,
+    stdin: stdin,
   );
 
   Future<void> _ok(
@@ -129,12 +131,14 @@ class GitWriter {
     Duration? timeout,
     Map<String, String>? environment,
     GitCancel? cancel,
+    String? stdin,
   }) async {
     final r = await _run(
       args,
       timeout: timeout,
       environment: environment,
       cancel: cancel,
+      stdin: stdin,
     );
     if (!r.ok) throw GitException(what, r);
   }
@@ -996,6 +1000,39 @@ class GitWriter {
   Future<void> stageAll() => _ok(['add', '-A'], 'git add -A');
 
   Future<void> unstageAll() => _ok(['reset', '-q', 'HEAD'], 'git reset');
+
+  /// Stages exactly [paths]; deletions included.
+  Future<void> stagePaths(List<String> paths) =>
+      _onPaths(['add'], paths, 'git add');
+
+  /// Unstages exactly [paths], leaving their worktree content alone.
+  Future<void> unstagePaths(List<String> paths) =>
+      _onPaths(['restore', '--staged'], paths, 'git restore --staged');
+
+  /// Reverts [paths] to HEAD in both the index and the worktree. Every path
+  /// must be known to git: an untracked one fails the whole command.
+  Future<void> restorePathsFromHead(List<String> paths) => _onPaths(
+    ['restore', '--staged', '--worktree', '--source=HEAD'],
+    paths,
+    'git restore',
+  );
+
+  /// Runs [command] over [paths] taken literally, so a file named `*.md` is
+  /// that one file. The list goes through stdin rather than argv: a large
+  /// selection would overflow a command line, Windows' first of all.
+  Future<void> _onPaths(List<String> command, List<String> paths, String what) {
+    if (paths.isEmpty) return Future.value();
+    return _ok(
+      [
+        '--literal-pathspecs',
+        ...command,
+        '--pathspec-from-file=-',
+        '--pathspec-file-nul',
+      ],
+      what,
+      stdin: paths.map((p) => '$p\x00').join(),
+    );
+  }
 
   /// Applies [patch] to the index (staging), or reverses it (unstaging). The
   /// patch is written to a temp file because git reads it from a path, not

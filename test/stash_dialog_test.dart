@@ -45,7 +45,7 @@ const _working = [
   WorkingFile(path: 'new.txt', worktree: GitChange.untracked),
 ];
 
-Future<_FakeGit> _open(WidgetTester tester) async {
+Future<_FakeGit> _open(WidgetTester tester, {List<WorkingFile>? only}) async {
   tester.view.physicalSize = const Size(900, 900);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
@@ -66,7 +66,7 @@ Future<_FakeGit> _open(WidgetTester tester) async {
         home: Scaffold(
           body: Consumer(
             builder: (context, ref, _) => TextButton(
-              onPressed: () => showStashDialog(context, ref, '/r'),
+              onPressed: () => showStashDialog(context, ref, '/r', only: only),
               child: const Text('open'),
             ),
           ),
@@ -83,6 +83,34 @@ Future<_FakeGit> _open(WidgetTester tester) async {
 Finder _stashButton() => find.widgetWithText(FilledButton, 'Stash');
 
 void main() {
+  group('opened on a selection', () {
+    testWidgets('only the picked files start ticked', (tester) async {
+      final git = await _open(tester, only: [_working[1]]);
+      await tester.tap(_stashButton());
+      await tester.pumpAndSettle();
+      expect(git.pushes, ['stash push -- :/ :(exclude,literal)staged.txt']);
+    });
+
+    testWidgets('a picked untracked file turns untracked on', (tester) async {
+      final git = await _open(tester, only: [_working[1], _working[2]]);
+      expect(find.text('new.txt'), findsOneWidget);
+      await tester.tap(_stashButton());
+      await tester.pumpAndSettle();
+      expect(git.pushes, [
+        'stash push --include-untracked -- :/ :(exclude,literal)staged.txt',
+      ]);
+    });
+
+    testWidgets('a file outside the pick can still be ticked', (tester) async {
+      final git = await _open(tester, only: [_working[1]]);
+      await tester.tap(find.text('staged.txt'));
+      await tester.pumpAndSettle();
+      await tester.tap(_stashButton());
+      await tester.pumpAndSettle();
+      expect(git.pushes, ['stash push']);
+    });
+  });
+
   testWidgets('lists tracked changes; untracked only once included', (
     tester,
   ) async {

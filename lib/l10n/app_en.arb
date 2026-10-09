@@ -2483,5 +2483,57 @@
   "@dashBatchSummary": {"placeholders": {"done": {"type": "int"}, "failed": {"type": "int"}, "skipped": {"type": "int"}, "cancelled": {"type": "int"}}},
   "dashPaletteOpen": "Open dashboard",
   "dashPaletteGoTo": "Go to {name}",
-  "@dashPaletteGoTo": {"placeholders": {"name": {"type": "String"}}}
+  "@dashPaletteGoTo": {"placeholders": {"name": {"type": "String"}}},
+  "wtpSelectedCount": "{count} selected",
+  "@wtpSelectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "wtpStage": "Stage",
+  "wtpUnstage": "Unstage",
+  "wtpStageSelected": "{count, plural, one{Stage {count} file} other{Stage {count} files}}",
+  "@wtpStageSelected": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "wtpUnstageSelected": "{count, plural, one{Unstage {count} file} other{Unstage {count} files}}",
+  "@wtpUnstageSelected": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "wtpDiscardSelected": "{count, plural, one{Discard {count} file…} other{Discard {count} files…}}",
+  "@wtpDiscardSelected": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "wtpStashSelected": "{count, plural, one{Stash {count} file…} other{Stash {count} files…}}",
+  "@wtpStashSelected": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "wtpClearSelection": "Clear selection",
+  "wtpDiscardSelectedTitle": "{count, plural, one{Discard changes to {count} file?} other{Discard changes to {count} files?}}",
+  "@wtpDiscardSelectedTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "wtpDiscardSelectedBody": "Tracked files go back to their committed state, dropping staged and unstaged changes; untracked files are deleted. You can undo it."
 }

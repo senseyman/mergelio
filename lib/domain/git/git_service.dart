@@ -458,7 +458,10 @@ class SystemGitService implements GitService, GitBytesRunner {
     } else {
       unawaited(() async {
         try {
-          proc.stdin.write(stdin);
+          // Encoded as UTF-8 to match what git reads, not the IOSink's
+          // system encoding — the ANSI code page on Windows would mangle a
+          // non-ASCII path or password.
+          proc.stdin.add(utf8.encode(stdin));
           await proc.stdin.flush();
         } on Object {
           // A child that exited before reading breaks the pipe. Its exit code

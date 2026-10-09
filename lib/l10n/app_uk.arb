@@ -1436,5 +1436,15 @@
   "dashPullDone": "Pull завершено",
   "dashBatchSummary": "успішно: {done}, помилок: {failed}, пропущено: {skipped}, скасовано: {cancelled}",
   "dashPaletteOpen": "Відкрити панель",
-  "dashPaletteGoTo": "Перейти до {name}"
+  "dashPaletteGoTo": "Перейти до {name}",
+  "wtpSelectedCount": "Вибрано: {count}",
+  "wtpStage": "Проіндексувати",
+  "wtpUnstage": "Зняти індексацію",
+  "wtpStageSelected": "{count, plural, one{Проіндексувати {count} файл} few{Проіндексувати {count} файли} many{Проіндексувати {count} файлів} other{Проіндексувати {count} файла}}",
+  "wtpUnstageSelected": "{count, plural, one{Зняти індексацію з {count} файлу} few{Зняти індексацію з {count} файлів} many{Зняти індексацію з {count} файлів} other{Зняти індексацію з {count} файла}}",
+  "wtpDiscardSelected": "{count, plural, one{Відкинути {count} файл…} few{Відкинути {count} файли…} many{Відкинути {count} файлів…} other{Відкинути {count} файла…}}",
+  "wtpStashSelected": "{count, plural, one{Сховати {count} файл…} few{Сховати {count} файли…} many{Сховати {count} файлів…} other{Сховати {count} файла…}}",
+  "wtpClearSelection": "Зняти виділення",
+  "wtpDiscardSelectedTitle": "{count, plural, one{Відкинути зміни в {count} файлі?} few{Відкинути зміни в {count} файлах?} many{Відкинути зміни в {count} файлах?} other{Відкинути зміни в {count} файла?}}",
+  "wtpDiscardSelectedBody": "Відстежувані файли повернуться до закомічених версій, без індексованих і неіндексованих змін; невідстежувані файли буде видалено. Дію можна скасувати."
 }
