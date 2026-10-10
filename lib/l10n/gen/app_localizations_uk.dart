@@ -4236,4 +4236,44 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get wtpUnstageFolder => 'Зняти індексацію з теки';
+
+  @override
+  String get wtpIgnore => 'Ігнорувати…';
+
+  @override
+  String get ignTitle => 'Додати правило ігнорування';
+
+  @override
+  String get ignWhat => 'Що ігнорувати';
+
+  @override
+  String get ignScopeFile => 'Цей файл';
+
+  @override
+  String ignScopeExtension(String ext) {
+    return 'Усі файли $ext';
+  }
+
+  @override
+  String get ignScopeFolder => 'Усю теку';
+
+  @override
+  String get ignWhere => 'Записати правило в';
+
+  @override
+  String get ignTargetRoot => '.gitignore у корені репозиторію';
+
+  @override
+  String ignTargetNearest(String path) {
+    return 'Найближчий .gitignore ($path)';
+  }
+
+  @override
+  String get ignTargetExclude => '.git/info/exclude';
+
+  @override
+  String get ignTargetExcludeHint => 'Лише цей клон; не потрапляє в коміт';
+
+  @override
+  String get ignAdd => 'Додати правило';
 }

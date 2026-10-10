@@ -4171,4 +4171,44 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get wtpUnstageFolder => 'Unstage folder';
+
+  @override
+  String get wtpIgnore => 'Ignore…';
+
+  @override
+  String get ignTitle => 'Add an ignore rule';
+
+  @override
+  String get ignWhat => 'What to ignore';
+
+  @override
+  String get ignScopeFile => 'This file';
+
+  @override
+  String ignScopeExtension(String ext) {
+    return 'Every $ext file';
+  }
+
+  @override
+  String get ignScopeFolder => 'The whole folder';
+
+  @override
+  String get ignWhere => 'Write the rule to';
+
+  @override
+  String get ignTargetRoot => '.gitignore at the repository root';
+
+  @override
+  String ignTargetNearest(String path) {
+    return 'Nearest .gitignore ($path)';
+  }
+
+  @override
+  String get ignTargetExclude => '.git/info/exclude';
+
+  @override
+  String get ignTargetExcludeHint => 'Only this clone; never committed';
+
+  @override
+  String get ignAdd => 'Add rule';
 }
