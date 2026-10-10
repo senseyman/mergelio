@@ -4276,4 +4276,87 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get ignAdd => 'Додати правило';
+
+  @override
+  String get apcPaletteOpen => 'Застосувати патч…';
+
+  @override
+  String get apcTitle => 'Застосувати патч';
+
+  @override
+  String get apcPickPatch => 'Патч або поштова скринька';
+
+  @override
+  String apcMessages(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count повідомлення',
+      many: '$count повідомлень',
+      few: '$count повідомлення',
+      one: '$count повідомлення',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get apcNoCommitNotice =>
+      'Повідомлення комітів та автори з цього файлу не застосовуються. Зміни залишаються вам для перегляду та коміту.';
+
+  @override
+  String apcFiles(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count файлу',
+      many: '$count файлів',
+      few: '$count файли',
+      one: '$count файл',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get apcBinary => 'bin';
+
+  @override
+  String get apcHow => 'Як застосувати';
+
+  @override
+  String get apcModeWorktree => 'Застосувати до робочого дерева';
+
+  @override
+  String get apcModeWorktreeHint => 'Нічого не індексується';
+
+  @override
+  String get apcModeStage => 'Застосувати й проіндексувати';
+
+  @override
+  String get apcModeStageHint => 'Зміни потрапляють і до індексу';
+
+  @override
+  String get apcModeThreeWay => 'Тристороннє злиття';
+
+  @override
+  String get apcModeThreeWayClean =>
+      'Патч уже не накладається напряму; тристороннє злиття застосує його без конфліктів';
+
+  @override
+  String get apcModeThreeWayConflicts =>
+      'Патч уже не накладається; тристороннє злиття залишить конфлікти для розв\'язання';
+
+  @override
+  String get apcCannotApply => 'Цей патч не застосовується до робочого дерева.';
+
+  @override
+  String get apcApply => 'Застосувати';
+
+  @override
+  String get apcTooLarge => 'Файл патча завеликий';
+
+  @override
+  String get apcReadFailed => 'Не вдалося прочитати файл патча';
+
+  @override
+  String get apcAllFiles => 'Усі файли';
 }

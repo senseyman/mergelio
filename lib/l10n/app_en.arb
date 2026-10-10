@@ -2246,7 +2246,7 @@
       }
     }
   },
-  "rvFileCount": "{count, plural, =1{1 file} other{{count} files}}",
+  "rvFileCount": "{count, plural, one{1 file} other{{count} files}}",
   "@rvFileCount": {
     "placeholders": {
       "count": {
@@ -2564,5 +2564,27 @@
   "@ignTargetNearest": { "placeholders": { "path": { "type": "String" } } },
   "ignTargetExclude": ".git/info/exclude",
   "ignTargetExcludeHint": "Only this clone; never committed",
-  "ignAdd": "Add rule"
+  "ignAdd": "Add rule",
+  "apcPaletteOpen": "Apply patch…",
+  "apcTitle": "Apply patch",
+  "apcPickPatch": "Patch or mailbox",
+  "apcMessages": "{count, plural, one{1 message} other{{count} messages}}",
+  "@apcMessages": { "placeholders": { "count": { "type": "int" } } },
+  "apcNoCommitNotice": "Commit messages and authors in this file are not applied. The changes are left for you to review and commit.",
+  "apcFiles": "{count, plural, one{1 file} other{{count} files}}",
+  "@apcFiles": { "placeholders": { "count": { "type": "int" } } },
+  "apcBinary": "bin",
+  "apcHow": "How to apply",
+  "apcModeWorktree": "Apply to working tree",
+  "apcModeWorktreeHint": "Nothing is staged",
+  "apcModeStage": "Apply and stage",
+  "apcModeStageHint": "Changes land in the index too",
+  "apcModeThreeWay": "3-way merge",
+  "apcModeThreeWayClean": "The patch no longer fits directly; a 3-way merge applies it cleanly",
+  "apcModeThreeWayConflicts": "The patch no longer fits; a 3-way merge will leave conflicts to resolve",
+  "apcCannotApply": "This patch does not apply to the working tree.",
+  "apcApply": "Apply",
+  "apcTooLarge": "Patch file is too large",
+  "apcReadFailed": "Could not read the patch file",
+  "apcAllFiles": "All files"
 }

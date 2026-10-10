@@ -81,11 +81,11 @@ void main() {
 
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
-    expect(find.text('Add remote…'), findsOneWidget);
-
-    // The command list scrolls; this one sits below its first screenful.
-    await tester.ensureVisible(find.text('Add remote…'));
+    // The list is lazy and this entry sits below its first screenful, so it
+    // is filtered into view rather than scrolled to.
+    await tester.enterText(find.byType(TextField), 'Add remote');
     await tester.pumpAndSettle();
+    expect(find.text('Add remote…'), findsOneWidget);
     await tester.tap(find.text('Add remote…'));
     await tester.pumpAndSettle();
     expect(find.byKey(remoteNameFieldKey), findsOneWidget);

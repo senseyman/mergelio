@@ -4211,4 +4211,83 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ignAdd => 'Add rule';
+
+  @override
+  String get apcPaletteOpen => 'Apply patch…';
+
+  @override
+  String get apcTitle => 'Apply patch';
+
+  @override
+  String get apcPickPatch => 'Patch or mailbox';
+
+  @override
+  String apcMessages(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count messages',
+      one: '1 message',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get apcNoCommitNotice =>
+      'Commit messages and authors in this file are not applied. The changes are left for you to review and commit.';
+
+  @override
+  String apcFiles(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count files',
+      one: '1 file',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get apcBinary => 'bin';
+
+  @override
+  String get apcHow => 'How to apply';
+
+  @override
+  String get apcModeWorktree => 'Apply to working tree';
+
+  @override
+  String get apcModeWorktreeHint => 'Nothing is staged';
+
+  @override
+  String get apcModeStage => 'Apply and stage';
+
+  @override
+  String get apcModeStageHint => 'Changes land in the index too';
+
+  @override
+  String get apcModeThreeWay => '3-way merge';
+
+  @override
+  String get apcModeThreeWayClean =>
+      'The patch no longer fits directly; a 3-way merge applies it cleanly';
+
+  @override
+  String get apcModeThreeWayConflicts =>
+      'The patch no longer fits; a 3-way merge will leave conflicts to resolve';
+
+  @override
+  String get apcCannotApply => 'This patch does not apply to the working tree.';
+
+  @override
+  String get apcApply => 'Apply';
+
+  @override
+  String get apcTooLarge => 'Patch file is too large';
+
+  @override
+  String get apcReadFailed => 'Could not read the patch file';
+
+  @override
+  String get apcAllFiles => 'All files';
 }

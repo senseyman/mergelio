@@ -146,6 +146,12 @@ change never needs a second window.*
   right-click menu. Discarding a selection is one undo step.
 - In tree view a folder row has its own checkbox and right-click entry that
   stage or unstage every file under it, collapsed or not.
+- **Apply patch…** from the command palette takes a `.patch`/`.diff` or a
+  `git format-patch` mailbox, lists the files it touches (and a mailbox's
+  messages), and dry-runs it first. Apply it to the working tree, or apply and
+  stage — either is one undo step. A patch that no longer fits is offered as a
+  3-way merge, which may leave conflicts to resolve. Nothing is committed: a
+  mailbox's messages and authors are not applied.
 - Side-by-side or unified diffs with word-level intra-line highlighting and
   syntax colouring. Long lines scroll sideways instead of being cut off, and in
   split view each column scrolls on its own — a new file's empty left half no

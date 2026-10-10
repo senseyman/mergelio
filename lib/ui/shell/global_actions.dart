@@ -14,6 +14,7 @@ import '../../state/search.dart';
 import '../../state/workspace.dart';
 import '../palette/command_palette.dart';
 import '../review/review_picker.dart';
+import '../workspace/apply_patch_dialog.dart';
 import '../workspace/branch_switch.dart';
 import '../workspace/hooks_panel.dart';
 import '../workspace/maintenance_panel.dart';
@@ -97,6 +98,10 @@ void openGlobalPalette(BuildContext context, WidgetRef ref) {
     PaletteCommand(l.opPushOptions, Icons.north_east, () async {
       if (!context.mounted) return;
       await showPushDialog(context, ref, path);
+    }),
+    PaletteCommand(l.apcPaletteOpen, Icons.healing_outlined, () async {
+      if (!context.mounted) return;
+      await showApplyPatchFlow(context, ref, path);
     }),
     PaletteCommand(
       l.mntPaletteOpen,

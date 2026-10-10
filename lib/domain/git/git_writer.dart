@@ -1237,6 +1237,61 @@ class GitWriter {
     }
   }
 
+  /// Runs `git apply` with [flags] over [patch], kept as bytes so a patch to
+  /// a file in another encoding reaches git unchanged.
+  Future<GitResult> _applyPatchBytes(
+    List<int> patch,
+    List<String> flags,
+  ) async {
+    final dir = await Directory.systemTemp.createTemp('mergelio_patch_');
+    final tmp = File('${dir.path}/apply.patch');
+    try {
+      await tmp.writeAsBytes(patch);
+      return await _run(['apply', ...flags, tmp.path]);
+    } finally {
+      try {
+        if (await tmp.exists()) await tmp.delete();
+        if (await dir.exists()) await dir.delete();
+      } on FileSystemException {
+        // Best-effort cleanup.
+      }
+    }
+  }
+
+  /// The files [patch] touches, as `git apply --numstat -z` prints them.
+  Future<String> patchNumstat(List<int> patch) async {
+    final r = await _applyPatchBytes(patch, ['--numstat', '-z']);
+    if (!r.ok) throw GitException('git apply --numstat failed', r);
+    return r.stdout;
+  }
+
+  /// A dry run of [applyPatch]: nothing is written.
+  Future<GitResult> checkPatch(
+    List<int> patch, {
+    bool index = false,
+    bool threeWay = false,
+  }) => _applyPatchBytes(patch, [
+    '--check',
+    if (index) '--index',
+    if (threeWay) '--3way',
+  ]);
+
+  /// Applies [patch] to the working tree, also to the index when [index] is
+  /// set. [threeWay] merges where a hunk does not fit and leaves conflicts.
+  Future<void> applyPatch(
+    List<int> patch, {
+    bool index = false,
+    bool threeWay = false,
+    bool reverse = false,
+  }) async {
+    final r = await _applyPatchBytes(patch, [
+      if (index) '--index',
+      if (threeWay) '--3way',
+      if (reverse) '--reverse',
+    ]);
+    if (!r.ok) throw GitException('git apply failed', r);
+  }
+
   /// Creates a worktree at [path]. Exactly one of [newBranch], [existingBranch]
   /// or [detach] describes what it checks out; [startPoint] is the commit-ish a
   /// new branch or a detached head starts from.
