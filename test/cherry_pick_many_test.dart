@@ -150,6 +150,27 @@ void main() {
     },
   );
 
+  test('a pick that fails mid-run without conflicts backs the run out, keeping '
+      'the untracked file in the way', () async {
+    final c = container();
+    final actions = c.read(repoActionsProvider(dir.path));
+    await commit('a.txt', 'base\n', 'base');
+    await g(['checkout', '-q', '-b', 'feature']);
+    final one = await commit('b.txt', 'B\n', 'one');
+    final two = await commit('u.txt', 'theirs\n', 'two');
+    await g(['checkout', '-q', 'main']);
+    final before = (await out(['rev-parse', 'HEAD'])).trim();
+    await File('${dir.path}/u.txt').writeAsString('mine\n');
+
+    await actions.cherryPickMany([one, two]);
+
+    expect((await out(['rev-parse', 'HEAD'])).trim(), before);
+    expect(gitPath('sequencer'), isFalse);
+    expect(File('${dir.path}/u.txt').readAsStringSync(), 'mine\n');
+    expect(c.read(mergeSessionProvider(dir.path)), isNull);
+    expect(c.read(toastProvider).last.kind, ToastKind.error);
+  });
+
   group('without committing', () {
     test('stages every pick and leaves HEAD alone', () async {
       final c = container();

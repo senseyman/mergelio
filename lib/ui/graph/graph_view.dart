@@ -661,7 +661,12 @@ class _GraphListState extends ConsumerState<GraphList> {
                           cols: cols,
                           dateFormat: dateFormat,
                           stashLabel: stashBySha[c.sha],
-                          selected: selected == c.sha || picks.contains(c.sha),
+                          // While commits are picked the highlight shows the
+                          // picks alone, so toggling the selected row out
+                          // visibly drops it.
+                          selected: picks.isEmpty
+                              ? selected == c.sha
+                              : picks.contains(c.sha),
                           searchMatch: query == null || query.isEmpty
                               ? null
                               : matchShas.contains(c.sha),

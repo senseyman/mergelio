@@ -1817,7 +1817,13 @@ class RepoActions {
       await _journalFail(opId);
       final conflicts = await _conflictFiles();
       if (conflicts.isEmpty) {
-        if (await _sequencerInProgress()) await abort();
+        // A run of several that stops partway without a conflict (an
+        // untracked file in the way) keeps the picks it already committed and
+        // leaves only the sequencer directory behind — no CHERRY_PICK_HEAD.
+        // Abort that too, or the repository is stuck mid-sequence.
+        if (await _sequencerInProgress() || await _sequencerDirExists()) {
+          await abort();
+        }
         _refresh();
         _toastErr(label, e);
         return;

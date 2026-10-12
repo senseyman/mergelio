@@ -226,6 +226,33 @@ void main() {
       expect(find.textContaining(RegExp(r'Cherry-pick \d')), findsNothing);
     });
 
+    testWidgets('toggling the selected row out un-highlights it', (
+      tester,
+    ) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      try {
+        final c = await pumpOpen(tester);
+        bool lit(String sha) => tester
+            .widget<CommitRow>(
+              find.byWidgetPredicate(
+                (w) => w is CommitRow && w.commit.sha == sha,
+              ),
+            )
+            .selected;
+
+        await tester.tap(find.text('msg bbb'));
+        await tester.pump();
+        await clickWith(tester, LogicalKeyboardKey.metaLeft, 'msg aaa');
+        await clickWith(tester, LogicalKeyboardKey.metaLeft, 'msg aaa');
+
+        expect(c.read(commitPicksProvider('/r')).shas, {'bbb'});
+        expect(lit('aaa'), isFalse);
+        expect(lit('bbb'), isTrue);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    });
+
     testWidgets('shift-click picks the run of rows from the selection', (
       tester,
     ) async {
