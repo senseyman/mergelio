@@ -6997,6 +6997,162 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Add rule'**
   String get ignAdd;
+
+  /// No description provided for @apcPaletteOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply patch…'**
+  String get apcPaletteOpen;
+
+  /// No description provided for @apcTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply patch'**
+  String get apcTitle;
+
+  /// No description provided for @apcPickPatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Patch or mailbox'**
+  String get apcPickPatch;
+
+  /// No description provided for @apcMessages.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{1 message} other{{count} messages}}'**
+  String apcMessages(int count);
+
+  /// No description provided for @apcNoCommitNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Commit messages and authors in this file are not applied. The changes are left for you to review and commit.'**
+  String get apcNoCommitNotice;
+
+  /// No description provided for @apcFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{1 file} other{{count} files}}'**
+  String apcFiles(int count);
+
+  /// No description provided for @apcBinary.
+  ///
+  /// In en, this message translates to:
+  /// **'bin'**
+  String get apcBinary;
+
+  /// No description provided for @apcHow.
+  ///
+  /// In en, this message translates to:
+  /// **'How to apply'**
+  String get apcHow;
+
+  /// No description provided for @apcModeWorktree.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply to working tree'**
+  String get apcModeWorktree;
+
+  /// No description provided for @apcModeWorktreeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing is staged'**
+  String get apcModeWorktreeHint;
+
+  /// No description provided for @apcModeStage.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply and stage'**
+  String get apcModeStage;
+
+  /// No description provided for @apcModeStageHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Changes land in the index too'**
+  String get apcModeStageHint;
+
+  /// No description provided for @apcModeThreeWay.
+  ///
+  /// In en, this message translates to:
+  /// **'3-way merge'**
+  String get apcModeThreeWay;
+
+  /// No description provided for @apcModeThreeWayClean.
+  ///
+  /// In en, this message translates to:
+  /// **'The patch no longer fits directly; a 3-way merge applies it cleanly'**
+  String get apcModeThreeWayClean;
+
+  /// No description provided for @apcModeThreeWayConflicts.
+  ///
+  /// In en, this message translates to:
+  /// **'The patch no longer fits; a 3-way merge will leave conflicts to resolve'**
+  String get apcModeThreeWayConflicts;
+
+  /// No description provided for @apcCannotApply.
+  ///
+  /// In en, this message translates to:
+  /// **'This patch does not apply to the working tree.'**
+  String get apcCannotApply;
+
+  /// No description provided for @apcApply.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get apcApply;
+
+  /// No description provided for @apcTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Patch file is too large'**
+  String get apcTooLarge;
+
+  /// No description provided for @apcReadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read the patch file'**
+  String get apcReadFailed;
+
+  /// No description provided for @apcAllFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'All files'**
+  String get apcAllFiles;
+
+  /// No description provided for @apcNotAPatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Not a patch file'**
+  String get apcNotAPatch;
+
+  /// No description provided for @apcApplied.
+  ///
+  /// In en, this message translates to:
+  /// **'Patch applied'**
+  String get apcApplied;
+
+  /// No description provided for @apcAppliedStaged.
+  ///
+  /// In en, this message translates to:
+  /// **'Patch applied and staged'**
+  String get apcAppliedStaged;
+
+  /// No description provided for @apcConflicts.
+  ///
+  /// In en, this message translates to:
+  /// **'Patch applied with conflicts'**
+  String get apcConflicts;
+
+  /// No description provided for @apcConflictsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolve the conflicted files, then commit.'**
+  String get apcConflictsHint;
+
+  /// No description provided for @apcApplyFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not apply the patch'**
+  String get apcApplyFailed;
 }
 
 class _AppLocalizationsDelegate

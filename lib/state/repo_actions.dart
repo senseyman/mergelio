@@ -19,6 +19,7 @@ import '../domain/git/ignore.dart';
 import '../domain/git/lfs.dart';
 import '../domain/git/maintenance.dart';
 import '../domain/git/models.dart';
+import '../domain/git/patch_file.dart';
 import '../domain/git/rebase_plan.dart';
 import '../domain/git/stash.dart';
 import 'bisect.dart';
@@ -720,6 +721,73 @@ class RepoActions {
       () => _writer.applyToIndex(patch, reverse: reverse),
     );
     _refresh();
+  }
+
+  /// Dry-runs [patch] every way [applyPatchFile] could apply it. Throws
+  /// when git finds no patch in it at all; the caller words that for the
+  /// user.
+  Future<PatchPreview> previewPatch(List<int> patch) async {
+    final numstat = await _writer.patchNumstat(patch);
+    final worktree = await _writer.checkPatch(patch);
+    final stage = await _writer.checkPatch(patch, index: true);
+    return PatchPreview(
+      files: parsePatchNumstat(numstat),
+      subjects: mailboxSubjects(utf8.decode(patch, allowMalformed: true)),
+      worktreeOk: worktree.ok,
+      stageOk: stage.ok,
+      // Only asked for when it would be offered.
+      threeWay: worktree.ok
+          ? ThreeWayCheck.unavailable
+          : threeWayCheckOf(await _writer.checkPatch(patch, threeWay: true)),
+      error: worktree.err,
+    );
+  }
+
+  /// Applies a patch file the user picked. Never commits: a mailbox's
+  /// messages and authors are dropped and the result is left for the user to
+  /// commit. A direct apply undoes by reversing it; a 3-way merge can leave
+  /// conflicts, which nothing reverses, so it records no undo.
+  ///
+  /// A failure is toasted here like any other git failure; success and
+  /// conflicts are left to the caller to announce.
+  Future<PatchOutcome> applyPatchFile(List<int> patch, PatchMode mode) async {
+    final index = mode == PatchMode.stage;
+    if (mode != PatchMode.threeWay) {
+      final ok = await _undoable(
+        index ? 'Apply and stage patch' : 'Apply patch',
+        () => _writer.applyPatch(patch, index: index),
+        undo: () => _writer.applyPatch(patch, index: index, reverse: true),
+        redo: () => _writer.applyPatch(patch, index: index),
+      );
+      return ok ? PatchOutcome.applied : PatchOutcome.failed;
+    }
+    const label = 'Apply patch (3-way)';
+    if (_blockedByRepoOp) return PatchOutcome.failed;
+    _ref.read(busyProvider.notifier).state = const BusyState(label);
+    final opId = await _journalBegin(label);
+    try {
+      await _timed(label, () => _writer.applyPatch(patch, threeWay: true));
+      await _journalDone(opId);
+      return PatchOutcome.applied;
+    } on GitException catch (e) {
+      // Conflicts are the expected outcome the user chose 3-way for: the
+      // patch is in, with unmerged files left to resolve.
+      if (e.result?.stderr.contains('with conflicts') ?? false) {
+        await _journalDone(opId);
+        return PatchOutcome.conflicts;
+      }
+      await _journalFail(opId);
+      _toastErr(label, e);
+      return PatchOutcome.failed;
+    } on Object {
+      // The temp patch file could not be written. Left pending, the entry
+      // would read as a crash on the next launch.
+      await _journalFail(opId);
+      rethrow;
+    } finally {
+      _ref.read(busyProvider.notifier).state = null;
+      _refresh();
+    }
   }
 
   /// Discards all uncommitted changes to [f] — a full revert to HEAD for a

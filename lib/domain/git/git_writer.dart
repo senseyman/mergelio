@@ -106,6 +106,11 @@ class GitWriter {
   /// or ssh-authenticated server can be slow; a stuck call can be cancelled.
   static const lfsLockTimeout = Duration(minutes: 5);
 
+  /// Ceiling for one `git apply` over a picked patch file. A large series,
+  /// or a 3-way merge that has to read many blobs on a slow volume, can
+  /// outlast the ordinary default.
+  static const patchApplyTimeout = Duration(minutes: 5);
+
   /// Resolved once per repository: the ssh command git would use anyway, plus
   /// what a command that hits an authentication prompt needs.
   Map<String, String>? _netEnvCache;
@@ -1235,6 +1240,67 @@ class GitWriter {
         // Best-effort cleanup.
       }
     }
+  }
+
+  /// Runs `git apply` with [flags] over [patch], kept as bytes so a patch to
+  /// a file in another encoding reaches git unchanged.
+  Future<GitResult> _applyPatchBytes(
+    List<int> patch,
+    List<String> flags,
+  ) async {
+    final dir = await Directory.systemTemp.createTemp('mergelio_patch_');
+    final tmp = File('${dir.path}/apply.patch');
+    try {
+      await tmp.writeAsBytes(patch);
+      // A 3-way run says it left conflicts only in its message, which is
+      // read, so the message must not come back translated.
+      return await _run(
+        ['apply', ...flags, tmp.path],
+        environment: bisectRunMessageEnv,
+        timeout: patchApplyTimeout,
+      );
+    } finally {
+      try {
+        if (await tmp.exists()) await tmp.delete();
+        if (await dir.exists()) await dir.delete();
+      } on FileSystemException {
+        // Best-effort cleanup.
+      }
+    }
+  }
+
+  /// The files [patch] touches, as `git apply --numstat -z` prints them.
+  Future<String> patchNumstat(List<int> patch) async {
+    final r = await _applyPatchBytes(patch, ['--numstat', '-z']);
+    if (!r.ok) throw GitException('git apply --numstat failed', r);
+    return r.stdout;
+  }
+
+  /// A dry run of [applyPatch]: nothing is written.
+  Future<GitResult> checkPatch(
+    List<int> patch, {
+    bool index = false,
+    bool threeWay = false,
+  }) => _applyPatchBytes(patch, [
+    '--check',
+    if (index) '--index',
+    if (threeWay) '--3way',
+  ]);
+
+  /// Applies [patch] to the working tree, also to the index when [index] is
+  /// set. [threeWay] merges where a hunk does not fit and leaves conflicts.
+  Future<void> applyPatch(
+    List<int> patch, {
+    bool index = false,
+    bool threeWay = false,
+    bool reverse = false,
+  }) async {
+    final r = await _applyPatchBytes(patch, [
+      if (index) '--index',
+      if (threeWay) '--3way',
+      if (reverse) '--reverse',
+    ]);
+    if (!r.ok) throw GitException('git apply failed', r);
   }
 
   /// Creates a worktree at [path]. Exactly one of [newBranch], [existingBranch]

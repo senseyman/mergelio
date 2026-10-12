@@ -81,14 +81,62 @@ void main() {
 
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
-    expect(find.text('Add remote…'), findsOneWidget);
-
-    // The command list scrolls; this one sits below its first screenful.
-    await tester.ensureVisible(find.text('Add remote…'));
+    // The list is lazy and this entry sits below its first screenful, so it
+    // is not built until scrolled to.
+    await tester.scrollUntilVisible(
+      find.text('Add remote…'),
+      100,
+      scrollable: find.byType(Scrollable).last,
+    );
     await tester.pumpAndSettle();
+    expect(find.text('Add remote…'), findsOneWidget);
     await tester.tap(find.text('Add remote…'));
     await tester.pumpAndSettle();
     expect(find.byKey(remoteNameFieldKey), findsOneWidget);
+  });
+
+  testWidgets('the command palette offers applying a patch', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gitServiceProvider.overrideWithValue(_FakeGit()),
+          settingsProvider.overrideWith(
+            (ref) => SettingsController(
+              InMemorySettingsRepository(),
+              const AppSettings(),
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          theme: ThemeData(extensions: [AppTokens.dark()]),
+          home: Consumer(
+            builder: (ctx, ref, _) => Scaffold(
+              body: Center(
+                child: ElevatedButton(
+                  onPressed: () => openGlobalPalette(ctx, ref),
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    ProviderScope.containerOf(tester.element(find.byType(Consumer)))
+        .read(workspaceProvider.notifier)
+        .openRepo('/r');
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Apply patch…'),
+      100,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('Apply patch…'), findsOneWidget);
   });
 
   testWidgets(
