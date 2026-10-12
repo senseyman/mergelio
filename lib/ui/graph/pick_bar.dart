@@ -68,10 +68,10 @@ class PickBar extends ConsumerWidget {
 }
 
 /// Cherry-picks the commits picked in [repoPath]'s graph, oldest first
-/// whatever order they were clicked in, then clears the picks. [commits] is
-/// the graph, newest first. A merge among the picks stops the batch before git
-/// runs — each merge needs its own mainline parent — and the picks stay, so
-/// the user can drop it and go again.
+/// whatever order they were clicked in. [commits] is the graph, newest first.
+/// The picks clear once the batch has run; when it changed nothing — a merge
+/// among them, an unfinished pick in the way — they stay, so the user can fix
+/// what was wrong and go again.
 Future<void> cherryPickPicks(
   WidgetRef ref,
   AppLocalizations l,
@@ -94,8 +94,8 @@ Future<void> cherryPickPicks(
         );
     return;
   }
-  picks.state = CommitPicks.none;
-  await ref
+  final ran = await ref
       .read(repoActionsProvider(repoPath))
       .cherryPickMany(shas, noCommit: noCommit);
+  if (ran) picks.state = CommitPicks.none;
 }

@@ -171,6 +171,94 @@ void main() {
     expect(c.read(toastProvider).last.kind, ToastKind.error);
   });
 
+  group('refusals keep the picks for another go', () {
+    test('a merge among the picks is refused before git runs', () async {
+      final c = container();
+      final actions = c.read(repoActionsProvider(dir.path));
+      await commit('a.txt', 'base\n', 'base');
+      await g(['checkout', '-q', '-b', 'feature']);
+      final one = await commit('b.txt', 'B\n', 'one');
+      await g(['checkout', '-q', 'main']);
+      await commit('c.txt', 'C\n', 'main side');
+      await g(['merge', '-q', '--no-ff', '-m', 'merge feature', 'feature']);
+      final merge = (await out(['rev-parse', 'HEAD'])).trim();
+      await g(['checkout', '-q', '-b', 'other', 'HEAD~1']);
+      final before = (await out(['rev-parse', 'HEAD'])).trim();
+
+      for (final noCommit in [false, true]) {
+        final ran = await actions.cherryPickMany([
+          one,
+          merge,
+        ], noCommit: noCommit);
+
+        expect(ran, isFalse);
+        expect((await out(['rev-parse', 'HEAD'])).trim(), before);
+        expect(await out(['status', '--porcelain']), isEmpty);
+        expect(c.read(toastProvider).last.kind, ToastKind.warning);
+      }
+    });
+
+    test('a leftover sequence with no CHERRY_PICK_HEAD is refused up front, '
+        'committing or not', () async {
+      final c = container();
+      final actions = c.read(repoActionsProvider(dir.path));
+      await commit('a.txt', 'base\n', 'base');
+      await g(['checkout', '-q', '-b', 'feature']);
+      final one = await commit('b.txt', 'B\n', 'one');
+      final two = await commit('u.txt', 'theirs\n', 'two');
+      final three = await commit('c.txt', 'C\n', 'three');
+      await g(['checkout', '-q', 'main']);
+      // Strand a sequence the way a run outside the app can: an untracked
+      // file stops it after the first pick.
+      await File('${dir.path}/u.txt').writeAsString('mine\n');
+      await svc.run(['cherry-pick', one, two], repoPath: dir.path);
+      expect(gitPath('sequencer'), isTrue);
+      expect(gitPath('CHERRY_PICK_HEAD'), isFalse);
+      final stuck = (await out(['rev-parse', 'HEAD'])).trim();
+
+      for (final noCommit in [false, true]) {
+        final ran = await actions.cherryPickMany([three], noCommit: noCommit);
+
+        expect(ran, isFalse);
+        expect((await out(['rev-parse', 'HEAD'])).trim(), stuck);
+        expect(File('${dir.path}/c.txt').existsSync(), isFalse);
+        expect(
+          c.read(toastProvider).last.title,
+          'A cherry-pick or revert is unfinished',
+        );
+      }
+    });
+
+    test(
+      'a run backed out after failing reports that nothing changed',
+      () async {
+        final c = container();
+        final actions = c.read(repoActionsProvider(dir.path));
+        await commit('a.txt', 'base\n', 'base');
+        await g(['checkout', '-q', '-b', 'feature']);
+        final one = await commit('b.txt', 'B\n', 'one');
+        final two = await commit('u.txt', 'theirs\n', 'two');
+        await g(['checkout', '-q', 'main']);
+        await File('${dir.path}/u.txt').writeAsString('mine\n');
+
+        expect(await actions.cherryPickMany([one, two]), isFalse);
+      },
+    );
+
+    test(
+      'a clean run and a conflict pause both report the picks as used',
+      () async {
+        final c = container();
+        final actions = c.read(repoActionsProvider(dir.path));
+        final picks = await featureWithConflictInMiddle();
+
+        expect(await actions.cherryPickMany([picks[0]]), isTrue);
+        expect(await actions.cherryPickMany(picks.sublist(1)), isTrue);
+        expect(c.read(mergeSessionProvider(dir.path)), isNotNull);
+      },
+    );
+  });
+
   group('without committing', () {
     test('stages every pick and leaves HEAD alone', () async {
       final c = container();

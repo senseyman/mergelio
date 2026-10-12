@@ -43,13 +43,19 @@ class _IdleGit implements GitService {
 class _PickActions extends RepoActions {
   final calls = <String>[];
 
-  _PickActions(super.ref, super.path, super.writer);
+  /// What the action answers: false plays a refusal that changed nothing.
+  final bool ran;
+
+  _PickActions(super.ref, super.path, super.writer, {this.ran = true});
 
   @override
-  Future<void> cherryPickMany(
+  Future<bool> cherryPickMany(
     List<String> shas, {
     bool noCommit = false,
-  }) async => calls.add('${shas.join(' ')}${noCommit ? ' --no-commit' : ''}');
+  }) async {
+    calls.add('${shas.join(' ')}${noCommit ? ' --no-commit' : ''}');
+    return ran;
+  }
 }
 
 // Graph order: newest first.
@@ -60,6 +66,7 @@ Future<(ProviderContainer, _PickActions? Function())> _pump(
   required CommitPicks picks,
   List<Commit>? commits,
   double width = 800,
+  bool ran = true,
 }) async {
   tester.view.physicalSize = Size(width, 600);
   tester.view.devicePixelRatio = 1;
@@ -69,7 +76,12 @@ Future<(ProviderContainer, _PickActions? Function())> _pump(
     overrides: [
       commitPicksProvider('/r').overrideWith((ref) => picks),
       repoActionsProvider('/r').overrideWith((ref) {
-        final a = _PickActions(ref, '/r', GitWriter(_IdleGit(), '/r'));
+        final a = _PickActions(
+          ref,
+          '/r',
+          GitWriter(_IdleGit(), '/r'),
+          ran: ran,
+        );
         ref.onDispose(a.dispose);
         return actions = a;
       }),
@@ -119,6 +131,20 @@ void main() {
 
     expect(actions()!.calls, ['aaa ccc']);
     expect(c.read(commitPicksProvider('/r')).isEmpty, isTrue);
+  });
+
+  testWidgets('a refused batch keeps the picks for another go', (tester) async {
+    final (c, actions) = await _pump(
+      tester,
+      picks: _picks(['ccc', 'aaa']),
+      ran: false,
+    );
+
+    await tester.tap(find.text('Cherry-pick'));
+    await tester.pump();
+
+    expect(actions()!.calls, ['aaa ccc']);
+    expect(c.read(commitPicksProvider('/r')).shas, {'ccc', 'aaa'});
   });
 
   testWidgets('the no-commit button picks without committing', (tester) async {

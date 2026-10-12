@@ -1672,9 +1672,30 @@ class RepoActions {
   /// one undo entry for the whole run, and a conflict pauses the rest of the
   /// sequence for the Merge Tool. With [noCommit] the picks land staged for
   /// the user to commit. Merge commits cannot ride along: each would need its
-  /// own mainline parent, so callers pick those one at a time.
-  Future<void> cherryPickMany(List<String> shas, {bool noCommit = false}) {
-    if (shas.isEmpty) return Future.value();
+  /// own mainline parent, so they are refused here and picked one at a time.
+  ///
+  /// True once the picks landed or wait paused in the Merge Tool; false when
+  /// nothing changed — refused, or backed out after a failure — so the caller
+  /// can keep the selection for another go.
+  Future<bool> cherryPickMany(
+    List<String> shas, {
+    bool noCommit = false,
+  }) async {
+    if (shas.isEmpty) return false;
+    final merges = (await _out(['rev-list', '--no-walk', '--merges', ...shas]))
+        .trim();
+    if (merges.isNotEmpty) {
+      _ref
+          .read(toastProvider.notifier)
+          .show(
+            'Merge commits can\'t be picked together',
+            description:
+                '${_short(merges.split('\n').first)} is a merge. Cherry-pick '
+                'it on its own to choose which parent to replay it against.',
+            kind: ToastKind.warning,
+          );
+      return false;
+    }
     if (noCommit) return _pickStaged(shas);
     return _sequencerOp(
       label: shas.length == 1
@@ -1696,18 +1717,10 @@ class RepoActions {
   /// since backing out resets tracked files, the run demands a clean tree
   /// first. Nothing is recorded for undo: the result is ordinary staged
   /// changes, discarded like any other.
-  Future<void> _pickStaged(List<String> shas) async {
-    if (_blockedByRepoOp) return;
-    if (await _refuseOverUnfinishedPick()) return;
+  Future<bool> _pickStaged(List<String> shas) async {
+    if (_blockedByRepoOp) return false;
+    if (await _refuseOverUnfinishedPick()) return false;
     final toast = _ref.read(toastProvider.notifier);
-    if (await _sequencerDirExists()) {
-      toast.show(
-        'A cherry-pick or revert is unfinished',
-        description: 'Continue or abort it before picking again.',
-        kind: ToastKind.warning,
-      );
-      return;
-    }
     if ((await _out(['status', '--porcelain', '--untracked-files=no']))
         .isNotEmpty) {
       toast.show(
@@ -1716,7 +1729,7 @@ class RepoActions {
             'Commit or stash your changes before picking without committing.',
         kind: ToastKind.warning,
       );
-      return;
+      return false;
     }
     final n = shas.length;
     final label = n == 1
@@ -1734,17 +1747,24 @@ class RepoActions {
         description: 'The changes are staged — review and commit them.',
         kind: ToastKind.success,
       );
+      return true;
     } on GitException catch (e) {
       await _journalFail(opId);
       final conflicted = (await _conflictFiles()).isNotEmpty;
       // A run of several leaves a sequence to abort; a lone pick leaves only
       // its conflicts, which a reset to the untouched HEAD clears.
-      if (await _sequencerDirExists()) {
-        await _writer.cherryPickAbort();
-      } else if (conflicted) {
-        await _writer.resetHard(prev);
-      }
+      final backedOut = await _backOut(() async {
+        if (await _sequencerDirExists()) {
+          await _writer.cherryPickAbort();
+        } else if (conflicted) {
+          await _writer.resetHard(prev);
+        }
+      });
       _refresh();
+      if (!backedOut) {
+        _toastErr(label, e);
+        return true;
+      }
       if (conflicted) {
         toast.show(
           'Conflicts — nothing was picked',
@@ -1756,8 +1776,22 @@ class RepoActions {
       } else {
         _toastErr(label, e);
       }
+      return false;
     } finally {
       _ref.read(busyProvider.notifier).state = null;
+    }
+  }
+
+  /// Runs [cleanup] after a failed pick or revert, and says whether it left
+  /// the repository as it was. A cleanup that fails itself must not escape:
+  /// the caller still owes the user the original error, and the guard on the
+  /// next pick catches whatever state was left behind.
+  Future<bool> _backOut(Future<void> Function() cleanup) async {
+    try {
+      await cleanup();
+      return true;
+    } on GitException {
+      return false;
     }
   }
 
@@ -1782,15 +1816,18 @@ class RepoActions {
   /// resolving there can continue it in-app instead of stranding the
   /// repository. A failure that left nothing conflicted (a dirty tree, a bad
   /// ref) backs out of any sequence git did start and toasts.
-  Future<void> _sequencerOp({
+  ///
+  /// True when the run landed or paused on conflicts; false when nothing
+  /// changed.
+  Future<bool> _sequencerOp({
     required String label,
     required String branch,
     required MergeKind kind,
     required Future<void> Function() op,
     required Future<void> Function() abort,
   }) async {
-    if (_blockedByRepoOp) return;
-    if (await _refuseOverUnfinishedPick()) return;
+    if (_blockedByRepoOp) return false;
+    if (await _refuseOverUnfinishedPick()) return false;
     final prev = await _headSha();
     _ref.read(busyProvider.notifier).state = BusyState(label);
     final opId = await _journalBegin(label);
@@ -1813,6 +1850,7 @@ class RepoActions {
             ),
           );
       _refresh();
+      return true;
     } on GitException catch (e) {
       await _journalFail(opId);
       final conflicts = await _conflictFiles();
@@ -1821,12 +1859,14 @@ class RepoActions {
         // untracked file in the way) keeps the picks it already committed and
         // leaves only the sequencer directory behind — no CHERRY_PICK_HEAD.
         // Abort that too, or the repository is stuck mid-sequence.
-        if (await _sequencerInProgress() || await _sequencerDirExists()) {
-          await abort();
-        }
+        final backedOut = await _backOut(() async {
+          if (await _sequencerInProgress() || await _sequencerDirExists()) {
+            await abort();
+          }
+        });
         _refresh();
         _toastErr(label, e);
-        return;
+        return !backedOut;
       }
       // A sequence of several picks stops on whichever one conflicts; name
       // that one rather than the first.
@@ -1838,6 +1878,7 @@ class RepoActions {
         files: conflicts,
       );
       _refresh();
+      return true;
     } finally {
       _ref.read(busyProvider.notifier).state = null;
     }
@@ -1848,11 +1889,23 @@ class RepoActions {
   /// arrives as a failure with the *previous* op's conflicts still in the
   /// tree — which would relabel the open session with this commit. Stop here
   /// instead, and offer the way back to the resolution.
+  ///
+  /// A sequence directory with no CHERRY_PICK_HEAD — a run stopped by
+  /// something other than a conflict, outside the app — has nothing to
+  /// resolve, so it gets its own word.
   Future<bool> _refuseOverUnfinishedPick() async {
     if (_ref.read(mergeSessionProvider(path)) == null &&
         !await _sequencerInProgress() &&
         (await GitReader(_git, path).conflictedFiles()).isEmpty) {
-      return false;
+      if (!await _sequencerDirExists()) return false;
+      _ref
+          .read(toastProvider.notifier)
+          .show(
+            'A cherry-pick or revert is unfinished',
+            description: 'Continue or abort it before picking again.',
+            kind: ToastKind.warning,
+          );
+      return true;
     }
     _ref
         .read(toastProvider.notifier)
