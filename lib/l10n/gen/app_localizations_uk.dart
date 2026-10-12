@@ -4359,4 +4359,23 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get apcAllFiles => 'Усі файли';
+
+  @override
+  String get apcNotAPatch => 'Це не файл патча';
+
+  @override
+  String get apcApplied => 'Патч застосовано';
+
+  @override
+  String get apcAppliedStaged => 'Патч застосовано й проіндексовано';
+
+  @override
+  String get apcConflicts => 'Патч застосовано з конфліктами';
+
+  @override
+  String get apcConflictsHint =>
+      'Розв\'яжіть конфлікти у файлах, потім зробіть коміт.';
+
+  @override
+  String get apcApplyFailed => 'Не вдалося застосувати патч';
 }

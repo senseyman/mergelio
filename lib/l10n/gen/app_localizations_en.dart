@@ -4290,4 +4290,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get apcAllFiles => 'All files';
+
+  @override
+  String get apcNotAPatch => 'Not a patch file';
+
+  @override
+  String get apcApplied => 'Patch applied';
+
+  @override
+  String get apcAppliedStaged => 'Patch applied and staged';
+
+  @override
+  String get apcConflicts => 'Patch applied with conflicts';
+
+  @override
+  String get apcConflictsHint => 'Resolve the conflicted files, then commit.';
+
+  @override
+  String get apcApplyFailed => 'Could not apply the patch';
 }

@@ -106,6 +106,11 @@ class GitWriter {
   /// or ssh-authenticated server can be slow; a stuck call can be cancelled.
   static const lfsLockTimeout = Duration(minutes: 5);
 
+  /// Ceiling for one `git apply` over a picked patch file. A large series,
+  /// or a 3-way merge that has to read many blobs on a slow volume, can
+  /// outlast the ordinary default.
+  static const patchApplyTimeout = Duration(minutes: 5);
+
   /// Resolved once per repository: the ssh command git would use anyway, plus
   /// what a command that hits an authentication prompt needs.
   Map<String, String>? _netEnvCache;
@@ -1249,11 +1254,11 @@ class GitWriter {
       await tmp.writeAsBytes(patch);
       // A 3-way run says it left conflicts only in its message, which is
       // read, so the message must not come back translated.
-      return await _run([
-        'apply',
-        ...flags,
-        tmp.path,
-      ], environment: bisectRunMessageEnv);
+      return await _run(
+        ['apply', ...flags, tmp.path],
+        environment: bisectRunMessageEnv,
+        timeout: patchApplyTimeout,
+      );
     } finally {
       try {
         if (await tmp.exists()) await tmp.delete();

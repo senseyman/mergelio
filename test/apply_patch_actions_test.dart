@@ -95,7 +95,7 @@ void main() {
   });
 
   test('previews a mailbox series: files, subjects, modes', () async {
-    final p = (await actions().previewPatch(series))!;
+    final p = await actions().previewPatch(series);
     expect(p.subjects, ['one', 'two']);
     expect(p.files.map((s) => (s.path, s.added, s.deleted)), [
       ('f', 2, 1),
@@ -104,15 +104,19 @@ void main() {
     expect(p.modes, [PatchMode.worktree, PatchMode.stage]);
   });
 
-  test('a file that is no patch previews as null with a toast', () async {
-    expect(await actions().previewPatch(utf8.encode('hello\n')), isNull);
-    expect(c.read(toastProvider).single.kind, ToastKind.error);
+  test('a file that is no patch throws, and toasts nothing', () async {
+    await expectLater(
+      actions().previewPatch(utf8.encode('hello\n')),
+      throwsA(isA<GitException>()),
+    );
+    // The caller words it in the user's language.
+    expect(c.read(toastProvider), isEmpty);
   });
 
   test('a diff that no longer fits offers only a 3-way merge', () async {
     await f('f').writeAsString('a\nX\nc\n');
     await g(['commit', '-q', '-am', 'diverge']);
-    final p = (await actions().previewPatch(diff))!;
+    final p = await actions().previewPatch(diff);
     expect(p.modes, [PatchMode.threeWay]);
     expect(p.threeWay, ThreeWayCheck.conflicts);
     expect(p.error, contains('does not apply'));
@@ -122,14 +126,17 @@ void main() {
     await f('f').writeAsString('staged\n');
     await g(['add', 'f']);
     await f('f').writeAsString('a\nb\nc\n');
-    final p = (await actions().previewPatch(diff))!;
+    final p = await actions().previewPatch(diff);
     expect(p.modes, [PatchMode.worktree]);
   });
 
   test('applies to the working tree only; undo and redo', () async {
     final head = await g(['rev-parse', 'HEAD']);
     final a = actions();
-    expect(await a.applyPatchFile(series, PatchMode.worktree), isTrue);
+    expect(
+      await a.applyPatchFile(series, PatchMode.worktree),
+      PatchOutcome.applied,
+    );
     expect(await read('f'), 'a\nB\nc\nd\n');
     expect(await status(), ' M f\n?? g'.trim());
     // Applying never commits, even a mailbox.
@@ -146,7 +153,10 @@ void main() {
 
   test('applies and stages; undo unstages and reverts', () async {
     final a = actions();
-    expect(await a.applyPatchFile(series, PatchMode.stage), isTrue);
+    expect(
+      await a.applyPatchFile(series, PatchMode.stage),
+      PatchOutcome.applied,
+    );
     expect(await status(), 'M  f\nA  g');
 
     await a.undo();
@@ -158,15 +168,49 @@ void main() {
     await f('f').writeAsString('a\nX\nc\n');
     await g(['commit', '-q', '-am', 'diverge']);
     final a = actions();
-    expect(await a.applyPatchFile(diff, PatchMode.threeWay), isTrue);
+    expect(
+      await a.applyPatchFile(diff, PatchMode.threeWay),
+      PatchOutcome.conflicts,
+    );
     expect(await g(['ls-files', '-u']), isNotEmpty);
     expect(c.read(undoProvider(dir.path)).canUndo, isFalse);
-    expect(c.read(toastProvider).single.kind, ToastKind.warning);
+    expect(c.read(toastProvider), isEmpty);
   });
 
-  test('a failed apply reports false with an error toast', () async {
+  test('a 3-way merge of changes that do not touch applies cleanly', () async {
+    // The patch changes line 5; the branch moved line 2, inside the patch's
+    // context, so a direct apply fails but the merge has nothing to resolve.
+    final lines = [for (var i = 1; i <= 10; i++) 'l$i'];
+    await f('h').writeAsString('${lines.join('\n')}\n');
+    await g(['add', 'h']);
+    await g(['commit', '-q', '-m', 'h']);
+    String text(int at, String line) =>
+        '${(List.of(lines)..[at] = line).join('\n')}\n';
+    await f('h').writeAsString(text(4, 'L5'));
+    final patch = utf8.encode(
+      (await svc.run(['diff'], repoPath: dir.path)).stdout,
+    );
+    await g(['checkout', '--', 'h']);
+    await f('h').writeAsString(text(1, 'L2'));
+    await g(['commit', '-q', '-am', 'move l2']);
+    final a = actions();
+    final p = await a.previewPatch(patch);
+    expect(p.modes, [PatchMode.threeWay]);
+    expect(p.threeWay, ThreeWayCheck.clean);
+    expect(
+      await a.applyPatchFile(patch, PatchMode.threeWay),
+      PatchOutcome.applied,
+    );
+    expect(await read('h'), contains('L2\nl3\nl4\nL5\n'));
+    expect(await g(['ls-files', '-u']), isEmpty);
+  });
+
+  test('a failed apply reports failed with an error toast', () async {
     await f('f').writeAsString('a\nX\nc\n');
-    expect(await actions().applyPatchFile(diff, PatchMode.worktree), isFalse);
+    expect(
+      await actions().applyPatchFile(diff, PatchMode.worktree),
+      PatchOutcome.failed,
+    );
     expect(await read('f'), 'a\nX\nc\n');
     expect(c.read(toastProvider).single.kind, ToastKind.error);
   });
@@ -182,15 +226,17 @@ void main() {
     test('still sees that a 3-way merge would conflict', () async {
       await f('f').writeAsString('a\nX\nc\n');
       await g(['commit', '-q', '-am', 'diverge']);
-      final p = (await actions().previewPatch(diff))!;
+      final p = await actions().previewPatch(diff);
       expect(p.threeWay, ThreeWayCheck.conflicts);
     });
 
     test('still reports a conflicted 3-way merge as applied', () async {
       await f('f').writeAsString('a\nX\nc\n');
       await g(['commit', '-q', '-am', 'diverge']);
-      expect(await actions().applyPatchFile(diff, PatchMode.threeWay), isTrue);
-      expect(c.read(toastProvider).single.kind, ToastKind.warning);
+      expect(
+        await actions().applyPatchFile(diff, PatchMode.threeWay),
+        PatchOutcome.conflicts,
+      );
     });
   });
 }

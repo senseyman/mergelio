@@ -16,6 +16,15 @@ enum PatchMode {
   threeWay,
 }
 
+/// How applying a patch file ended.
+enum PatchOutcome {
+  applied,
+
+  /// A 3-way merge went in, leaving unmerged files to resolve.
+  conflicts,
+  failed,
+}
+
 /// What a `git apply --check --3way` dry run predicted.
 enum ThreeWayCheck { unavailable, clean, conflicts }
 
@@ -62,18 +71,21 @@ class PatchPreview {
 }
 
 final _mboxSeparator = RegExp(r'^From \S+ ');
+final _headerLine = RegExp(r'^[A-Za-z][A-Za-z0-9-]*: ');
 final _patchTag = RegExp(r'^\[PATCH[^\]]*\]\s*');
 final _encodedWord = RegExp(r'=\?([^?]+)\?([QqBb])\?([^?]*)\?=');
 final _gapBetweenWords = RegExp(r'(\?=)\s+(=\?)');
 final _qHex = RegExp(r'=([0-9A-Fa-f]{2})');
 
-/// The subject of every message in a `git format-patch` mailbox, with the
-/// `[PATCH n/m]` tag taken off and folded header lines joined. Only header
-/// blocks are read, so a diff line that happens to say `Subject:` is not
-/// mistaken for one.
+/// The subject of every message in a `git format-patch` mailbox, or of one
+/// message saved from a mail client, with the `[PATCH n/m]` tag taken off
+/// and folded header lines joined. Only header blocks are read, so a diff
+/// line that happens to say `Subject:` is not mistaken for one.
 List<String> mailboxSubjects(String text) {
   final subjects = <String>[];
-  var inHeaders = false;
+  // A single message saved from a mail client starts straight at its
+  // headers, with no mbox separator in front.
+  var inHeaders = _headerLine.hasMatch(text);
   String? subject;
   void flush() {
     if (subject != null) {

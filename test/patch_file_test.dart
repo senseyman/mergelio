@@ -74,6 +74,21 @@ void main() {
       expect(mailboxSubjects(mbox), ['=?x-unknown?q?hi?=']);
     });
 
+    test('reads a single message saved without an mbox From line', () {
+      const eml =
+          'Return-Path: <a@e.com>\n'
+          'From: A <a@e.com>\n'
+          'Subject: [PATCH] Saved from a mail client\n'
+          '\n'
+          'Subject: not a header, the body\n';
+      expect(mailboxSubjects(eml), ['Saved from a mail client']);
+    });
+
+    test('a diff opening with a header-like line is not a message', () {
+      const diff = 'Index: f\n--- f\n+++ f\n@@ -1 +1 @@\n-a\n+Subject: b\n';
+      expect(mailboxSubjects(diff), isEmpty);
+    });
+
     test('reads CRLF line endings', () {
       const mbox =
           'From abc Mon Sep 17 00:00:00 2001\r\nSubject: [PATCH] Hi\r\n\r\n';

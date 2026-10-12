@@ -2246,7 +2246,7 @@
       }
     }
   },
-  "rvFileCount": "{count, plural, one{1 file} other{{count} files}}",
+  "rvFileCount": "{count, plural, =1{1 file} other{{count} files}}",
   "@rvFileCount": {
     "placeholders": {
       "count": {
@@ -2586,5 +2586,11 @@
   "apcApply": "Apply",
   "apcTooLarge": "Patch file is too large",
   "apcReadFailed": "Could not read the patch file",
-  "apcAllFiles": "All files"
+  "apcAllFiles": "All files",
+  "apcNotAPatch": "Not a patch file",
+  "apcApplied": "Patch applied",
+  "apcAppliedStaged": "Patch applied and staged",
+  "apcConflicts": "Patch applied with conflicts",
+  "apcConflictsHint": "Resolve the conflicted files, then commit.",
+  "apcApplyFailed": "Could not apply the patch"
 }

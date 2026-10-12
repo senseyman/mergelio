@@ -1,9 +1,40 @@
+import 'dart:typed_data';
+
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/core/tokens.dart';
+import 'package:mergelio/domain/git/git_providers.dart';
+import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/domain/git/patch_file.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
+import 'package:mergelio/state/feedback.dart';
 import 'package:mergelio/ui/workspace/apply_patch_dialog.dart';
+
+/// Answers every git call with failure, so a flow that got as far as
+/// running git would show it, and no real git ever runs.
+class _NoGit implements GitService {
+  int calls = 0;
+
+  @override
+  Future<GitResult> run(
+    List<String> args, {
+    String? repoPath,
+    Duration? timeout,
+    Map<String, String>? environment,
+    GitCancel? cancel,
+    String? stdin,
+  }) async {
+    calls++;
+    return const GitResult(1, '', 'no git here');
+  }
+
+  @override
+  Future<String> version() async => 'git version 2';
+  @override
+  Future<bool> isRepository(String path) async => true;
+}
 
 PatchPreview _preview({
   List<String> subjects = const [],
@@ -149,5 +180,112 @@ void main() {
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
     }
+  });
+
+  group('announcePatchOutcome', () {
+    final l = lookupAppLocalizations(const Locale('en'));
+    late ToastController toast;
+    setUp(() => toast = ToastController());
+
+    test('says whether the patch was staged', () {
+      announcePatchOutcome(toast, l, PatchOutcome.applied, PatchMode.worktree);
+      announcePatchOutcome(toast, l, PatchOutcome.applied, PatchMode.stage);
+      expect(toast.state.map((t) => (t.title, t.kind)), [
+        ('Patch applied', ToastKind.success),
+        ('Patch applied and staged', ToastKind.success),
+      ]);
+    });
+
+    test('a conflicted merge is a warning that says what to do', () {
+      announcePatchOutcome(
+        toast,
+        l,
+        PatchOutcome.conflicts,
+        PatchMode.threeWay,
+      );
+      expect(toast.state.single.kind, ToastKind.warning);
+      expect(toast.state.single.description, contains('Resolve'));
+    });
+
+    test('a failure adds nothing; the action already reported it', () {
+      announcePatchOutcome(toast, l, PatchOutcome.failed, PatchMode.worktree);
+      expect(toast.state, isEmpty);
+    });
+  });
+
+  group('showApplyPatchFlow', () {
+    late _NoGit git;
+    late ProviderContainer c;
+
+    Future<void> run(
+      WidgetTester tester,
+      Future<XFile?> Function() pick,
+    ) async {
+      git = _NoGit();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [gitServiceProvider.overrideWithValue(git)],
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            theme: ThemeData(extensions: [AppTokens.dark()]),
+            home: Consumer(
+              builder: (context, ref, _) => Scaffold(
+                body: TextButton(
+                  onPressed: () =>
+                      showApplyPatchFlow(context, ref, '/r', pick: pick),
+                  child: const Text('go'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      c = ProviderScope.containerOf(tester.element(find.byType(Consumer)));
+      await tester.tap(find.text('go'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('cancelling the picker does nothing', (tester) async {
+      await run(tester, () async => null);
+      expect(git.calls, 0);
+      expect(c.read(toastProvider), isEmpty);
+    });
+
+    testWidgets('a file over the cap is refused before git sees it', (
+      tester,
+    ) async {
+      await run(
+        tester,
+        () async =>
+            XFile.fromData(Uint8List(20 * 1024 * 1024 + 1), name: 'huge.patch'),
+      );
+      expect(git.calls, 0);
+      expect(c.read(toastProvider).single.title, 'Patch file is too large');
+    });
+
+    testWidgets('a file git finds no patch in is named in the toast', (
+      tester,
+    ) async {
+      await run(
+        tester,
+        () async => XFile.fromData(
+          Uint8List.fromList('hello\n'.codeUnits),
+          name: 'notes.txt',
+        ),
+      );
+      // The patch reaches git through a temp file, which only real async
+      // time writes.
+      for (var i = 0; i < 50 && c.read(toastProvider).isEmpty; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        );
+        await tester.pump();
+      }
+      final t = c.read(toastProvider).single;
+      expect(t.title, 'Not a patch file');
+      expect(t.description, contains('no git here'));
+      expect(find.text('Apply'), findsNothing);
+    });
   });
 }

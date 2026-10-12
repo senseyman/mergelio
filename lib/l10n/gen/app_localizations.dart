@@ -5933,7 +5933,7 @@ abstract class AppLocalizations {
   /// No description provided for @rvFileCount.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, one{1 file} other{{count} files}}'**
+  /// **'{count, plural, =1{1 file} other{{count} files}}'**
   String rvFileCount(int count);
 
   /// No description provided for @rvViewedCount.
@@ -7117,6 +7117,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'All files'**
   String get apcAllFiles;
+
+  /// No description provided for @apcNotAPatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Not a patch file'**
+  String get apcNotAPatch;
+
+  /// No description provided for @apcApplied.
+  ///
+  /// In en, this message translates to:
+  /// **'Patch applied'**
+  String get apcApplied;
+
+  /// No description provided for @apcAppliedStaged.
+  ///
+  /// In en, this message translates to:
+  /// **'Patch applied and staged'**
+  String get apcAppliedStaged;
+
+  /// No description provided for @apcConflicts.
+  ///
+  /// In en, this message translates to:
+  /// **'Patch applied with conflicts'**
+  String get apcConflicts;
+
+  /// No description provided for @apcConflictsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolve the conflicted files, then commit.'**
+  String get apcConflictsHint;
+
+  /// No description provided for @apcApplyFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not apply the patch'**
+  String get apcApplyFailed;
 }
 
 class _AppLocalizationsDelegate

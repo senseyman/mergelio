@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
 import '../../core/tokens.dart';
+import '../../domain/git/git_service.dart';
 import '../../domain/git/patch_file.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/feedback.dart';
@@ -16,23 +17,17 @@ const _maxPatchBytes = 20 * 1024 * 1024;
 
 /// Picks a patch or `git format-patch` mailbox, dry-runs it against
 /// [repoPath] and applies it the way the user chooses. Nothing is committed.
+/// [pick] stands in for the system file picker.
 Future<void> showApplyPatchFlow(
   BuildContext context,
   WidgetRef ref,
-  String repoPath,
-) async {
+  String repoPath, {
+  Future<XFile?> Function()? pick,
+}) async {
   final l = AppLocalizations.of(context);
   final toast = ref.read(toastProvider.notifier);
   final actions = ref.read(repoActionsProvider(repoPath));
-  final file = await openFile(
-    acceptedTypeGroups: [
-      XTypeGroup(
-        label: l.apcPickPatch,
-        extensions: const ['patch', 'diff', 'mbox', 'eml'],
-      ),
-      XTypeGroup(label: l.apcAllFiles),
-    ],
-  );
+  final file = await (pick ?? () => _pickPatch(l))();
   if (file == null) return;
   final List<int> bytes;
   try {
@@ -45,14 +40,74 @@ Future<void> showApplyPatchFlow(
     toast.show(l.apcReadFailed, description: '$e', kind: ToastKind.error);
     return;
   }
-  final preview = await actions.previewPatch(bytes);
-  if (preview == null || !context.mounted) return;
+  final PatchPreview preview;
+  try {
+    preview = await actions.previewPatch(bytes);
+  } on GitException catch (e) {
+    toast.show(
+      l.apcNotAPatch,
+      description: e.result?.err ?? e.message,
+      kind: ToastKind.error,
+    );
+    return;
+  } catch (e) {
+    toast.show(l.apcReadFailed, description: '$e', kind: ToastKind.error);
+    return;
+  }
+  if (!context.mounted) return;
   final mode = await showApplyPatchDialog(
     context,
     fileName: file.name,
     preview: preview,
   );
-  if (mode != null) await actions.applyPatchFile(bytes, mode);
+  if (mode == null) return;
+  try {
+    announcePatchOutcome(
+      toast,
+      l,
+      await actions.applyPatchFile(bytes, mode),
+      mode,
+    );
+  } catch (e) {
+    // Git failures are reported by the action; this is the temp patch file
+    // that could not be written.
+    toast.show(l.apcApplyFailed, description: '$e', kind: ToastKind.error);
+  }
+}
+
+Future<XFile?> _pickPatch(AppLocalizations l) => openFile(
+  acceptedTypeGroups: [
+    XTypeGroup(
+      label: l.apcPickPatch,
+      extensions: const ['patch', 'diff', 'mbox', 'eml'],
+    ),
+    XTypeGroup(label: l.apcAllFiles),
+  ],
+);
+
+/// Confirms how applying a patch file ended. A failure is left alone: the
+/// action has already reported it with git's own words.
+void announcePatchOutcome(
+  ToastController toast,
+  AppLocalizations l,
+  PatchOutcome outcome,
+  PatchMode mode,
+) {
+  switch (outcome) {
+    case PatchOutcome.applied:
+      toast.show(
+        mode == PatchMode.stage ? l.apcAppliedStaged : l.apcApplied,
+        kind: ToastKind.success,
+      );
+    case PatchOutcome.conflicts:
+      toast.show(
+        l.apcConflicts,
+        description: l.apcConflictsHint,
+        kind: ToastKind.warning,
+      );
+    case PatchOutcome.failed:
+      break;
+  }
 }
 
 /// Shows what [preview] would change and asks how to apply it. Null when

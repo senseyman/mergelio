@@ -723,16 +723,11 @@ class RepoActions {
     _refresh();
   }
 
-  /// Dry-runs [patch] every way [applyPatchFile] could apply it. Null, with a
-  /// toast, when git finds no patch in it at all.
-  Future<PatchPreview?> previewPatch(List<int> patch) async {
-    final String numstat;
-    try {
-      numstat = await _writer.patchNumstat(patch);
-    } on GitException catch (e) {
-      _toastErr('Read patch', e);
-      return null;
-    }
+  /// Dry-runs [patch] every way [applyPatchFile] could apply it. Throws
+  /// when git finds no patch in it at all; the caller words that for the
+  /// user.
+  Future<PatchPreview> previewPatch(List<int> patch) async {
+    final numstat = await _writer.patchNumstat(patch);
     final worktree = await _writer.checkPatch(patch);
     final stage = await _writer.checkPatch(patch, index: true);
     return PatchPreview(
@@ -752,41 +747,38 @@ class RepoActions {
   /// messages and authors are dropped and the result is left for the user to
   /// commit. A direct apply undoes by reversing it; a 3-way merge can leave
   /// conflicts, which nothing reverses, so it records no undo.
-  Future<bool> applyPatchFile(List<int> patch, PatchMode mode) async {
+  ///
+  /// A failure is toasted here like any other git failure; success and
+  /// conflicts are left to the caller to announce.
+  Future<PatchOutcome> applyPatchFile(List<int> patch, PatchMode mode) async {
     final index = mode == PatchMode.stage;
     if (mode != PatchMode.threeWay) {
-      return _undoable(
+      final ok = await _undoable(
         index ? 'Apply and stage patch' : 'Apply patch',
         () => _writer.applyPatch(patch, index: index),
         undo: () => _writer.applyPatch(patch, index: index, reverse: true),
         redo: () => _writer.applyPatch(patch, index: index),
       );
+      return ok ? PatchOutcome.applied : PatchOutcome.failed;
     }
     const label = 'Apply patch (3-way)';
-    if (_blockedByRepoOp) return false;
+    if (_blockedByRepoOp) return PatchOutcome.failed;
     _ref.read(busyProvider.notifier).state = const BusyState(label);
     final opId = await _journalBegin(label);
     try {
       await _timed(label, () => _writer.applyPatch(patch, threeWay: true));
       await _journalDone(opId);
-      return true;
+      return PatchOutcome.applied;
     } on GitException catch (e) {
       // Conflicts are the expected outcome the user chose 3-way for: the
       // patch is in, with unmerged files left to resolve.
       if (e.result?.stderr.contains('with conflicts') ?? false) {
         await _journalDone(opId);
-        _ref
-            .read(toastProvider.notifier)
-            .show(
-              'Patch applied with conflicts',
-              description: 'Resolve the conflicted files, then commit.',
-              kind: ToastKind.warning,
-            );
-        return true;
+        return PatchOutcome.conflicts;
       }
       await _journalFail(opId);
       _toastErr(label, e);
-      return false;
+      return PatchOutcome.failed;
     } on Object {
       // The temp patch file could not be written. Left pending, the entry
       // would read as a crash on the next launch.
