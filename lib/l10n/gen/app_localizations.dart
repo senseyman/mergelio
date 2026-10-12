@@ -7153,6 +7153,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not apply the patch'**
   String get apcApplyFailed;
+
+  /// No description provided for @pickSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{{count} commit selected} other{{count} commits selected}}'**
+  String pickSelected(int count);
+
+  /// No description provided for @pickCherryPick.
+  ///
+  /// In en, this message translates to:
+  /// **'Cherry-pick'**
+  String get pickCherryPick;
+
+  /// No description provided for @pickNoCommit.
+  ///
+  /// In en, this message translates to:
+  /// **'Cherry-pick without committing'**
+  String get pickNoCommit;
+
+  /// No description provided for @pickClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get pickClear;
+
+  /// No description provided for @pickMenuCherryPick.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{Cherry-pick {count} commit} other{Cherry-pick {count} commits}}'**
+  String pickMenuCherryPick(int count);
+
+  /// No description provided for @pickMenuNoCommit.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{Cherry-pick {count} commit without committing} other{Cherry-pick {count} commits without committing}}'**
+  String pickMenuNoCommit(int count);
+
+  /// No description provided for @pickMergeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge commits can\'t be picked together'**
+  String get pickMergeTitle;
+
+  /// No description provided for @pickMergeBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{sha} is a merge. Cherry-pick it on its own to choose which parent to replay it against.'**
+  String pickMergeBody(String sha);
 }
 
 class _AppLocalizationsDelegate

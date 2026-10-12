@@ -2592,5 +2592,17 @@
   "apcAppliedStaged": "Patch applied and staged",
   "apcConflicts": "Patch applied with conflicts",
   "apcConflictsHint": "Resolve the conflicted files, then commit.",
-  "apcApplyFailed": "Could not apply the patch"
+  "apcApplyFailed": "Could not apply the patch",
+  "pickSelected": "{count, plural, one{{count} commit selected} other{{count} commits selected}}",
+  "@pickSelected": { "placeholders": { "count": { "type": "int" } } },
+  "pickCherryPick": "Cherry-pick",
+  "pickNoCommit": "Cherry-pick without committing",
+  "pickClear": "Clear",
+  "pickMenuCherryPick": "{count, plural, one{Cherry-pick {count} commit} other{Cherry-pick {count} commits}}",
+  "@pickMenuCherryPick": { "placeholders": { "count": { "type": "int" } } },
+  "pickMenuNoCommit": "{count, plural, one{Cherry-pick {count} commit without committing} other{Cherry-pick {count} commits without committing}}",
+  "@pickMenuNoCommit": { "placeholders": { "count": { "type": "int" } } },
+  "pickMergeTitle": "Merge commits can't be picked together",
+  "pickMergeBody": "{sha} is a merge. Cherry-pick it on its own to choose which parent to replay it against.",
+  "@pickMergeBody": { "placeholders": { "sha": { "type": "String" } } }
 }

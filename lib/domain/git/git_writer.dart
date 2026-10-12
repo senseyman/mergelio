@@ -794,6 +794,19 @@ class GitWriter {
     sha,
   ], 'git cherry-pick');
 
+  /// Ceiling for picking several commits in one run. Each pick commits, and so
+  /// runs the commit hooks, so a long batch outlasts the ordinary default.
+  static const pickSequenceTimeout = Duration(minutes: 30);
+
+  /// Cherry-picks [shas] in the order given — git keeps an explicit list's
+  /// order rather than sorting it. [noCommit] applies them all to the index
+  /// and working tree and leaves the committing to the user.
+  Future<void> cherryPickAll(List<String> shas, {bool noCommit = false}) => _ok(
+    ['cherry-pick', if (noCommit) '--no-commit', ...shas],
+    'git cherry-pick',
+    timeout: pickSequenceTimeout,
+  );
+
   /// Aborts an in-progress cherry-pick, restoring the pre-pick HEAD and tree.
   Future<void> cherryPickAbort() =>
       _ok(['cherry-pick', '--abort'], 'git cherry-pick --abort');

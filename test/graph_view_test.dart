@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -130,6 +132,112 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
     await tester.pump();
     expect(container.read(selectedCommitProvider), 'fff');
+  });
+
+  group('multi-pick clicks', () {
+    Future<ProviderContainer> pumpOpen(WidgetTester tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            workspaceProvider.overrideWith(
+              (ref) => WorkspaceController()..openRepo('/r'),
+            ),
+            bisectStateProvider('/r').overrideWith((ref) => null),
+            repoDataProvider('/r').overrideWith((ref) async => _data()),
+            settingsProvider.overrideWith(
+              (ref) => SettingsController(
+                InMemorySettingsRepository(),
+                const AppSettings(),
+              ),
+            ),
+          ],
+          child: MaterialApp(
+            theme: ThemeData(extensions: [AppTokens.dark()]),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(body: GraphList(data: _data())),
+          ),
+        ),
+      );
+      return ProviderScope.containerOf(tester.element(find.byType(GraphList)));
+    }
+
+    Future<void> clickWith(
+      WidgetTester tester,
+      LogicalKeyboardKey key,
+      String text,
+    ) async {
+      await tester.sendKeyDownEvent(key);
+      await tester.tap(find.text(text));
+      await tester.sendKeyUpEvent(key);
+      await tester.pump();
+    }
+
+    for (final platform in [TargetPlatform.macOS, TargetPlatform.linux]) {
+      testWidgets('click then ${platform.name} toggle-click picks both and '
+          'shows the bar; a plain click drops them', (tester) async {
+        debugDefaultTargetPlatformOverride = platform;
+        try {
+          final c = await pumpOpen(tester);
+          final toggle = platform == TargetPlatform.macOS
+              ? LogicalKeyboardKey.metaLeft
+              : LogicalKeyboardKey.controlLeft;
+
+          await tester.tap(find.text('msg bbb'));
+          await tester.pump();
+          await clickWith(tester, toggle, 'msg aaa');
+
+          expect(c.read(commitPicksProvider('/r')).shas, {'bbb', 'aaa'});
+          expect(c.read(selectedCommitProvider), 'aaa');
+          expect(find.text('2 commits selected'), findsOneWidget);
+
+          await tester.tap(find.text('msg fff'));
+          await tester.pump();
+          expect(c.read(commitPicksProvider('/r')).isEmpty, isTrue);
+          expect(find.text('2 commits selected'), findsNothing);
+        } finally {
+          debugDefaultTargetPlatformOverride = null;
+        }
+      });
+    }
+
+    testWidgets('right-clicking a picked row offers to pick them all; '
+        'any other row does not', (tester) async {
+      final c = await pumpOpen(tester);
+      await c.read(repoDataProvider('/r').future);
+      c.read(commitPicksProvider('/r').notifier).state = CommitPicks.none
+          .toggle('bbb')
+          .toggle('aaa');
+      await tester.pump();
+
+      await tester.tap(find.text('msg aaa'), buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+      expect(find.text('Cherry-pick 2 commits'), findsOneWidget);
+      expect(
+        find.text('Cherry-pick 2 commits without committing'),
+        findsOneWidget,
+      );
+      await tester.tapAt(Offset.zero);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('msg fff'), buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+      expect(find.text('Revert'), findsOneWidget);
+      expect(find.textContaining(RegExp(r'Cherry-pick \d')), findsNothing);
+    });
+
+    testWidgets('shift-click picks the run of rows from the selection', (
+      tester,
+    ) async {
+      final c = await pumpOpen(tester);
+
+      await tester.tap(find.text('msg bbb'));
+      await tester.pump();
+      await clickWith(tester, LogicalKeyboardKey.shiftLeft, 'msg aaa');
+
+      expect(c.read(commitPicksProvider('/r')).shas, {'bbb', 'fff', 'aaa'});
+      expect(find.text('3 commits selected'), findsOneWidget);
+    });
   });
 
   testWidgets('keeps HEAD and tag pills inline; branch names move to the '
