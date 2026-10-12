@@ -146,6 +146,11 @@ change never needs a second window.*
   right-click menu. Discarding a selection is one undo step.
 - In tree view a folder row has its own checkbox and right-click entry that
   stage or unstage every file under it, collapsed or not.
+- Right-click an untracked file and choose **Ignore…** to ignore that file,
+  every file with its extension, or its folder — written to the root
+  `.gitignore`, the nearest nested one, or `.git/info/exclude`. The dialog
+  shows the exact line first; the rule is only ever appended, and it is one
+  undo step.
 - **Apply patch…** from the command palette takes a `.patch`/`.diff` or a
   `git format-patch` mailbox, lists the files it touches (and a mailbox's
   messages), and dry-runs it first. Apply it to the working tree, or apply and
