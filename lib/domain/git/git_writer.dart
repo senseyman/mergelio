@@ -1247,7 +1247,13 @@ class GitWriter {
     final tmp = File('${dir.path}/apply.patch');
     try {
       await tmp.writeAsBytes(patch);
-      return await _run(['apply', ...flags, tmp.path]);
+      // A 3-way run says it left conflicts only in its message, which is
+      // read, so the message must not come back translated.
+      return await _run([
+        'apply',
+        ...flags,
+        tmp.path,
+      ], environment: bisectRunMessageEnv);
     } finally {
       try {
         if (await tmp.exists()) await tmp.delete();

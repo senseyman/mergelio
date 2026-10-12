@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'git_service.dart';
 
 /// How a patch file is applied. None of them commits: a mailbox's messages
@@ -61,6 +63,9 @@ class PatchPreview {
 
 final _mboxSeparator = RegExp(r'^From \S+ ');
 final _patchTag = RegExp(r'^\[PATCH[^\]]*\]\s*');
+final _encodedWord = RegExp(r'=\?([^?]+)\?([QqBb])\?([^?]*)\?=');
+final _gapBetweenWords = RegExp(r'(\?=)\s+(=\?)');
+final _qHex = RegExp(r'=([0-9A-Fa-f]{2})');
 
 /// The subject of every message in a `git format-patch` mailbox, with the
 /// `[PATCH n/m]` tag taken off and folded header lines joined. Only header
@@ -71,7 +76,9 @@ List<String> mailboxSubjects(String text) {
   var inHeaders = false;
   String? subject;
   void flush() {
-    if (subject != null) subjects.add(subject!.replaceFirst(_patchTag, ''));
+    if (subject != null) {
+      subjects.add(decodeHeaderWords(subject!).replaceFirst(_patchTag, ''));
+    }
     subject = null;
   }
 
@@ -98,6 +105,34 @@ List<String> mailboxSubjects(String text) {
   flush();
   return subjects;
 }
+
+/// Decodes the `=?charset?Q|B?text?=` words git writes a non-ASCII subject
+/// as. Space between two adjacent words is folding, not text, so it goes. A
+/// word in a charset Dart cannot read is left as written.
+String decodeHeaderWords(String header) => header
+    .replaceAllMapped(_gapBetweenWords, (m) => '${m[1]}${m[2]}')
+    .replaceAllMapped(_encodedWord, (m) {
+      final codec = Encoding.getByName(m[1]!.toLowerCase());
+      if (codec == null) return m[0]!;
+      try {
+        final List<int> bytes;
+        if (m[2]!.toUpperCase() == 'B') {
+          bytes = base64.decode(m[3]!);
+        } else {
+          final text = m[3]!
+              .replaceAll('_', ' ')
+              .replaceAllMapped(
+                _qHex,
+                (h) => String.fromCharCode(int.parse(h[1]!, radix: 16)),
+              );
+          bytes = latin1.encode(text);
+        }
+        return codec.decode(bytes);
+      } on Object {
+        // Malformed base64, or raw bytes no Q word may hold.
+        return m[0]!;
+      }
+    });
 
 /// Reads `git apply --numstat -z`. A series that touches a path more than
 /// once lists it once, with the counts summed.

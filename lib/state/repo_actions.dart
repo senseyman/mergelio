@@ -787,6 +787,11 @@ class RepoActions {
       await _journalFail(opId);
       _toastErr(label, e);
       return false;
+    } on Object {
+      // The temp patch file could not be written. Left pending, the entry
+      // would read as a crash on the next launch.
+      await _journalFail(opId);
+      rethrow;
     } finally {
       _ref.read(busyProvider.notifier).state = null;
       _refresh();

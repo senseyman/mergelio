@@ -3,11 +3,41 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/domain/git/patch_file.dart';
 import 'package:mergelio/state/feedback.dart';
 import 'package:mergelio/state/repo_actions.dart';
 import 'package:mergelio/state/undo_stack.dart';
+
+/// Runs real git as a user with a German locale would, so git's messages
+/// come back translated unless a caller pins them.
+class _GermanGit implements GitService {
+  const _GermanGit();
+  static const _svc = SystemGitService();
+
+  @override
+  Future<GitResult> run(
+    List<String> args, {
+    String? repoPath,
+    Duration? timeout,
+    Map<String, String>? environment,
+    GitCancel? cancel,
+    String? stdin,
+  }) => _svc.run(
+    args,
+    repoPath: repoPath,
+    timeout: timeout,
+    environment: {'LC_ALL': 'de_DE.UTF-8', 'LANGUAGE': 'de', ...?environment},
+    cancel: cancel,
+    stdin: stdin,
+  );
+
+  @override
+  Future<String> version() => _svc.version();
+  @override
+  Future<bool> isRepository(String path) => _svc.isRepository(path);
+}
 
 void main() {
   late Directory dir;
@@ -139,5 +169,28 @@ void main() {
     expect(await actions().applyPatchFile(diff, PatchMode.worktree), isFalse);
     expect(await read('f'), 'a\nX\nc\n');
     expect(c.read(toastProvider).single.kind, ToastKind.error);
+  });
+
+  group('under a translated git', () {
+    setUp(() {
+      c.dispose();
+      c = ProviderContainer(
+        overrides: [gitServiceProvider.overrideWithValue(const _GermanGit())],
+      );
+    });
+
+    test('still sees that a 3-way merge would conflict', () async {
+      await f('f').writeAsString('a\nX\nc\n');
+      await g(['commit', '-q', '-am', 'diverge']);
+      final p = (await actions().previewPatch(diff))!;
+      expect(p.threeWay, ThreeWayCheck.conflicts);
+    });
+
+    test('still reports a conflicted 3-way merge as applied', () async {
+      await f('f').writeAsString('a\nX\nc\n');
+      await g(['commit', '-q', '-am', 'diverge']);
+      expect(await actions().applyPatchFile(diff, PatchMode.threeWay), isTrue);
+      expect(c.read(toastProvider).single.kind, ToastKind.warning);
+    });
   });
 }

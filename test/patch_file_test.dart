@@ -49,6 +49,31 @@ void main() {
       expect(mailboxSubjects(diff), isEmpty);
     });
 
+    test('decodes a non-ASCII subject git wrote as encoded words', () {
+      const mbox =
+          'From abc Mon Sep 17 00:00:00 2001\n'
+          'Subject: [PATCH] =?UTF-8?q?=D0=92=D0=B8=D0=BF=D1=80=D0=B0=D0=B2=D0=B8?=\n'
+          ' =?UTF-8?q?=D1=82=D0=B8=20=D0=BF=D0=B0=D1=80=D1=81=D0=B5=D1=80?=\n'
+          '\n';
+      expect(mailboxSubjects(mbox), ['Виправити парсер']);
+    });
+
+    test('decodes base64 and Q underscores, keeps plain text between', () {
+      const mbox =
+          'From abc Mon Sep 17 00:00:00 2001\n'
+          'Subject: [PATCH] Fix =?utf-8?B?w6ljb2xl?= and =?iso-8859-1?Q?a_=E9?=\n'
+          '\n';
+      expect(mailboxSubjects(mbox), ['Fix école and a é']);
+    });
+
+    test('leaves an encoded word in an unknown charset as it is', () {
+      const mbox =
+          'From abc Mon Sep 17 00:00:00 2001\n'
+          'Subject: =?x-unknown?q?hi?=\n'
+          '\n';
+      expect(mailboxSubjects(mbox), ['=?x-unknown?q?hi?=']);
+    });
+
     test('reads CRLF line endings', () {
       const mbox =
           'From abc Mon Sep 17 00:00:00 2001\r\nSubject: [PATCH] Hi\r\n\r\n';
