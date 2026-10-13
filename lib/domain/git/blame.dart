@@ -46,7 +46,7 @@ class BlameLine {
   String get shortSha => sha.length > 7 ? sha.substring(0, 7) : sha;
 }
 
-final _header = RegExp(r'^([0-9a-f]{7,40}) ');
+final _header = RegExp(r'^([0-9a-f]{7,64}) ');
 
 /// Parses `git blame --line-porcelain` output. Each line's block starts with a
 /// sha header, carries an `author` field, and ends with a tab-prefixed content

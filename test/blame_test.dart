@@ -37,6 +37,13 @@ author-mail <ivan@e.com>
     });
   });
 
+  test('reads the 64-digit shas of a sha256 repository', () {
+    final sha = '9e24' * 16;
+    final lines = parseBlame('$sha 1 1 1\nauthor Maria\n\tone\n');
+    expect(lines.single.sha, sha);
+    expect(lines.single.shortSha, '9e249e2');
+  });
+
   group('firstInvalidIgnoreRev', () {
     const sha = '4b28d0ebfb155d989fdba0128b7006ba72e66316';
 
