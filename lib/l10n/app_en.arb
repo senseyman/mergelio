@@ -2604,5 +2604,12 @@
   "@pickMenuNoCommit": { "placeholders": { "count": { "type": "int" } } },
   "pickMergeTitle": "Merge commits can't be picked together",
   "pickMergeBody": "{sha} is a merge. Cherry-pick it on its own to choose which parent to replay it against.",
-  "@pickMergeBody": { "placeholders": { "sha": { "type": "String" } } }
+  "@pickMergeBody": { "placeholders": { "sha": { "type": "String" } } },
+  "boOptions": "Blame options",
+  "boIgnoreWhitespace": "Ignore whitespace",
+  "boMovesOff": "Don't follow moved lines",
+  "boMovesWithinFile": "Follow lines moved within the file",
+  "boMovesAcrossFiles": "Follow lines moved from other files",
+  "boSkipRevs": "Skip revisions listed in {file}",
+  "@boSkipRevs": { "placeholders": { "file": { "type": "String" } } }
 }

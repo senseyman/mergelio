@@ -4358,4 +4358,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String pickMergeBody(String sha) {
     return '$sha is a merge. Cherry-pick it on its own to choose which parent to replay it against.';
   }
+
+  @override
+  String get boOptions => 'Blame options';
+
+  @override
+  String get boIgnoreWhitespace => 'Ignore whitespace';
+
+  @override
+  String get boMovesOff => 'Don\'t follow moved lines';
+
+  @override
+  String get boMovesWithinFile => 'Follow lines moved within the file';
+
+  @override
+  String get boMovesAcrossFiles => 'Follow lines moved from other files';
+
+  @override
+  String boSkipRevs(String file) {
+    return 'Skip revisions listed in $file';
+  }
 }

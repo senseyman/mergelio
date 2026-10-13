@@ -4434,4 +4434,26 @@ class AppLocalizationsUk extends AppLocalizations {
   String pickMergeBody(String sha) {
     return '$sha — merge-коміт. Зробіть cherry-pick окремо, щоб вибрати батьківський коміт.';
   }
+
+  @override
+  String get boOptions => 'Параметри blame';
+
+  @override
+  String get boIgnoreWhitespace => 'Ігнорувати пробіли';
+
+  @override
+  String get boMovesOff => 'Не відстежувати переміщені рядки';
+
+  @override
+  String get boMovesWithinFile =>
+      'Відстежувати рядки, переміщені в межах файлу';
+
+  @override
+  String get boMovesAcrossFiles =>
+      'Відстежувати рядки, переміщені з інших файлів';
+
+  @override
+  String boSkipRevs(String file) {
+    return 'Пропускати ревізії з $file';
+  }
 }

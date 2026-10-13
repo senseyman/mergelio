@@ -1,3 +1,17 @@
+/// How far blame looks for where a line really came from. git only counts a
+/// line as moved once it carries enough letters and digits, so short lines
+/// stay with the commit that moved them.
+enum BlameMoves {
+  off,
+
+  /// `-M`: a block moved or copied within the file keeps its author.
+  withinFile,
+
+  /// `-C`: lines moved in from another file changed in the same commit keep
+  /// theirs too. Implies [withinFile].
+  acrossFiles,
+}
+
 /// One blamed line: which commit and author last touched it, and the text.
 class BlameLine {
   final String sha;

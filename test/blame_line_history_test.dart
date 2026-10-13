@@ -39,6 +39,9 @@ void main() {
               BlameLine(sha: 'ccccccc', author: 'Maria', content: 'three'),
             ],
           ),
+          // The options menu looks for an ignore-revs file, which would run
+          // git on the host.
+          blameIgnoreRevsProvider(repo).overrideWith((ref) async => null),
           lineHistoryProvider.overrideWith((ref, LineRangeKey key) async {
             asked.add(key);
             return <LineHistoryEntry>[];

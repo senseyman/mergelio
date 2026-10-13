@@ -39,16 +39,76 @@ final lineHistoryProvider = FutureProvider.family
       ).lineHistory(key.path, key.start, key.end, rev: key.rev),
     );
 
-/// Per-line blame of a file. Ignores whitespace whenever the diff sheet does,
-/// so a reformat does not take credit for lines it only re-indented.
+/// How blame reads a file. One value for the session: the choices are about
+/// how the user wants to read history, not about any one repository.
+class BlameOptions {
+  final bool ignoreWhitespace;
+  final BlameMoves moves;
+
+  /// See past the commits a found ignore-revs file lists. Only means anything
+  /// where [blameIgnoreRevsProvider] finds one.
+  final bool skipIgnoredRevs;
+
+  const BlameOptions({
+    this.ignoreWhitespace = false,
+    this.moves = BlameMoves.off,
+    this.skipIgnoredRevs = true,
+  });
+
+  /// Plain git blame, with a project's own revs file honoured as it asks.
+  bool get isDefault => this == const BlameOptions();
+
+  BlameOptions copyWith({
+    bool? ignoreWhitespace,
+    BlameMoves? moves,
+    bool? skipIgnoredRevs,
+  }) => BlameOptions(
+    ignoreWhitespace: ignoreWhitespace ?? this.ignoreWhitespace,
+    moves: moves ?? this.moves,
+    skipIgnoredRevs: skipIgnoredRevs ?? this.skipIgnoredRevs,
+  );
+
+  @override
+  bool operator ==(Object other) =>
+      other is BlameOptions &&
+      other.ignoreWhitespace == ignoreWhitespace &&
+      other.moves == moves &&
+      other.skipIgnoredRevs == skipIgnoredRevs;
+
+  @override
+  int get hashCode => Object.hash(ignoreWhitespace, moves, skipIgnoredRevs);
+}
+
+/// Blame's options. Whitespace starts out as the diff sheet has it, so a user
+/// who ignores whitespace there gets the same here; it is read rather than
+/// watched, so from then on the blame toggle is its own.
+final blameOptionsProvider = StateProvider<BlameOptions>(
+  (ref) => BlameOptions(
+    ignoreWhitespace: ref.read(diffViewOptionsProvider).ignoresWhitespace,
+  ),
+);
+
+/// The ignore-revs file blame would honour in [repo], or null when it has none.
+final blameIgnoreRevsProvider = FutureProvider.family
+    .autoDispose<String?, String>(
+      (ref, repo) =>
+          GitReader(ref.watch(gitServiceProvider), repo).blameIgnoreRevsFile(),
+    );
+
+/// Per-line blame of a file, read with [blameOptionsProvider].
 final blameProvider = FutureProvider.family
     .autoDispose<List<BlameLine>, FileKey>((ref, key) async {
-      final ignoreWhitespace = ref.watch(
-        diffViewOptionsProvider.select((o) => o.ignoresWhitespace),
-      );
-      final raw = await GitReader(
-        ref.watch(gitServiceProvider),
-        key.repo,
-      ).blame(key.path, rev: key.rev, ignoreWhitespace: ignoreWhitespace);
+      final options = ref.watch(blameOptionsProvider);
+      final revsFile = options.skipIgnoredRevs
+          ? await ref.watch(blameIgnoreRevsProvider(key.repo).future)
+          : null;
+      final raw = await GitReader(ref.watch(gitServiceProvider), key.repo)
+          .blame(
+            key.path,
+            rev: key.rev,
+            ignoreWhitespace: options.ignoreWhitespace,
+            moves: options.moves,
+            ignoreRevsFile: revsFile,
+          );
       return parseBlame(raw);
     });
