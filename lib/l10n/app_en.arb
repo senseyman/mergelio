@@ -2611,5 +2611,9 @@
   "boMovesWithinFile": "Follow lines moved within the file",
   "boMovesAcrossFiles": "Follow lines moved from other files",
   "boSkipRevs": "Skip revisions listed in {file}",
-  "@boSkipRevs": { "placeholders": { "file": { "type": "String" } } }
+  "@boSkipRevs": { "placeholders": { "file": { "type": "String" } } },
+  "boRevsInvalid": "Can't use {file}: bad line «{line}»",
+  "@boRevsInvalid": { "placeholders": { "file": { "type": "String" }, "line": { "type": "String" } } },
+  "boRevsUnreadable": "Can't read {file}",
+  "@boRevsUnreadable": { "placeholders": { "file": { "type": "String" } } }
 }

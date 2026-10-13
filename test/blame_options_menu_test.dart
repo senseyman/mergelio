@@ -20,7 +20,7 @@ void main() {
   /// disk and run git, neither of which a widget test can do.
   Future<ProviderContainer> open(
     WidgetTester tester, {
-    String? revsFile,
+    BlameRevsFile? revsFile,
   }) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -119,7 +119,10 @@ void main() {
   });
 
   testWidgets('a found revs file gets a toggle, on by default', (tester) async {
-    final c = await open(tester, revsFile: '/r/.git-blame-ignore-revs');
+    final c = await open(
+      tester,
+      revsFile: (path: '/r/.git-blame-ignore-revs', invalid: null),
+    );
     final plain = iconColor(tester);
     await openMenu(tester);
 
@@ -142,5 +145,36 @@ void main() {
     );
     await tester.pump();
     expect(iconColor(tester), plain);
+  });
+
+  testWidgets('a file git would refuse says why and offers no toggle', (
+    tester,
+  ) async {
+    final c = await open(
+      tester,
+      revsFile: (path: '/r/.git-blame-ignore-revs', invalid: 'abc1234'),
+    );
+    final plain = iconColor(tester);
+    await openMenu(tester);
+
+    expect(
+      find.text("Can't use .git-blame-ignore-revs: bad line «abc1234»"),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Skip revisions'), findsNothing);
+    await tester.tap(find.textContaining("Can't use"));
+    await tester.pumpAndSettle();
+    expect(c.read(blameOptionsProvider).skipIgnoredRevs, isTrue);
+    // Not a choice the user made, so the icon stays as it was.
+    expect(iconColor(tester), plain);
+  });
+
+  testWidgets('an unreadable file says so', (tester) async {
+    await open(
+      tester,
+      revsFile: (path: '/r/.git-blame-ignore-revs', invalid: ''),
+    );
+    await openMenu(tester);
+    expect(find.text("Can't read .git-blame-ignore-revs"), findsOneWidget);
   });
 }

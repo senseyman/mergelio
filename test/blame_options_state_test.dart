@@ -37,7 +37,7 @@ void main() {
 
   ProviderContainer container(
     _RecordingGit git, {
-    String? revsFile,
+    BlameRevsFile? revsFile,
     DiffViewOptions diff = const DiffViewOptions(),
   }) {
     final c = ProviderContainer(
@@ -70,16 +70,27 @@ void main() {
 
   test('a found revs file is skipped through by default', () async {
     final git = _RecordingGit();
-    final args = await blameArgs(container(git, revsFile: '/r/revs'), git);
+    final args = await blameArgs(
+      container(git, revsFile: (path: '/r/revs', invalid: null)),
+      git,
+    );
     expect(args.join(' '), contains('--ignore-revs-file /r/revs'));
   });
 
   test('switching skipping off leaves the found file out', () async {
     final git = _RecordingGit();
-    final c = container(git, revsFile: '/r/revs');
+    final c = container(git, revsFile: (path: '/r/revs', invalid: null));
     c.read(blameOptionsProvider.notifier).state = c
         .read(blameOptionsProvider)
         .copyWith(skipIgnoredRevs: false);
+    final args = await blameArgs(c, git);
+    expect(args, isNot(contains('--ignore-revs-file')));
+    expect(args, contains('--no-ignore-revs-file'));
+  });
+
+  test('a file git would refuse is never passed on', () async {
+    final git = _RecordingGit();
+    final c = container(git, revsFile: (path: '/r/revs', invalid: 'abc1234'));
     final args = await blameArgs(c, git);
     expect(args, isNot(contains('--ignore-revs-file')));
     expect(args, contains('--no-ignore-revs-file'));

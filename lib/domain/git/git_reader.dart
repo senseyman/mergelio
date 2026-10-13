@@ -1023,6 +1023,11 @@ class GitReader {
   /// git's own `blame.ignoreRevsFile` is always switched off first: the caller
   /// resolves that setting through [blameIgnoreRevsFile], and a configured
   /// file that does not exist would otherwise fail every blame.
+  /// Blame's ceiling. Following moves from other files (`-C`) compares every
+  /// line against the other files of each commit, which on a long history can
+  /// run well past the ordinary default.
+  static const _blameTimeout = Duration(minutes: 5);
+
   Future<String> blame(
     String path, {
     String? rev,
@@ -1044,7 +1049,7 @@ class GitReader {
       ?rev,
       '--',
       path,
-    ]);
+    ], timeout: _blameTimeout);
     if (!r.ok) throw GitException('git blame failed', r);
     return r.stdout;
   }
@@ -1053,9 +1058,17 @@ class GitReader {
   /// it names a file that exists (a relative path is taken from the
   /// repository, as git takes it from the working directory), else the
   /// `.git-blame-ignore-revs` many projects keep at their root by convention.
-  /// Absolute, or null when there is neither.
-  Future<String?> blameIgnoreRevsFile() async {
-    final r = await _run(['config', '--path', '--get', 'blame.ignoreRevsFile']);
+  /// Null when there is neither.
+  ///
+  /// [BlameRevsFile.invalid] is the first line git would refuse, which would
+  /// fail every blame — so a file that has one must not be passed on.
+  Future<BlameRevsFile?> blameIgnoreRevsFile() async {
+    final results = await Future.wait([
+      _run(['config', '--path', '--get', 'blame.ignoreRevsFile']),
+      _run(['rev-parse', '--show-object-format']),
+    ]);
+    final r = results[0];
+    final hexLength = results[1].out.trim() == 'sha256' ? 64 : 40;
     final configured = r.ok ? r.out : '';
     String? existing(String path) {
       final abs = pathlib.isAbsolute(path)
@@ -1064,8 +1077,20 @@ class GitReader {
       return FileSystemEntity.isFileSync(abs) ? abs : null;
     }
 
-    return (configured.isEmpty ? null : existing(configured)) ??
+    final path =
+        (configured.isEmpty ? null : existing(configured)) ??
         existing('.git-blame-ignore-revs');
+    if (path == null) return null;
+    String content;
+    try {
+      content = File(path).readAsStringSync();
+    } on FileSystemException {
+      return (path: path, invalid: '');
+    }
+    return (
+      path: path,
+      invalid: firstInvalidIgnoreRev(content, hexLength: hexLength),
+    );
   }
 
   /// Files changed by [sha]. Merges are diffed against their first parent, so

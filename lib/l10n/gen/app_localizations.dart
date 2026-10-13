@@ -7237,6 +7237,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Skip revisions listed in {file}'**
   String boSkipRevs(String file);
+
+  /// No description provided for @boRevsInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Can\'t use {file}: bad line «{line}»'**
+  String boRevsInvalid(String file, String line);
+
+  /// No description provided for @boRevsUnreadable.
+  ///
+  /// In en, this message translates to:
+  /// **'Can\'t read {file}'**
+  String boRevsUnreadable(String file);
 }
 
 class _AppLocalizationsDelegate

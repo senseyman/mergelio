@@ -12,6 +12,26 @@ enum BlameMoves {
   acrossFiles,
 }
 
+/// An ignore-revs file found for blame, with the first line git would refuse
+/// in it — empty when the file could not be read at all — or null when git
+/// takes the whole file.
+typedef BlameRevsFile = ({String path, String? invalid});
+
+/// The first line of an ignore-revs file that git would refuse, or null when
+/// it would take the whole file. git reads a line as a full object name
+/// ([hexLength] hex digits, either case) once anything after `#` and the
+/// surrounding whitespace are gone, and skips what is left blank. One bad line
+/// — an abbreviated sha is enough — fails the whole blame.
+String? firstInvalidIgnoreRev(String content, {int hexLength = 40}) {
+  final name = RegExp('^[0-9a-fA-F]{$hexLength}\$');
+  for (final raw in content.split('\n')) {
+    final hash = raw.indexOf('#');
+    final line = (hash < 0 ? raw : raw.substring(0, hash)).trim();
+    if (line.isNotEmpty && !name.hasMatch(line)) return line;
+  }
+  return null;
+}
+
 /// One blamed line: which commit and author last touched it, and the text.
 class BlameLine {
   final String sha;

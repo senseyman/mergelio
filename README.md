@@ -130,7 +130,8 @@ change never needs a second window.*
   menu ignores whitespace (`-w`) and follows moved lines within the file (`-M`)
   or from other files (`-C`). Commits listed in `blame.ignoreRevsFile`, or in a
   `.git-blame-ignore-revs` at the repository root, are skipped by default, with
-  a toggle to see them again. A configured file that is missing no longer breaks
+  a toggle to see them again. A missing file, or one git would reject (an
+  abbreviated sha, say), is left out and named in the menu rather than breaking
   blame.
 - **Line history** (`git log -L`): pick a line or a run of lines — in blame, or
   in any diff — and see every commit that changed just those lines, each with

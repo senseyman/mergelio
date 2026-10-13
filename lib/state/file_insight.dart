@@ -88,9 +88,10 @@ final blameOptionsProvider = StateProvider<BlameOptions>(
   ),
 );
 
-/// The ignore-revs file blame would honour in [repo], or null when it has none.
+/// The ignore-revs file found for [repo], or null when it has none. One that
+/// git would refuse is reported here and left out of every blame.
 final blameIgnoreRevsProvider = FutureProvider.family
-    .autoDispose<String?, String>(
+    .autoDispose<BlameRevsFile?, String>(
       (ref, repo) =>
           GitReader(ref.watch(gitServiceProvider), repo).blameIgnoreRevsFile(),
     );
@@ -99,9 +100,10 @@ final blameIgnoreRevsProvider = FutureProvider.family
 final blameProvider = FutureProvider.family
     .autoDispose<List<BlameLine>, FileKey>((ref, key) async {
       final options = ref.watch(blameOptionsProvider);
-      final revsFile = options.skipIgnoredRevs
+      final found = options.skipIgnoredRevs
           ? await ref.watch(blameIgnoreRevsProvider(key.repo).future)
           : null;
+      final revsFile = found?.invalid == null ? found?.path : null;
       final raw = await GitReader(ref.watch(gitServiceProvider), key.repo)
           .blame(
             key.path,

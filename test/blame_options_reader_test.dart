@@ -128,6 +128,14 @@ void main() {
   });
 
   group('blameIgnoreRevsFile', () {
+    test('reports a line git would reject instead of using the file', () async {
+      await File('${dir.path}/.git-blame-ignore-revs')
+          .writeAsString('# fine\nabc1234\n');
+      final found = await reader().blameIgnoreRevsFile();
+      expect(found?.path, '${dir.path}/.git-blame-ignore-revs');
+      expect(found?.invalid, 'abc1234');
+    });
+
     test('is null with neither config nor root file', () async {
       await write('a.txt', ['x']);
       await commit('add');
@@ -137,7 +145,7 @@ void main() {
     test('finds the root .git-blame-ignore-revs', () async {
       await File('${dir.path}/.git-blame-ignore-revs').writeAsString('\n');
       expect(
-        await reader().blameIgnoreRevsFile(),
+        (await reader().blameIgnoreRevsFile())?.path,
         '${dir.path}/.git-blame-ignore-revs',
       );
     });
@@ -147,7 +155,9 @@ void main() {
       await Directory('${dir.path}/meta').create();
       await File('${dir.path}/meta/revs').writeAsString('\n');
       await g(['config', 'blame.ignoreRevsFile', 'meta/revs']);
-      expect(await reader().blameIgnoreRevsFile(), '${dir.path}/meta/revs');
+      final found = await reader().blameIgnoreRevsFile();
+      expect(found?.path, '${dir.path}/meta/revs');
+      expect(found?.invalid, isNull);
     });
 
     test(
@@ -156,15 +166,70 @@ void main() {
         await File('${dir.path}/.git-blame-ignore-revs').writeAsString('\n');
         await g(['config', 'blame.ignoreRevsFile', 'gone']);
         expect(
-          await reader().blameIgnoreRevsFile(),
+          (await reader().blameIgnoreRevsFile())?.path,
           '${dir.path}/.git-blame-ignore-revs',
         );
       },
     );
+
+    test('a file that is not text counts as unreadable', () async {
+      await File('${dir.path}/.git-blame-ignore-revs')
+          .writeAsBytes([0xff, 0xfe, 0x00, 0x62]);
+      expect((await reader().blameIgnoreRevsFile())?.invalid, '');
+    });
+
+    test('takes full names in a sha256 repository', () async {
+      final repo256 = await Directory.systemTemp.createTemp('mergelio_b256_');
+      addTearDown(() => repo256.delete(recursive: true));
+      final init = await svc.run([
+        'init',
+        '-q',
+        '--object-format=sha256',
+      ], repoPath: repo256.path);
+      if (!init.ok) {
+        markTestSkipped('git without sha256 support');
+        return;
+      }
+      await File('${repo256.path}/.git-blame-ignore-revs')
+          .writeAsString('${'a' * 64}\n');
+      final found = await GitReader(svc, repo256.path).blameIgnoreRevsFile();
+      expect(found?.invalid, isNull);
+    });
 
     test('a directory by that name does not count', () async {
       await Directory('${dir.path}/.git-blame-ignore-revs').create();
       expect(await reader().blameIgnoreRevsFile(), isNull);
     });
   });
+
+  test('blame gets more than the default read timeout', () async {
+    final git = _TimeoutGit();
+    await GitReader(git, '/r').blame('a.txt', moves: BlameMoves.acrossFiles);
+    expect(git.timeout, greaterThan(const Duration(seconds: 30)));
+  });
+}
+
+/// Keeps the timeout blame was given; following moves across files can take
+/// far longer than an ordinary read.
+class _TimeoutGit implements GitService {
+  Duration? timeout;
+
+  @override
+  Future<GitResult> run(
+    List<String> args, {
+    String? repoPath,
+    Duration? timeout,
+    Map<String, String>? environment,
+    GitCancel? cancel,
+    String? stdin,
+  }) async {
+    this.timeout = timeout;
+    return const GitResult(0, '', '');
+  }
+
+  @override
+  Future<String> version() async => 'git version 2.55.0';
+
+  @override
+  Future<bool> isRepository(String path) async => true;
 }

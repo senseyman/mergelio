@@ -4456,4 +4456,14 @@ class AppLocalizationsUk extends AppLocalizations {
   String boSkipRevs(String file) {
     return 'Пропускати ревізії з $file';
   }
+
+  @override
+  String boRevsInvalid(String file, String line) {
+    return 'Не вдається використати $file: хибний рядок «$line»';
+  }
+
+  @override
+  String boRevsUnreadable(String file) {
+    return 'Не вдається прочитати $file';
+  }
 }

@@ -328,7 +328,9 @@ class _BlameOptionsMenu extends ConsumerWidget {
     final l = AppLocalizations.of(context);
     final t = context.tokens;
     final options = ref.watch(blameOptionsProvider);
-    final revsFile = ref.watch(blameIgnoreRevsProvider(repoPath)).valueOrNull;
+    final revs = ref.watch(blameIgnoreRevsProvider(repoPath)).valueOrNull;
+    // Only a file git accepts is a choice; a broken one is reported instead.
+    final revsFile = revs?.invalid == null ? revs?.path : null;
     void set(BlameOptions next) =>
         ref.read(blameOptionsProvider.notifier).state = next;
     // Skipping is on by default, so only switching it off reads differently,
@@ -361,6 +363,20 @@ class _BlameOptionsMenu extends ConsumerWidget {
             checked: options.moves == moves,
             child: Text(label),
           ),
+        if (revs != null && revs.invalid != null) ...[
+          const PopupMenuDivider(),
+          PopupMenuItem<VoidCallback>(
+            enabled: false,
+            child: Tooltip(
+              message: revs.path,
+              child: Text(
+                revs.invalid!.isEmpty
+                    ? l.boRevsUnreadable(p.basename(revs.path))
+                    : l.boRevsInvalid(p.basename(revs.path), revs.invalid!),
+              ),
+            ),
+          ),
+        ],
         if (revsFile != null) ...[
           const PopupMenuDivider(),
           CheckedPopupMenuItem(

@@ -4378,4 +4378,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String boSkipRevs(String file) {
     return 'Skip revisions listed in $file';
   }
+
+  @override
+  String boRevsInvalid(String file, String line) {
+    return 'Can\'t use $file: bad line «$line»';
+  }
+
+  @override
+  String boRevsUnreadable(String file) {
+    return 'Can\'t read $file';
+  }
 }
