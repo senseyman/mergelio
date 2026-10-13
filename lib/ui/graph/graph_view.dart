@@ -34,6 +34,7 @@ import 'bisect_bar.dart';
 import 'commit_columns.dart';
 import 'graph_derived.dart';
 import 'commit_row.dart';
+import 'pick_bar.dart';
 import 'rail_metrics.dart';
 import 'squash_overlay.dart';
 
@@ -307,6 +308,33 @@ class _GraphListState extends ConsumerState<GraphList> {
     ref.read(selectedCommitProvider.notifier).state = id;
   }
 
+  /// A click on a commit row: Shift picks the run of rows from the anchor, Cmd
+  /// (Ctrl off macOS) toggles the row in or out of the picks, and a plain
+  /// click drops the picks and selects only that row.
+  void _onRowTap(String sha, double rowHeight) {
+    final repo = ref.read(workspaceProvider).activeTab?.path;
+    if (repo != null) {
+      final keys = HardwareKeyboard.instance;
+      final toggle = defaultTargetPlatform == TargetPlatform.macOS
+          ? keys.isMetaPressed
+          : keys.isControlPressed;
+      final picks = ref.read(commitPicksProvider(repo).notifier);
+      final seed = ref.read(selectedCommitProvider);
+      if (keys.isShiftPressed) {
+        picks.state = picks.state.extend(sha, [
+          for (final c in widget.data.commits) c.sha,
+        ], seed: seed);
+      } else if (toggle) {
+        picks.state = picks.state.toggle(sha, seed: seed);
+        // Toggled out: the details stay on what was already selected.
+        if (!picks.state.contains(sha)) return;
+      } else {
+        picks.state = CommitPicks.none;
+      }
+    }
+    _select(sha, rowHeight);
+  }
+
   /// Brings the row for [sha] into view if it is off-screen. Uses the memoized
   /// sha→index map (O(1)) rather than scanning the commit list, so clicking a
   /// branch on a 50k-commit repo flies instantly. No-op when the sha isn't a
@@ -468,6 +496,9 @@ class _GraphListState extends ConsumerState<GraphList> {
     // Only the loaded value counts: while the read is in flight the filter has
     // no shas yet and the graph shows no matches.
     final repo = ref.watch(workspaceProvider.select((w) => w.activeTab?.path));
+    final picks = repo == null
+        ? CommitPicks.none
+        : ref.watch(commitPicksProvider(repo));
     // Read once for the whole list rather than per row, so no two rows can
     // draw their pills from different snapshots. The context menu reads the
     // provider again when it opens, by which time a verdict may have landed;
@@ -509,6 +540,7 @@ class _GraphListState extends ConsumerState<GraphList> {
               _select(sha, metrics.rowHeight);
             },
           ),
+        if (repo != null) PickBar(repoPath: repo, commits: d.commits),
         if (query != null)
           _SearchBar(
             query: query,
@@ -559,6 +591,12 @@ class _GraphListState extends ConsumerState<GraphList> {
                           selected: selected == wipSelection,
                           onTap: () {
                             _focus.requestFocus();
+                            if (repo != null) {
+                              ref
+                                      .read(commitPicksProvider(repo).notifier)
+                                      .state =
+                                  CommitPicks.none;
+                            }
                             _select(wipSelection, metrics.rowHeight);
                           },
                         );
@@ -623,14 +661,19 @@ class _GraphListState extends ConsumerState<GraphList> {
                           cols: cols,
                           dateFormat: dateFormat,
                           stashLabel: stashBySha[c.sha],
-                          selected: selected == c.sha,
+                          // While commits are picked the highlight shows the
+                          // picks alone, so toggling the selected row out
+                          // visibly drops it.
+                          selected: picks.isEmpty
+                              ? selected == c.sha
+                              : picks.contains(c.sha),
                           searchMatch: query == null || query.isEmpty
                               ? null
                               : matchShas.contains(c.sha),
                           bisectKind: bisectState?.kindOf(c.sha),
                           onTap: () {
                             _focus.requestFocus();
-                            _select(c.sha, metrics.rowHeight);
+                            _onRowTap(c.sha, metrics.rowHeight);
                           },
                           acceptsBranchDrop: (source, chip) =>
                               dropTarget(source, DropSpot.label(chip)) != null,
@@ -1322,6 +1365,14 @@ class _CommitContextMenu extends ConsumerWidget {
     final marked = mark != null && mark.repoPath == path && mark.sha == sha;
     final bisect = ref.read(bisectStateProvider(path));
     final l = AppLocalizations.of(context);
+    // A right-click on one of several picked rows acts on all of them.
+    final commits =
+        ref.read(repoDataProvider(path)).valueOrNull?.commits ??
+        const <Commit>[];
+    final picks = ref.read(commitPicksProvider(path));
+    final picked = picks.contains(sha)
+        ? picks.oldestFirst([for (final c in commits) c.sha]).length
+        : 0;
 
     PopupMenuItem<void> item(
       String label,
@@ -1343,6 +1394,17 @@ class _CommitContextMenu extends ConsumerWidget {
       context: context,
       position: at,
       items: [
+        if (picked > 1) ...[
+          item(
+            l.pickMenuCherryPick(picked),
+            () => cherryPickPicks(ref, l, path, commits),
+          ),
+          item(
+            l.pickMenuNoCommit(picked),
+            () => cherryPickPicks(ref, l, path, commits, noCommit: true),
+          ),
+          const PopupMenuDivider(),
+        ],
         item(l.menuCheckout, () => actions.checkout(sha)),
         item(l.menuCreateBranch, () async {
           final name = await showInputDialog(

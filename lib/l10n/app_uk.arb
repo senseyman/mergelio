@@ -1492,5 +1492,13 @@
   "apcAppliedStaged": "Патч застосовано й проіндексовано",
   "apcConflicts": "Патч застосовано з конфліктами",
   "apcConflictsHint": "Розв'яжіть конфлікти у файлах, потім зробіть коміт.",
-  "apcApplyFailed": "Не вдалося застосувати патч"
+  "apcApplyFailed": "Не вдалося застосувати патч",
+  "pickSelected": "{count, plural, one{Вибрано {count} коміт} few{Вибрано {count} коміти} many{Вибрано {count} комітів} other{Вибрано {count} коміта}}",
+  "pickCherryPick": "Cherry-pick",
+  "pickNoCommit": "Cherry-pick без коміту",
+  "pickClear": "Очистити",
+  "pickMenuCherryPick": "{count, plural, one{Cherry-pick {count} коміту} few{Cherry-pick {count} комітів} many{Cherry-pick {count} комітів} other{Cherry-pick {count} коміта}}",
+  "pickMenuNoCommit": "{count, plural, one{Cherry-pick {count} коміту без коміту} few{Cherry-pick {count} комітів без коміту} many{Cherry-pick {count} комітів без коміту} other{Cherry-pick {count} коміта без коміту}}",
+  "pickMergeTitle": "Merge-коміти не можна вибирати разом",
+  "pickMergeBody": "{sha} — merge-коміт. Зробіть cherry-pick окремо, щоб вибрати батьківський коміт."
 }

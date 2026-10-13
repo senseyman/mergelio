@@ -251,6 +251,11 @@ change never needs a second window.*
   commits can move with them (`update-ref`). "Prepare fixup for this commit" in
   the graph menu pre-fills a `fixup! …` message — you stage and commit it.
 - Cherry-pick, revert, reset (soft / hard), and reset-to-remote.
+- Cherry-pick several commits at once: ⌘-click (Ctrl-click) or Shift-click rows
+  in the graph, then pick them from the bar above it or the row's menu. They
+  replay oldest first whatever order you clicked them in; a conflict pauses the
+  run in the Merge Tool and continuing carries on with the rest. "Without
+  committing" stages every pick instead, for you to commit as one.
 - Stash push, apply, pop, drop — with undo.
 - Tags: create, push, delete.
 - Remotes: add, edit name and URL, remove, prune — validated before they reach

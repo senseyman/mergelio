@@ -4308,4 +4308,54 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get apcApplyFailed => 'Could not apply the patch';
+
+  @override
+  String pickSelected(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count commits selected',
+      one: '$count commit selected',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get pickCherryPick => 'Cherry-pick';
+
+  @override
+  String get pickNoCommit => 'Cherry-pick without committing';
+
+  @override
+  String get pickClear => 'Clear';
+
+  @override
+  String pickMenuCherryPick(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Cherry-pick $count commits',
+      one: 'Cherry-pick $count commit',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String pickMenuNoCommit(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Cherry-pick $count commits without committing',
+      one: 'Cherry-pick $count commit without committing',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get pickMergeTitle => 'Merge commits can\'t be picked together';
+
+  @override
+  String pickMergeBody(String sha) {
+    return '$sha is a merge. Cherry-pick it on its own to choose which parent to replay it against.';
+  }
 }

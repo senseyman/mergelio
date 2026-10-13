@@ -4378,4 +4378,60 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get apcApplyFailed => 'Не вдалося застосувати патч';
+
+  @override
+  String pickSelected(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Вибрано $count коміта',
+      many: 'Вибрано $count комітів',
+      few: 'Вибрано $count коміти',
+      one: 'Вибрано $count коміт',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get pickCherryPick => 'Cherry-pick';
+
+  @override
+  String get pickNoCommit => 'Cherry-pick без коміту';
+
+  @override
+  String get pickClear => 'Очистити';
+
+  @override
+  String pickMenuCherryPick(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Cherry-pick $count коміта',
+      many: 'Cherry-pick $count комітів',
+      few: 'Cherry-pick $count комітів',
+      one: 'Cherry-pick $count коміту',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String pickMenuNoCommit(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Cherry-pick $count коміта без коміту',
+      many: 'Cherry-pick $count комітів без коміту',
+      few: 'Cherry-pick $count комітів без коміту',
+      one: 'Cherry-pick $count коміту без коміту',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get pickMergeTitle => 'Merge-коміти не можна вибирати разом';
+
+  @override
+  String pickMergeBody(String sha) {
+    return '$sha — merge-коміт. Зробіть cherry-pick окремо, щоб вибрати батьківський коміт.';
+  }
 }
