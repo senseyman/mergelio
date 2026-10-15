@@ -114,10 +114,14 @@ class WorkspaceSession {
   tabs;
   final List<RepoGroup> groups;
   final int? activeGroupId;
+
+  /// Path of the tab that was selected; tab ids are not stable across runs.
+  final String? activePath;
   const WorkspaceSession({
     this.tabs = const [],
     this.groups = const [],
     this.activeGroupId,
+    this.activePath,
   });
 }
 
@@ -204,6 +208,7 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
           ),
       ],
       activeGroupId: map['activeGroup'] as int?,
+      activePath: map['activeTab'] as String?,
     );
   }
 
@@ -212,7 +217,7 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
   bool _restoring = false;
 
   /// Applies a restored [session]: groups first, then tabs in order, then the
-  /// active group. Persists exactly once, at the end.
+  /// selected tab and the active group. Persists exactly once, at the end.
   void applySession(WorkspaceSession session) {
     _restoring = true;
     try {
@@ -226,6 +231,16 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
         if (t.viewMode != RepoViewMode.graph) setViewMode(tab.id, t.viewMode);
         if (t.openFiles.isNotEmpty) {
           setOpenFiles(t.path, t.openFiles, t.activeFile);
+        }
+      }
+      // Opening each tab activates it, so without a saved selection the last
+      // one stays active.
+      final activePath = session.activePath;
+      if (activePath != null) {
+        for (final t in state.tabs) {
+          if (!samePath(t.path, activePath)) continue;
+          state = state.copyWith(activeTabId: t.id);
+          break;
         }
       }
       state = state.copyWith(activeGroupId: session.activeGroupId);
@@ -269,6 +284,7 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
             {'id': g.id, 'name': g.name, 'color': g.colorValue},
         ],
         'activeGroup': state.activeGroupId,
+        'activeTab': state.activeTab?.path,
       }),
     );
   }
@@ -277,10 +293,16 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
   /// while other tabs are visible, the first visible tab takes over. When the
   /// group is empty the selection is *preserved* (Welcome is shown via
   /// [WorkspaceState.hasRepo]), so round-tripping through an empty group never
-  /// loses which repo was selected.
+  /// loses which repo was selected — unless that tab was closed, in which case
+  /// the first remaining tab is held instead.
   void _normalizeActive() {
     final visible = state.visibleTabs;
-    if (visible.isEmpty) return;
+    if (visible.isEmpty) {
+      if (state.activeTab == null && state.tabs.isNotEmpty) {
+        state = state.copyWith(activeTabId: state.tabs.first.id);
+      }
+      return;
+    }
     if (!visible.any((t) => t.id == state.activeTabId)) {
       state = state.copyWith(activeTabId: visible.first.id);
     }
@@ -329,8 +351,11 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
     return tab;
   }
 
-  void setActive(int id) =>
-      state = state.copyWith(activeTabId: id, dashboard: false);
+  void setActive(int id) {
+    if (id == state.activeTabId && !state.dashboard) return;
+    state = state.copyWith(activeTabId: id, dashboard: false);
+    _persist();
+  }
 
   /// Shows the dashboard over the active group. Needs a repository open: with
   /// none there is nothing to show and the welcome screen stays.
