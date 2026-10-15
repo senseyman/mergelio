@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/logging.dart';
 import '../../state/auto_fetch.dart';
 import '../../state/feedback.dart';
 import '../../state/forge_refresh.dart';
@@ -169,6 +170,7 @@ class _StartupNoticesState extends ConsumerState<_StartupNotices> {
 
       // Once per version: the first launch after an upgrade shows what
       // changed.
+      appLog.info('startup hook reached', scope: 'release-notes');
       ref.read(releaseNotesStartupProvider);
     });
   }

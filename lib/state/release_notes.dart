@@ -2,6 +2,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pub_semver/pub_semver.dart';
 
+import '../core/logging.dart';
 import '../data/kv_store.dart';
 import '../data/update/host_info.dart';
 import '../domain/release_notes/release_notes.dart';
@@ -51,12 +52,19 @@ final releaseNotesLaunchProvider = FutureProvider<List<Version>>((ref) async {
   try {
     final current = await ref.watch(currentReleaseProvider.future);
     final available = await ref.watch(releaseNotesAssetsProvider.future);
-    return await releaseNotesOnLaunch(
+    final shown = await releaseNotesOnLaunch(
       store: ref.read(kvStoreProvider),
       current: current,
       available: available.keys,
     );
-  } catch (_) {
+    appLog.info(
+      'running $current, notes for ${available.keys.join(', ')}; '
+      'showing ${shown.isEmpty ? 'none' : shown.join(', ')}',
+      scope: 'release-notes',
+    );
+    return shown;
+  } catch (e, st) {
+    appLog.error('launch check failed', e, st, 'release-notes');
     return const [];
   }
 });
