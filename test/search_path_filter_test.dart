@@ -52,6 +52,7 @@ void main() {
             c,
             const CommitQuery(path: 'lib/main.dart', author: 'Ada'),
             pathShas: touched,
+            historyShas: const {'aaa'},
           ))
             c.sha,
       ],

@@ -233,6 +233,52 @@ class AppLocalizationsEn extends AppLocalizations {
   String get searchNoMatches => 'No matches';
 
   @override
+  String get searchAuthorHelp =>
+      'Name or email, searched across the whole history';
+
+  @override
+  String searchOlderMatchesHelp(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Up to $count more matches in older history — load more',
+      one: 'Up to $count more match in older history — load more',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get filterDate => 'Date';
+
+  @override
+  String get filterDateHelp => 'Filter by the date the commit was authored';
+
+  @override
+  String get filterDateAny => 'Any time';
+
+  @override
+  String get filterDateWeek => 'Last 7 days';
+
+  @override
+  String get filterDateMonth => 'Last 30 days';
+
+  @override
+  String get filterDateYear => 'Last 12 months';
+
+  @override
+  String get filterDateCustom => 'Custom range…';
+
+  @override
+  String filterDateSince(String date) {
+    return 'Since $date';
+  }
+
+  @override
+  String filterDateUntil(String date) {
+    return 'Until $date';
+  }
+
+  @override
   String get menuCheckout => 'Checkout this commit';
 
   @override

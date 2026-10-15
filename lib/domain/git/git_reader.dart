@@ -140,16 +140,12 @@ class GitReader {
   Future<List<Commit>> commits({int? maxCount}) async =>
       (await commitPage(maxCount: maxCount)).commits;
 
-  /// [commits], plus whether the walk stopped because it filled [maxCount]
-  /// rather than because it ran out of history. A pager needs the distinction
-  /// and cannot recover it from the list length: the stash bookkeeping nodes
-  /// below are dropped after the walk, so a truncated page can come back
-  /// shorter than [maxCount].
-  Future<({List<Commit> commits, bool truncated})> commitPage({
-    int? maxCount,
-  }) async {
+  /// What a history walk needs to show stashes the way the graph does: every
+  /// stash commit, to pass as extra revisions, and their internal index and
+  /// untracked snapshots, to drop from the result.
+  Future<({List<String> stashShas, Set<String> auxShas})> stashWalk() async {
     // Stash commits live outside any ref `--all` walks, so fetch their shas and
-    // pass them as extra revisions below; `stash@{0}` is already reachable via
+    // pass them as extra revisions; `stash@{0}` is already reachable via
     // `--all` but duplicate revs are harmless to `git log`.
     final stashList = await _run(['stash', 'list', '--format=%H']);
     final stashShas = stashList.ok
@@ -161,8 +157,8 @@ class GitReader {
 
     // A stash commit's 2nd/3rd parents are its internal index/untracked
     // snapshots; walking the stash pulls them in as nodes. Collect them so they
-    // are dropped below — only the stash commit itself should show. This also
-    // clears the pre-existing `stash@{0}` index/untracked leak from `--all`.
+    // are dropped — only the stash commit itself should show. This also clears
+    // the pre-existing `stash@{0}` index/untracked leak from `--all`.
     final auxShas = <String>{};
     if (stashShas.isNotEmpty) {
       final rl = await _run([
@@ -179,6 +175,18 @@ class GitReader {
         }
       }
     }
+    return (stashShas: stashShas, auxShas: auxShas);
+  }
+
+  /// [commits], plus whether the walk stopped because it filled [maxCount]
+  /// rather than because it ran out of history. A pager needs the distinction
+  /// and cannot recover it from the list length: the stash bookkeeping nodes
+  /// below are dropped after the walk, so a truncated page can come back
+  /// shorter than [maxCount].
+  Future<({List<Commit> commits, bool truncated})> commitPage({
+    int? maxCount,
+  }) async {
+    final (:stashShas, :auxShas) = await stashWalk();
 
     final r = await _run([
       'log',

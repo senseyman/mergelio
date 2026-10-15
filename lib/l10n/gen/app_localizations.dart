@@ -542,6 +542,72 @@ abstract class AppLocalizations {
   /// **'No matches'**
   String get searchNoMatches;
 
+  /// No description provided for @searchAuthorHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Name or email, searched across the whole history'**
+  String get searchAuthorHelp;
+
+  /// No description provided for @searchOlderMatchesHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{Up to {count} more match in older history — load more} other{Up to {count} more matches in older history — load more}}'**
+  String searchOlderMatchesHelp(int count);
+
+  /// No description provided for @filterDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Date'**
+  String get filterDate;
+
+  /// No description provided for @filterDateHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter by the date the commit was authored'**
+  String get filterDateHelp;
+
+  /// No description provided for @filterDateAny.
+  ///
+  /// In en, this message translates to:
+  /// **'Any time'**
+  String get filterDateAny;
+
+  /// No description provided for @filterDateWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'Last 7 days'**
+  String get filterDateWeek;
+
+  /// No description provided for @filterDateMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'Last 30 days'**
+  String get filterDateMonth;
+
+  /// No description provided for @filterDateYear.
+  ///
+  /// In en, this message translates to:
+  /// **'Last 12 months'**
+  String get filterDateYear;
+
+  /// No description provided for @filterDateCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom range…'**
+  String get filterDateCustom;
+
+  /// No description provided for @filterDateSince.
+  ///
+  /// In en, this message translates to:
+  /// **'Since {date}'**
+  String filterDateSince(String date);
+
+  /// No description provided for @filterDateUntil.
+  ///
+  /// In en, this message translates to:
+  /// **'Until {date}'**
+  String filterDateUntil(String date);
+
   /// No description provided for @menuCheckout.
   ///
   /// In en, this message translates to:
