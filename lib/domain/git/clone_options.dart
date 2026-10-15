@@ -38,11 +38,23 @@ class CloneOptions {
   CloneProblem? get problem {
     if (depth != null && depth! < 1) return CloneProblem.badDepth;
     final b = _branch;
-    if (b != null && (b.startsWith('-') || b.contains(RegExp(r'\s')))) {
-      return CloneProblem.badBranch;
-    }
+    if (b != null && !_validBranchName(b)) return CloneProblem.badBranch;
     return null;
   }
+}
+
+/// git's own branch-name rules (`check-ref-format --branch`), so a bad name
+/// is caught in the dialog instead of by a failed clone. A leading `-` is
+/// refused too: `--branch` comes before the `--` separator, and such a name
+/// would be read as an option.
+bool _validBranchName(String b) {
+  if (b.startsWith('-') || b.startsWith('/')) return false;
+  if (b.endsWith('/') || b.endsWith('.')) return false;
+  if (b.contains('..') || b.contains('//') || b.contains('@{')) return false;
+  if (b.contains(RegExp(r'[\x00-\x20\x7f~^:?*\[\\]|\s'))) return false;
+  return b
+      .split('/')
+      .every((part) => !part.startsWith('.') && !part.endsWith('.lock'));
 }
 
 /// A depth typed into the dialog: a positive whole number, else null.

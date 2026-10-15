@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/domain/git/clone_options.dart';
+import 'package:mergelio/domain/git/git_service.dart';
 
 void main() {
   group('isLocalCloneSource', () {
@@ -148,6 +149,77 @@ void main() {
       expect(parseDepth('-1'), isNull);
       expect(parseDepth('1.5'), isNull);
       expect(parseDepth('abc'), isNull);
+    });
+  });
+
+  group('branch names', () {
+    bool ok(String b) => CloneOptions(branch: b).problem == null;
+
+    test('rejects what git rejects', () {
+      for (final bad in [
+        'a..b',
+        'a~1',
+        'a^',
+        'a:b',
+        'a?',
+        'a*',
+        'a[b',
+        r'a\b',
+        'a.lock',
+        'a/.b',
+        '.a',
+        'a/',
+        'a.',
+        '/a',
+        'a//b',
+        'a@{b',
+        'a\tb',
+      ]) {
+        expect(ok(bad), isFalse, reason: bad);
+      }
+      for (final good in [
+        '@',
+        'feat/x',
+        'v1.2',
+        'a@b',
+        'ü',
+        'a.lock.b',
+        'x.y/z',
+      ]) {
+        expect(ok(good), isTrue, reason: good);
+      }
+    });
+
+    test('agrees with git check-ref-format', () async {
+      const svc = SystemGitService();
+      for (final name in [
+        'feat/x',
+        'a..b',
+        'a~1',
+        'a^',
+        'a:b',
+        'a?',
+        'a*',
+        'a[b',
+        r'a\b',
+        'a.lock',
+        'a/.b',
+        '.a',
+        'a/',
+        'a.',
+        '/a',
+        'a//b',
+        'a@{b',
+        '@',
+        'a b',
+        'v1.2',
+        'a@b',
+        'ü',
+        'a.lock.b',
+      ]) {
+        final r = await svc.run(['check-ref-format', '--branch', name]);
+        expect(ok(name), r.ok, reason: name);
+      }
     });
   });
 }

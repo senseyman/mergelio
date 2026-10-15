@@ -160,14 +160,31 @@ void main() {
     },
   );
 
-  test('fetchFullHistory on a full clone reports the failure', () async {
+  test('fetchFullHistory on a full clone has nothing to do', () async {
     final repo = await clone([]);
     final c = ProviderContainer();
     addTearDown(c.dispose);
 
     final ok = await c.read(repoActionsProvider(repo)).fetchFullHistory();
 
-    expect(ok, isFalse);
-    expect(c.read(toastProvider).last.kind, ToastKind.error);
+    // git refuses --unshallow on a complete repository; it must not be asked.
+    expect(ok, isTrue);
+    expect(
+      c.read(toastProvider).where((t) => t.kind == ToastKind.error),
+      isEmpty,
+    );
+  });
+
+  test('fetchFullHistory waits its turn behind a running fetch', () async {
+    final repo = await clone(['--no-local', '--depth', '1']);
+    final c = ProviderContainer();
+    addTearDown(c.dispose);
+    c.read(fetchBusyProvider.notifier).state = const BusyState('Fetch');
+
+    final ok = await c.read(repoActionsProvider(repo)).fetchFullHistory();
+
+    expect(ok, isTrue);
+    expect(c.read(toastProvider).last.kind, ToastKind.warning);
+    expect(await GitReader(svc, repo).isShallow(), isTrue);
   });
 }

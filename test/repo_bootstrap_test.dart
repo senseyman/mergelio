@@ -4,9 +4,58 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/domain/git/clone_options.dart';
 import 'package:mergelio/domain/git/git_service.dart';
+import 'package:mergelio/data/app_database.dart';
+import 'package:mergelio/domain/git/git_providers.dart';
+import 'package:mergelio/state/recents.dart';
 import 'package:mergelio/state/repo_bootstrap.dart';
 import 'package:mergelio/state/workspace.dart';
 import 'package:path/path.dart' as p;
+
+/// Records every git call and runs none.
+class _RecordingGit implements GitService {
+  final calls = <List<String>>[];
+
+  @override
+  Future<GitResult> run(
+    List<String> args, {
+    String? repoPath,
+    Duration? timeout,
+    Map<String, String>? environment,
+    GitCancel? cancel,
+    String? stdin,
+  }) async {
+    calls.add(args);
+    return const GitResult(0, '', '');
+  }
+
+  @override
+  Future<String> version() async => 'git version 2';
+  @override
+  Future<bool> isRepository(String path) async => true;
+}
+
+/// Keeps recents in memory; the real repository writes to the app database.
+class _MemoryRecents implements RecentsRepository {
+  @override
+  AppDatabase get db => throw UnimplementedError();
+  @override
+  Future<List<RecentRepo>> load() async => const [];
+  @override
+  Future<void> save(List<RecentRepo> items) async {}
+}
+
+/// A container whose recents list works, so opening a repo records it.
+ProviderContainer _container() {
+  final c = ProviderContainer(
+    overrides: [
+      recentsProvider.overrideWith(
+        (ref) => RecentsController(_MemoryRecents(), const []),
+      ),
+    ],
+  );
+  addTearDown(c.dispose);
+  return c;
+}
 
 void main() {
   const svc = SystemGitService();
@@ -95,8 +144,7 @@ void main() {
   });
 
   test('clone refuses a folder name that escapes the parent', () async {
-    final c = ProviderContainer();
-    addTearDown(c.dispose);
+    final c = _container();
     final parent = Directory('${work.path}/parent')..createSync();
 
     final path = await c
@@ -127,8 +175,7 @@ void main() {
     await g(['add', '.']);
     await g(['commit', '-q', '-m', 'A']);
 
-    final c = ProviderContainer();
-    addTearDown(c.dispose);
+    final c = _container();
     final parent = Directory('${work.path}/clones')..createSync();
 
     final path = await c
@@ -140,6 +187,7 @@ void main() {
     expect(await svc.isRepository(path!), isTrue);
     // Opened as the active tab.
     expect(c.read(workspaceProvider).activeTab?.path, path);
+    expect(c.read(recentsProvider).first.path, path);
   });
 
   group('clone options', () {
@@ -187,8 +235,7 @@ void main() {
     });
 
     Future<String?> cloneWith(CloneOptions o, {String? url}) async {
-      final c = ProviderContainer();
-      addTearDown(c.dispose);
+      final c = _container();
       final parent = Directory('${work.path}/clones')..createSync();
       return c
           .read(repoBootstrapProvider)
@@ -260,15 +307,29 @@ void main() {
     });
 
     test('invalid options are refused before git runs', () async {
-      final path = await cloneWith(const CloneOptions(depth: 0));
-      expect(path, isNull);
-      expect(Directory('${work.path}/clones/c').existsSync(), isFalse);
+      for (final o in const [
+        CloneOptions(depth: 0),
+        CloneOptions(branch: 'a..b', singleBranch: true),
+      ]) {
+        final git = _RecordingGit();
+        final c = ProviderContainer(
+          overrides: [gitServiceProvider.overrideWithValue(git)],
+        );
+        addTearDown(c.dispose);
+        final parent = Directory('${work.path}/clones')..createSync();
+
+        final path = await c
+            .read(repoBootstrapProvider)
+            .clone(url: origin.path, parentDir: parent.path, options: o);
+
+        expect(path, isNull);
+        expect(git.calls, isEmpty);
+      }
     });
   });
 
   test('clone refuses a non-empty destination', () async {
-    final c = ProviderContainer();
-    addTearDown(c.dispose);
+    final c = _container();
     final parent = Directory('${work.path}/busydest')..createSync();
     Directory('${parent.path}/repo').createSync();
     File('${parent.path}/repo/junk').writeAsStringSync('x');
@@ -282,8 +343,7 @@ void main() {
   test(
     'create inits a repo with default branch, README and initial commit',
     () async {
-      final c = ProviderContainer();
-      addTearDown(c.dispose);
+      final c = _container();
 
       final path = await c
           .read(repoBootstrapProvider)
