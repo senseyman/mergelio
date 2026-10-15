@@ -176,6 +176,114 @@ void main() {
     expect(again.activeGroupId, work.id);
   });
 
+  test('the last selected tab is the one restored as active', () async {
+    final store = InMemoryKeyValueStore();
+    final c = WorkspaceController(store);
+    c.openRepo('/a');
+    final b = c.openRepo('/b');
+    c.openRepo('/c');
+    c.setActive(b.id);
+
+    final session = await WorkspaceController.restoreSession(store);
+    final c2 = WorkspaceController(InMemoryKeyValueStore())
+      ..applySession(session);
+    expect(c2.state.activeTab?.path, '/b');
+    expect(c2.state.tabs.map((t) => t.path), ['/a', '/b', '/c']);
+  });
+
+  test('switching profile restores that profile\'s selected tab', () async {
+    final store = InMemoryKeyValueStore();
+    final c = WorkspaceController(store)
+      ..useProfile('p1', const WorkspaceSession());
+    final a = c.openRepo('/a');
+    c.openRepo('/b');
+    c.setActive(a.id);
+
+    final c2 = WorkspaceController(store)
+      ..useProfile(
+        'p1',
+        await WorkspaceController.restoreSessionFor(store, 'p1'),
+      );
+    expect(c2.state.activeTab?.path, '/a');
+  });
+
+  test('clicking the already active tab writes nothing', () async {
+    final store = _CountingStore();
+    final c = WorkspaceController(store);
+    final a = c.openRepo('/a');
+    final writes = store.puts;
+
+    c.setActive(a.id);
+    expect(store.puts, writes);
+
+    // Leaving the dashboard for the tab underneath still counts as a change.
+    c.showDashboard();
+    c.setActive(a.id);
+    expect(c.state.dashboard, isFalse);
+  });
+
+  test(
+    'closing the active tab inside an empty group keeps a selection',
+    () async {
+      final store = InMemoryKeyValueStore();
+      final c = WorkspaceController(store);
+      c.openRepo('/a');
+      final b = c.openRepo('/b');
+      final g = c.createGroup('Empty');
+      c.setActiveGroup(g.id);
+
+      c.closeTab(b.id);
+      expect(c.state.activeTab?.path, '/a');
+      final session = await WorkspaceController.restoreSession(store);
+      expect(session.activePath, '/a');
+    },
+  );
+
+  test('a saved active tab outside the active group yields to it', () async {
+    final store = InMemoryKeyValueStore();
+    await store.put(
+      'openTabs',
+      jsonEncode({
+        'tabs': [
+          {'path': '/a', 'group': 1},
+          {'path': '/b', 'group': 2},
+        ],
+        'groups': [
+          {'id': 1, 'name': 'Work', 'color': 0},
+          {'id': 2, 'name': 'OSS', 'color': 0},
+        ],
+        'activeGroup': 1,
+        'activeTab': '/b',
+      }),
+    );
+
+    final c = WorkspaceController(InMemoryKeyValueStore())
+      ..applySession(await WorkspaceController.restoreSession(store));
+    expect(c.state.activeTab?.path, '/a');
+  });
+
+  test('an unknown or missing saved active tab falls back to the last', () {
+    for (final active in [null, '/gone']) {
+      final c = WorkspaceController()
+        ..applySession(
+          WorkspaceSession(
+            tabs: [
+              for (final p in ['/a', '/b'])
+                (
+                  path: p,
+                  groupId: null,
+                  viewMode: RepoViewMode.graph,
+                  openFiles: const <String>[],
+                  activeFile: null,
+                ),
+            ],
+            activePath: active,
+          ),
+        );
+      expect(c.state.activeTab?.path, '/b');
+    }
+  });
+
   test('deleting a group ungroups its tabs and resets the filter', () {
     final c = WorkspaceController();
     final g = c.createGroup('Temp');
@@ -203,4 +311,14 @@ void main() {
     c.reorderTab(2, 0);
     expect(c.state.tabs.map((t) => t.path), ['/c', '/b', '/a']);
   });
+}
+
+class _CountingStore extends InMemoryKeyValueStore {
+  int puts = 0;
+
+  @override
+  Future<void> put(String key, String value) {
+    puts++;
+    return super.put(key, value);
+  }
 }
