@@ -4471,4 +4471,15 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get cloShallowTooltip =>
       'Shallow clone: only recent history is here. Click to fetch the full history.';
+
+  @override
+  String get rnTabTitle => 'What\'s new';
+
+  @override
+  String get rnEmpty => 'No release notes for this version.';
+
+  @override
+  String rnVersionHeading(String version) {
+    return 'Mergelio $version';
+  }
 }

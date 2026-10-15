@@ -7387,6 +7387,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Shallow clone: only recent history is here. Click to fetch the full history.'**
   String get cloShallowTooltip;
+
+  /// No description provided for @rnTabTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What\'s new'**
+  String get rnTabTitle;
+
+  /// No description provided for @rnEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No release notes for this version.'**
+  String get rnEmpty;
+
+  /// No description provided for @rnVersionHeading.
+  ///
+  /// In en, this message translates to:
+  /// **'Mergelio {version}'**
+  String rnVersionHeading(String version);
 }
 
 class _AppLocalizationsDelegate

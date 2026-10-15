@@ -4550,4 +4550,15 @@ class AppLocalizationsUk extends AppLocalizations {
   @override
   String get cloShallowTooltip =>
       'Поверхневий клон: тут лише недавня історія. Натисніть, щоб отримати повну історію.';
+
+  @override
+  String get rnTabTitle => 'Що нового';
+
+  @override
+  String get rnEmpty => 'Для цієї версії немає приміток до випуску.';
+
+  @override
+  String rnVersionHeading(String version) {
+    return 'Mergelio $version';
+  }
 }

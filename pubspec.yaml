@@ -45,6 +45,7 @@ dependencies:
   xterm: ^4.0.0
   # Open a pull request in the system browser
   url_launcher: ^6.3.1
+  flutter_markdown_plus: ^1.0.12
 
 dev_dependencies:
   flutter_test:
