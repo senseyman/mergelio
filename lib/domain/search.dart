@@ -58,6 +58,10 @@ class CommitQuery {
     String? path,
     String? content,
     ContentSearchMode? contentMode,
+    DateTime? since,
+    DateTime? until,
+    bool clearSince = false,
+    bool clearUntil = false,
   }) => CommitQuery(
     text: text ?? this.text,
     author: author ?? this.author,
@@ -66,8 +70,8 @@ class CommitQuery {
     path: path ?? this.path,
     content: content ?? this.content,
     contentMode: contentMode ?? this.contentMode,
-    since: since,
-    until: until,
+    since: clearSince ? null : (since ?? this.since),
+    until: clearUntil ? null : (until ?? this.until),
   );
 
   /// This query with its date range replaced; null clears that end, which
