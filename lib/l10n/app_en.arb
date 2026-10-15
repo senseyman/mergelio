@@ -74,6 +74,38 @@
   "searchContentRegexHelp": "Commits with an added or removed line matching this regular expression",
   "searchRunning": "Searching…",
   "searchNoMatches": "No matches",
+  "searchAuthorHelp": "Name or email, searched across the whole history",
+  "searchOlderMatchesHelp": "{count, plural, one{{count} more match in older history — load more} other{{count} more matches in older history — load more}}",
+  "@searchOlderMatchesHelp": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "filterDate": "Date",
+  "filterDateHelp": "Filter by the date the commit was authored",
+  "filterDateAny": "Any time",
+  "filterDateWeek": "Last 7 days",
+  "filterDateMonth": "Last 30 days",
+  "filterDateYear": "Last 12 months",
+  "filterDateCustom": "Custom range…",
+  "filterDateSince": "Since {date}",
+  "@filterDateSince": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "filterDateUntil": "Until {date}",
+  "@filterDateUntil": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "menuCheckout": "Checkout this commit",
   "menuCreateBranch": "Create branch here",
   "menuCreateTag": "Create tag here",

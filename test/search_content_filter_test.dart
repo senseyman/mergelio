@@ -53,6 +53,7 @@ void main() {
             c,
             const CommitQuery(content: 'parseUrl', author: 'Ada'),
             contentShas: touched,
+            historyShas: const {'aaa'},
           ))
             c.sha,
       ],

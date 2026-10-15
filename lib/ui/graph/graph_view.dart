@@ -13,6 +13,7 @@ import '../../domain/search.dart';
 import '../../state/bisect.dart';
 import '../../state/content_search.dart';
 import '../../state/feedback.dart';
+import '../../state/history_filter.dart';
 import '../../state/compare_target.dart';
 import '../../state/graph_selection.dart';
 import '../../state/path_history.dart';
@@ -136,6 +137,7 @@ class _GraphListState extends ConsumerState<GraphList> {
   CommitQuery? _matchQueryFor;
   Set<String>? _matchPathsFor;
   Set<String>? _matchContentFor;
+  Set<String>? _matchHistoryFor;
   Set<String> _matchCache = const {};
 
   GraphDerived _deriveFor(RepoData d) {
@@ -175,25 +177,34 @@ class _GraphListState extends ConsumerState<GraphList> {
     CommitQuery? query,
     Set<String>? paths,
     Set<String>? content,
+    Set<String>? history,
   ) {
     if (query == null || query.isEmpty) return const {};
     if (identical(_matchDataFor, d) &&
         query == _matchQueryFor &&
         identical(_matchPathsFor, paths) &&
-        identical(_matchContentFor, content)) {
+        identical(_matchContentFor, content) &&
+        identical(_matchHistoryFor, history)) {
       return _matchCache;
     }
     _matchDataFor = d;
     _matchQueryFor = query;
     _matchPathsFor = paths;
     _matchContentFor = content;
+    _matchHistoryFor = history;
     // Bump the generation on every recompute so any still-in-flight isolate
     // result from a previous (data, query) is dropped when it lands.
     final gen = ++_matchGen;
     if (d.commits.length < searchIsolateThreshold) {
       _matchCache = {
         for (final c in d.commits)
-          if (matchesCommit(c, query, pathShas: paths, contentShas: content))
+          if (matchesCommit(
+            c,
+            query,
+            pathShas: paths,
+            contentShas: content,
+            historyShas: history,
+          ))
             c.sha,
       };
       return _matchCache;
@@ -203,6 +214,7 @@ class _GraphListState extends ConsumerState<GraphList> {
       query,
       pathShas: paths,
       contentShas: content,
+      historyShas: history,
     ).then((m) {
       if (mounted && gen == _matchGen) setState(() => _matchCache = m);
     });
@@ -404,13 +416,14 @@ class _GraphListState extends ConsumerState<GraphList> {
     if (event.logicalKey == LogicalKeyboardKey.keyN) {
       final query = ref.read(searchQueryProvider);
       if (query != null && !query.isEmpty) {
-        // Reuses whatever the last build computed, path and content shas
-        // included.
+        // Reuses whatever the last build computed, path, content and history
+        // shas included.
         final matches = _matchesFor(
           widget.data,
           query,
           _matchPathsFor,
           _matchContentFor,
+          _matchHistoryFor,
         );
         _jumpMatch(
           widget.data,
@@ -523,7 +536,44 @@ class _GraphListState extends ConsumerState<GraphList> {
               ContentKey(repo, query.content, query.contentMode),
             ),
           );
-    final matchShas = _matchesFor(d, query, pathShas, content?.valueOrNull);
+    // The commits git reported for the author and date range, on the same
+    // terms again. Read from the whole history, so it also knows how many
+    // matches sit past the loaded page.
+    final history = (query == null || !query.hasHistoryFilter || repo == null)
+        ? null
+        : ref.watch(
+            historyFilterProvider(
+              HistoryFilterKey(
+                repo,
+                query.author.trim(),
+                since: query.since,
+                until: query.until,
+              ),
+            ),
+          );
+    final historyShas = history?.valueOrNull;
+    final matchShas = _matchesFor(
+      d,
+      query,
+      pathShas,
+      content?.valueOrNull,
+      historyShas,
+    );
+    // Only counted once every git-backed filter that is on has answered, so a
+    // filter still loading cannot inflate the number.
+    final older =
+        (query == null ||
+            historyShas == null ||
+            !d.hasMoreCommits ||
+            (query.path.isNotEmpty && pathShas == null) ||
+            (query.content.isNotEmpty && content?.valueOrNull == null))
+        ? 0
+        : olderMatchCount(
+            d.commits,
+            historyShas,
+            pathShas: query.path.isEmpty ? null : pathShas,
+            contentShas: query.content.isEmpty ? null : content?.valueOrNull,
+          );
 
     final graph = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -545,7 +595,9 @@ class _GraphListState extends ConsumerState<GraphList> {
           _SearchBar(
             query: query,
             matchCount: matchShas.length,
-            searching: content?.isLoading ?? false,
+            olderCount: older,
+            searching:
+                (content?.isLoading ?? false) || (history?.isLoading ?? false),
             currentIndex: () {
               // Position of the selected commit among ordered matches, 1-based.
               // Uses a memoized ordinal map so this is O(1) per keystroke rather
@@ -556,6 +608,10 @@ class _GraphListState extends ConsumerState<GraphList> {
             onChanged: (q) => ref.read(searchQueryProvider.notifier).state = q,
             onClose: () => ref.read(searchQueryProvider.notifier).state = null,
             onJump: (forward) => _jumpMatch(d, matchShas, forward, metrics),
+            onLoadOlder: () {
+              final limits = ref.read(commitLimitProvider(repo!).notifier);
+              limits.state = limits.state * 2;
+            },
           )
         else
           _GraphHeader(cols: cols, compact: compact),
@@ -789,15 +845,20 @@ class _GraphListState extends ConsumerState<GraphList> {
   }
 }
 
-/// How long the content field waits for typing to stop before running the
-/// pickaxe. Every run reads the whole history's diffs, so a git process per
-/// keystroke would leave the machine doing nothing else.
+/// How long the content and author fields wait for typing to stop before
+/// asking git. Each run walks the whole history — the content one reads every
+/// diff — so a git process per keystroke would leave the machine doing
+/// nothing else.
 const _contentDebounce = Duration(milliseconds: 350);
 
 /// Global-search bar shown in place of the header while a search is open.
 class _SearchBar extends StatefulWidget {
   final CommitQuery query;
   final int matchCount;
+
+  /// Commits git reported for the author/date filter that the graph has not
+  /// loaded yet. Shown as a button that pages in more history.
+  final int olderCount;
 
   /// True while the pickaxe is still running, so an empty result reads as
   /// "not finished yet" rather than "nothing found".
@@ -808,14 +869,17 @@ class _SearchBar extends StatefulWidget {
   final ValueChanged<CommitQuery> onChanged;
   final VoidCallback onClose;
   final void Function(bool forward) onJump;
+  final VoidCallback onLoadOlder;
   const _SearchBar({
     required this.query,
     required this.matchCount,
+    required this.olderCount,
     required this.searching,
     required this.currentIndex,
     required this.onChanged,
     required this.onClose,
     required this.onJump,
+    required this.onLoadOlder,
   });
 
   @override
@@ -828,6 +892,7 @@ class _SearchBarState extends State<_SearchBar> {
   @override
   void dispose() {
     _debounce?.cancel();
+    _authorDebounce?.cancel();
     super.dispose();
   }
 
@@ -839,6 +904,18 @@ class _SearchBarState extends State<_SearchBar> {
   void _typedContent(String v) {
     _debounce?.cancel();
     _debounce = Timer(_contentDebounce, () => _setContent(v));
+  }
+
+  // The author field has its own timer: typing in it must not cancel a
+  // content search that is still waiting to run, and the other way round.
+  Timer? _authorDebounce;
+
+  void _typedAuthor(String v) {
+    _authorDebounce?.cancel();
+    _authorDebounce = Timer(
+      _contentDebounce,
+      () => widget.onChanged(widget.query.copyWith(author: v)),
+    );
   }
 
   @override
@@ -923,18 +1000,34 @@ class _SearchBarState extends State<_SearchBar> {
               ),
             ),
             const SizedBox(width: 8),
-            // Author filter feeds CommitQuery.author.
+            // Author filter feeds CommitQuery.author, answered by git over the
+            // whole history, name or email.
             SizedBox(
               width: 120,
-              child: TextField(
-                onChanged: (v) => onChanged(query.copyWith(author: v)),
-                style: TextStyle(color: t.textPrimary, fontSize: 12),
-                decoration: InputDecoration(
-                  isDense: true,
-                  border: InputBorder.none,
-                  hintText: l.gvAuthorFilter,
-                  hintStyle: TextStyle(color: t.textFaint, fontSize: 12),
+              child: Tooltip(
+                message: l.searchAuthorHelp,
+                child: TextField(
+                  key: const ValueKey('search:author'),
+                  onChanged: _typedAuthor,
+                  style: TextStyle(color: t.textPrimary, fontSize: 12),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    border: InputBorder.none,
+                    hintText: l.gvAuthorFilter,
+                    hintStyle: TextStyle(color: t.textFaint, fontSize: 12),
+                  ),
                 ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            // Flexible so a long range label shortens rather than pushing the
+            // match counter and buttons off the bar.
+            Flexible(
+              child: _DateChip(
+                since: query.since,
+                until: query.until,
+                onChanged: (since, until) =>
+                    onChanged(query.withDates(since, until)),
               ),
             ),
             if (query.path.isNotEmpty) ...[
@@ -975,6 +1068,29 @@ class _SearchBarState extends State<_SearchBar> {
                 fontSize: 12,
               ),
             ),
+            if (widget.olderCount > 0 && !widget.searching)
+              Tooltip(
+                message: l.searchOlderMatchesHelp(widget.olderCount),
+                child: InkWell(
+                  key: const ValueKey('search:older'),
+                  onTap: widget.onLoadOlder,
+                  borderRadius: BorderRadius.circular(4),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 2,
+                    ),
+                    child: Text(
+                      '+${widget.olderCount}',
+                      style: TextStyle(
+                        color: t.accent,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             IconButton(
               iconSize: 16,
               tooltip: l.gvPrevMatch,
@@ -994,6 +1110,101 @@ class _SearchBarState extends State<_SearchBar> {
               onPressed: onClose,
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The choices the date chip's menu offers. The relative ones are counted back
+/// from today, inclusive.
+enum _DateChoice { any, week, month, year, custom }
+
+/// Date-range filter of the search bar: shows the active range and opens a
+/// menu of common ranges, plus a picker for any other.
+class _DateChip extends StatelessWidget {
+  final DateTime? since;
+  final DateTime? until;
+  final void Function(DateTime? since, DateTime? until) onChanged;
+  const _DateChip({
+    required this.since,
+    required this.until,
+    required this.onChanged,
+  });
+
+  Future<void> _choose(BuildContext context, _DateChoice choice) async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    DateTime ago(int days) =>
+        DateTime(today.year, today.month, today.day - days);
+    switch (choice) {
+      case _DateChoice.any:
+        onChanged(null, null);
+      case _DateChoice.week:
+        onChanged(ago(7), null);
+      case _DateChoice.month:
+        onChanged(ago(30), null);
+      case _DateChoice.year:
+        onChanged(ago(365), null);
+      case _DateChoice.custom:
+        final range = await showDateRangePicker(
+          context: context,
+          firstDate: DateTime(1970),
+          lastDate: today,
+          initialDateRange: since == null
+              ? null
+              : DateTimeRange(
+                  start: since!.isAfter(today) ? today : since!,
+                  end: until == null || until!.isAfter(today) ? today : until!,
+                ),
+        );
+        if (range != null) onChanged(range.start, range.end);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final l = AppLocalizations.of(context);
+    final ml = MaterialLocalizations.of(context);
+    final on = since != null || until != null;
+    final label = switch ((since, until)) {
+      (null, null) => l.filterDate,
+      (final DateTime s, null) => l.filterDateSince(ml.formatShortDate(s)),
+      (null, final DateTime u) => l.filterDateUntil(ml.formatShortDate(u)),
+      (final DateTime s, final DateTime u) =>
+        '${ml.formatShortDate(s)} – ${ml.formatShortDate(u)}',
+    };
+    return PopupMenuButton<_DateChoice>(
+      key: const ValueKey('search:date'),
+      tooltip: l.filterDateHelp,
+      onSelected: (c) => _choose(context, c),
+      itemBuilder: (_) => [
+        PopupMenuItem(value: _DateChoice.any, child: Text(l.filterDateAny)),
+        PopupMenuItem(value: _DateChoice.week, child: Text(l.filterDateWeek)),
+        PopupMenuItem(value: _DateChoice.month, child: Text(l.filterDateMonth)),
+        PopupMenuItem(value: _DateChoice.year, child: Text(l.filterDateYear)),
+        PopupMenuItem(
+          value: _DateChoice.custom,
+          child: Text(l.filterDateCustom),
+        ),
+      ],
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: on ? t.accent.withValues(alpha: 0.16) : null,
+          border: Border.all(color: on ? Colors.transparent : t.border),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: on ? t.accent : t.textMuted,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
     );

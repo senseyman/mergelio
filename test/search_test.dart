@@ -23,6 +23,8 @@ void main() {
       _c('bbbbbbb', 'add search', 'Ivan'),
       _c('ccccccc', 'Merge feature', 'Maria', parents: ['x', 'y']),
     ];
+    // What git reports for an author filter of "Maria".
+    const maria = {'aaaaaaa', 'ccccccc'};
 
     test('matches message, author or sha prefix', () {
       expect(
@@ -43,6 +45,7 @@ void main() {
       final r = searchCommits(
         commits,
         const CommitQuery(text: '', author: 'Maria', hideMerges: false),
+        historyShas: maria,
       );
       expect(r.map((c) => c.author).toSet(), {'Maria'});
       expect(r, hasLength(2));
@@ -57,10 +60,11 @@ void main() {
         date: DateTime(2026),
         refs: const [GitRef(kind: RefKind.tag, name: 'v1.0')],
       );
-      final r = searchCommits([
-        ...commits,
-        tagged,
-      ], const CommitQuery(author: 'Maria', hideTags: true));
+      final r = searchCommits(
+        [...commits, tagged],
+        const CommitQuery(author: 'Maria', hideTags: true),
+        historyShas: {...maria, 'ddddddd'},
+      );
       expect(r.map((c) => c.sha), isNot(contains('ddddddd')));
     });
 
@@ -68,6 +72,7 @@ void main() {
       final r = searchCommits(
         commits,
         const CommitQuery(author: 'Maria', hideMerges: true),
+        historyShas: maria,
       );
       expect(r.every((c) => !c.merge), isTrue);
       expect(r, hasLength(1));

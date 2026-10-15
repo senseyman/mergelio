@@ -233,6 +233,53 @@ class AppLocalizationsUk extends AppLocalizations {
   String get searchNoMatches => 'Немає збігів';
 
   @override
+  String get searchAuthorHelp => 'Ім\'я або email, пошук по всій історії';
+
+  @override
+  String searchOlderMatchesHelp(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Ще $count збігу у давнішій історії — завантажити',
+      many: 'Ще $count збігів у давнішій історії — завантажити',
+      few: 'Ще $count збіги у давнішій історії — завантажити',
+      one: 'Ще $count збіг у давнішій історії — завантажити',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get filterDate => 'Дата';
+
+  @override
+  String get filterDateHelp => 'Фільтр за датою створення коміту автором';
+
+  @override
+  String get filterDateAny => 'Будь-коли';
+
+  @override
+  String get filterDateWeek => 'Останні 7 днів';
+
+  @override
+  String get filterDateMonth => 'Останні 30 днів';
+
+  @override
+  String get filterDateYear => 'Останні 12 місяців';
+
+  @override
+  String get filterDateCustom => 'Власний період…';
+
+  @override
+  String filterDateSince(String date) {
+    return 'Від $date';
+  }
+
+  @override
+  String filterDateUntil(String date) {
+    return 'До $date';
+  }
+
+  @override
   String get menuCheckout => 'Переключитися на цей коміт';
 
   @override
