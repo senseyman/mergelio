@@ -151,10 +151,16 @@ class AppTabBar extends ConsumerWidget {
                   for (final tab in ws.visibleTabs)
                     _Tab(
                       tab: tab,
-                      // The dashboard covers the active tab, which stays
-                      // selected underneath but is not what is showing.
-                      active: !ws.dashboard && tab.id == ws.activeTabId,
+                      // The dashboard and the notes tab cover the active
+                      // tab, which stays selected underneath but is not
+                      // what is showing.
+                      active:
+                          !ws.dashboard &&
+                          !ws.showReleaseNotes &&
+                          tab.id == ws.activeTabId,
                     ),
+                  if (ws.releaseNotes != null)
+                    _NotesTab(active: ws.showReleaseNotes),
                 ],
               ),
             ),
@@ -651,6 +657,61 @@ class _Tab extends ConsumerWidget {
                   )
                 : null,
             child: content,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The release notes tab: app-wide, so no group dot and no drag.
+class _NotesTab extends ConsumerWidget {
+  final bool active;
+  const _NotesTab({required this.active});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
+    final t = context.tokens;
+    final ctl = ref.read(workspaceProvider.notifier);
+    return Material(
+      color: active ? t.bgPanel : Colors.transparent,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+      child: InkWell(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+        hoverColor: t.hover,
+        onTap: ctl.selectReleaseNotes,
+        child: Container(
+          height: 30,
+          padding: const EdgeInsets.only(left: 12, right: 6),
+          decoration: active
+              ? BoxDecoration(
+                  border: Border(top: BorderSide(color: t.accent, width: 2)),
+                )
+              : null,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.auto_awesome_outlined, size: 13, color: t.accent),
+              const SizedBox(width: 8),
+              Text(
+                l.rnTabTitle,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: active ? t.textPrimary : t.textMuted,
+                  fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Tooltip(
+                message: l.rnCloseTab,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(4),
+                  onTap: ctl.closeReleaseNotes,
+                  child: Icon(Icons.close, size: 13, color: t.textFaint),
+                ),
+              ),
+            ],
           ),
         ),
       ),

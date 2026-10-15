@@ -392,6 +392,10 @@ There Mergelio tells you a release is out and links to it.
 
 You can change your mind at any time in **Preferences → Updates**.
 
+After an update, the first launch opens a **What's new** tab with the notes for
+every version since the one you last ran. It shows once per version; reopen it
+from the command palette.
+
 ### Runtime requirement
 
 Mergelio drives the `git` binary on your `PATH` — install
@@ -573,6 +577,15 @@ Windows and Linux builds need no signing configuration.
 Generated sources (`*.g.dart`, `*.freezed.dart`) are **not** committed — run
 `make gen` after cloning and whenever you touch a model. `make gen-watch`
 regenerates on save.
+
+### Writing release notes
+
+Release notes ship inside the app. Add `release_notes/<version>.en.md` (and
+optionally `<version>.uk.md`) for each release, where `<version>` is the
+`pubspec.yaml` version without the `+build` part, e.g. `1.9.0.en.md`. Write
+Markdown without a version heading — the app adds one. A version with no English
+file shows no notes; a missing Ukrainian file falls back to English.
+`test/release_notes_bundle_test.dart` fails on a misnamed file.
 
 ## Make targets
 

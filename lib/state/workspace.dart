@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:pub_semver/pub_semver.dart';
 
 import '../data/kv_store.dart';
 import '../domain/path_key.dart';
@@ -64,6 +65,13 @@ abstract class WorkspaceState with _$WorkspaceState {
     // tab, which stays selected underneath. Not persisted: a relaunch lands
     // in a repository.
     @Default(false) bool dashboard,
+    // Release notes tab: the versions it shows, newest first; null = closed.
+    // Belongs to the app, not a repository, so group filters never hide it.
+    // Not persisted: it is shown once per version.
+    List<Version>? releaseNotes,
+    // The notes tab is selected; like the dashboard it covers the active tab,
+    // which stays selected underneath.
+    @Default(false) bool showReleaseNotes,
   }) = _WorkspaceState;
 
   /// A repo is "open" (workspace shown) only when the active tab is visible
@@ -90,7 +98,7 @@ abstract class WorkspaceState with _$WorkspaceState {
   /// dashboard covers it. Anything that acts on "the current repository" —
   /// shortcuts, search, the palette — goes through this, so it never reaches
   /// a repository the user cannot see.
-  RepoTab? get shownTab => dashboard ? null : activeTab;
+  RepoTab? get shownTab => dashboard || showReleaseNotes ? null : activeTab;
 
   RepoGroup? groupById(int? id) {
     for (final g in groups) {
@@ -260,7 +268,12 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
     _profileId = profileId;
     _nextId = 1;
     _nextGroupId = 1;
-    state = const WorkspaceState();
+    state = WorkspaceState(
+      // The notes tab is app-wide; a profile switch, including the one at
+      // startup, must not close it.
+      releaseNotes: state.releaseNotes,
+      showReleaseNotes: state.showReleaseNotes,
+    );
     applySession(session);
   }
 
@@ -324,6 +337,7 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
         state = state.copyWith(
           activeTabId: t.id,
           dashboard: false,
+          showReleaseNotes: false,
           tabs: (g == null || t.groupId == g)
               ? state.tabs
               : [
@@ -346,14 +360,23 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
       tabs: [...state.tabs, tab],
       activeTabId: tab.id,
       dashboard: false,
+      showReleaseNotes: false,
     );
     _persist();
     return tab;
   }
 
   void setActive(int id) {
-    if (id == state.activeTabId && !state.dashboard) return;
-    state = state.copyWith(activeTabId: id, dashboard: false);
+    if (id == state.activeTabId &&
+        !state.dashboard &&
+        !state.showReleaseNotes) {
+      return;
+    }
+    state = state.copyWith(
+      activeTabId: id,
+      dashboard: false,
+      showReleaseNotes: false,
+    );
     _persist();
   }
 
@@ -361,11 +384,31 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
   /// none there is nothing to show and the welcome screen stays.
   void showDashboard() {
     if (state.tabs.isEmpty) return;
-    state = state.copyWith(dashboard: true);
+    state = state.copyWith(dashboard: true, showReleaseNotes: false);
   }
 
   /// Leaves the dashboard for the tab it was covering.
   void hideDashboard() => state = state.copyWith(dashboard: false);
+
+  /// Opens the release notes tab on [versions] and selects it. A tab already
+  /// open keeps what it shows: reopening it from the palette must not drop the
+  /// notes of versions the user skipped.
+  void openReleaseNotes(List<Version> versions) {
+    state = state.copyWith(
+      releaseNotes: state.releaseNotes ?? versions,
+      showReleaseNotes: true,
+      dashboard: false,
+    );
+  }
+
+  /// Selects the open release notes tab. No-op when it is closed.
+  void selectReleaseNotes() {
+    if (state.releaseNotes == null) return;
+    state = state.copyWith(showReleaseNotes: true, dashboard: false);
+  }
+
+  void closeReleaseNotes() =>
+      state = state.copyWith(releaseNotes: null, showReleaseNotes: false);
 
   /// Switches one tab between the history workspace and the file browser. The
   /// choice is per tab, so each open repo keeps the view it was left in.
@@ -456,6 +499,7 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
       tabs: keep,
       activeTabId: keep.isEmpty ? null : id,
       dashboard: false,
+      showReleaseNotes: false,
       // Jump to the kept tab's group so it stays visible.
       activeGroupId: keep.isEmpty ? state.activeGroupId : keep.first.groupId,
     );

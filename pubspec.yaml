@@ -1,7 +1,7 @@
 name: mergelio
 description: "Mergelio — free, cross-platform visual Git client."
 publish_to: 'none'
-version: 1.11.0+29
+version: 1.12.0+30
 
 environment:
   sdk: '>=3.13.4 <3.14.0'
@@ -45,6 +45,7 @@ dependencies:
   xterm: ^4.0.0
   # Open a pull request in the system browser
   url_launcher: ^6.3.1
+  flutter_markdown_plus: ^1.0.12
 
 dev_dependencies:
   flutter_test:
@@ -59,6 +60,8 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   generate: true
+  assets:
+    - release_notes/
 
 # Per-OS app icons generated from the 1024px brand master (§4.8). Regenerate
 # with: dart run flutter_launcher_icons

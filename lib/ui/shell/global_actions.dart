@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pub_semver/pub_semver.dart';
 
 import '../../domain/search.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/graph_selection.dart';
 import '../../state/lfs.dart';
+import '../../state/release_notes.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
 import '../../state/review.dart';
@@ -33,6 +35,18 @@ void openGlobalSearch(WidgetRef ref) {
   ref.read(searchQueryProvider.notifier).state = const CommitQuery(text: '');
 }
 
+/// Opens the release notes tab on the running version. An open tab keeps what
+/// it already shows.
+Future<void> openCurrentReleaseNotes(WidgetRef ref) async {
+  final Version current;
+  try {
+    current = await ref.read(currentReleaseProvider.future);
+  } catch (_) {
+    return;
+  }
+  ref.read(workspaceProvider.notifier).openReleaseNotes([current]);
+}
+
 /// Opens the command palette with network ops, checkouts and fly-to commits.
 void openGlobalPalette(BuildContext context, WidgetRef ref) {
   final l = AppLocalizations.of(context);
@@ -51,6 +65,11 @@ void openGlobalPalette(BuildContext context, WidgetRef ref) {
             Icons.folder_outlined,
             () async => ctl.setActive(tab.id),
           ),
+        PaletteCommand(
+          l.rnTabTitle,
+          Icons.auto_awesome_outlined,
+          () => openCurrentReleaseNotes(ref),
+        ),
       ],
     );
     return;
@@ -161,6 +180,11 @@ void openGlobalPalette(BuildContext context, WidgetRef ref) {
         Icons.my_location,
         () async => ref.read(selectedCommitProvider.notifier).state = c.sha,
       ),
+    PaletteCommand(
+      l.rnTabTitle,
+      Icons.auto_awesome_outlined,
+      () => openCurrentReleaseNotes(ref),
+    ),
   ];
   showCommandPalette(context, commands: cmds);
 }

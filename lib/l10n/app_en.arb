@@ -2659,5 +2659,10 @@
   "cloBadDepth": "Depth must be a positive number",
   "cloBadBranch": "Not a valid branch name",
   "cloShallowBadge": "Shallow",
-  "cloShallowTooltip": "Shallow clone: only recent history is here. Click to fetch the full history."
+  "cloShallowTooltip": "Shallow clone: only recent history is here. Click to fetch the full history.",
+  "rnTabTitle": "What's new",
+  "rnCloseTab": "Close release notes",
+  "rnEmpty": "No release notes for this version.",
+  "rnVersionHeading": "Mergelio {version}",
+  "@rnVersionHeading": {"placeholders": {"version": {"type": "String"}}}
 }
