@@ -115,6 +115,37 @@ void main() {
     expect(c.read(workspaceProvider).showReleaseNotes, isTrue);
   });
 
+  testWidgets('repo tab is not drawn active while the notes show', (t) async {
+    await pump(t, statusBar: false);
+    ctl().openRepo('/r/a');
+    ctl().openReleaseNotes([v19]);
+    await t.pump();
+    FontWeight? weight() => t.widget<Text>(find.text('a')).style?.fontWeight;
+    expect(weight(), FontWeight.w400);
+
+    await t.tap(find.text('a'));
+    await t.pump();
+    expect(weight(), FontWeight.w600);
+  });
+
+  testWidgets('notes tab is not draggable, repo tabs are', (t) async {
+    await pump(t, statusBar: false);
+    ctl().openRepo('/r/a');
+    ctl().openReleaseNotes([v19]);
+    await t.pump();
+    final draggable = find.byWidgetPredicate(
+      (w) => w is Draggable || w is LongPressDraggable,
+    );
+    expect(
+      find.ancestor(of: find.text('a'), matching: draggable),
+      findsWidgets,
+    );
+    expect(
+      find.ancestor(of: find.text("What's new"), matching: draggable),
+      findsNothing,
+    );
+  });
+
   for (final w in [336.0, 800.0]) {
     testWidgets('tab strip scrolls rather than overflows at ${w}px', (t) async {
       // The status bar has its own fixed-width content; this sweep is about
