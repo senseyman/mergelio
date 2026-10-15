@@ -36,4 +36,40 @@ author-mail <ivan@e.com>
       expect(lines.single.content, 'abc1234 is a token');
     });
   });
+
+  test('reads the 64-digit shas of a sha256 repository', () {
+    final sha = '9e24' * 16;
+    final lines = parseBlame('$sha 1 1 1\nauthor Maria\n\tone\n');
+    expect(lines.single.sha, sha);
+    expect(lines.single.shortSha, '9e249e2');
+  });
+
+  group('firstInvalidIgnoreRev', () {
+    const sha = '4b28d0ebfb155d989fdba0128b7006ba72e66316';
+
+    test('accepts what git accepts', () {
+      expect(
+        firstInvalidIgnoreRev(
+          '# style passes\n\n$sha\n  ${sha.toUpperCase()}  # trailing\n'
+          '\t$sha\r\n',
+        ),
+        isNull,
+      );
+      expect(firstInvalidIgnoreRev(''), isNull);
+    });
+
+    test('names the first line git would reject', () {
+      expect(firstInvalidIgnoreRev('$sha\n4b28d0e\nnope\n'), '4b28d0e');
+      expect(firstInvalidIgnoreRev('${sha}0'), '${sha}0');
+      expect(firstInvalidIgnoreRev('$sha extra'), '$sha extra');
+      expect(firstInvalidIgnoreRev('not-a-sha'), 'not-a-sha');
+    });
+
+    test('follows the repository hash length', () {
+      final sha256 = 'a' * 64;
+      expect(firstInvalidIgnoreRev(sha256), sha256);
+      expect(firstInvalidIgnoreRev(sha256, hexLength: 64), isNull);
+      expect(firstInvalidIgnoreRev(sha, hexLength: 64), sha);
+    });
+  });
 }

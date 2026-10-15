@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as pathlib;
 
+import 'blame.dart';
 import 'commit_fields.dart';
 import 'dashboard.dart';
 import 'git_service.dart';
@@ -1015,22 +1016,81 @@ class GitReader {
   /// Raw `git blame --line-porcelain` output for [path] (parse with
   /// [parseBlame]). Annotates the file as of [rev] when given, else the
   /// working-tree copy. [ignoreWhitespace] credits a line to the commit that
-  /// last changed more than its whitespace.
+  /// last changed more than its whitespace; [moves] follows moved lines back
+  /// to where they were written.
+  ///
+  /// [ignoreRevsFile] lists commits to see past, such as a mass reformat.
+  /// git's own `blame.ignoreRevsFile` is always switched off first: the caller
+  /// resolves that setting through [blameIgnoreRevsFile], and a configured
+  /// file that does not exist would otherwise fail every blame.
+  /// Blame's ceiling. Following moves from other files (`-C`) compares every
+  /// line against the other files of each commit, which on a long history can
+  /// run well past the ordinary default.
+  static const _blameTimeout = Duration(minutes: 5);
+
   Future<String> blame(
     String path, {
     String? rev,
     bool ignoreWhitespace = false,
+    BlameMoves moves = BlameMoves.off,
+    String? ignoreRevsFile,
   }) async {
     final r = await _run([
       'blame',
       '--line-porcelain',
       if (ignoreWhitespace) '-w',
+      ...switch (moves) {
+        BlameMoves.off => const <String>[],
+        BlameMoves.withinFile => const ['-M'],
+        BlameMoves.acrossFiles => const ['-C'],
+      },
+      '--no-ignore-revs-file',
+      if (ignoreRevsFile != null) ...['--ignore-revs-file', ignoreRevsFile],
       ?rev,
       '--',
       path,
-    ]);
+    ], timeout: _blameTimeout);
     if (!r.ok) throw GitException('git blame failed', r);
     return r.stdout;
+  }
+
+  /// The file of commits blame should see past: `blame.ignoreRevsFile` when
+  /// it names a file that exists (a relative path is taken from the
+  /// repository, as git takes it from the working directory), else the
+  /// `.git-blame-ignore-revs` many projects keep at their root by convention.
+  /// Null when there is neither.
+  ///
+  /// [BlameRevsFile.invalid] is the first line git would refuse, which would
+  /// fail every blame — so a file that has one must not be passed on.
+  Future<BlameRevsFile?> blameIgnoreRevsFile() async {
+    final results = await Future.wait([
+      _run(['config', '--path', '--get', 'blame.ignoreRevsFile']),
+      _run(['rev-parse', '--show-object-format']),
+    ]);
+    final r = results[0];
+    final hexLength = results[1].out.trim() == 'sha256' ? 64 : 40;
+    final configured = r.ok ? r.out : '';
+    String? existing(String path) {
+      final abs = pathlib.isAbsolute(path)
+          ? path
+          : pathlib.join(repoPath, path);
+      return FileSystemEntity.isFileSync(abs) ? abs : null;
+    }
+
+    final path =
+        (configured.isEmpty ? null : existing(configured)) ??
+        existing('.git-blame-ignore-revs');
+    if (path == null) return null;
+    String content;
+    try {
+      content = File(path).readAsStringSync();
+    } on FileSystemException {
+      return (path: path, invalid: '');
+    }
+    return (
+      path: path,
+      invalid: firstInvalidIgnoreRev(content, hexLength: hexLength),
+    );
   }
 
   /// Files changed by [sha]. Merges are diffed against their first parent, so

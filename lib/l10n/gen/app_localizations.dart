@@ -7201,6 +7201,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{sha} is a merge. Cherry-pick it on its own to choose which parent to replay it against.'**
   String pickMergeBody(String sha);
+
+  /// No description provided for @boOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Blame options'**
+  String get boOptions;
+
+  /// No description provided for @boIgnoreWhitespace.
+  ///
+  /// In en, this message translates to:
+  /// **'Ignore whitespace'**
+  String get boIgnoreWhitespace;
+
+  /// No description provided for @boMovesOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Don\'t follow moved lines'**
+  String get boMovesOff;
+
+  /// No description provided for @boMovesWithinFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow lines moved within the file'**
+  String get boMovesWithinFile;
+
+  /// No description provided for @boMovesAcrossFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow lines moved from other files'**
+  String get boMovesAcrossFiles;
+
+  /// No description provided for @boSkipRevs.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip revisions listed in {file}'**
+  String boSkipRevs(String file);
+
+  /// No description provided for @boRevsInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Can\'t use {file}: bad line «{line}»'**
+  String boRevsInvalid(String file, String line);
+
+  /// No description provided for @boRevsUnreadable.
+  ///
+  /// In en, this message translates to:
+  /// **'Can\'t read {file}'**
+  String boRevsUnreadable(String file);
 }
 
 class _AppLocalizationsDelegate

@@ -1500,5 +1500,13 @@
   "pickMenuCherryPick": "{count, plural, one{Cherry-pick {count} коміту} few{Cherry-pick {count} комітів} many{Cherry-pick {count} комітів} other{Cherry-pick {count} коміта}}",
   "pickMenuNoCommit": "{count, plural, one{Cherry-pick {count} коміту без коміту} few{Cherry-pick {count} комітів без коміту} many{Cherry-pick {count} комітів без коміту} other{Cherry-pick {count} коміта без коміту}}",
   "pickMergeTitle": "Merge-коміти не можна вибирати разом",
-  "pickMergeBody": "{sha} — merge-коміт. Зробіть cherry-pick окремо, щоб вибрати батьківський коміт."
+  "pickMergeBody": "{sha} — merge-коміт. Зробіть cherry-pick окремо, щоб вибрати батьківський коміт.",
+  "boOptions": "Параметри blame",
+  "boIgnoreWhitespace": "Ігнорувати пробіли",
+  "boMovesOff": "Не відстежувати переміщені рядки",
+  "boMovesWithinFile": "Відстежувати рядки, переміщені в межах файлу",
+  "boMovesAcrossFiles": "Відстежувати рядки, переміщені з інших файлів",
+  "boSkipRevs": "Пропускати ревізії з {file}",
+  "boRevsInvalid": "Не вдається використати {file}: хибний рядок «{line}»",
+  "boRevsUnreadable": "Не вдається прочитати {file}"
 }

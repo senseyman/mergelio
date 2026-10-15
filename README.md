@@ -126,7 +126,13 @@ change never needs a second window.*
   public key, or gpg / ssh-keygen not found). **Check signatures…** in the
   command palette lists every commit since a base ref (the upstream by default)
   without a verified signature.
-- **File history** and per-line **blame** for any changed file.
+- **File history** and per-line **blame** for any changed file. Blame's options
+  menu ignores whitespace (`-w`) and follows moved lines within the file (`-M`)
+  or from other files (`-C`). Commits listed in `blame.ignoreRevsFile`, or in a
+  `.git-blame-ignore-revs` at the repository root, are skipped by default, with
+  a toggle to see them again. A missing file, or one git would reject (an
+  abbreviated sha, say), is left out and named in the menu rather than breaking
+  blame.
 - **Line history** (`git log -L`): pick a line or a run of lines — in blame, or
   in any diff — and see every commit that changed just those lines, each with
   what it did to them. Follows the lines back through renames.
@@ -168,8 +174,8 @@ change never needs a second window.*
   32 MiB show their size only and are never loaded. SVG keeps its text diff.
 - **Diff options** in the diff header: 3, 5 or 10 lines of context, or the
   **whole file**; and whitespace shown, changes in whitespace ignored, or all
-  whitespace ignored. Both choices are remembered, and blame ignores whitespace
-  along with the diff. While whitespace is hidden, hunk and line staging step
+  whitespace ignored. Both choices are remembered, and blame starts out ignoring
+  whitespace when the diff does. While whitespace is hidden, hunk and line staging step
   aside — those hunks no longer match the index — and a file that changed only
   in whitespace says so.
 - Select and copy diff text — line numbers, change markers, hunk headers and the

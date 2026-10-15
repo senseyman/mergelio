@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
 
 import '../../core/theme.dart';
 import '../../core/tokens.dart';
+import '../../domain/git/blame.dart';
 import '../../domain/text_tabs.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/compare_target.dart';
@@ -223,7 +225,18 @@ class _BlameTabState extends ConsumerState<_BlameTab> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Align(
+        alignment: Alignment.centerRight,
+        child: _BlameOptionsMenu(repoPath: widget.repoPath),
+      ),
+      Expanded(child: _lines(context)),
+    ],
+  );
+
+  Widget _lines(BuildContext context) {
     final l = AppLocalizations.of(context);
     final t = context.tokens;
     return ref
@@ -299,5 +312,85 @@ class _BlameTabState extends ConsumerState<_BlameTab> {
             },
           ),
         );
+  }
+}
+
+/// The blame tab's options: whitespace, moved lines, and — when the
+/// repository has one — whether to see past the commits its ignore-revs file
+/// lists. The icon is lit whenever blame reads differently from plain git, so
+/// a line credited past a commit is never a silent surprise.
+class _BlameOptionsMenu extends ConsumerWidget {
+  final String repoPath;
+  const _BlameOptionsMenu({required this.repoPath});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
+    final t = context.tokens;
+    final options = ref.watch(blameOptionsProvider);
+    final revs = ref.watch(blameIgnoreRevsProvider(repoPath)).valueOrNull;
+    // Only a file git accepts is a choice; a broken one is reported instead.
+    final revsFile = revs?.invalid == null ? revs?.path : null;
+    void set(BlameOptions next) =>
+        ref.read(blameOptionsProvider.notifier).state = next;
+    // Skipping is on by default, so only switching it off reads differently,
+    // and only where there is a file to switch off.
+    final active =
+        options.ignoreWhitespace ||
+        options.moves != BlameMoves.off ||
+        (revsFile != null && !options.skipIgnoredRevs);
+    return PopupMenuButton<VoidCallback>(
+      tooltip: l.boOptions,
+      iconSize: 18,
+      icon: Icon(Icons.tune, color: active ? t.accent : null),
+      onSelected: (action) => action(),
+      itemBuilder: (_) => [
+        CheckedPopupMenuItem(
+          value: () => set(
+            options.copyWith(ignoreWhitespace: !options.ignoreWhitespace),
+          ),
+          checked: options.ignoreWhitespace,
+          child: Text(l.boIgnoreWhitespace),
+        ),
+        const PopupMenuDivider(),
+        for (final (moves, label) in [
+          (BlameMoves.off, l.boMovesOff),
+          (BlameMoves.withinFile, l.boMovesWithinFile),
+          (BlameMoves.acrossFiles, l.boMovesAcrossFiles),
+        ])
+          CheckedPopupMenuItem(
+            value: () => set(options.copyWith(moves: moves)),
+            checked: options.moves == moves,
+            child: Text(label),
+          ),
+        if (revs != null && revs.invalid != null) ...[
+          const PopupMenuDivider(),
+          PopupMenuItem<VoidCallback>(
+            enabled: false,
+            child: Tooltip(
+              message: revs.path,
+              child: Text(
+                revs.invalid!.isEmpty
+                    ? l.boRevsUnreadable(p.basename(revs.path))
+                    : l.boRevsInvalid(p.basename(revs.path), revs.invalid!),
+              ),
+            ),
+          ),
+        ],
+        if (revsFile != null) ...[
+          const PopupMenuDivider(),
+          CheckedPopupMenuItem(
+            value: () => set(
+              options.copyWith(skipIgnoredRevs: !options.skipIgnoredRevs),
+            ),
+            checked: options.skipIgnoredRevs,
+            child: Tooltip(
+              message: revsFile,
+              child: Text(l.boSkipRevs(p.basename(revsFile))),
+            ),
+          ),
+        ],
+      ],
+    );
   }
 }
