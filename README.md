@@ -142,6 +142,7 @@ change never needs a second window.*
   what it did to them. Follows the lines back through renames.
 - Global search with filters, plus in-graph match highlighting.
 - Content search (pickaxe): find the commits that added or removed a string, literally or by regular expression.
+- Author and date filters searched across the whole history, not just the commits loaded so far: the author matches name or email, the date range uses the date the graph shows, and matches in older history can be loaded straight from the search bar.
 - **Command palette** (`⌘K` / `Ctrl+K`) with fuzzy matching and fly-to.
 
 ### Working with changes
