@@ -3,13 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
+import '../../domain/git/clone_options.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/repo_bootstrap.dart';
 import '../common/dialogs.dart';
 
 /// Clone-repository dialog: source URL, a folder name derived live from the
-/// URL (editable), and a destination parent folder. Clone runs for real and
-/// opens the new repo as a tab.
+/// URL (editable), a destination parent folder, and optional clone options
+/// (shallow, blobless, branch, submodules). Clone runs for real and opens the
+/// new repo as a tab.
 Future<void> showCloneDialog(BuildContext context) => showAppModal<void>(
   context: context,
   title: AppLocalizations.of(context).rdlgCloneTitle,
@@ -37,8 +39,15 @@ class _CloneBodyState extends ConsumerState<_CloneBody> {
   final _url = TextEditingController();
   final _name = TextEditingController();
   final _dir = TextEditingController();
+  final _depth = TextEditingController(text: '1');
+  final _branch = TextEditingController();
   bool _nameEdited = false;
   bool _cloning = false;
+  bool _showOptions = false;
+  bool _shallow = false;
+  bool _blobless = false;
+  bool _singleBranch = false;
+  bool _submodules = true;
 
   @override
   void initState() {
@@ -59,28 +68,119 @@ class _CloneBodyState extends ConsumerState<_CloneBody> {
     _url.dispose();
     _name.dispose();
     _dir.dispose();
+    _depth.dispose();
+    _branch.dispose();
     super.dispose();
   }
+
+  // An unparseable depth stays 0 rather than null, so it is reported as bad
+  // instead of quietly cloning the whole history.
+  CloneOptions get _options => CloneOptions(
+    depth: _shallow ? (parseDepth(_depth.text) ?? 0) : null,
+    blobless: _blobless,
+    branch: _branch.text,
+    singleBranch: _singleBranch,
+    submodules: _submodules,
+  );
+
+  /// Anything set away from a plain clone, so the collapsed toggle can say
+  /// so rather than hide it.
+  bool get _optionsChanged =>
+      _shallow ||
+      _blobless ||
+      _branch.text.trim().isNotEmpty ||
+      _singleBranch ||
+      !_submodules;
 
   bool get _ready =>
       !_cloning &&
       _url.text.trim().isNotEmpty &&
       _name.text.trim().isNotEmpty &&
-      _dir.text.isNotEmpty;
+      _dir.text.isNotEmpty &&
+      _options.problem == null;
 
   Future<void> _clone() async {
     setState(() => _cloning = true);
     final path = await ref
         .read(repoBootstrapProvider)
-        .clone(url: _url.text, parentDir: _dir.text, folderName: _name.text);
+        .clone(
+          url: _url.text,
+          parentDir: _dir.text,
+          folderName: _name.text,
+          options: _options,
+        );
     if (!mounted) return;
     setState(() => _cloning = false);
     if (path != null) Navigator.of(context).pop();
   }
 
+  Widget _optionsSection(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final t = context.tokens;
+    Widget check(String label, bool value, ValueChanged<bool> onChanged) =>
+        CheckboxListTile(
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          controlAffinity: ListTileControlAffinity.leading,
+          title: Text(
+            label,
+            style: TextStyle(color: t.textPrimary, fontSize: 13),
+          ),
+          value: value,
+          onChanged: (v) => setState(() => onChanged(v ?? false)),
+        );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          children: [
+            Expanded(child: check(l.cloShallow, _shallow, (v) => _shallow = v)),
+            SizedBox(
+              width: 120,
+              child: TextField(
+                key: const ValueKey('clone-depth'),
+                controller: _depth,
+                enabled: _shallow,
+                keyboardType: TextInputType.number,
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  labelText: l.cloDepth,
+                  isDense: true,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(t.rButton),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        check(l.cloBlobless, _blobless, (v) => _blobless = v),
+        const SizedBox(height: 8),
+        TextField(
+          key: const ValueKey('clone-branch'),
+          controller: _branch,
+          onChanged: (_) => setState(() {}),
+          decoration: InputDecoration(
+            labelText: l.cloBranch,
+            hintText: l.cloBranchHint,
+            isDense: true,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(t.rButton),
+            ),
+          ),
+        ),
+        check(l.cloSingleBranch, _singleBranch, (v) => _singleBranch = v),
+        check(l.cloSubmodules, _submodules, (v) => _submodules = v),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
+    final t = context.tokens;
+    final problem = _options.problem;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
@@ -104,6 +204,28 @@ class _CloneBodyState extends ConsumerState<_CloneBody> {
           controller: _dir,
           onChanged: () => setState(() {}),
         ),
+        const SizedBox(height: 8),
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: TextButton.icon(
+            onPressed: () => setState(() => _showOptions = !_showOptions),
+            icon: Icon(
+              _showOptions ? Icons.expand_more : Icons.chevron_right,
+              size: 18,
+            ),
+            label: Text(
+              l.cloOptions,
+              style: _optionsChanged ? TextStyle(color: t.accent) : null,
+            ),
+          ),
+        ),
+        if (_showOptions) _optionsSection(context),
+        // Outside the section: a collapsed one must not hide why Clone is off.
+        if (problem != null)
+          Text(switch (problem) {
+            CloneProblem.badDepth => l.cloBadDepth,
+            CloneProblem.badBranch => l.cloBadBranch,
+          }, style: TextStyle(color: t.danger, fontSize: 12)),
         const SizedBox(height: 18),
         if (_cloning) ...[
           const LinearProgressIndicator(minHeight: 3),

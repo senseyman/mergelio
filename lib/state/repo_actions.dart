@@ -220,6 +220,31 @@ class RepoActions {
           },
   );
 
+  /// Downloads the history a shallow clone left out, and the branches a
+  /// single-branch one did. On the fetch lane: like a fetch it writes objects
+  /// and refs, never the working tree.
+  ///
+  /// Widening a single-branch remote rewrites its fetch refspec in the repo
+  /// config for good (`remote set-branches <remote> '*'`), so later fetches
+  /// keep bringing every branch. A blobless clone stays blobless: file
+  /// contents still arrive on demand.
+  ///
+  /// A repository that is already complete has nothing to fetch, and git
+  /// refuses `--unshallow` on one, so it is left as it is.
+  Future<bool> fetchFullHistory() => _network(
+    'Fetch full history',
+    (cancel) async {
+      final reader = GitReader(_git, path);
+      if (!await reader.isShallow()) return;
+      for (final remote in await reader.singleBranchRemotes()) {
+        await _writer.fetchAllBranches(remote);
+      }
+      await _writer.unshallow(cancel: cancel);
+    },
+    writesWorkingTree: false,
+    lane: _Lane.fetch,
+  );
+
   /// Shares the fetch lane: pruning rewrites the same remote-tracking refs a
   /// fetch is writing, and nothing else cares about either.
   Future<void> pruneRemote(String remote) => _network(

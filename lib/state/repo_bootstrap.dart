@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 import '../domain/git/askpass.dart';
+import '../domain/git/clone_options.dart';
 import '../domain/git/git_providers.dart';
 import '../domain/git/git_service.dart';
 import 'feedback.dart';
@@ -51,12 +52,14 @@ class RepoBootstrap {
     return ctx.isWithin(ctx.normalize(parentDir), target);
   }
 
-  /// Clones [url] into `[parentDir]/[folderName]` and opens it. Long timeout —
-  /// clones legitimately take minutes on big repos. Returns the new repo path.
+  /// Clones [url] into `[parentDir]/[folderName]` with [options] and opens it.
+  /// Long timeout — clones legitimately take minutes on big repos. Returns the
+  /// new repo path.
   Future<String?> clone({
     required String url,
     required String parentDir,
     String? folderName,
+    CloneOptions options = const CloneOptions(),
   }) async {
     final name = (folderName == null || folderName.trim().isEmpty)
         ? folderNameFromUrl(url)
@@ -64,6 +67,15 @@ class RepoBootstrap {
     if (url.trim().isEmpty || parentDir.isEmpty || name.isEmpty) {
       _toast('Clone failed', 'URL and destination are required');
       return null;
+    }
+    switch (options.problem) {
+      case CloneProblem.badDepth:
+        _toast('Clone failed', 'Depth must be a positive number');
+        return null;
+      case CloneProblem.badBranch:
+        _toast('Clone failed', 'Invalid branch name');
+        return null;
+      case null:
     }
     // Reject folder names that could escape the parent via .. segments.
     if (name.contains('..') || name.startsWith('/') || name.startsWith(r'\')) {
@@ -89,14 +101,7 @@ class RepoBootstrap {
     );
     try {
       final r = await _git.run(
-        [
-          'clone',
-          // A superproject cloned without them comes up with empty directories
-          // where its submodules should be.
-          '--recurse-submodules',
-          url.trim(),
-          target,
-        ],
+        cloneArgs(url.trim(), target, options),
         timeout: const Duration(minutes: 15),
         // No repository exists yet, so this reads the global and system config
         // for the ssh command the user set.

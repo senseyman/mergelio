@@ -2,10 +2,60 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mergelio/domain/git/clone_options.dart';
 import 'package:mergelio/domain/git/git_service.dart';
+import 'package:mergelio/data/app_database.dart';
+import 'package:mergelio/domain/git/git_providers.dart';
+import 'package:mergelio/state/recents.dart';
 import 'package:mergelio/state/repo_bootstrap.dart';
 import 'package:mergelio/state/workspace.dart';
 import 'package:path/path.dart' as p;
+
+/// Records every git call and runs none.
+class _RecordingGit implements GitService {
+  final calls = <List<String>>[];
+
+  @override
+  Future<GitResult> run(
+    List<String> args, {
+    String? repoPath,
+    Duration? timeout,
+    Map<String, String>? environment,
+    GitCancel? cancel,
+    String? stdin,
+  }) async {
+    calls.add(args);
+    return const GitResult(0, '', '');
+  }
+
+  @override
+  Future<String> version() async => 'git version 2';
+  @override
+  Future<bool> isRepository(String path) async => true;
+}
+
+/// Keeps recents in memory; the real repository writes to the app database.
+class _MemoryRecents implements RecentsRepository {
+  @override
+  AppDatabase get db => throw UnimplementedError();
+  @override
+  Future<List<RecentRepo>> load() async => const [];
+  @override
+  Future<void> save(List<RecentRepo> items) async {}
+}
+
+/// A container whose recents list works, so opening a repo records it.
+ProviderContainer _container() {
+  final c = ProviderContainer(
+    overrides: [
+      recentsProvider.overrideWith(
+        (ref) => RecentsController(_MemoryRecents(), const []),
+      ),
+    ],
+  );
+  addTearDown(c.dispose);
+  return c;
+}
 
 void main() {
   const svc = SystemGitService();
@@ -94,8 +144,7 @@ void main() {
   });
 
   test('clone refuses a folder name that escapes the parent', () async {
-    final c = ProviderContainer();
-    addTearDown(c.dispose);
+    final c = _container();
     final parent = Directory('${work.path}/parent')..createSync();
 
     final path = await c
@@ -126,8 +175,7 @@ void main() {
     await g(['add', '.']);
     await g(['commit', '-q', '-m', 'A']);
 
-    final c = ProviderContainer();
-    addTearDown(c.dispose);
+    final c = _container();
     final parent = Directory('${work.path}/clones')..createSync();
 
     final path = await c
@@ -139,11 +187,149 @@ void main() {
     expect(await svc.isRepository(path!), isTrue);
     // Opened as the active tab.
     expect(c.read(workspaceProvider).activeTab?.path, path);
+    expect(c.read(recentsProvider).first.path, path);
+  });
+
+  group('clone options', () {
+    late Directory origin;
+
+    // Three commits on main, one more on dev, and a submodule on main.
+    setUp(() async {
+      Future<void> g(String dir, List<String> args) async {
+        final r = await svc.run([
+          '-c',
+          'protocol.file.allow=always',
+          ...args,
+        ], repoPath: dir);
+        if (!r.ok) throw StateError('git ${args.join(' ')}: ${r.err}');
+      }
+
+      Future<void> init(Directory d) async {
+        d.createSync();
+        await g(d.path, ['init', '-q', '-b', 'main']);
+        await g(d.path, ['config', 'user.email', 't@e.com']);
+        await g(d.path, ['config', 'user.name', 'T']);
+        await g(d.path, ['config', 'commit.gpgsign', 'false']);
+      }
+
+      final sub = Directory('${work.path}/sub');
+      await init(sub);
+      await File('${sub.path}/s.txt').writeAsString('S\n');
+      await g(sub.path, ['add', '.']);
+      await g(sub.path, ['commit', '-q', '-m', 'S']);
+
+      origin = Directory('${work.path}/origin');
+      await init(origin);
+      for (final n in ['1', '2', '3']) {
+        await File('${origin.path}/f$n').writeAsString('$n\n');
+        await g(origin.path, ['add', '.']);
+        await g(origin.path, ['commit', '-q', '-m', 'c$n']);
+      }
+      await g(origin.path, ['submodule', 'add', '-q', sub.path, 'sub']);
+      await g(origin.path, ['commit', '-q', '-m', 'sub']);
+      await g(origin.path, ['checkout', '-q', '-b', 'dev']);
+      await File('${origin.path}/d').writeAsString('d\n');
+      await g(origin.path, ['add', '.']);
+      await g(origin.path, ['commit', '-q', '-m', 'd']);
+      await g(origin.path, ['checkout', '-q', 'main']);
+    });
+
+    Future<String?> cloneWith(CloneOptions o, {String? url}) async {
+      final c = _container();
+      final parent = Directory('${work.path}/clones')..createSync();
+      return c
+          .read(repoBootstrapProvider)
+          .clone(
+            url: url ?? origin.path,
+            parentDir: parent.path,
+            folderName: 'c',
+            options: o,
+          );
+    }
+
+    Future<String> out(String repo, List<String> args) async =>
+        (await svc.run(args, repoPath: repo)).out;
+
+    test('shallow from a local path really is shallow', () async {
+      final path = await cloneWith(
+        const CloneOptions(depth: 1, submodules: false),
+      );
+      expect(path, isNotNull);
+      expect(
+        await out(path!, ['rev-parse', '--is-shallow-repository']),
+        'true',
+      );
+      expect(await out(path, ['rev-list', '--count', 'HEAD']), '1');
+      // Not narrowed to one branch unless asked.
+      expect(await out(path, ['branch', '-r']), contains('origin/dev'));
+    });
+
+    test('single branch fetches only that branch and checks it out', () async {
+      final path = await cloneWith(
+        // git refuses file:// submodules by default; not what is tested.
+        const CloneOptions(
+          branch: 'dev',
+          singleBranch: true,
+          submodules: false,
+        ),
+        url: Uri.file(origin.path).toString(),
+      );
+      expect(path, isNotNull);
+      expect(await out(path!, ['branch', '--show-current']), 'dev');
+      final remotes = await out(path, ['branch', '-r']);
+      expect(remotes, contains('origin/dev'));
+      expect(remotes, isNot(contains('origin/main')));
+    });
+
+    test('blobless sets up a partial clone', () async {
+      final path = await cloneWith(
+        const CloneOptions(blobless: true, submodules: false),
+      );
+      expect(path, isNotNull);
+      expect(
+        await out(path!, ['config', 'remote.origin.partialclonefilter']),
+        'blob:none',
+      );
+    });
+
+    test('submodules off leaves the submodule unpopulated', () async {
+      final path = await cloneWith(const CloneOptions(submodules: false));
+      expect(path, isNotNull);
+      expect(File('$path/sub/s.txt').existsSync(), isFalse);
+    });
+
+    test('an unknown branch fails and leaves nothing behind', () async {
+      final path = await cloneWith(
+        const CloneOptions(branch: 'nope', singleBranch: true),
+      );
+      expect(path, isNull);
+      expect(Directory('${work.path}/clones/c').existsSync(), isFalse);
+    });
+
+    test('invalid options are refused before git runs', () async {
+      for (final o in const [
+        CloneOptions(depth: 0),
+        CloneOptions(branch: 'a..b', singleBranch: true),
+      ]) {
+        final git = _RecordingGit();
+        final c = ProviderContainer(
+          overrides: [gitServiceProvider.overrideWithValue(git)],
+        );
+        addTearDown(c.dispose);
+        final parent = Directory('${work.path}/clones')..createSync();
+
+        final path = await c
+            .read(repoBootstrapProvider)
+            .clone(url: origin.path, parentDir: parent.path, options: o);
+
+        expect(path, isNull);
+        expect(git.calls, isEmpty);
+      }
+    });
   });
 
   test('clone refuses a non-empty destination', () async {
-    final c = ProviderContainer();
-    addTearDown(c.dispose);
+    final c = _container();
     final parent = Directory('${work.path}/busydest')..createSync();
     Directory('${parent.path}/repo').createSync();
     File('${parent.path}/repo/junk').writeAsStringSync('x');
@@ -157,8 +343,7 @@ void main() {
   test(
     'create inits a repo with default branch, README and initial commit',
     () async {
-      final c = ProviderContainer();
-      addTearDown(c.dispose);
+      final c = _container();
 
       final path = await c
           .read(repoBootstrapProvider)
