@@ -241,8 +241,8 @@ class AppLocalizationsEn extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count more matches in older history — load more',
-      one: '$count more match in older history — load more',
+      other: 'Up to $count more matches in older history — load more',
+      one: 'Up to $count more match in older history — load more',
     );
     return '$_temp0';
   }

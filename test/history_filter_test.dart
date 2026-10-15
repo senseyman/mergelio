@@ -1,12 +1,15 @@
 // Which commits the author and date filters select, read from git over the
 // whole history rather than from the loaded page.
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
+import 'package:mergelio/domain/git/models.dart';
 import 'package:mergelio/state/history_filter.dart';
+import 'package:mergelio/state/repo_data.dart';
 
 /// Answers the history walk with [result] and the stash lookups with
 /// [stashes]; records only the walk.
@@ -17,6 +20,11 @@ class _FakeGit implements GitService {
   final String stashParents;
   final calls = <List<String>>[];
   final timeouts = <Duration?>[];
+  final environments = <Map<String, String>?>[];
+  final cancels = <GitCancel?>[];
+
+  /// When set, the walk waits on this instead of answering at once.
+  Completer<void>? hang;
   _FakeGit(
     this.result, {
     this.throws,
@@ -37,6 +45,9 @@ class _FakeGit implements GitService {
     if (a.first == 'rev-list') return GitResult(0, stashParents, '');
     calls.add(a);
     timeouts.add(timeout);
+    environments.add(environment);
+    cancels.add(cancel);
+    if (hang != null) await hang!.future;
     if (throws != null) throw throws!;
     return result;
   }
@@ -172,6 +183,100 @@ void main() {
     );
   });
 
+  // Case folding of a non-ASCII name follows git's locale, and an app started
+  // from the Dock or Finder may have none at all.
+  test('the walk runs in a UTF-8 locale whatever the app inherited', () async {
+    final git = _FakeGit(const GitResult(0, '', ''));
+    final c = container(git);
+
+    await c.read(
+      historyFilterProvider(const HistoryFilterKey('/r', 'олег')).future,
+    );
+
+    expect(git.environments.single, containsPair('LC_ALL', 'C.UTF-8'));
+  });
+
+  test('hiding merges is passed to the walk', () async {
+    final git = _FakeGit(const GitResult(0, '', ''));
+    final c = container(git);
+
+    await c.read(
+      historyFilterProvider(const HistoryFilterKey('/r', 'a', noMerges: true))
+          .future,
+    );
+
+    expect(git.calls.single, contains('--no-merges'));
+  });
+
+  test('a filter nobody watches any more kills its walk', () async {
+    final git = _FakeGit(const GitResult(0, '', ''))..hang = Completer();
+    addTearDown(() => git.hang!.complete());
+    final c = container(git);
+
+    final sub = c.listen(
+      historyFilterProvider(const HistoryFilterKey('/r', 'al')),
+      (_, _) {},
+    );
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+    expect(git.cancels.single, isNotNull);
+    expect(git.cancels.single!.isCancelled, isFalse);
+
+    sub.close();
+    await Future<void>.delayed(Duration.zero);
+
+    expect(git.cancels.single!.isCancelled, isTrue);
+  });
+
+  group('historyStamp', () {
+    const base = RepoData(
+      branches: [Branch(name: 'main', tip: 'a1')],
+      remoteBranches: [RemoteBranch(remote: 'o', branch: 'main', tip: 'r1')],
+      stashes: [Stash(ref: 'stash@{0}', sha: 's1', message: 'm')],
+    );
+
+    test('moves when a branch, remote branch or stash moves', () {
+      final stamp = historyStamp(base);
+      expect(
+        historyStamp(
+          base.copyWith(
+            branches: const [Branch(name: 'main', tip: 'a2')],
+          ),
+        ),
+        isNot(stamp),
+      );
+      expect(
+        historyStamp(
+          base.copyWith(
+            remoteBranches: const [
+              RemoteBranch(remote: 'o', branch: 'main', tip: 'r2'),
+            ],
+          ),
+        ),
+        isNot(stamp),
+      );
+      expect(historyStamp(base.copyWith(stashes: const [])), isNot(stamp));
+      expect(historyStamp(base.copyWith(tags: const ['v1'])), isNot(stamp));
+    });
+
+    test('holds while only the loaded page or working tree changes', () {
+      expect(
+        historyStamp(base.copyWith(hasMoreCommits: true, working: const [])),
+        historyStamp(base),
+      );
+    });
+  });
+
+  test('keys differing in merges or history state are different filters', () {
+    const a = HistoryFilterKey('/r', 'a', stamp: 'x');
+    expect(a, const HistoryFilterKey('/r', 'a', stamp: 'x'));
+    expect(a == const HistoryFilterKey('/r', 'a', stamp: 'y'), isFalse);
+    expect(
+      a == const HistoryFilterKey('/r', 'a', stamp: 'x', noMerges: true),
+      isFalse,
+    );
+  });
+
   test('keys differing only in a date are different filters', () {
     final a = HistoryFilterKey('/r', 'a', since: DateTime(2026));
     final b = HistoryFilterKey('/r', 'a', since: DateTime(2026, 2));
@@ -213,9 +318,14 @@ void main() {
     Future<String> sha(String rev) async =>
         (await svc.run(['rev-parse', rev], repoPath: repo.path)).stdout.trim();
 
-    Future<Set<String>> read(HistoryFilterKey key) {
-      final c = ProviderContainer();
+    // Listened to, as the graph does: an unwatched filter is disposed, and
+    // its walk killed, before git can answer.
+    Future<Set<String>> read(HistoryFilterKey key, {GitService? git}) {
+      final c = ProviderContainer(
+        overrides: [if (git != null) gitServiceProvider.overrideWithValue(git)],
+      );
       addTearDown(c.dispose);
+      c.listen(historyFilterProvider(key), (_, _) {});
       return c.read(historyFilterProvider(key).future);
     }
 
@@ -319,6 +429,39 @@ void main() {
       expect(shas, isNot(contains(index)));
     });
 
+    test('a non-ASCII name matches whatever the case, in any locale', () async {
+      await commit(
+        'cyr',
+        name: 'Олег Петренко',
+        email: 'oleg@x.io',
+        authored: '2026-04-01T10:00:00',
+      );
+      // What a Finder launch hands git: no usable locale.
+      final shas = await read(
+        HistoryFilterKey(repo.path, 'олег'),
+        git: const _BareLocaleGit(),
+      );
+
+      expect(shas, {await sha('HEAD')});
+    });
+
+    test('a start date before the early seventies keeps its commits', () async {
+      await commit(
+        'old',
+        name: 'Ann Lee',
+        email: 'ann@corp.io',
+        authored: '1971-07-01T10:00:00',
+        committed: '1971-07-01T10:00:00',
+      );
+      final old = await sha('HEAD');
+
+      final shas = await read(
+        HistoryFilterKey(repo.path, '', since: DateTime(1971, 6, 1)),
+      );
+
+      expect(shas, contains(old));
+    });
+
     test('a commit on a branch that is not checked out is found', () async {
       await g(['switch', '-q', '-c', 'side']);
       await commit(
@@ -333,4 +476,33 @@ void main() {
       expect(await read(HistoryFilterKey(repo.path, 'zed')), {side});
     });
   });
+}
+
+/// Real git, run as an app launched without a locale would run it: the C
+/// locale, unless the caller asks for another.
+class _BareLocaleGit implements GitService {
+  const _BareLocaleGit();
+  static const _real = SystemGitService();
+
+  @override
+  Future<GitResult> run(
+    List<String> a, {
+    String? repoPath,
+    Duration? timeout,
+    Map<String, String>? environment,
+    GitCancel? cancel,
+    String? stdin,
+  }) => _real.run(
+    a,
+    repoPath: repoPath,
+    timeout: timeout,
+    environment: {'LANG': 'C', 'LC_ALL': 'C', ...?environment},
+    cancel: cancel,
+    stdin: stdin,
+  );
+
+  @override
+  Future<String> version() => _real.version();
+  @override
+  Future<bool> isRepository(String path) => _real.isRepository(path);
 }

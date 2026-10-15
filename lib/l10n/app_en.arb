@@ -75,7 +75,7 @@
   "searchRunning": "Searching…",
   "searchNoMatches": "No matches",
   "searchAuthorHelp": "Name or email, searched across the whole history",
-  "searchOlderMatchesHelp": "{count, plural, one{{count} more match in older history — load more} other{{count} more matches in older history — load more}}",
+  "searchOlderMatchesHelp": "{count, plural, one{Up to {count} more match in older history — load more} other{Up to {count} more matches in older history — load more}}",
   "@searchOlderMatchesHelp": {
     "placeholders": {
       "count": {

@@ -41,6 +41,7 @@ void main() {
     bool hasMore = false,
     double width = 1400,
     List<HistoryFilterKey>? keys,
+    RepoData? data,
   }) async {
     tester.view.physicalSize = Size(width, 800);
     tester.view.devicePixelRatio = 1;
@@ -73,7 +74,8 @@ void main() {
           supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: GraphList(
-              data: RepoData(commits: _commits, hasMoreCommits: hasMore),
+              data:
+                  data ?? RepoData(commits: _commits, hasMoreCommits: hasMore),
             ),
           ),
         ),
@@ -106,10 +108,55 @@ void main() {
       keys: keys,
     );
 
-    expect(
-      keys.last,
-      HistoryFilterKey('/r', 'ada', since: DateTime(2026, 3, 1)),
+    expect(keys.last.repoPath, '/r');
+    expect(keys.last.author, 'ada');
+    expect(keys.last.since, DateTime(2026, 3, 1));
+    expect(keys.last.noMerges, isFalse);
+  });
+
+  testWidgets('hiding merges is part of the filter git is asked for', (
+    tester,
+  ) async {
+    final keys = <HistoryFilterKey>[];
+    await pump(
+      tester,
+      query: const CommitQuery(author: 'ada', hideMerges: true),
+      keys: keys,
     );
+
+    expect(keys.last.noMerges, isTrue);
+  });
+
+  // A commit, fetch or rebase moves a ref; the filter has to be asked again
+  // rather than keep the shas of the history it saw before.
+  testWidgets('the filter is keyed by the refs of the history shown', (
+    tester,
+  ) async {
+    final keys = <HistoryFilterKey>[];
+    final data = RepoData(
+      commits: _commits,
+      branches: const [Branch(name: 'main', tip: 'aaa')],
+    );
+    await pump(
+      tester,
+      query: const CommitQuery(author: 'ada'),
+      keys: keys,
+      data: data,
+    );
+
+    expect(keys.last.stamp, historyStamp(data));
+  });
+
+  testWidgets('enter in the author field applies it without the wait', (
+    tester,
+  ) async {
+    final container = await pump(tester, query: const CommitQuery(text: 'm'));
+
+    await tester.enterText(find.byKey(const ValueKey('search:author')), 'ad');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+
+    expect(container.read(searchQueryProvider)?.author, 'ad');
   });
 
   testWidgets('a filter still running is not reported as no matches', (
@@ -198,6 +245,12 @@ void main() {
     );
 
     expect(find.text('+2'), findsOneWidget);
+    // Hide-tags and the free text need the commit itself, so this is a
+    // ceiling and is worded as one.
+    expect(
+      find.byTooltip('Up to 2 more matches in older history — load more'),
+      findsOneWidget,
+    );
 
     final before = container.read(commitLimitProvider('/r'));
     await tester.tap(find.byKey(const ValueKey('search:older')));

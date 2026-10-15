@@ -577,6 +577,8 @@ class _GraphListState extends ConsumerState<GraphList> {
                 query.author.trim(),
                 since: query.since,
                 until: query.until,
+                noMerges: query.hideMerges,
+                stamp: historyStamp(d),
               ),
             ),
           );
@@ -942,10 +944,14 @@ class _SearchBarState extends State<_SearchBar> {
 
   void _typedAuthor(String v) {
     _authorDebounce?.cancel();
-    _authorDebounce = Timer(
-      _contentDebounce,
-      () => widget.onChanged(widget.query.copyWith(author: v)),
-    );
+    _authorDebounce = Timer(_contentDebounce, () => _setAuthor(v));
+  }
+
+  /// Applies the author at once — what Enter does, skipping the wait.
+  void _setAuthor(String v) {
+    _authorDebounce?.cancel();
+    if (widget.query.author == v) return;
+    widget.onChanged(widget.query.copyWith(author: v));
   }
 
   @override
@@ -1039,6 +1045,7 @@ class _SearchBarState extends State<_SearchBar> {
                 child: TextField(
                   key: const ValueKey('search:author'),
                   onChanged: _typedAuthor,
+                  onSubmitted: _setAuthor,
                   style: TextStyle(color: t.textPrimary, fontSize: 12),
                   decoration: InputDecoration(
                     isDense: true,

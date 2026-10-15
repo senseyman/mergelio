@@ -240,10 +240,10 @@ class AppLocalizationsUk extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Ще $count збігу у давнішій історії — завантажити',
-      many: 'Ще $count збігів у давнішій історії — завантажити',
-      few: 'Ще $count збіги у давнішій історії — завантажити',
-      one: 'Ще $count збіг у давнішій історії — завантажити',
+      other: 'Ще до $count збігу у давнішій історії — завантажити',
+      many: 'Ще до $count збігів у давнішій історії — завантажити',
+      few: 'Ще до $count збігів у давнішій історії — завантажити',
+      one: 'Ще до $count збігу у давнішій історії — завантажити',
     );
     return '$_temp0';
   }

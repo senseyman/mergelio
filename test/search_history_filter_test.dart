@@ -111,8 +111,27 @@ void main() {
 
     test('the start date prunes the walk from local midnight', () {
       final since = DateTime(2026, 3, 10, 15);
-      final midnight = DateTime(2026, 3, 10).millisecondsSinceEpoch ~/ 1000;
-      expect(historyFilterArgs('', since), contains('--since=@$midnight'));
+      expect(
+        historyFilterArgs('', since),
+        contains('--since=2026-03-10 00:00:00'),
+      );
+    });
+
+    // git reads `@<n>` as a timestamp only for long numbers, so an early
+    // date written that way pruned commits it should have kept.
+    test('an early start date is written as a date, not a timestamp', () {
+      expect(
+        historyFilterArgs('', DateTime(1971, 6, 1)),
+        contains('--since=1971-06-01 00:00:00'),
+      );
+    });
+
+    test('hiding merges leaves them out of the walk', () {
+      expect(
+        historyFilterArgs('a', null, noMerges: true),
+        contains('--no-merges'),
+      );
+      expect(historyFilterArgs('a', null), isNot(contains('--no-merges')));
     });
 
     test('no end date is passed: git would compare the committer date', () {

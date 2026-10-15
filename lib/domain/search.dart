@@ -102,6 +102,11 @@ class CommitQuery {
 
 DateTime _day(DateTime d) => DateTime(d.year, d.month, d.day);
 
+String _isoDay(DateTime d) =>
+    '${d.year.toString().padLeft(4, '0')}-'
+    '${d.month.toString().padLeft(2, '0')}-'
+    '${d.day.toString().padLeft(2, '0')}';
+
 /// True when [authored] falls on or between the days of [since] and [until];
 /// an open end does not limit.
 bool authoredWithin(DateTime authored, DateTime? since, DateTime? until) {
@@ -125,6 +130,7 @@ bool authoredWithin(DateTime authored, DateTime? since, DateTime? until) {
 List<String> historyFilterArgs(
   String author,
   DateTime? since, {
+  bool noMerges = false,
   List<String> stashes = const [],
 }) {
   final a = author.trim();
@@ -149,7 +155,12 @@ List<String> historyFilterArgs(
     // author's machine breaks; covering that would cost a walk of the whole
     // history for every date search. No `--until`: a commit authored before
     // the end may well have been committed after it.
-    if (since != null) '--since=@${_day(since).millisecondsSinceEpoch ~/ 1000}',
+    //
+    // Written as a local date rather than `@<seconds>`: git takes a number
+    // for a timestamp only when it is long enough, so a date before the
+    // early seventies would have become some other cutoff.
+    if (since != null) '--since=${_isoDay(since)} 00:00:00',
+    if (noMerges) '--no-merges',
     ...stashes,
   ];
 }

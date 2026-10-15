@@ -75,7 +75,7 @@
   "searchRunning": "Пошук…",
   "searchNoMatches": "Немає збігів",
   "searchAuthorHelp": "Ім'я або email, пошук по всій історії",
-  "searchOlderMatchesHelp": "{count, plural, one{Ще {count} збіг у давнішій історії — завантажити} few{Ще {count} збіги у давнішій історії — завантажити} many{Ще {count} збігів у давнішій історії — завантажити} other{Ще {count} збігу у давнішій історії — завантажити}}",
+  "searchOlderMatchesHelp": "{count, plural, one{Ще до {count} збігу у давнішій історії — завантажити} few{Ще до {count} збігів у давнішій історії — завантажити} many{Ще до {count} збігів у давнішій історії — завантажити} other{Ще до {count} збігу у давнішій історії — завантажити}}",
   "filterDate": "Дата",
   "filterDateHelp": "Фільтр за датою створення коміту автором",
   "filterDateAny": "Будь-коли",

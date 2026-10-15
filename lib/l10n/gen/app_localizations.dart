@@ -551,7 +551,7 @@ abstract class AppLocalizations {
   /// No description provided for @searchOlderMatchesHelp.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, one{{count} more match in older history — load more} other{{count} more matches in older history — load more}}'**
+  /// **'{count, plural, one{Up to {count} more match in older history — load more} other{Up to {count} more matches in older history — load more}}'**
   String searchOlderMatchesHelp(int count);
 
   /// No description provided for @filterDate.
