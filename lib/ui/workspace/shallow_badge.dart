@@ -23,10 +23,13 @@ class ShallowBadge extends ConsumerWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(4),
         onTap: () async {
-          await ref.read(repoActionsProvider(path)).fetchFullHistory();
+          // The fetch can run for minutes and outlive this pill (a tab
+          // switch, a collapsed sidebar), so hold the container, not the ref.
+          final container = ProviderScope.containerOf(context, listen: false);
+          await container.read(repoActionsProvider(path)).fetchFullHistory();
           // A deepening fetch need not move any ref, so the refs-driven
           // re-read may never come; ask again directly.
-          ref.invalidate(shallowRepoProvider(path));
+          container.invalidate(shallowRepoProvider(path));
         },
         child: Container(
           margin: const EdgeInsets.only(left: 8),

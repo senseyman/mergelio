@@ -83,6 +83,15 @@ class _CloneBodyState extends ConsumerState<_CloneBody> {
     submodules: _submodules,
   );
 
+  /// Anything set away from a plain clone, so the collapsed toggle can say
+  /// so rather than hide it.
+  bool get _optionsChanged =>
+      _shallow ||
+      _blobless ||
+      _branch.text.trim().isNotEmpty ||
+      _singleBranch ||
+      !_submodules;
+
   bool get _ready =>
       !_cloning &&
       _url.text.trim().isNotEmpty &&
@@ -108,7 +117,6 @@ class _CloneBodyState extends ConsumerState<_CloneBody> {
   Widget _optionsSection(BuildContext context) {
     final l = AppLocalizations.of(context);
     final t = context.tokens;
-    final problem = _options.problem;
     Widget check(String label, bool value, ValueChanged<bool> onChanged) =>
         CheckboxListTile(
           dense: true,
@@ -164,11 +172,6 @@ class _CloneBodyState extends ConsumerState<_CloneBody> {
         ),
         check(l.cloSingleBranch, _singleBranch, (v) => _singleBranch = v),
         check(l.cloSubmodules, _submodules, (v) => _submodules = v),
-        if (problem != null)
-          Text(switch (problem) {
-            CloneProblem.badDepth => l.cloBadDepth,
-            CloneProblem.badBranch => l.cloBadBranch,
-          }, style: TextStyle(color: t.danger, fontSize: 12)),
       ],
     );
   }
@@ -176,6 +179,8 @@ class _CloneBodyState extends ConsumerState<_CloneBody> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
+    final t = context.tokens;
+    final problem = _options.problem;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
@@ -208,10 +213,19 @@ class _CloneBodyState extends ConsumerState<_CloneBody> {
               _showOptions ? Icons.expand_more : Icons.chevron_right,
               size: 18,
             ),
-            label: Text(l.cloOptions),
+            label: Text(
+              l.cloOptions,
+              style: _optionsChanged ? TextStyle(color: t.accent) : null,
+            ),
           ),
         ),
         if (_showOptions) _optionsSection(context),
+        // Outside the section: a collapsed one must not hide why Clone is off.
+        if (problem != null)
+          Text(switch (problem) {
+            CloneProblem.badDepth => l.cloBadDepth,
+            CloneProblem.badBranch => l.cloBadBranch,
+          }, style: TextStyle(color: t.danger, fontSize: 12)),
         const SizedBox(height: 18),
         if (_cloning) ...[
           const LinearProgressIndicator(minHeight: 3),

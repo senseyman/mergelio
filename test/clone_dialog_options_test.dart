@@ -155,4 +155,27 @@ void main() {
     await tester.pump();
     expect(cloneButton(tester).onPressed, isNotNull);
   });
+
+  testWidgets('collapsing the options keeps the reason and marks the change', (
+    tester,
+  ) async {
+    await open(tester);
+    Color? toggleColor() =>
+        tester.widget<Text>(find.text('Clone options')).style?.color;
+    final plain = toggleColor();
+
+    await tester.tap(find.text('Clone options'));
+    await tester.pumpAndSettle();
+    await tester.tap(check('Shallow clone'));
+    await tester.pump();
+    await tester.enterText(find.byKey(const ValueKey('clone-depth')), '0');
+    await tester.tap(find.text('Clone options'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Shallow clone'), findsNothing);
+    expect(cloneButton(tester).onPressed, isNull);
+    expect(find.text('Depth must be a positive number'), findsOneWidget);
+    // Options away from a plain clone are flagged even while hidden.
+    expect(toggleColor(), isNot(plain));
+  });
 }

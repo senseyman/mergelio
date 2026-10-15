@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -27,6 +29,9 @@ class _FakeGit implements GitService {
   Future<bool> isRepository(String path) async => true;
 }
 
+/// Holds the next fetch open until completed; null lets it finish at once.
+Completer<bool>? _gate;
+
 class _RecordingActions extends RepoActions {
   _RecordingActions(super.ref, super.path, super.writer);
   int fetches = 0;
@@ -34,7 +39,7 @@ class _RecordingActions extends RepoActions {
   @override
   Future<bool> fetchFullHistory() async {
     fetches++;
-    return true;
+    return _gate?.future ?? true;
   }
 }
 
@@ -103,6 +108,21 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     expect(find.byType(ShallowBadge), findsOneWidget);
+  });
+
+  testWidgets('a fetch outliving the pill finishes cleanly', (tester) async {
+    await pump(tester, [true, false]);
+    final gate = _gate = Completer<bool>();
+    addTearDown(() => _gate = null);
+    await tester.tap(find.text('SHALLOW'));
+    await tester.pump();
+
+    // Switching tabs or collapsing the sidebar unmounts the pill mid-fetch.
+    await tester.pumpWidget(const SizedBox.shrink());
+    gate.complete(true);
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('hidden for a full clone', (tester) async {
