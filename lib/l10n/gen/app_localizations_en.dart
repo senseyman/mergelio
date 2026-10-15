@@ -4388,4 +4388,41 @@ class AppLocalizationsEn extends AppLocalizations {
   String boRevsUnreadable(String file) {
     return 'Can\'t read $file';
   }
+
+  @override
+  String get cloOptions => 'Clone options';
+
+  @override
+  String get cloShallow => 'Shallow clone';
+
+  @override
+  String get cloDepth => 'Depth';
+
+  @override
+  String get cloBlobless => 'Blobless: fetch file contents on demand';
+
+  @override
+  String get cloBranch => 'Branch';
+
+  @override
+  String get cloBranchHint => 'remote default';
+
+  @override
+  String get cloSingleBranch => 'Only this branch';
+
+  @override
+  String get cloSubmodules => 'Include submodules';
+
+  @override
+  String get cloBadDepth => 'Depth must be a positive number';
+
+  @override
+  String get cloBadBranch => 'Not a valid branch name';
+
+  @override
+  String get cloShallowBadge => 'Shallow';
+
+  @override
+  String get cloShallowTooltip =>
+      'Shallow clone: only recent history is here. Click to fetch the full history.';
 }

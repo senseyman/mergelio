@@ -7249,6 +7249,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Can\'t read {file}'**
   String boRevsUnreadable(String file);
+
+  /// No description provided for @cloOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Clone options'**
+  String get cloOptions;
+
+  /// No description provided for @cloShallow.
+  ///
+  /// In en, this message translates to:
+  /// **'Shallow clone'**
+  String get cloShallow;
+
+  /// No description provided for @cloDepth.
+  ///
+  /// In en, this message translates to:
+  /// **'Depth'**
+  String get cloDepth;
+
+  /// No description provided for @cloBlobless.
+  ///
+  /// In en, this message translates to:
+  /// **'Blobless: fetch file contents on demand'**
+  String get cloBlobless;
+
+  /// No description provided for @cloBranch.
+  ///
+  /// In en, this message translates to:
+  /// **'Branch'**
+  String get cloBranch;
+
+  /// No description provided for @cloBranchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'remote default'**
+  String get cloBranchHint;
+
+  /// No description provided for @cloSingleBranch.
+  ///
+  /// In en, this message translates to:
+  /// **'Only this branch'**
+  String get cloSingleBranch;
+
+  /// No description provided for @cloSubmodules.
+  ///
+  /// In en, this message translates to:
+  /// **'Include submodules'**
+  String get cloSubmodules;
+
+  /// No description provided for @cloBadDepth.
+  ///
+  /// In en, this message translates to:
+  /// **'Depth must be a positive number'**
+  String get cloBadDepth;
+
+  /// No description provided for @cloBadBranch.
+  ///
+  /// In en, this message translates to:
+  /// **'Not a valid branch name'**
+  String get cloBadBranch;
+
+  /// No description provided for @cloShallowBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Shallow'**
+  String get cloShallowBadge;
+
+  /// No description provided for @cloShallowTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Shallow clone: only recent history is here. Click to fetch the full history.'**
+  String get cloShallowTooltip;
 }
 
 class _AppLocalizationsDelegate

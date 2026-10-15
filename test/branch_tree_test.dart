@@ -6,6 +6,7 @@ import 'package:mergelio/core/tokens.dart';
 import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/domain/git/models.dart';
 import 'package:mergelio/domain/git/worktree.dart';
+import 'package:mergelio/state/shallow.dart';
 import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
@@ -98,6 +99,7 @@ void main() {
                   const RepoData(branches: [Branch(name: 'feat/login')]),
             ),
             worktreeByBranchProvider(repoPath).overrideWithValue(heldBy),
+            shallowRepoProvider(repoPath).overrideWith((ref) async => false),
             settingsProvider.overrideWith(
               (ref) => SettingsController(
                 InMemorySettingsRepository(),

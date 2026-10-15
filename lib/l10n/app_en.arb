@@ -2615,5 +2615,17 @@
   "boRevsInvalid": "Can't use {file}: bad line «{line}»",
   "@boRevsInvalid": { "placeholders": { "file": { "type": "String" }, "line": { "type": "String" } } },
   "boRevsUnreadable": "Can't read {file}",
-  "@boRevsUnreadable": { "placeholders": { "file": { "type": "String" } } }
+  "@boRevsUnreadable": { "placeholders": { "file": { "type": "String" } } },
+  "cloOptions": "Clone options",
+  "cloShallow": "Shallow clone",
+  "cloDepth": "Depth",
+  "cloBlobless": "Blobless: fetch file contents on demand",
+  "cloBranch": "Branch",
+  "cloBranchHint": "remote default",
+  "cloSingleBranch": "Only this branch",
+  "cloSubmodules": "Include submodules",
+  "cloBadDepth": "Depth must be a positive number",
+  "cloBadBranch": "Not a valid branch name",
+  "cloShallowBadge": "Shallow",
+  "cloShallowTooltip": "Shallow clone: only recent history is here. Click to fetch the full history."
 }

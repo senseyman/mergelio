@@ -220,6 +220,15 @@ class RepoActions {
           },
   );
 
+  /// Downloads the history a shallow clone left out. On the fetch lane: like a
+  /// fetch it writes objects and refs, never the working tree.
+  Future<bool> fetchFullHistory() => _network(
+    'Fetch full history',
+    (cancel) => _writer.unshallow(cancel: cancel),
+    writesWorkingTree: false,
+    lane: _Lane.fetch,
+  );
+
   /// Shares the fetch lane: pruning rewrites the same remote-tracking refs a
   /// fetch is writing, and nothing else cares about either.
   Future<void> pruneRemote(String remote) => _network(

@@ -1508,5 +1508,17 @@
   "boMovesAcrossFiles": "Відстежувати рядки, переміщені з інших файлів",
   "boSkipRevs": "Пропускати ревізії з {file}",
   "boRevsInvalid": "Не вдається використати {file}: хибний рядок «{line}»",
-  "boRevsUnreadable": "Не вдається прочитати {file}"
+  "boRevsUnreadable": "Не вдається прочитати {file}",
+  "cloOptions": "Параметри клонування",
+  "cloShallow": "Поверхневе клонування",
+  "cloDepth": "Глибина",
+  "cloBlobless": "Без вмісту файлів: завантажувати за потреби",
+  "cloBranch": "Гілка",
+  "cloBranchHint": "типова гілка віддаленого",
+  "cloSingleBranch": "Лише цю гілку",
+  "cloSubmodules": "Разом із підмодулями",
+  "cloBadDepth": "Глибина має бути додатним числом",
+  "cloBadBranch": "Неприпустима назва гілки",
+  "cloShallowBadge": "Поверхневий",
+  "cloShallowTooltip": "Поверхневий клон: тут лише недавня історія. Натисніть, щоб отримати повну історію."
 }

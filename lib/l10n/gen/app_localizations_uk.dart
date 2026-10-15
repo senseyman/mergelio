@@ -4466,4 +4466,41 @@ class AppLocalizationsUk extends AppLocalizations {
   String boRevsUnreadable(String file) {
     return 'Не вдається прочитати $file';
   }
+
+  @override
+  String get cloOptions => 'Параметри клонування';
+
+  @override
+  String get cloShallow => 'Поверхневе клонування';
+
+  @override
+  String get cloDepth => 'Глибина';
+
+  @override
+  String get cloBlobless => 'Без вмісту файлів: завантажувати за потреби';
+
+  @override
+  String get cloBranch => 'Гілка';
+
+  @override
+  String get cloBranchHint => 'типова гілка віддаленого';
+
+  @override
+  String get cloSingleBranch => 'Лише цю гілку';
+
+  @override
+  String get cloSubmodules => 'Разом із підмодулями';
+
+  @override
+  String get cloBadDepth => 'Глибина має бути додатним числом';
+
+  @override
+  String get cloBadBranch => 'Неприпустима назва гілки';
+
+  @override
+  String get cloShallowBadge => 'Поверхневий';
+
+  @override
+  String get cloShallowTooltip =>
+      'Поверхневий клон: тут лише недавня історія. Натисніть, щоб отримати повну історію.';
 }

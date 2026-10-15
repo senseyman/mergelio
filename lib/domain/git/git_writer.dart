@@ -79,6 +79,10 @@ class GitWriter {
   // well beyond the default read timeout so they are not killed mid-transfer.
   static const _netTimeout = Duration(minutes: 5);
 
+  /// Ceiling for deepening a shallow clone: it downloads the rest of the
+  /// history, which on a big repository is most of a full clone.
+  static const _unshallowTimeout = Duration(minutes: 30);
+
   /// Ceiling for `git bisect run`, whose duration is the user's own command
   /// multiplied by the number of steps left — a test suite over a deep history
   /// legitimately takes hours.
@@ -154,10 +158,11 @@ class GitWriter {
     List<String> args,
     String what, {
     GitCancel? cancel,
+    Duration timeout = _netTimeout,
   }) async => _ok(
     args,
     what,
-    timeout: _netTimeout,
+    timeout: timeout,
     environment: await _netEnv(),
     cancel: cancel,
   );
@@ -214,6 +219,14 @@ class GitWriter {
   /// nothing changes.
   Future<void> pullFastForward({GitCancel? cancel}) =>
       _net(['pull', '--ff-only', '--no-rebase'], 'git pull', cancel: cancel);
+
+  /// Fetches the history a shallow clone left out, turning it into a full one.
+  Future<void> unshallow({GitCancel? cancel}) => _net(
+    ['fetch', '--unshallow'],
+    'git fetch --unshallow',
+    cancel: cancel,
+    timeout: _unshallowTimeout,
+  );
 
   /// Prunes remote-tracking refs under [remote] that no longer exist upstream.
   Future<void> pruneRemote(String remote, {GitCancel? cancel}) =>

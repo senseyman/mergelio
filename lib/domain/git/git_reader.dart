@@ -97,6 +97,13 @@ class GitReader {
     return '${r.stdout}\nHEAD ${head.ok ? head.out : ''}';
   }
 
+  /// Whether the repository holds only part of its history (a shallow clone).
+  Future<bool> isShallow() async {
+    final r = await _run(['rev-parse', '--is-shallow-repository']);
+    if (!r.ok) throw GitException('git rev-parse failed', r);
+    return r.out == 'true';
+  }
+
   /// Commits across all refs in topological order, newest first. Layout fields
   /// are left at their defaults; run [assignLanes] to populate them. Returns an
   /// empty list for a repository with no commits yet.

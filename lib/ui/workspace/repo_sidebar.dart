@@ -28,6 +28,7 @@ import 'forge_issue_section.dart';
 import 'forge_section.dart';
 import 'reflog_section.dart';
 import 'remote_dialog.dart';
+import 'shallow_badge.dart';
 import 'sidebar_section.dart';
 import 'stash_panel.dart';
 import 'worktrees_section.dart';
@@ -49,7 +50,11 @@ class RepoSidebar extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _PanelHeader(title: l.sbRepository, onCollapse: onCollapse),
+          _PanelHeader(
+            title: l.sbRepository,
+            path: path,
+            onCollapse: onCollapse,
+          ),
           Expanded(
             child: path == null
                 ? const SizedBox.shrink()
@@ -77,8 +82,13 @@ class RepoSidebar extends ConsumerWidget {
 
 class _PanelHeader extends StatelessWidget {
   final String title;
+  final String? path;
   final VoidCallback onCollapse;
-  const _PanelHeader({required this.title, required this.onCollapse});
+  const _PanelHeader({
+    required this.title,
+    required this.path,
+    required this.onCollapse,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -92,15 +102,21 @@ class _PanelHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Text(
-            title.toUpperCase(),
-            style: TextStyle(
-              color: t.textFaint,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.5,
+          // Both give way at the narrowest sidebar rather than overflow.
+          Flexible(
+            child: Text(
+              title.toUpperCase(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: t.textFaint,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.5,
+              ),
             ),
           ),
+          if (path != null) Flexible(child: ShallowBadge(path: path!)),
           const Spacer(),
           IconButton(
             iconSize: 15,
