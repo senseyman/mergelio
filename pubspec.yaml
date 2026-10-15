@@ -59,6 +59,8 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   generate: true
+  assets:
+    - release_notes/
 
 # Per-OS app icons generated from the 1024px brand master (§4.8). Regenerate
 # with: dart run flutter_launcher_icons
