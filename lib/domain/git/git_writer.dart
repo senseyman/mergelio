@@ -220,6 +220,10 @@ class GitWriter {
   Future<void> pullFastForward({GitCancel? cancel}) =>
       _net(['pull', '--ff-only', '--no-rebase'], 'git pull', cancel: cancel);
 
+  /// Makes [remote] fetch every branch again, undoing a single-branch clone.
+  Future<void> fetchAllBranches(String remote) =>
+      _ok(['remote', 'set-branches', remote, '*'], 'git remote set-branches');
+
   /// Fetches the history a shallow clone left out, turning it into a full one.
   Future<void> unshallow({GitCancel? cancel}) => _net(
     ['fetch', '--unshallow'],

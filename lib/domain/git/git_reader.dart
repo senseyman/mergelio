@@ -104,6 +104,36 @@ class GitReader {
     return r.out == 'true';
   }
 
+  /// Remotes fetching a single branch into its own tracking ref, which is
+  /// what `clone --single-branch` (and `--depth` on its own) leaves behind.
+  /// A refspec of any other shape is the user's choice and does not count.
+  Future<List<String>> singleBranchRemotes() async {
+    final r = await _run(['config', '--get-regexp', r'^remote\..*\.fetch$']);
+    // Exit 1: no remote has a fetch refspec at all.
+    if (r.exitCode == 1) return const [];
+    if (!r.ok) throw GitException('git config failed', r);
+    final specs = <String, List<String>>{};
+    for (final line in r.out.split('\n')) {
+      final space = line.indexOf(' ');
+      if (space < 0) continue;
+      final key = line.substring(0, space);
+      // Remote names may hold dots, so cut at both ends rather than split.
+      final name = key.substring(
+        'remote.'.length,
+        key.length - '.fetch'.length,
+      );
+      (specs[name] ??= []).add(line.substring(space + 1));
+    }
+    return [
+      for (final MapEntry(key: name, value: refspecs) in specs.entries)
+        if (refspecs.every((s) {
+          final m = RegExp(r'^\+?refs/heads/([^*:]+):(.+)$').firstMatch(s);
+          return m != null && m[2] == 'refs/remotes/$name/${m[1]}';
+        }))
+          name,
+    ];
+  }
+
   /// Commits across all refs in topological order, newest first. Layout fields
   /// are left at their defaults; run [assignLanes] to populate them. Returns an
   /// empty list for a repository with no commits yet.

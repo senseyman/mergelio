@@ -220,11 +220,17 @@ class RepoActions {
           },
   );
 
-  /// Downloads the history a shallow clone left out. On the fetch lane: like a
-  /// fetch it writes objects and refs, never the working tree.
+  /// Downloads the history a shallow clone left out, and the branches a
+  /// single-branch one did. On the fetch lane: like a fetch it writes objects
+  /// and refs, never the working tree.
   Future<bool> fetchFullHistory() => _network(
     'Fetch full history',
-    (cancel) => _writer.unshallow(cancel: cancel),
+    (cancel) async {
+      for (final remote in await GitReader(_git, path).singleBranchRemotes()) {
+        await _writer.fetchAllBranches(remote);
+      }
+      await _writer.unshallow(cancel: cancel);
+    },
     writesWorkingTree: false,
     lane: _Lane.fetch,
   );

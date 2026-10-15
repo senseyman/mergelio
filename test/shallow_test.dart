@@ -77,6 +77,40 @@ void main() {
     expect(await GitReader(svc, shallow).isShallow(), isTrue);
   });
 
+  test(
+    'singleBranchRemotes finds remotes a single-branch clone narrowed',
+    () async {
+      final repo = await clone([
+        '--no-local',
+        '--depth',
+        '1',
+        '--single-branch',
+      ]);
+      expect(await GitReader(svc, repo).singleBranchRemotes(), ['origin']);
+
+      // A dotted name, as `remote rename` allows.
+      await g(repo, ['remote', 'rename', 'origin', 'my.fork']);
+      expect(await GitReader(svc, repo).singleBranchRemotes(), ['my.fork']);
+
+      // Widened, or carrying a refspec of the user's own shape: left alone.
+      await g(repo, ['remote', 'set-branches', 'my.fork', '*']);
+      await g(repo, ['remote', 'add', 'other', origin]);
+      await g(repo, [
+        'config',
+        '--replace-all',
+        'remote.other.fetch',
+        '+refs/heads/main:refs/remotes/elsewhere/main',
+      ]);
+      expect(await GitReader(svc, repo).singleBranchRemotes(), isEmpty);
+    },
+  );
+
+  test('a remote with no fetch refspecs at all reads as none', () async {
+    final repo = await clone([]);
+    await g(repo, ['config', '--unset-all', 'remote.origin.fetch']);
+    expect(await GitReader(svc, repo).singleBranchRemotes(), isEmpty);
+  });
+
   test('unshallow fetches under a long ceiling', () async {
     final git = _CapturingGit();
     await GitWriter(git, '/r').unshallow();
@@ -102,6 +136,29 @@ void main() {
     expect(count.out, '3');
     expect(c.read(toastProvider).last.kind, ToastKind.success);
   });
+
+  test(
+    'fetchFullHistory brings back the branches a single-branch clone left out',
+    () async {
+      await g(origin, ['branch', 'dev']);
+      final repo = await clone([
+        '--no-local',
+        '--depth',
+        '1',
+        '--single-branch',
+      ]);
+      final c = ProviderContainer();
+      addTearDown(c.dispose);
+
+      final ok = await c.read(repoActionsProvider(repo)).fetchFullHistory();
+
+      expect(ok, isTrue);
+      expect(await GitReader(svc, repo).isShallow(), isFalse);
+      final remotes = await svc.run(['branch', '-r'], repoPath: repo);
+      expect(remotes.out, contains('origin/dev'));
+      expect(await GitReader(svc, repo).singleBranchRemotes(), isEmpty);
+    },
+  );
 
   test('fetchFullHistory on a full clone reports the failure', () async {
     final repo = await clone([]);
