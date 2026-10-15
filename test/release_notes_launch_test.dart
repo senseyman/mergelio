@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/data/kv_store.dart';
 import 'package:mergelio/state/operation_journal.dart';
 import 'package:mergelio/state/release_notes.dart';
+import 'package:mergelio/state/workspace.dart';
 import 'package:pub_semver/pub_semver.dart';
 
 Version v(String s) => Version.parse(s);
@@ -86,6 +87,30 @@ void main() {
       );
       addTearDown(c.dispose);
       expect(await c.read(releaseNotesLaunchProvider.future), isEmpty);
+    });
+  });
+
+  group('releaseNotesStartupProvider', () {
+    Future<WorkspaceState> start(List<Version> launch) async {
+      final c = ProviderContainer(
+        overrides: [
+          releaseNotesLaunchProvider.overrideWith((ref) async => launch),
+        ],
+      );
+      addTearDown(c.dispose);
+      await c.read(releaseNotesStartupProvider.future);
+      return c.read(workspaceProvider);
+    }
+
+    test('opens the tab with the launch notes', () async {
+      final ws = await start([v('1.9.0')]);
+      expect(ws.releaseNotes, [v('1.9.0')]);
+      expect(ws.showReleaseNotes, isTrue);
+    });
+
+    test('leaves the workspace alone when there are none', () async {
+      final ws = await start(const []);
+      expect(ws.releaseNotes, isNull);
     });
   });
 }

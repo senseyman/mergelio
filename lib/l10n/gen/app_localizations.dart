@@ -7394,6 +7394,12 @@ abstract class AppLocalizations {
   /// **'What\'s new'**
   String get rnTabTitle;
 
+  /// No description provided for @rnCloseTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Close release notes'**
+  String get rnCloseTab;
+
   /// No description provided for @rnEmpty.
   ///
   /// In en, this message translates to:

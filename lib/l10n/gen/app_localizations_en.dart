@@ -4476,6 +4476,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get rnTabTitle => 'What\'s new';
 
   @override
+  String get rnCloseTab => 'Close release notes';
+
+  @override
   String get rnEmpty => 'No release notes for this version.';
 
   @override

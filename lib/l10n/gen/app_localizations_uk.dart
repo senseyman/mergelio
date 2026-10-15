@@ -4555,6 +4555,9 @@ class AppLocalizationsUk extends AppLocalizations {
   String get rnTabTitle => 'Що нового';
 
   @override
+  String get rnCloseTab => 'Закрити примітки до випуску';
+
+  @override
   String get rnEmpty => 'Для цієї версії немає приміток до випуску.';
 
   @override

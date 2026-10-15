@@ -7,6 +7,7 @@ import '../data/update/host_info.dart';
 import '../domain/release_notes/release_notes.dart';
 import '../domain/update/app_version.dart';
 import 'operation_journal.dart' show kvStoreProvider;
+import 'workspace.dart';
 
 /// Store key holding the last version whose launch was handled.
 const releaseNotesSeenKey = 'releaseNotes.lastSeen';
@@ -64,3 +65,11 @@ final releaseNotesLaunchProvider = FutureProvider<List<Version>>((ref) async {
 final releaseNotesTextProvider = FutureProvider.family<String, String>(
   (ref, key) => rootBundle.loadString(key),
 );
+
+/// Opens the release notes tab when this launch has notes to show. Read once
+/// at startup; a launch with nothing to show leaves the workspace untouched.
+final releaseNotesStartupProvider = FutureProvider<void>((ref) async {
+  final versions = await ref.watch(releaseNotesLaunchProvider.future);
+  if (versions.isEmpty) return;
+  ref.read(workspaceProvider.notifier).openReleaseNotes(versions);
+});

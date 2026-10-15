@@ -9,6 +9,7 @@ import '../../state/operation_journal.dart';
 import '../../state/profile_theme_sync.dart';
 import '../../state/profile_workspace_sync.dart';
 import '../../state/profiles.dart';
+import '../../state/release_notes.dart';
 import '../../state/repo_watcher.dart';
 import '../../state/settings_controller.dart';
 import '../../state/update_controller.dart';
@@ -18,6 +19,7 @@ import '../terminal/terminal_panel.dart';
 import '../common/progress_top_bar.dart';
 import '../common/toast_overlay.dart';
 import '../profiles/first_profile_screen.dart';
+import '../release_notes/release_notes_view.dart';
 import '../welcome/welcome_screen.dart';
 import '../workspace/dashboard_view.dart';
 import '../workspace/workspace_view.dart';
@@ -55,6 +57,9 @@ class AppShell extends ConsumerWidget {
 
     final hasRepo = ref.watch(workspaceProvider.select((w) => w.hasRepo));
     final dashboard = ref.watch(workspaceProvider.select((w) => w.dashboard));
+    final notes = ref.watch(
+      workspaceProvider.select((w) => w.showReleaseNotes),
+    );
 
     return Scaffold(
       body: QuitGuard(
@@ -66,7 +71,11 @@ class AppShell extends ConsumerWidget {
                   const AppToolbar(),
                   const AppTabBar(),
                   Expanded(
-                    child: dashboard || hasRepo
+                    // The notes tab belongs to no repository, so it shows
+                    // even when none is open.
+                    child: notes
+                        ? const ReleaseNotesView()
+                        : dashboard || hasRepo
                         ? Row(
                             children: [
                               // 'rail' group-switcher style docks a vertical
@@ -157,6 +166,10 @@ class _StartupNoticesState extends ConsumerState<_StartupNotices> {
       } else if (consent == 'on') {
         ref.read(updateStatusProvider.notifier).check();
       }
+
+      // Once per version: the first launch after an upgrade shows what
+      // changed.
+      ref.read(releaseNotesStartupProvider);
     });
   }
 

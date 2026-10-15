@@ -77,7 +77,12 @@ class AppStatusBar extends ConsumerWidget {
             ),
             _dot(t),
             Text(
-              tab?.name ?? (ws.dashboard ? l.dashTitle : l.sbarNoRepository),
+              tab?.name ??
+                  (ws.showReleaseNotes
+                      ? l.rnTabTitle
+                      : ws.dashboard
+                      ? l.dashTitle
+                      : l.sbarNoRepository),
             ),
             if (tab != null) ...[
               _dot(t),

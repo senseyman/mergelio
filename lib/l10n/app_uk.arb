@@ -1533,6 +1533,7 @@
   "cloShallowBadge": "Поверхневий",
   "cloShallowTooltip": "Поверхневий клон: тут лише недавня історія. Натисніть, щоб отримати повну історію.",
   "rnTabTitle": "Що нового",
+  "rnCloseTab": "Закрити примітки до випуску",
   "rnEmpty": "Для цієї версії немає приміток до випуску.",
   "rnVersionHeading": "Mergelio {version}"
 }
