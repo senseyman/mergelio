@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/git/git_providers.dart';
+import '../domain/git/git_reader.dart';
 import '../domain/search.dart';
 
 /// Identifies one author/date filter inside one repository, so the history is
@@ -30,6 +31,8 @@ class HistoryFilterKey {
 /// Shas of every commit, on any branch, whose author matches
 /// [HistoryFilterKey.author] — name or email — and that was authored within
 /// the date range. Read from git so the filter reaches past the loaded page.
+/// Stashes count the way the graph draws them: every entry, never their
+/// internal index and untracked snapshots.
 ///
 /// Auto-disposed: every author that survives the search bar's debounce is a
 /// new key, and keeping each one alive would grow the cache for as long as the
@@ -44,9 +47,13 @@ final historyFilterProvider = FutureProvider.autoDispose
       }
       final git = ref.watch(gitServiceProvider);
       try {
+        final (:stashShas, :auxShas) = await GitReader(
+          git,
+          key.repoPath,
+        ).stashWalk();
         // A walk over every branch of a large repo outlasts the default guard.
         final r = await git.run(
-          historyFilterArgs(key.author, key.since),
+          historyFilterArgs(key.author, key.since, stashes: stashShas),
           repoPath: key.repoPath,
           timeout: const Duration(minutes: 2),
         );
@@ -54,7 +61,7 @@ final historyFilterProvider = FutureProvider.autoDispose
         final shas = <String>{};
         for (final line in r.stdout.split('\n')) {
           final f = line.split('\x00');
-          if (f.length != 2) continue;
+          if (f.length != 2 || auxShas.contains(f[0])) continue;
           final secs = int.tryParse(f[1]);
           if (secs == null) continue;
           final authored = DateTime.fromMillisecondsSinceEpoch(secs * 1000);

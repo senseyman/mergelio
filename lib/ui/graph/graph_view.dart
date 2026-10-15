@@ -221,6 +221,35 @@ class _GraphListState extends ConsumerState<GraphList> {
     return _matchCache;
   }
 
+  // Count of history-filter matches past the loaded page, memoized by its
+  // inputs' identity: it walks every loaded commit, and the graph rebuilds on
+  // every selection change.
+  (RepoData, Set<String>, Set<String>?, Set<String>?)? _olderInputs;
+  int _older = 0;
+
+  int _olderFor(
+    RepoData d,
+    Set<String> history,
+    Set<String>? paths,
+    Set<String>? content,
+  ) {
+    final prev = _olderInputs;
+    if (prev != null &&
+        identical(prev.$1, d) &&
+        identical(prev.$2, history) &&
+        identical(prev.$3, paths) &&
+        identical(prev.$4, content)) {
+      return _older;
+    }
+    _olderInputs = (d, history, paths, content);
+    return _older = olderMatchCount(
+      d.commits,
+      history,
+      pathShas: paths,
+      contentShas: content,
+    );
+  }
+
   // 1-based ordinal of each matched sha in commit order, memoized by the match
   // set identity so the search "x / y" counter doesn't rescan on every build.
   Set<String>? _ordinalsFor;
@@ -568,11 +597,11 @@ class _GraphListState extends ConsumerState<GraphList> {
             (query.path.isNotEmpty && pathShas == null) ||
             (query.content.isNotEmpty && content?.valueOrNull == null))
         ? 0
-        : olderMatchCount(
-            d.commits,
+        : _olderFor(
+            d,
             historyShas,
-            pathShas: query.path.isEmpty ? null : pathShas,
-            contentShas: query.content.isEmpty ? null : content?.valueOrNull,
+            query.path.isEmpty ? null : pathShas,
+            query.content.isEmpty ? null : content?.valueOrNull,
           );
 
     final graph = Column(
@@ -608,9 +637,10 @@ class _GraphListState extends ConsumerState<GraphList> {
             onChanged: (q) => ref.read(searchQueryProvider.notifier).state = q,
             onClose: () => ref.read(searchQueryProvider.notifier).state = null,
             onJump: (forward) => _jumpMatch(d, matchShas, forward, metrics),
+            // Same paging as scrolling to the end, so a double click, or a
+            // click while the trailing row is already loading, asks once.
             onLoadOlder: () {
-              final limits = ref.read(commitLimitProvider(repo!).notifier);
-              limits.state = limits.state * 2;
+              if (repo != null) _requestMoreCommits(repo);
             },
           )
         else
@@ -1026,8 +1056,13 @@ class _SearchBarState extends State<_SearchBar> {
               child: _DateChip(
                 since: query.since,
                 until: query.until,
-                onChanged: (since, until) =>
-                    onChanged(query.withDates(since, until)),
+                // Reads the query when the range is picked, not when the bar
+                // was built: the custom picker stays open long enough for the
+                // query to move on underneath it.
+                onChanged: (since, until) {
+                  if (!mounted) return;
+                  widget.onChanged(widget.query.withDates(since, until));
+                },
               ),
             ),
             if (query.path.isNotEmpty) ...[
@@ -1116,8 +1151,8 @@ class _SearchBarState extends State<_SearchBar> {
   }
 }
 
-/// The choices the date chip's menu offers. The relative ones are counted back
-/// from today, inclusive.
+/// The choices the date chip's menu offers. The relative ones end today and
+/// count today as one of their days.
 enum _DateChoice { any, week, month, year, custom }
 
 /// Date-range filter of the search bar: shows the active range and opens a
@@ -1135,17 +1170,18 @@ class _DateChip extends StatelessWidget {
   Future<void> _choose(BuildContext context, _DateChoice choice) async {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    DateTime ago(int days) =>
-        DateTime(today.year, today.month, today.day - days);
+    // The range is inclusive, so "last 7 days" starts six days back.
+    DateTime days(int n) =>
+        DateTime(today.year, today.month, today.day - (n - 1));
     switch (choice) {
       case _DateChoice.any:
         onChanged(null, null);
       case _DateChoice.week:
-        onChanged(ago(7), null);
+        onChanged(days(7), null);
       case _DateChoice.month:
-        onChanged(ago(30), null);
+        onChanged(days(30), null);
       case _DateChoice.year:
-        onChanged(ago(365), null);
+        onChanged(DateTime(today.year - 1, today.month, today.day + 1), null);
       case _DateChoice.custom:
         final range = await showDateRangePicker(
           context: context,

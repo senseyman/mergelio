@@ -8,12 +8,21 @@ import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/state/history_filter.dart';
 
+/// Answers the history walk with [result] and the stash lookups with
+/// [stashes]; records only the walk.
 class _FakeGit implements GitService {
   final GitResult result;
   final Object? throws;
+  final String stashes;
+  final String stashParents;
   final calls = <List<String>>[];
   final timeouts = <Duration?>[];
-  _FakeGit(this.result, {this.throws});
+  _FakeGit(
+    this.result, {
+    this.throws,
+    this.stashes = '',
+    this.stashParents = '',
+  });
 
   @override
   Future<GitResult> run(
@@ -24,6 +33,8 @@ class _FakeGit implements GitService {
     GitCancel? cancel,
     String? stdin,
   }) async {
+    if (a.first == 'stash') return GitResult(0, stashes, '');
+    if (a.first == 'rev-list') return GitResult(0, stashParents, '');
     calls.add(a);
     timeouts.add(timeout);
     if (throws != null) throw throws!;
@@ -92,6 +103,23 @@ void main() {
     );
 
     expect(git.timeouts.single, const Duration(minutes: 2));
+  });
+
+  test('every stash is walked and its internal snapshots dropped', () async {
+    final t = _epoch(DateTime(2026, 3, 1));
+    final git = _FakeGit(
+      GitResult(0, 's0\x00$t\ns1\x00$t\nidx\x00$t\nbase\x00$t\n', ''),
+      stashes: 's0\ns1\n',
+      stashParents: 's0 base idx\ns1 base idx1 untracked1\n',
+    );
+    final c = container(git);
+
+    final shas = await c.read(
+      historyFilterProvider(const HistoryFilterKey('/r', 'ada')).future,
+    );
+
+    expect(git.calls.single, containsAll(['s0', 's1']));
+    expect(shas, {'s0', 's1', 'base'});
   });
 
   test('no author and no dates never reaches git', () async {
@@ -255,6 +283,40 @@ void main() {
         HistoryFilterKey(repo.path, '', until: DateTime(2026, 1, 31)),
       );
       expect(january, {await sha('HEAD~2')});
+    });
+
+    test('stashes match the way the graph shows them', () async {
+      await File('${repo.path}/f.txt').writeAsString('1\n');
+      await g(['add', '.']);
+      await commit(
+        'base',
+        name: 'Ann Lee',
+        email: 'ann@corp.io',
+        authored: '2026-04-01T10:00:00',
+      );
+      Future<void> stash(String text) async {
+        await File('${repo.path}/f.txt').writeAsString(text);
+        await g(
+          ['stash', 'push', '-q'],
+          env: {
+            'GIT_AUTHOR_NAME': 'Ann Lee',
+            'GIT_AUTHOR_EMAIL': 'ann@corp.io',
+          },
+        );
+      }
+
+      await stash('2\n');
+      await stash('3\n');
+      final newer = await sha('stash@{0}');
+      final older = await sha('stash@{1}');
+      // The snapshot of the index the newest stash keeps as its second parent:
+      // reachable from refs/stash, never drawn by the graph.
+      final index = await sha('stash@{0}^2');
+
+      final shas = await read(HistoryFilterKey(repo.path, 'ann'));
+
+      expect(shas, containsAll([newer, older]));
+      expect(shas, isNot(contains(index)));
     });
 
     test('a commit on a branch that is not checked out is found', () async {

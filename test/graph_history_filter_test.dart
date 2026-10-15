@@ -143,7 +143,7 @@ void main() {
     expect(container.read(searchQueryProvider)?.author, 'ad');
   });
 
-  testWidgets('a preset range starts that many days back from today', (
+  testWidgets('a preset range covers that many days, today included', (
     tester,
   ) async {
     final container = await pump(tester, query: const CommitQuery(text: 'm'));
@@ -153,9 +153,10 @@ void main() {
     await tester.tap(find.text('Last 7 days'));
     await tester.pumpAndSettle();
 
+    // Seven days counting today: the range is inclusive at both ends.
     final now = DateTime.now();
     final q = container.read(searchQueryProvider)!;
-    expect(q.since, DateTime(now.year, now.month, now.day - 7));
+    expect(q.since, DateTime(now.year, now.month, now.day - 6));
     expect(q.until, isNull);
     expect(q.text, 'm');
   });
@@ -203,6 +204,52 @@ void main() {
     await tester.pump();
 
     expect(container.read(commitLimitProvider('/r')), before * 2);
+  });
+
+  testWidgets('a double click on older matches loads one page, not two', (
+    tester,
+  ) async {
+    final container = await pump(
+      tester,
+      query: const CommitQuery(author: 'ada'),
+      history: (_) async => const {'aaa', 'old1'},
+      hasMore: true,
+    );
+
+    final before = container.read(commitLimitProvider('/r'));
+    await tester.tap(find.byKey(const ValueKey('search:older')));
+    await tester.tap(find.byKey(const ValueKey('search:older')));
+    await tester.pump();
+
+    expect(container.read(commitLimitProvider('/r')), before * 2);
+  });
+
+  testWidgets('a query change that lands while the picker is open is kept', (
+    tester,
+  ) async {
+    final container = await pump(
+      tester,
+      query: CommitQuery(
+        since: DateTime(2026, 3, 1),
+        until: DateTime(2026, 3, 5),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('search:date')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Custom range…'));
+    await tester.pumpAndSettle();
+    // A debounced author landing behind the open picker.
+    final notifier = container.read(searchQueryProvider.notifier);
+    notifier.state = notifier.state!.copyWith(author: 'ada');
+    await tester.pump();
+
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    final q = container.read(searchQueryProvider)!;
+    expect(q.author, 'ada');
+    expect(q.since, DateTime(2026, 3, 1));
   });
 
   testWidgets('nothing older is offered once the history is all loaded', (

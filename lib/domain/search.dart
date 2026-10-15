@@ -119,7 +119,14 @@ bool authoredWithin(DateTime authored, DateTime? since, DateTime? until) {
 /// history filter. The date range itself is applied to the author time
 /// afterwards, by [authoredWithin]: git's own `--since`/`--until` compare the
 /// committer date, which a rebase moves away from the date the graph shows.
-List<String> historyFilterArgs(String author, DateTime? since) {
+///
+/// [stashes] are walked as extra revisions, as the graph walks them: only the
+/// newest stash is reachable from a ref.
+List<String> historyFilterArgs(
+  String author,
+  DateTime? since, {
+  List<String> stashes = const [],
+}) {
   final a = author.trim();
   return [
     'log',
@@ -136,11 +143,14 @@ List<String> historyFilterArgs(String author, DateTime? since) {
       // Glued to the flag so an author starting with `-` is not an option.
       '--author=$a',
     ],
-    // Only a pre-filter, letting git stop the walk early: a commit is never
-    // committed before it was authored, so nothing the author-date check
-    // would keep is dropped. No `--until` — a commit authored before the end
-    // may well have been committed after it.
+    // Only a pre-filter, letting git stop the walk early. It drops nothing
+    // the author-date check would keep as long as no commit was committed
+    // before it was authored, which only a clock running ahead on the
+    // author's machine breaks; covering that would cost a walk of the whole
+    // history for every date search. No `--until`: a commit authored before
+    // the end may well have been committed after it.
     if (since != null) '--since=@${_day(since).millisecondsSinceEpoch ~/ 1000}',
+    ...stashes,
   ];
 }
 
