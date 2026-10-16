@@ -10,6 +10,7 @@ import 'package:mergelio/domain/git/rebase_plan.dart';
 import 'package:mergelio/state/feedback.dart';
 import 'package:mergelio/state/lfs.dart';
 import 'package:mergelio/state/repo_actions.dart';
+import 'package:mergelio/state/undo_stack.dart';
 
 /// Real git with the host's own configuration shut out, so an installed
 /// git-lfs (whose global `filter.lfs.process` wins over anything a repository
@@ -20,6 +21,9 @@ class _IsolatedGit implements GitService {
   final String emptyConfig;
   final _git = const SystemGitService();
   final timeouts = <({List<String> args, Duration? timeout})>[];
+
+  /// Commands matching this fail without reaching git.
+  bool Function(List<String> args)? failWhen;
 
   Map<String, String> _isolate(Map<String, String>? env) => {
     ...?env,
@@ -37,6 +41,9 @@ class _IsolatedGit implements GitService {
     String? stdin,
   }) {
     timeouts.add((args: args, timeout: timeout));
+    if (failWhen?.call(args) ?? false) {
+      return Future.value(const GitResult(1, '', 'error: injected failure'));
+    }
     return _git.run(
       args,
       repoPath: repoPath,
@@ -191,6 +198,67 @@ void main() {
       expect(c.read(busyProvider), isNull);
     });
 
+    test('a cancel in post-checkout comes after the checkout landed', () async {
+      open(lfsInstalled: true);
+      await g(['config', 'filter.lfs.smudge', 'cat']);
+      final hook = File('${dir.path}/.git/hooks/post-checkout');
+      await hook.writeAsString('#!/bin/sh\nsleep 20\n');
+      await Process.run('chmod', ['+x', hook.path]);
+
+      final run = actions.checkout('topic');
+      await cancelWhenOffered();
+      await run;
+
+      // HEAD and the tree moved before the hook ran, so the checkout is done:
+      // reported as cancelled it would hide that, and leave nothing to undo.
+      expect(await out(['symbolic-ref', '--short', 'HEAD']), 'topic');
+      expect(await out(['status', '--porcelain']), isEmpty);
+      expect(toastTitles(), isNot(contains('Checkout topic cancelled')));
+      expect(c.read(undoProvider(dir.path)).canUndo, isTrue);
+    });
+
+    test('a switch cancelled in post-checkout still stops the merge', () async {
+      open(lfsInstalled: true);
+      await g(['config', 'filter.lfs.smudge', 'cat']);
+      final before = await out(['rev-parse', 'topic']);
+      final hook = File('${dir.path}/.git/hooks/post-checkout');
+      await hook.writeAsString('#!/bin/sh\nsleep 20\n');
+      await Process.run('chmod', ['+x', hook.path]);
+
+      final run = actions.mergeInto('main', 'topic');
+      await cancelWhenOffered();
+      await run;
+
+      expect(await out(['symbolic-ref', '--short', 'HEAD']), 'topic');
+      expect(await out(['rev-parse', 'topic']), before);
+      expect(toastTitles(), contains('Checkout topic cancelled'));
+      expect(c.read(busyProvider), isNull);
+    });
+
+    test('a put-back that fails still reports the cancel', () async {
+      open(lfsInstalled: true);
+      git.failWhen = (args) => args.contains('--pathspec-from-file=-');
+      await g(['update-ref', 'refs/remotes/origin/feature', 'topic']);
+      await g(['remote', 'add', 'origin', dir.path]);
+
+      final run = actions.mergeIntoRemote(
+        'main',
+        const RemoteBranch(remote: 'origin', branch: 'feature'),
+      );
+      await cancelWhenOffered();
+      await run;
+
+      expect(toastTitles(), contains('Checkout origin/feature cancelled'));
+      expect(await out(['symbolic-ref', '--short', 'HEAD']), 'main');
+      // Not taken for a branch that already existed and tried again.
+      expect(
+        git.timeouts.where(
+          (c) => c.args.first == 'checkout' && c.args.contains('feature'),
+        ),
+        isEmpty,
+      );
+    });
+
     test('a cancel keeps unrelated uncommitted edits', () async {
       open(lfsInstalled: true);
       await write('same.txt', 'mine');
@@ -304,9 +372,32 @@ echo "-----END PGP SIGNATURE-----"''';
       await g(['commit', '-q', '-m', 'main']);
     });
 
-    test('onto a branch can be cancelled and is backed out', () async {
+    /// Stopped mid-pick, git has staged the pick with nothing recorded that
+    /// would commit it, and refuses to continue over it. A rebase left like
+    /// that is stuck, so the pick goes back on the list: the tree is clean,
+    /// and continuing picks it again.
+    Future<void> expectPausedBeforeTheStoppedPick() async {
+      expect(Directory('${dir.path}/.git/rebase-merge').existsSync(), isTrue);
+      expect(await out(['status', '--porcelain']), isEmpty);
+      expect(File('${dir.path}/.git/index.lock').existsSync(), isFalse);
+      expect(toastTitles(), contains('Rebase cancelled'));
+      expect(toastTitles(), isNot(contains('Rebase failed')));
+      expect(c.read(busyProvider), isNull);
+
+      await g(['config', 'gpg.program', fastGpg]);
+      await actions.continueOp();
+      expect(Directory('${dir.path}/.git/rebase-merge').existsSync(), isFalse);
+      expect(await out(['symbolic-ref', '--short', 'HEAD']), 'topic');
+      expect(
+        await out(['rev-parse', 'topic^']),
+        await out(['rev-parse', 'main']),
+      );
+      expect(await out(['show', 'topic:t.txt']), 'topic');
+      expect(await out(['log', '-1', '--format=%G?', 'topic']), 'E');
+    }
+
+    test('onto a branch can be cancelled, and continued later', () async {
       open(lfsInstalled: false);
-      final before = await out(['rev-parse', 'topic']);
       await g(['config', 'gpg.program', slowGpg]);
 
       final watch = Stopwatch()..start();
@@ -315,34 +406,73 @@ echo "-----END PGP SIGNATURE-----"''';
       await run;
 
       expect(watch.elapsed, lessThan(const Duration(seconds: 15)));
-      // Stopped mid-pick, the pick's changes sit staged with nothing recorded
-      // to commit them, and git refuses to continue over them. Pausing there
-      // would be a dead end, so the rebase is undone instead.
-      expect(Directory('${dir.path}/.git/rebase-merge').existsSync(), isFalse);
-      expect(await out(['symbolic-ref', '--short', 'HEAD']), 'topic');
-      expect(await out(['rev-parse', 'topic']), before);
-      expect(await out(['status', '--porcelain']), isEmpty);
-      expect(toastTitles(), contains('Rebase cancelled'));
-      expect(toastTitles(), isNot(contains('Rebase failed')));
-      expect(c.read(busyProvider), isNull);
+      await expectPausedBeforeTheStoppedPick();
     });
 
-    test('of picks alone can be cancelled and is backed out', () async {
+    test('of picks alone can be cancelled, and continued later', () async {
       open(lfsInstalled: false);
       await g(['checkout', '-q', 'topic']);
-      final before = await out(['rev-parse', 'HEAD']);
+      final pick = await out(['rev-parse', 'HEAD']);
       await g(['config', 'gpg.program', slowGpg]);
 
       final run = actions.rebase('main', [
-        RebaseStep(before, RebaseAction.pick, sign: true),
+        RebaseStep(pick, RebaseAction.pick, sign: true),
       ]);
       await cancelWhenOffered();
       await run;
 
+      await expectPausedBeforeTheStoppedPick();
+    });
+
+    test('being continued keeps the resolution when a later pick is '
+        'cancelled', () async {
+      open(lfsInstalled: false);
+      // Conflicts, as intended: both sides rewrite f.txt. The pick after the
+      // conflicted one is the one left mid-signing.
+      await g(['checkout', '-q', 'topic']);
+      await g(['reset', '-q', '--hard', 'HEAD^']);
+      await write('f.txt', 'topic');
+      await g(['commit', '-q', '-S', '-am', 'topic f']);
+      await write('t.txt', 'topic');
+      await g(['add', '.']);
+      await g(['commit', '-q', '-S', '-m', 'topic']);
+      await g(['checkout', '-q', 'main']);
+      await write('f.txt', 'main');
+      await g(['commit', '-q', '-am', 'main f']);
+      await g(['checkout', '-q', 'topic']);
+      await git.run(['rebase', '-S', 'main'], repoPath: dir.path);
+      await write('f.txt', 'resolved');
+      await g(['add', '.']);
+      // Signs the resolved commit at once, then stalls on the next one.
+      final count = '${dir.path}_gpg_count';
+      addTearDown(() async {
+        if (await File(count).exists()) await File(count).delete();
+      });
+      final secondSlow = await script(
+        'gpg_second_slow',
+        (await File(slowGpg).readAsString()).replaceFirst(
+          'sleep 20',
+          'n=\$(cat "$count" 2>/dev/null || echo 0); n=\$((n+1)); '
+              'echo \$n > "$count"; [ \$n -ge 2 ] && sleep 20',
+        ),
+      );
+      await g(['config', 'gpg.program', secondSlow]);
+
+      final run = actions.continueOp();
+      await cancelWhenOffered();
+      await run;
+
+      expect(await out(['show', 'HEAD:f.txt']), 'resolved');
+      expect(
+        toastTitles(),
+        contains(allOf(startsWith('Continue rebase'), endsWith('cancelled'))),
+      );
+      expect(await out(['status', '--porcelain']), isEmpty);
+      await g(['config', 'gpg.program', fastGpg]);
+      await actions.continueOp();
       expect(Directory('${dir.path}/.git/rebase-merge').existsSync(), isFalse);
-      expect(await out(['rev-parse', 'HEAD']), before);
-      expect(toastTitles(), contains('Rebase cancelled'));
-      expect(c.read(busyProvider), isNull);
+      expect(await out(['show', 'topic:f.txt']), 'resolved');
+      expect(await out(['show', 'topic:t.txt']), 'topic');
     });
 
     test('being continued can be cancelled', () async {

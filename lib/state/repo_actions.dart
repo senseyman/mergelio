@@ -1403,18 +1403,31 @@ class RepoActions {
   /// like the user's own edits, and git would refuse a retry over them, so
   /// they are put back before the cancel is reported. Without a [cancel] there
   /// is nothing to put back, and HEAD is not even read.
+  ///
+  /// git moves HEAD only once the tree is written, and runs the post-checkout
+  /// hook after that; a cancel that lands in the hook leaves a finished
+  /// checkout, which returns normally (check [GitCancel.isCancelled]).
   Future<void> _checkoutPuttingBack(
     String to,
     GitCancel? cancel,
     Future<void> Function() op,
   ) async {
     if (cancel == null) return op();
-    final from = await _headSha();
+    final fromSha = await _headSha();
+    final fromRef = await _headRef();
     try {
       await op();
     } on GitCancelledException {
-      if (from.isNotEmpty && await _headSha() == from) {
-        await _writer.restorePartialCheckout(from, to);
+      if (await _headSha() != fromSha || await _headRef() != fromRef) return;
+      if (fromSha.isEmpty) rethrow;
+      try {
+        await _writer.restorePartialCheckout(fromSha, to);
+      } on Object catch (e) {
+        // The cancel is still what happened; files left over show as changes.
+        appLog.warn(
+          'Putting back a cancelled checkout failed: $e',
+          scope: path,
+        );
       }
       rethrow;
     }
@@ -2535,6 +2548,19 @@ class RepoActions {
     }
     try {
       await op(lfs ? GitWriter.lfsTransferTimeout : null, cancel);
+      // Cancelled after the switch landed: the branch is checked out, but the
+      // user still asked for what was to follow not to happen.
+      if (cancel?.isCancelled ?? false) {
+        _refresh();
+        _ref
+            .read(toastProvider.notifier)
+            .show(
+              '$label cancelled',
+              description: 'The switch had already finished.',
+              kind: ToastKind.warning,
+            );
+        return false;
+      }
       return true;
     } on GitCancelledException {
       _refresh();
@@ -2801,6 +2827,31 @@ class RepoActions {
   }
 
   Future<String> _rebaseDone() => _rebaseFile('done');
+
+  /// Puts a pick the rebase was stopped in the middle of back at the head of
+  /// its todo list, and drops what git had applied of it, so continuing picks
+  /// it again. Without this the rebase is stuck: git staged the pick with
+  /// nothing recorded that would commit it, refuses to continue over that,
+  /// and a skip would drop the commit. Reports whether there was one.
+  ///
+  /// The reset touches only the pick's own changes: git will not run a step
+  /// over uncommitted work, and untracked files are left alone. A commit git
+  /// stopped on itself (a conflict) has its stopped-sha and is not this case.
+  Future<bool> _requeueInterruptedPick() async {
+    if (!await isRebaseInProgress()) return false;
+    if (await _stateFileExists('rebase-merge/stopped-sha')) return false;
+    final line = interruptedPick(
+      await _rebaseDone(),
+      await _rebaseFile('rewritten-list'),
+    );
+    final todo = await _stateFilePath('rebase-merge/git-rebase-todo');
+    if (line == null || todo == null) return false;
+    await _writer.resetHard('HEAD');
+    final file = File(todo);
+    final rest = file.existsSync() ? await file.readAsString() : '';
+    await file.writeAsString('$line\n$rest');
+    return true;
+  }
 
   /// The rebase state file [name], or empty when there is none.
   Future<String> _rebaseFile(String name) async {
@@ -3194,12 +3245,12 @@ class RepoActions {
           );
           return;
         }
-        // Stopped mid-pick — while signing, say — the pick's changes sit
-        // staged with nothing recorded to commit them, and git refuses to
-        // continue over them; clearing them would make it skip the commit
-        // instead. So a cancel anywhere but a command of the user's undoes the
-        // rebase, which puts the branch back exactly as it was.
-        if (e is GitCancelledException) {
+        // Stopped mid-pick — cancelled or timed out while signing, say. Put
+        // back, the pick waits at the head of the list like any other step.
+        final requeued = await _requeueInterruptedPick();
+        // A cancel that left nothing to pick again (a squash, or nothing
+        // started) undoes the rebase: the branch goes back exactly as it was.
+        if (e is GitCancelledException && !requeued) {
           if (await isRebaseInProgress()) await _writer.rebaseAbort();
           _refresh();
           _ref
@@ -3211,7 +3262,7 @@ class RepoActions {
               );
           return;
         }
-        if (await isRebasePartlyDone()) {
+        if (requeued || await isRebasePartlyDone()) {
           // Same base the conflict path records, so continuing stays undoable.
           _ref.read(_opBaseProvider(path).notifier).state = prev.isEmpty
               ? null
@@ -3220,7 +3271,9 @@ class RepoActions {
           _ref
               .read(toastProvider.notifier)
               .show(
-                'Rebase paused',
+                e is GitCancelledException
+                    ? 'Rebase cancelled'
+                    : 'Rebase paused',
                 description:
                     'Nothing to resolve — continue it from the Changes panel, '
                     'or abort to go back.',
@@ -3427,6 +3480,9 @@ class RepoActions {
           );
           return;
         }
+        // Stopped in the middle of a later pick: put it back so the rebase
+        // can be continued, then report the stop as it was.
+        await _requeueInterruptedPick();
       }
       rethrow;
     }
