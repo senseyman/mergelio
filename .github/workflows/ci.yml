@@ -42,9 +42,15 @@ jobs:
       - name: Static analysis
         run: flutter analyze
 
-  test:
-    name: Tests
+  test-shard:
+    name: Tests (${{ matrix.shard }}/4)
     runs-on: ubuntu-latest
+    strategy:
+      # Every shard reports, so one failing file does not hide the others.
+      fail-fast: false
+      matrix:
+        # Keep the count in sync with the TOTAL passed to test-shard.sh below.
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v4
 
@@ -60,5 +66,20 @@ jobs:
       - name: Code generation (freezed / json / drift)
         run: dart run build_runner build --delete-conflicting-outputs
 
+      # Split by file rather than with --total-shards, which still compiles
+      # every test file in every shard.
       - name: Run unit & widget tests
-        run: flutter test --reporter expanded
+        # The explicit shell adds pipefail: a failing split must fail the step,
+        # not leave xargs running `flutter test` with no files — the whole suite.
+        shell: bash
+        run: scripts/test-shard.sh ${{ matrix.shard }} 4 | xargs flutter test --concurrency=4 --reporter expanded
+
+  # One stable check name for branch protection, whatever the shard count.
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    needs: test-shard
+    if: always()
+    steps:
+      - name: All shards passed
+        run: test "${{ needs.test-shard.result }}" = success
