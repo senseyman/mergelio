@@ -1646,7 +1646,7 @@
   "actCannotFastForward": "Неможливо перемотати {target}",
   "actHasCommitsNotIn": "{target} має коміти, яких немає в {to}",
   "actFastForward": "Перемотування {target} до {to}",
-  "actStash": "Схов",
+  "actStash": "Сховання змін",
   "actBranchFromStash": "Гілка зі схованки",
   "actRenameStash": "Перейменування схованки",
   "actApplyFromStash": "Застосування {path} зі схованки",

@@ -5058,7 +5058,7 @@ class AppLocalizationsUk extends AppLocalizations {
   }
 
   @override
-  String get actStash => 'Схов';
+  String get actStash => 'Сховання змін';
 
   @override
   String get actBranchFromStash => 'Гілка зі схованки';
