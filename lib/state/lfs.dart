@@ -94,12 +94,25 @@ final lfsRepoProvider = FutureProvider.autoDispose.family<bool, LfsSource>((
   source,
 ) async {
   if (source.isImmutable) ref.keepAlive();
-  final git = ref.watch(gitServiceProvider);
+  return lfsAttributesAt(
+    ref.watch(gitServiceProvider),
+    source,
+    gitVersion: () => ref.watch(gitVersionProvider.future),
+  );
+});
+
+/// The scan behind [lfsRepoProvider], for a caller that asks once instead of
+/// watching. [gitVersion] is only consulted when [source] names a revision.
+Future<bool> lfsAttributesAt(
+  GitService git,
+  LfsSource source, {
+  required Future<String> Function() gitVersion,
+}) async {
   try {
     final rev = source.rev;
     final revArgs = rev == null
         ? const <String>[]
-        : revisionArgs(rev, await ref.watch(gitVersionProvider.future));
+        : revisionArgs(rev, await gitVersion());
     if (revArgs == null) {
       appLog.warn(
         'LFS attribute scan skipped: this git cannot safely name $rev',
@@ -137,7 +150,7 @@ final lfsRepoProvider = FutureProvider.autoDispose.family<bool, LfsSource>((
     appLog.warn('LFS attribute scan failed: $e', scope: source.repoPath);
     return false;
   }
-});
+}
 
 /// Where downloaded LFS objects live for the repository at [repoPath], or
 /// null when git could not say.

@@ -568,8 +568,12 @@ class GitWriter {
   /// messages auto-accept; reword is handled by exec lines in [todo]. [sign]
   /// signs every replayed commit. Throws on conflict or a failed exec (the
   /// caller inspects [GitReader.conflictedFiles]); a `break` returns normally
-  /// with the rebase still in progress. [cancel] kills git, which leaves the
+  /// with the rebase still in progress. [cancel] stops git, which leaves the
   /// rebase stopped on the step it was running.
+  ///
+  /// Exec steps and signing both wait on something of the user's — a test
+  /// suite, a passphrase prompt per commit — so either earns the sequence
+  /// ceiling.
   Future<void> rebase(
     String onto,
     String todo, {
@@ -591,7 +595,7 @@ class GitWriter {
           onto,
         ],
         'git rebase',
-        timeout: todoRunsUserExec(todo) ? rebaseSequenceTimeout : null,
+        timeout: sign || todoRunsUserExec(todo) ? rebaseSequenceTimeout : null,
         cancel: cancel,
         environment: {
           // Quoted: the editor line is run by a shell, and the temp path can
@@ -606,16 +610,21 @@ class GitWriter {
   }
 
   /// Straight (non-interactive) rebase of the current branch onto [onto].
-  /// [sign] signs every replayed commit.
+  /// [sign] signs every replayed commit, which can mean a passphrase prompt
+  /// per commit, so a signed rebase gets the sequence ceiling. [cancel] stops
+  /// git, leaving the rebase stopped where it was.
   Future<void> rebaseOnto(
     String onto, {
     String? authorName,
     String? authorEmail,
     bool sign = false,
+    GitCancel? cancel,
   }) => _ok(
     [..._identity(authorName, authorEmail), 'rebase', if (sign) '-S', onto],
     'git rebase',
     environment: {'GIT_EDITOR': 'true'},
+    timeout: sign ? rebaseSequenceTimeout : null,
+    cancel: cancel,
   );
 
   Future<void> rebaseAbort() =>
@@ -623,8 +632,15 @@ class GitWriter {
 
   /// Drops the paused commit from the rebase sequence — the way out when the
   /// pick applied to nothing, either because the resolution left no change or
-  /// because the commit already reached the base under a different sha.
-  Future<void> rebaseSkip() => _ok(['rebase', '--skip'], 'git rebase --skip');
+  /// because the commit already reached the base under a different sha. The
+  /// rest of the sequence then runs, so it gets the same ceiling as
+  /// [rebaseContinue].
+  Future<void> rebaseSkip({GitCancel? cancel}) => _ok(
+    ['rebase', '--skip'],
+    'git rebase --skip',
+    timeout: rebaseSequenceTimeout,
+    cancel: cancel,
+  );
 
   /// Continues a paused rebase after conflicts were resolved and staged. The
   /// rest of the sequence may hold exec steps, so it gets the same ceiling as
@@ -716,20 +732,80 @@ class GitWriter {
   /// git's refusal to check out a branch already held by another worktree —
   /// callers only set it after the user has confirmed the collision, since it
   /// can leave two worktrees on the same branch with one HEAD going stale.
-  Future<void> checkout(String ref, {bool ignoreOtherWorktrees = false}) => _ok(
+  ///
+  /// The caller picks [timeout]: in a repository using LFS, writing the files
+  /// can mean downloading them.
+  Future<void> checkout(
+    String ref, {
+    bool ignoreOtherWorktrees = false,
+    Duration? timeout,
+    GitCancel? cancel,
+  }) => _ok(
     ['checkout', if (ignoreOtherWorktrees) '--ignore-other-worktrees', ref],
     'git checkout',
+    timeout: timeout,
+    cancel: cancel,
   );
 
   /// Creates a local branch [branch] tracking `[remote]/[branch]` and switches
-  /// to it — the standard "check out a remote branch" flow.
-  Future<void> checkoutTracking(String remote, String branch) => _ok([
-    'switch',
-    '-c',
-    branch,
-    '--track',
-    '$remote/$branch',
-  ], 'git switch --track');
+  /// to it — the standard "check out a remote branch" flow. [timeout] as for
+  /// [checkout].
+  Future<void> checkoutTracking(
+    String remote,
+    String branch, {
+    Duration? timeout,
+    GitCancel? cancel,
+  }) => _ok(
+    ['switch', '-c', branch, '--track', '$remote/$branch'],
+    'git switch --track',
+    timeout: timeout,
+    cancel: cancel,
+  );
+
+  /// Puts back what a checkout from [from] to [to] wrote before it was
+  /// stopped. Each path the two differ on is restored from [from], or deleted
+  /// when [from] has no such file.
+  ///
+  /// Touches nothing the user owns: git refuses to start a checkout that
+  /// would overwrite local changes or untracked files on exactly these paths,
+  /// so each of them was clean, or absent, when it began.
+  Future<void> restorePartialCheckout(String from, String to) async {
+    final r = await _run([
+      'diff',
+      '--name-status',
+      '-z',
+      '--no-renames',
+      from,
+      to,
+      '--',
+    ]);
+    if (!r.ok) throw GitException('git diff', r);
+    // `-z` pairs each status with its path: STATUS NUL PATH NUL ...
+    final fields = r.stdout.split('\x00');
+    final restore = <String>[];
+    final added = <String>[];
+    for (var i = 0; i + 1 < fields.length; i += 2) {
+      (fields[i] == 'A' ? added : restore).add(fields[i + 1]);
+    }
+    if (restore.isNotEmpty) {
+      await _ok(
+        ['checkout', from, '--pathspec-from-file=-', '--pathspec-file-nul'],
+        'git checkout',
+        stdin: '${restore.join('\x00')}\x00',
+        // The objects were checked out a moment ago, so the smudge reads
+        // them locally; the ceiling only covers a store that lost them.
+        timeout: lfsTransferTimeout,
+      );
+    }
+    for (final path in added) {
+      try {
+        final file = File(p.join(repoPath, path));
+        if (file.existsSync()) file.deleteSync();
+      } on FileSystemException {
+        // Left behind, it shows as untracked rather than vanishing silently.
+      }
+    }
+  }
 
   Future<void> renameBranch(String from, String to) =>
       _ok(['branch', '-m', from, to], 'git branch -m');
@@ -849,9 +925,14 @@ class GitWriter {
   );
 
   /// Drops the paused commit from the cherry-pick sequence — the way out when
-  /// the resolution left nothing to commit.
-  Future<void> cherryPickSkip() =>
-      _ok(['cherry-pick', '--skip'], 'git cherry-pick --skip');
+  /// the resolution left nothing to commit. The picks after it then run, each
+  /// through the commit hooks, so it gets the batch ceiling.
+  Future<void> cherryPickSkip({GitCancel? cancel}) => _ok(
+    ['cherry-pick', '--skip'],
+    'git cherry-pick --skip',
+    timeout: pickSequenceTimeout,
+    cancel: cancel,
+  );
 
   /// Reverts [sha]. As with [cherryPick], reverting a merge needs [mainline] —
   /// the 1-based parent whose side of the merge is kept.
@@ -877,8 +958,14 @@ class GitWriter {
     cancel: cancel,
   );
 
-  /// Drops the paused commit from the revert sequence (empty resolution).
-  Future<void> revertSkip() => _ok(['revert', '--skip'], 'git revert --skip');
+  /// Drops the paused commit from the revert sequence (empty resolution). As
+  /// with [cherryPickSkip], the reverts after it then run.
+  Future<void> revertSkip({GitCancel? cancel}) => _ok(
+    ['revert', '--skip'],
+    'git revert --skip',
+    timeout: pickSequenceTimeout,
+    cancel: cancel,
+  );
 
   // — Submodules —
 
@@ -962,9 +1049,12 @@ class GitWriter {
   // --- Stash ops ------------------------------------------------------------
 
   /// Shelves uncommitted work as [options] describes; see [stashPushArgs].
+  /// Putting the shelved files back to HEAD runs them through their filters,
+  /// so the caller picks [timeout] as for [checkout].
   Future<void> stashPush([
     StashPushOptions options = const StashPushOptions(),
-  ]) => _ok(stashPushArgs(options), 'git stash push');
+    Duration? timeout,
+  ]) => _ok(stashPushArgs(options), 'git stash push', timeout: timeout);
 
   /// Creates branch [name] at the commit stash [ref] was made on, checks it
   /// out and applies the stash there, dropping it once it applies cleanly.

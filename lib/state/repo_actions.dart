@@ -1380,14 +1380,73 @@ class RepoActions {
     }
   }
 
+  /// Whether writing [target]'s files can mean downloading them: git-lfs is
+  /// installed, and LFS attributes are in the working tree or at [target].
+  /// Either side counts, as a branch can start or stop using LFS.
+  Future<bool> _lfsInPlay(String target) async {
+    if (await _ref.read(lfsToolProvider.future) == null) return false;
+    Future<String> version() => _ref.read(gitVersionProvider.future);
+    // Both asked at once: this sits in front of every checkout.
+    final found = await Future.wait([
+      lfsAttributesAt(_git, LfsSource(repoPath: path), gitVersion: version),
+      lfsAttributesAt(
+        _git,
+        LfsSource(repoPath: path, rev: target),
+        gitVersion: version,
+      ),
+    ]);
+    return found.contains(true);
+  }
+
+  /// Runs [op], a checkout to [to] that [cancel] can stop. A cancel that
+  /// stopped it before HEAD moved has left the files it already wrote looking
+  /// like the user's own edits, and git would refuse a retry over them, so
+  /// they are put back before the cancel is reported. Without a [cancel] there
+  /// is nothing to put back, and HEAD is not even read.
+  Future<void> _checkoutPuttingBack(
+    String to,
+    GitCancel? cancel,
+    Future<void> Function() op,
+  ) async {
+    if (cancel == null) return op();
+    final from = await _headSha();
+    try {
+      await op();
+    } on GitCancelledException {
+      if (from.isNotEmpty && await _headSha() == from) {
+        await _writer.restorePartialCheckout(from, to);
+      }
+      rethrow;
+    }
+  }
+
+  /// In a repository using LFS, a checkout downloads what it writes, so it
+  /// gets the transfer ceiling and a Cancel; anywhere else it is quick.
   Future<void> checkout(String ref, {bool ignoreOtherWorktrees = false}) async {
     final prev = await _headRef();
+    final lfs = await _lfsInPlay(ref);
+    final timeout = lfs ? GitWriter.lfsTransferTimeout : null;
+    // Only the first run can be cancelled; undo and redo have no busy bar.
+    final cancel = lfs ? GitCancel() : null;
     await _undoable(
       'Checkout $ref',
-      () => _writer.checkout(ref, ignoreOtherWorktrees: ignoreOtherWorktrees),
-      undo: () => _writer.checkout(prev),
-      redo: () =>
-          _writer.checkout(ref, ignoreOtherWorktrees: ignoreOtherWorktrees),
+      () => _checkoutPuttingBack(
+        ref,
+        cancel,
+        () => _writer.checkout(
+          ref,
+          ignoreOtherWorktrees: ignoreOtherWorktrees,
+          timeout: timeout,
+          cancel: cancel,
+        ),
+      ),
+      cancel: cancel,
+      undo: () => _writer.checkout(prev, timeout: timeout),
+      redo: () => _writer.checkout(
+        ref,
+        ignoreOtherWorktrees: ignoreOtherWorktrees,
+        timeout: timeout,
+      ),
     );
   }
 
@@ -1400,14 +1459,28 @@ class RepoActions {
       return;
     }
     final prev = await _headRef();
+    final lfs = await _lfsInPlay(rb.name);
+    final timeout = lfs ? GitWriter.lfsTransferTimeout : null;
+    final cancel = lfs ? GitCancel() : null;
     await _undoable(
       'Checkout ${rb.name}',
-      () => _writer.checkoutTracking(rb.remote, rb.branch),
+      () => _checkoutPuttingBack(
+        rb.name,
+        cancel,
+        () => _writer.checkoutTracking(
+          rb.remote,
+          rb.branch,
+          timeout: timeout,
+          cancel: cancel,
+        ),
+      ),
+      cancel: cancel,
       undo: () async {
-        await _writer.checkout(prev);
+        await _writer.checkout(prev, timeout: timeout);
         await _writer.deleteBranch(rb.branch, force: true);
       },
-      redo: () => _writer.checkoutTracking(rb.remote, rb.branch),
+      redo: () =>
+          _writer.checkoutTracking(rb.remote, rb.branch, timeout: timeout),
     );
   }
 
@@ -1458,15 +1531,20 @@ class RepoActions {
     bool ignoreOtherWorktrees = false,
   }) async {
     String? ref;
+    final timeout = await _lfsInPlay(rb.branch)
+        ? GitWriter.lfsTransferTimeout
+        : null;
     if ((await _out(['status', '--porcelain'])).isNotEmpty) {
       await _writer.stashPush(
         const StashPushOptions(message: 'auto-stash before switch'),
+        timeout,
       );
       ref = 'stash@{0}';
     }
     await _writer.checkout(
       rb.branch,
       ignoreOtherWorktrees: ignoreOtherWorktrees,
+      timeout: timeout,
     );
     await _writer.resetHard('${rb.remote}/${rb.branch}');
     return ref;
@@ -2149,6 +2227,7 @@ class RepoActions {
     if ((await _out(['status', '--porcelain'])).isNotEmpty) {
       await _writer.stashPush(
         const StashPushOptions(message: 'auto-stash before reset'),
+        await _lfsInPlay('HEAD') ? GitWriter.lfsTransferTimeout : null,
       );
       ref = 'stash@{0}';
     }
@@ -2177,8 +2256,14 @@ class RepoActions {
     StashPushOptions options = const StashPushOptions(),
   ]) async {
     if (_blockedByRepoOp) return;
+    // Putting the files back to HEAD runs the LFS filter. No Cancel, though:
+    // one stopped after saving but mid-reset leaves a tree the stash then
+    // refuses to pop onto, and the objects are local, so it is rarely slow.
+    final timeout = await _lfsInPlay('HEAD')
+        ? GitWriter.lfsTransferTimeout
+        : null;
     try {
-      await _timed('Stash push', () => _writer.stashPush(options));
+      await _timed('Stash push', () => _writer.stashPush(options, timeout));
       _refresh();
     } on GitException catch (e) {
       _toastErr('Stash', e);
@@ -2427,13 +2512,55 @@ class RepoActions {
   /// Switches to [branch] without recording undo (so a drag-drop merge/rebase
   /// is a single undoable action, not checkout+op). Returns false and toasts if
   /// the switch did not land on [branch] (e.g. a dirty tree blocked it).
-  Future<bool> _switchTo(String branch) async {
-    try {
-      await _writer.checkout(branch);
-    } on GitException catch (e) {
-      _toastErr('Checkout', e);
-      return false;
+  /// Runs [op], a switch to [target] ahead of another op. When LFS is in play
+  /// it gets the transfer ceiling and a Cancel on the busy bar, which the op
+  /// that follows has not claimed yet. Reports whether it went through. A
+  /// cancel is always toasted; a failure only unless [quiet].
+  Future<bool> _lfsSwitch(
+    String label,
+    String target,
+    Future<void> Function(Duration? timeout, GitCancel? cancel) op, {
+    bool quiet = false,
+  }) async {
+    final lfs = await _lfsInPlay(target);
+    final cancel = lfs ? GitCancel() : null;
+    // Never take over a busy bar another op is showing: its own `finally`
+    // would otherwise clear this one, or this one clear it.
+    final claimed = lfs && _ref.read(busyProvider) == null;
+    if (claimed) {
+      _ref.read(busyProvider.notifier).state = BusyState(
+        label,
+        onCancel: cancel!.cancel,
+      );
     }
+    try {
+      await op(lfs ? GitWriter.lfsTransferTimeout : null, cancel);
+      return true;
+    } on GitCancelledException {
+      _refresh();
+      _ref
+          .read(toastProvider.notifier)
+          .show('$label cancelled', kind: ToastKind.warning);
+      return false;
+    } on GitException catch (e) {
+      if (!quiet) _toastErr('Checkout', e);
+      return false;
+    } finally {
+      if (claimed) _ref.read(busyProvider.notifier).state = null;
+    }
+  }
+
+  Future<bool> _switchTo(String branch) async {
+    final ok = await _lfsSwitch(
+      'Checkout $branch',
+      branch,
+      (timeout, cancel) => _checkoutPuttingBack(
+        branch,
+        cancel,
+        () => _writer.checkout(branch, timeout: timeout, cancel: cancel),
+      ),
+    );
+    if (!ok) return false;
     if (await _headRef() != branch) {
       _ref
           .read(toastProvider.notifier)
@@ -2463,11 +2590,30 @@ class RepoActions {
   /// than reporting an error for a branch that does exist.
   Future<bool> _switchToRemote(RemoteBranch rb) async {
     if (rb.hasLocal) return _switchTo(rb.branch);
-    try {
-      await _writer.checkoutTracking(rb.remote, rb.branch);
-    } on GitException {
-      return _switchTo(rb.branch);
-    }
+    var cancelled = false;
+    final ok = await _lfsSwitch('Checkout ${rb.name}', rb.name, (
+      timeout,
+      cancel,
+    ) async {
+      try {
+        await _checkoutPuttingBack(
+          rb.name,
+          cancel,
+          () => _writer.checkoutTracking(
+            rb.remote,
+            rb.branch,
+            timeout: timeout,
+            cancel: cancel,
+          ),
+        );
+      } on GitCancelledException {
+        cancelled = true;
+        rethrow;
+      }
+    }, quiet: true);
+    // A cancel is the user's answer, not a create that lost a race.
+    if (cancelled) return false;
+    if (!ok) return _switchTo(rb.branch);
     if (await _headRef() != rb.branch) {
       _ref
           .read(toastProvider.notifier)
@@ -2558,9 +2704,10 @@ class RepoActions {
         sign: sign,
         cancel: cancel,
       ),
-      // A command the user typed can run for as long as it likes; a rebase of
-      // picks alone is quick, and killing one mid-pick gains nothing.
-      cancellable: todoRunsUserExec(todo),
+      // A command the user typed can run for as long as it likes, and signing
+      // waits on a passphrase prompt per commit; a rebase of unsigned picks
+      // alone is quick, and stopping one mid-pick gains nothing.
+      cancellable: sign || todoRunsUserExec(todo),
     );
   }
 
@@ -2594,12 +2741,15 @@ class RepoActions {
     // linear. Count them first — afterwards they are gone — and say so.
     final merges = await _mergeCount(target);
     await _runRebase(
-      (_) => _writer.rebaseOnto(
+      (cancel) => _writer.rebaseOnto(
         target,
         authorName: _identity.name,
         authorEmail: _identity.email,
         sign: sign,
+        cancel: cancel,
       ),
+      // As for [rebase]: signing waits on a prompt per commit.
+      cancellable: sign,
       note: merges == 0
           ? null
           : '${merges == 1 ? 'A merge commit was' : '$merges merge commits were'} '
@@ -3044,6 +3194,23 @@ class RepoActions {
           );
           return;
         }
+        // Stopped mid-pick — while signing, say — the pick's changes sit
+        // staged with nothing recorded to commit them, and git refuses to
+        // continue over them; clearing them would make it skip the commit
+        // instead. So a cancel anywhere but a command of the user's undoes the
+        // rebase, which puts the branch back exactly as it was.
+        if (e is GitCancelledException) {
+          if (await isRebaseInProgress()) await _writer.rebaseAbort();
+          _refresh();
+          _ref
+              .read(toastProvider.notifier)
+              .show(
+                'Rebase cancelled',
+                description: 'The branch is as it was before the rebase.',
+                kind: ToastKind.warning,
+              );
+          return;
+        }
         if (await isRebasePartlyDone()) {
           // Same base the conflict path records, so continuing stays undoable.
           _ref.read(_opBaseProvider(path).notifier).state = prev.isEmpty
@@ -3164,11 +3331,13 @@ class RepoActions {
       _ => 'Continue revert ${pending.branch}',
     };
     // A cherry-pick or revert commits through the user's hooks, and a rebase's
-    // queued steps may include a command of the user's; either can run for as
-    // long as it likes.
+    // queued steps may include a command of the user's, or a signature that
+    // waits on a passphrase prompt; any of them can run for as long as it
+    // likes. git records a signing rebase's flag in gpg_sign_opt.
     final cancel =
         pending.kind != MergeKind.rebase ||
-            todoRunsUserExec(await _rebaseFile('git-rebase-todo'))
+            todoRunsUserExec(await _rebaseFile('git-rebase-todo')) ||
+            (await _rebaseFile('gpg_sign_opt')).trim().isNotEmpty
         ? GitCancel()
         : null;
     _ref.read(busyProvider.notifier).state = BusyState(
@@ -3208,7 +3377,7 @@ class RepoActions {
       switch (pending.kind) {
         case MergeKind.rebase:
           if (empty) {
-            await _writer.rebaseSkip();
+            await _writer.rebaseSkip(cancel: cancel);
           } else {
             await _writer.rebaseContinue(
               authorName: id.name,
@@ -3218,7 +3387,7 @@ class RepoActions {
           }
         case MergeKind.cherryPick:
           if (empty) {
-            await _writer.cherryPickSkip();
+            await _writer.cherryPickSkip(cancel: cancel);
           } else {
             await _writer.cherryPickContinue(
               authorName: id.name,
@@ -3228,7 +3397,7 @@ class RepoActions {
           }
         case MergeKind.revert:
           if (empty) {
-            await _writer.revertSkip();
+            await _writer.revertSkip(cancel: cancel);
           } else {
             await _writer.revertContinue(
               authorName: id.name,
