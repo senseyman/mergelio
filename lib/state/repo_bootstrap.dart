@@ -8,7 +8,9 @@ import '../domain/git/askpass.dart';
 import '../domain/git/clone_options.dart';
 import '../domain/git/git_providers.dart';
 import '../domain/git/git_service.dart';
+import '../l10n/gen/app_localizations.dart';
 import 'feedback.dart';
+import 'l10n.dart';
 import 'recents.dart';
 import 'workspace.dart';
 
@@ -20,6 +22,7 @@ class RepoBootstrap {
   RepoBootstrap(this._ref);
 
   GitService get _git => _ref.read(gitServiceProvider);
+  AppLocalizations get _l => _ref.read(appL10nProvider);
 
   /// The folder a clone of [url] would produce: the last path segment minus a
   /// trailing `.git`. Handles https, ssh (user@host:org/repo.git) and local
@@ -65,38 +68,38 @@ class RepoBootstrap {
         ? folderNameFromUrl(url)
         : folderName.trim();
     if (url.trim().isEmpty || parentDir.isEmpty || name.isEmpty) {
-      _toast('Clone failed', 'URL and destination are required');
+      _toast(_l.actFailed(_l.bootClone), _l.bootUrlDestRequired);
       return null;
     }
     switch (options.problem) {
       case CloneProblem.badDepth:
-        _toast('Clone failed', 'Depth must be a positive number');
+        _toast(_l.actFailed(_l.bootClone), _l.bootBadDepth);
         return null;
       case CloneProblem.badBranch:
-        _toast('Clone failed', 'Invalid branch name');
+        _toast(_l.actFailed(_l.bootClone), _l.bootBadBranch);
         return null;
       case null:
     }
     // Reject folder names that could escape the parent via .. segments.
     if (name.contains('..') || name.startsWith('/') || name.startsWith(r'\')) {
-      _toast('Clone failed', 'Invalid folder name');
+      _toast(_l.actFailed(_l.bootClone), _l.bootBadFolder);
       return null;
     }
     if (!staysInsideParent(parentDir, name)) {
-      _toast('Clone failed', 'Destination is outside the parent directory');
+      _toast(_l.actFailed(_l.bootClone), _l.bootOutsideParent);
       return null;
     }
     final target = p.join(parentDir, name);
     final destinationExisted = Directory(target).existsSync();
     if (destinationExisted && Directory(target).listSync().isNotEmpty) {
-      _toast('Clone failed', 'Destination already exists: $target');
+      _toast(_l.actFailed(_l.bootClone), _l.bootDestExists(target));
       return null;
     }
     // Handed to the progress bar so a clone stalled on an unreachable host can
     // be given up on, instead of holding the app for the whole 15 minutes.
     final cancel = GitCancel();
     _ref.read(busyProvider.notifier).state = BusyState(
-      'Clone',
+      _l.bootClone,
       onCancel: cancel.cancel,
     );
     try {
@@ -113,7 +116,7 @@ class RepoBootstrap {
         cancel: cancel,
       );
       if (!r.ok) {
-        _toast('Clone failed', r.err);
+        _toast(_l.actFailed(_l.bootClone), r.err);
         await _discardPartialClone(target, keepDirectory: destinationExisted);
         return null;
       }
@@ -122,11 +125,11 @@ class RepoBootstrap {
     } on GitCancelledException {
       _ref
           .read(toastProvider.notifier)
-          .show('Clone cancelled', kind: ToastKind.warning);
+          .show(_l.actCancelled(_l.bootClone), kind: ToastKind.warning);
       await _discardPartialClone(target, keepDirectory: destinationExisted);
       return null;
     } on GitException catch (e) {
-      _toast('Clone failed', e.result?.err ?? e.message);
+      _toast(_l.actFailed(_l.bootClone), e.result?.err ?? e.message);
       await _discardPartialClone(target, keepDirectory: destinationExisted);
       return null;
     } finally {
@@ -168,7 +171,7 @@ class RepoBootstrap {
     bool gitignore = false,
   }) async {
     if (name.trim().isEmpty || parentDir.isEmpty) {
-      _toast('Create failed', 'Name and folder are required');
+      _toast(_l.actFailed(_l.bootCreate), _l.bootNameFolderRequired);
       return null;
     }
     final trimmed = name.trim();
@@ -176,25 +179,25 @@ class RepoBootstrap {
     if (trimmed.contains('..') ||
         trimmed.startsWith('/') ||
         trimmed.startsWith(r'\')) {
-      _toast('Create failed', 'Invalid folder name');
+      _toast(_l.actFailed(_l.bootCreate), _l.bootBadFolder);
       return null;
     }
     if (!staysInsideParent(parentDir, trimmed)) {
-      _toast('Create failed', 'Destination is outside the parent directory');
+      _toast(_l.actFailed(_l.bootCreate), _l.bootOutsideParent);
       return null;
     }
     final target = p.join(parentDir, trimmed);
     if (Directory(target).existsSync() &&
         Directory(target).listSync().isNotEmpty) {
-      _toast('Create failed', 'Folder already exists: $target');
+      _toast(_l.actFailed(_l.bootCreate), _l.bootFolderExists(target));
       return null;
     }
-    _ref.read(busyProvider.notifier).state = const BusyState('Create');
+    _ref.read(busyProvider.notifier).state = BusyState(_l.bootCreate);
     try {
       await Directory(target).create(recursive: true);
       final init = await _git.run(['init', '-b', defaultBranch, target]);
       if (!init.ok) {
-        _toast('Create failed', init.err);
+        _toast(_l.actFailed(_l.bootCreate), init.err);
         return null;
       }
       final files = <String>[];
@@ -216,12 +219,12 @@ class RepoBootstrap {
         ], repoPath: target);
         // A missing user.name/email makes the initial commit fail; the repo
         // itself is still created and usable, so only warn.
-        if (!c.ok) _toast('Initial commit failed', c.err);
+        if (!c.ok) _toast(_l.bootInitialCommitFailed, c.err);
       }
       _open(name.trim(), target);
       return target;
     } on GitException catch (e) {
-      _toast('Create failed', e.result?.err ?? e.message);
+      _toast(_l.actFailed(_l.bootCreate), e.result?.err ?? e.message);
       return null;
     } finally {
       _ref.read(busyProvider.notifier).state = null;

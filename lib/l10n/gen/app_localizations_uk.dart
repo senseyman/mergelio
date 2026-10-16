@@ -4564,4 +4564,785 @@ class AppLocalizationsUk extends AppLocalizations {
   String rnVersionHeading(String version) {
     return 'Mergelio $version';
   }
+
+  @override
+  String get actBusy => 'Уже виконується інша операція';
+
+  @override
+  String actComplete(String label) {
+    return '$label: готово';
+  }
+
+  @override
+  String actCancelled(String label) {
+    return '$label: скасовано';
+  }
+
+  @override
+  String actFailed(String label) {
+    return '$label: не вдалося';
+  }
+
+  @override
+  String get actUnexpectedError => 'Неочікувана помилка';
+
+  @override
+  String actHookStopped(String hook, String label) {
+    return 'Хук $hook зупинив: $label';
+  }
+
+  @override
+  String get actFetch => 'Отримання';
+
+  @override
+  String get actFetchFullHistory => 'Отримання повної історії';
+
+  @override
+  String actPruneRemote(String remote) {
+    return 'Очищення $remote';
+  }
+
+  @override
+  String get actPull => 'Стягування';
+
+  @override
+  String get actPush => 'Відправлення';
+
+  @override
+  String get actForcePush => 'Примусове відправлення';
+
+  @override
+  String actAddRemote(String name) {
+    return 'Додавання віддаленого $name';
+  }
+
+  @override
+  String actRemoveRemote(String name) {
+    return 'Вилучення віддаленого $name';
+  }
+
+  @override
+  String actEditRemote(String name) {
+    return 'Редагування віддаленого $name';
+  }
+
+  @override
+  String get actLfsNoRemote =>
+      'Цей репозиторій не має віддаленого, з якого можна завантажити файли LFS.';
+
+  @override
+  String get actLfsPull => 'Стягування файлів LFS';
+
+  @override
+  String get actLfsFetchAll => 'Отримання всіх об\'єктів LFS';
+
+  @override
+  String actLfsDownload(String file) {
+    return 'Завантаження $file';
+  }
+
+  @override
+  String get actLfsPrunePreview => 'Попередній перегляд очищення LFS';
+
+  @override
+  String get actLfsPrune => 'Очищення об\'єктів LFS';
+
+  @override
+  String actLfsTrack(String pattern) {
+    return 'Відстеження $pattern';
+  }
+
+  @override
+  String actLfsUntrack(String pattern) {
+    return 'Припинення відстеження $pattern';
+  }
+
+  @override
+  String actOutsideRepo(String source) {
+    return '$source поза репозиторієм';
+  }
+
+  @override
+  String actPatternNotRemoved(String pattern, String source) {
+    return 'Не вдалося вилучити $pattern з $source';
+  }
+
+  @override
+  String get actLfsConvert => 'Перетворення файлів на LFS';
+
+  @override
+  String get actLfsInstallHooks => 'Встановлення хуків LFS';
+
+  @override
+  String actLfsLock(String path) {
+    return 'Блокування $path';
+  }
+
+  @override
+  String actLfsUnlock(String path) {
+    return 'Розблокування $path';
+  }
+
+  @override
+  String actLfsForceUnlock(String path) {
+    return 'Примусове розблокування $path';
+  }
+
+  @override
+  String get actSubmoduleUpdateAll => 'Оновлення підмодулів';
+
+  @override
+  String actSubmoduleUpdate(String path) {
+    return 'Оновлення $path';
+  }
+
+  @override
+  String actSubmoduleUpdateRemote(String path) {
+    return 'Оновлення $path до віддаленого';
+  }
+
+  @override
+  String get actSubmoduleAdd => 'Додавання підмодуля';
+
+  @override
+  String get actSubmoduleSync => 'Синхронізація підмодулів';
+
+  @override
+  String actSubmoduleDeinit(String path) {
+    return 'Деініціалізація $path';
+  }
+
+  @override
+  String actSubmoduleRemove(String path) {
+    return 'Вилучення $path';
+  }
+
+  @override
+  String get actBisectRunning => 'Триває автоматична бісекція';
+
+  @override
+  String get actApplyPatch => 'Застосування патча';
+
+  @override
+  String get actApplyStagePatch => 'Застосування й індексування патча';
+
+  @override
+  String get actApplyPatch3Way => 'Застосування патча (3-way)';
+
+  @override
+  String actDiscardFile(String path) {
+    return 'Відкидання $path';
+  }
+
+  @override
+  String get actDiscardAll => 'Відкидання всіх змін';
+
+  @override
+  String actDiscardFiles(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Відкидання $count файлу',
+      many: 'Відкидання $count файлів',
+      few: 'Відкидання $count файлів',
+      one: 'Відкидання $count файлу',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get actDiscardHunk => 'Відкидання блоку змін';
+
+  @override
+  String actEditFile(String path) {
+    return 'Редагування $path';
+  }
+
+  @override
+  String actCouldNotSave(String path) {
+    return 'Не вдалося зберегти $path';
+  }
+
+  @override
+  String actAlreadyIgnored(String rule, String file) {
+    return '$rule уже є в $file';
+  }
+
+  @override
+  String actIgnore(String rule) {
+    return 'Ігнорування $rule';
+  }
+
+  @override
+  String actCouldNotWrite(String file) {
+    return 'Не вдалося записати $file';
+  }
+
+  @override
+  String get actAmendCommit => 'Виправлення коміту';
+
+  @override
+  String get actMergeCommit => 'Коміт злиття';
+
+  @override
+  String get actCommit => 'Коміт';
+
+  @override
+  String get actUndoDirty =>
+      'Незакомічені зміни — закомітьте або сховайте їх перед скасуванням';
+
+  @override
+  String get actUndo => 'Скасування';
+
+  @override
+  String get actRedo => 'Повторення';
+
+  @override
+  String get actUndoFailed => 'Не вдалося скасувати';
+
+  @override
+  String get actRedoFailed => 'Не вдалося повторити';
+
+  @override
+  String get actUndoButton => 'Скасувати';
+
+  @override
+  String actCheckout(String ref) {
+    return 'Переключення на $ref';
+  }
+
+  @override
+  String get actCheckoutLabel => 'Переключення';
+
+  @override
+  String actResetBranchTo(String branch, String target) {
+    return 'Скидання $branch до $target';
+  }
+
+  @override
+  String actCreateBranch(String name) {
+    return 'Створення гілки $name';
+  }
+
+  @override
+  String actDeleteBranch(String name) {
+    return 'Видалення гілки $name';
+  }
+
+  @override
+  String get actDeleteBranchesLabel => 'Видалення гілок';
+
+  @override
+  String actBranchGone(String name) {
+    return '$name: більше не існує';
+  }
+
+  @override
+  String actBranchNotMerged(String name, String target) {
+    return '$name: більше не злита з $target';
+  }
+
+  @override
+  String actDeleteBranches(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Видалення $count гілки',
+      many: 'Видалення $count гілок',
+      few: 'Видалення $count гілок',
+      one: 'Видалення $count гілки',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get actSomeNotDeleted => 'Деякі гілки не видалено';
+
+  @override
+  String get actRunGc => 'Запуск gc';
+
+  @override
+  String get actRunMaintenance => 'Запуск обслуговування';
+
+  @override
+  String actDeleteRef(String name) {
+    return 'Видалення $name';
+  }
+
+  @override
+  String actDeletedLocalOnly(String name, String upstream) {
+    return '$name видалено тут — $upstream досі є на віддаленому';
+  }
+
+  @override
+  String actRenameBranch(String from, String to) {
+    return 'Перейменування $from → $to';
+  }
+
+  @override
+  String get actSetUpstream => 'Встановлення upstream';
+
+  @override
+  String actCreateTag(String name) {
+    return 'Створення тегу $name';
+  }
+
+  @override
+  String actDeleteTag(String name) {
+    return 'Видалення тегу $name';
+  }
+
+  @override
+  String actPushTag(String name) {
+    return 'Відправлення тегу $name';
+  }
+
+  @override
+  String actDeleteRemoteTag(String name, String remote) {
+    return 'Видалення тегу $name на $remote';
+  }
+
+  @override
+  String actCherryPick(String sha) {
+    return 'Cherry-pick $sha';
+  }
+
+  @override
+  String actCherryPickN(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Cherry-pick $count коміту',
+      many: 'Cherry-pick $count комітів',
+      few: 'Cherry-pick $count комітів',
+      one: 'Cherry-pick $count коміту',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get actMergesNotTogether => 'Коміти злиття не можна переносити разом';
+
+  @override
+  String actMergePickAlone(String sha) {
+    return '$sha — коміт злиття. Перенесіть його окремо, щоб вибрати батька, відносно якого його відтворити.';
+  }
+
+  @override
+  String get actUncommittedChanges => 'Незакомічені зміни';
+
+  @override
+  String get actPickNoCommitDirty =>
+      'Закомітьте або сховайте зміни, перш ніж переносити без коміту.';
+
+  @override
+  String actCherryPickNoCommit(String sha) {
+    return 'Cherry-pick $sha без коміту';
+  }
+
+  @override
+  String actCherryPickNoCommitN(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Cherry-pick $count коміту без коміту',
+      many: 'Cherry-pick $count комітів без коміту',
+      few: 'Cherry-pick $count комітів без коміту',
+      one: 'Cherry-pick $count коміту без коміту',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String actPicked(String sha) {
+    return 'Перенесено $sha';
+  }
+
+  @override
+  String actPickedN(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Перенесено $count коміт',
+      many: 'Перенесено $count комітів',
+      few: 'Перенесено $count коміти',
+      one: 'Перенесено $count коміт',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get actPickedStaged =>
+      'Зміни проіндексовано — перегляньте й закомітьте їх.';
+
+  @override
+  String get actNothingPicked => 'Конфлікти — нічого не перенесено';
+
+  @override
+  String get actPickOneByOne =>
+      'Перенесіть із комітами, щоб розв\'язати конфлікти по одному, а потім об\'єднайте їх.';
+
+  @override
+  String actRevert(String sha) {
+    return 'Відкочування $sha';
+  }
+
+  @override
+  String get actSequencerUnfinished =>
+      'Cherry-pick або відкочування не завершено';
+
+  @override
+  String get actSequencerFinishFirst =>
+      'Продовжте або перервіть його, перш ніж переносити знову.';
+
+  @override
+  String get actUnresolvedConflicts => 'Нерозв\'язані конфлікти';
+
+  @override
+  String get actFinishResolution =>
+      'Спершу завершіть або перервіть розв\'язання конфліктів.';
+
+  @override
+  String get actResolveButton => 'Розв\'язати';
+
+  @override
+  String get actResolveConflicts => 'Розв\'язання конфліктів';
+
+  @override
+  String actResetTo(String target) {
+    return 'Скидання до $target';
+  }
+
+  @override
+  String actResetToMixed(String target) {
+    return 'Скидання до $target (mixed)';
+  }
+
+  @override
+  String actResetToSoft(String target) {
+    return 'Скидання до $target (soft)';
+  }
+
+  @override
+  String get actCannotResetConflicts =>
+      'Неможливо скинути, поки є нерозв\'язані конфлікти';
+
+  @override
+  String get actFinishOpFirst =>
+      'Спершу завершіть або перервіть поточну операцію';
+
+  @override
+  String get actCannotMoveCurrent => 'Неможливо перемістити поточну гілку';
+
+  @override
+  String get actResetInstead => 'Натомість скиньте її';
+
+  @override
+  String actMoveBranch(String name, String target) {
+    return 'Переміщення $name до $target';
+  }
+
+  @override
+  String actCannotFastForward(String target) {
+    return 'Неможливо перемотати $target';
+  }
+
+  @override
+  String actHasCommitsNotIn(String target, String to) {
+    return '$target має коміти, яких немає в $to';
+  }
+
+  @override
+  String actFastForward(String target, String to) {
+    return 'Перемотування $target до $to';
+  }
+
+  @override
+  String get actStash => 'Схов';
+
+  @override
+  String get actBranchFromStash => 'Гілка зі схованки';
+
+  @override
+  String get actRenameStash => 'Перейменування схованки';
+
+  @override
+  String actApplyFromStash(String path) {
+    return 'Застосування $path зі схованки';
+  }
+
+  @override
+  String get actApplyHunkFromStash => 'Застосування блоку зі схованки';
+
+  @override
+  String get actStashApply => 'Застосування схованки';
+
+  @override
+  String get actStashPop => 'Вилучення схованки';
+
+  @override
+  String get actStashedChanges => 'Сховані зміни';
+
+  @override
+  String get actDroppedStash => 'Схованку видалено';
+
+  @override
+  String get actRestoreStash => 'Відновлення схованки';
+
+  @override
+  String get actStashDrop => 'Видалення схованки';
+
+  @override
+  String actMerge(String branch) {
+    return 'Злиття $branch';
+  }
+
+  @override
+  String get actMergeLabel => 'Злиття';
+
+  @override
+  String actMergedStaged(String branch) {
+    return '$branch злито — проіндексовано, не закомічено';
+  }
+
+  @override
+  String actMerged(String branch) {
+    return '$branch злито';
+  }
+
+  @override
+  String get actSwitchFinished => 'Переключення вже завершилося.';
+
+  @override
+  String actCouldNotSwitch(String branch) {
+    return 'Не вдалося переключитися на $branch';
+  }
+
+  @override
+  String get actRebase => 'Перебазування';
+
+  @override
+  String actMergesFlattened(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count коміт злиття випрямлено в лінійну історію. Скасування його відновить.',
+      many:
+          '$count комітів злиття випрямлено в лінійну історію. Скасування їх відновить.',
+      few:
+          '$count коміти злиття випрямлено в лінійну історію. Скасування їх відновить.',
+      one:
+          '$count коміт злиття випрямлено в лінійну історію. Скасування його відновить.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get actFixupReady => 'Повідомлення fixup готове';
+
+  @override
+  String get actFixupHint =>
+      'Проіндексуйте виправлення й закомітьте його; перебазування з autosquash вбудує його.';
+
+  @override
+  String actRebaseStoppedAt(String command) {
+    return 'Зупинено на `$command`. Те, що воно запустило, може досі працювати. Продовжте без нього або перервіть.';
+  }
+
+  @override
+  String get actExecFailed => 'Крок exec не вдався';
+
+  @override
+  String get actRewordRejected => 'Нове повідомлення коміту відхилено';
+
+  @override
+  String get actRebaseBreak => 'Перебазування зупинено на break';
+
+  @override
+  String actExecFailedHint(String command) {
+    return '`$command` не вдалося. Виправте, закомітьте й продовжте з панелі змін.';
+  }
+
+  @override
+  String get actRewordRejectedHint =>
+      'git його відхилив — зазвичай через хук коміту. Виправте повідомлення самостійно або продовжте, щоб залишити старе.';
+
+  @override
+  String get actBreakHint =>
+      'Огляньтеся або виправте коміт, а потім продовжте з панелі змін.';
+
+  @override
+  String get actCommitMessageEmpty => 'Повідомлення коміту порожнє';
+
+  @override
+  String get actReword => 'Зміна повідомлення коміту';
+
+  @override
+  String get actNotOnBranch => 'Коміт не належить поточній гілці';
+
+  @override
+  String get actCannotEditMessage => 'Неможливо змінити це повідомлення';
+
+  @override
+  String get actRewordWouldFlatten =>
+      'Переписування відтворить коміт злиття, і це випрямить історію над ним.';
+
+  @override
+  String get actRebaseInProgress => 'Перебазування вже триває';
+
+  @override
+  String get actRebaseFinishFirst =>
+      'Завершіть або перервіть його, перш ніж починати інше.';
+
+  @override
+  String get actAbortRebase => 'Перервати перебазування';
+
+  @override
+  String get actRebaseRestored => 'Гілка така сама, як до перебазування.';
+
+  @override
+  String get actRebasePaused => 'Перебазування призупинено';
+
+  @override
+  String get actRebaseNothingToResolve =>
+      'Нічого розв\'язувати — продовжте з панелі змін або перервіть, щоб повернутися.';
+
+  @override
+  String get actConflictsResolved => 'Конфлікти розв\'язано';
+
+  @override
+  String get actReviewThenCommit =>
+      'Перегляньте проіндексований результат, потім закомітьте його.';
+
+  @override
+  String get actReviewThenContinue =>
+      'Перегляньте проіндексований результат, потім продовжте.';
+
+  @override
+  String get actContinueRebase => 'Продовження перебазування';
+
+  @override
+  String actContinueCherryPick(String sha) {
+    return 'Продовження cherry-pick $sha';
+  }
+
+  @override
+  String actContinueRevert(String sha) {
+    return 'Продовження відкочування $sha';
+  }
+
+  @override
+  String get actAbort => 'Переривання';
+
+  @override
+  String get actBisect => 'Бісекція';
+
+  @override
+  String get actBisectRun => 'Автоматична бісекція';
+
+  @override
+  String get actBisectStartStep => 'Бісекція: початок';
+
+  @override
+  String actBisectMarkStep(String term) {
+    return 'Бісекція: позначка $term';
+  }
+
+  @override
+  String get actBisectResetStep => 'Бісекція: скидання';
+
+  @override
+  String get actBisectRunStep => 'Бісекція: автоматичний запуск';
+
+  @override
+  String get actBisectLogStep => 'Бісекція: журнал';
+
+  @override
+  String get actBisectDirty =>
+      'Закомітьте або сховайте зміни, перш ніж починати бісекцію.';
+
+  @override
+  String get actBisectNeedsBad =>
+      'Позначте поганий коміт, щоб почати бісекцію.';
+
+  @override
+  String get actBisectRunDirty =>
+      'Закомітьте або сховайте зміни, перш ніж передавати пошук команді: вона перевірятиме ваші незакомічені правки, а вердикт запише для коміту, на який переключився git.';
+
+  @override
+  String get actAddWorktree => 'Додавання робочого дерева';
+
+  @override
+  String get actRemoveWorktree => 'Вилучення робочого дерева';
+
+  @override
+  String get actMoveWorktree => 'Переміщення робочого дерева';
+
+  @override
+  String get actLockWorktree => 'Блокування робочого дерева';
+
+  @override
+  String get actUnlockWorktree => 'Розблокування робочого дерева';
+
+  @override
+  String get actPruneWorktrees => 'Очищення робочих дерев';
+
+  @override
+  String get bootClone => 'Клонування';
+
+  @override
+  String get bootCreate => 'Створення';
+
+  @override
+  String get bootUrlDestRequired => 'URL і папка призначення обов\'язкові';
+
+  @override
+  String get bootBadDepth => 'Глибина має бути додатним числом';
+
+  @override
+  String get bootBadBranch => 'Неприпустима назва гілки';
+
+  @override
+  String get bootBadFolder => 'Неприпустима назва папки';
+
+  @override
+  String get bootOutsideParent => 'Папка призначення поза батьківською папкою';
+
+  @override
+  String bootDestExists(String path) {
+    return 'Папка призначення вже існує: $path';
+  }
+
+  @override
+  String get bootNameFolderRequired => 'Назва й папка обов\'язкові';
+
+  @override
+  String bootFolderExists(String path) {
+    return 'Папка вже існує: $path';
+  }
+
+  @override
+  String get bootInitialCommitFailed => 'Не вдалося створити початковий коміт';
+
+  @override
+  String get pfSshKeyFileName => 'Назва файлу ключа (напр. id_ed25519_work)';
+
+  @override
+  String get pfSshKeyGenerated => 'Ключ створено без парольної фрази';
+
+  @override
+  String pfSshKeyInvalidName(String name) {
+    return 'Неприпустима назва ключа: $name';
+  }
+
+  @override
+  String pfSshKeyExists(String name) {
+    return 'Ключ із назвою $name уже існує';
+  }
+
+  @override
+  String pfSshKeygenFailed(String detail) {
+    return 'ssh-keygen не вдалося: $detail';
+  }
 }

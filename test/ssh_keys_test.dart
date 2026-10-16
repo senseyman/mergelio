@@ -42,7 +42,11 @@ void main() {
     // Refuses to overwrite.
     expect(
       () => keys.generate('test_key', comment: 'x'),
-      throwsA(isA<StateError>()),
+      throwsA(
+        isA<SshKeyException>()
+            .having((e) => e.kind, 'kind', SshKeyError.exists)
+            .having((e) => e.name, 'name', 'test_key'),
+      ),
     );
   });
 
@@ -51,7 +55,13 @@ void main() {
     for (final bad in ['../evil', 'a/b', r'a\b', '..', '']) {
       expect(
         () => keys.generate(bad, comment: 'x'),
-        throwsA(isA<StateError>()),
+        throwsA(
+          isA<SshKeyException>().having(
+            (e) => e.kind,
+            'kind',
+            SshKeyError.invalidName,
+          ),
+        ),
         reason: 'name "$bad" must be rejected',
       );
     }

@@ -4485,4 +4485,767 @@ class AppLocalizationsEn extends AppLocalizations {
   String rnVersionHeading(String version) {
     return 'Mergelio $version';
   }
+
+  @override
+  String get actBusy => 'An operation is already running';
+
+  @override
+  String actComplete(String label) {
+    return '$label complete';
+  }
+
+  @override
+  String actCancelled(String label) {
+    return '$label cancelled';
+  }
+
+  @override
+  String actFailed(String label) {
+    return '$label failed';
+  }
+
+  @override
+  String get actUnexpectedError => 'Unexpected error';
+
+  @override
+  String actHookStopped(String hook, String label) {
+    return 'The $hook hook stopped $label';
+  }
+
+  @override
+  String get actFetch => 'Fetch';
+
+  @override
+  String get actFetchFullHistory => 'Fetch full history';
+
+  @override
+  String actPruneRemote(String remote) {
+    return 'Prune $remote';
+  }
+
+  @override
+  String get actPull => 'Pull';
+
+  @override
+  String get actPush => 'Push';
+
+  @override
+  String get actForcePush => 'Force push';
+
+  @override
+  String actAddRemote(String name) {
+    return 'Add remote $name';
+  }
+
+  @override
+  String actRemoveRemote(String name) {
+    return 'Remove remote $name';
+  }
+
+  @override
+  String actEditRemote(String name) {
+    return 'Edit remote $name';
+  }
+
+  @override
+  String get actLfsNoRemote =>
+      'This repository has no remote to download LFS files from.';
+
+  @override
+  String get actLfsPull => 'Pull LFS files';
+
+  @override
+  String get actLfsFetchAll => 'Fetch all LFS objects';
+
+  @override
+  String actLfsDownload(String file) {
+    return 'Download $file';
+  }
+
+  @override
+  String get actLfsPrunePreview => 'Preview LFS prune';
+
+  @override
+  String get actLfsPrune => 'Prune LFS objects';
+
+  @override
+  String actLfsTrack(String pattern) {
+    return 'Track $pattern';
+  }
+
+  @override
+  String actLfsUntrack(String pattern) {
+    return 'Stop tracking $pattern';
+  }
+
+  @override
+  String actOutsideRepo(String source) {
+    return '$source is outside the repository';
+  }
+
+  @override
+  String actPatternNotRemoved(String pattern, String source) {
+    return '$pattern could not be removed from $source';
+  }
+
+  @override
+  String get actLfsConvert => 'Convert files to LFS';
+
+  @override
+  String get actLfsInstallHooks => 'Install LFS hooks';
+
+  @override
+  String actLfsLock(String path) {
+    return 'Lock $path';
+  }
+
+  @override
+  String actLfsUnlock(String path) {
+    return 'Unlock $path';
+  }
+
+  @override
+  String actLfsForceUnlock(String path) {
+    return 'Force unlock $path';
+  }
+
+  @override
+  String get actSubmoduleUpdateAll => 'Update submodules';
+
+  @override
+  String actSubmoduleUpdate(String path) {
+    return 'Update $path';
+  }
+
+  @override
+  String actSubmoduleUpdateRemote(String path) {
+    return 'Update $path to remote';
+  }
+
+  @override
+  String get actSubmoduleAdd => 'Add submodule';
+
+  @override
+  String get actSubmoduleSync => 'Sync submodules';
+
+  @override
+  String actSubmoduleDeinit(String path) {
+    return 'Deinit $path';
+  }
+
+  @override
+  String actSubmoduleRemove(String path) {
+    return 'Remove $path';
+  }
+
+  @override
+  String get actBisectRunning => 'A bisect run is in progress';
+
+  @override
+  String get actApplyPatch => 'Apply patch';
+
+  @override
+  String get actApplyStagePatch => 'Apply and stage patch';
+
+  @override
+  String get actApplyPatch3Way => 'Apply patch (3-way)';
+
+  @override
+  String actDiscardFile(String path) {
+    return 'Discard $path';
+  }
+
+  @override
+  String get actDiscardAll => 'Discard all changes';
+
+  @override
+  String actDiscardFiles(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Discard $count files',
+      one: 'Discard $count file',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get actDiscardHunk => 'Discard hunk';
+
+  @override
+  String actEditFile(String path) {
+    return 'Edit $path';
+  }
+
+  @override
+  String actCouldNotSave(String path) {
+    return 'Could not save $path';
+  }
+
+  @override
+  String actAlreadyIgnored(String rule, String file) {
+    return '$rule is already in $file';
+  }
+
+  @override
+  String actIgnore(String rule) {
+    return 'Ignore $rule';
+  }
+
+  @override
+  String actCouldNotWrite(String file) {
+    return 'Could not write $file';
+  }
+
+  @override
+  String get actAmendCommit => 'Amend commit';
+
+  @override
+  String get actMergeCommit => 'Merge commit';
+
+  @override
+  String get actCommit => 'Commit';
+
+  @override
+  String get actUndoDirty =>
+      'Uncommitted changes — commit or stash before undoing';
+
+  @override
+  String get actUndo => 'Undo';
+
+  @override
+  String get actRedo => 'Redo';
+
+  @override
+  String get actUndoFailed => 'Undo failed';
+
+  @override
+  String get actRedoFailed => 'Redo failed';
+
+  @override
+  String get actUndoButton => 'Undo';
+
+  @override
+  String actCheckout(String ref) {
+    return 'Checkout $ref';
+  }
+
+  @override
+  String get actCheckoutLabel => 'Checkout';
+
+  @override
+  String actResetBranchTo(String branch, String target) {
+    return 'Reset $branch to $target';
+  }
+
+  @override
+  String actCreateBranch(String name) {
+    return 'Create branch $name';
+  }
+
+  @override
+  String actDeleteBranch(String name) {
+    return 'Delete branch $name';
+  }
+
+  @override
+  String get actDeleteBranchesLabel => 'Delete branches';
+
+  @override
+  String actBranchGone(String name) {
+    return '$name: no longer exists';
+  }
+
+  @override
+  String actBranchNotMerged(String name, String target) {
+    return '$name: no longer merged into $target';
+  }
+
+  @override
+  String actDeleteBranches(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Delete $count branches',
+      one: 'Delete $count branch',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get actSomeNotDeleted => 'Some branches were not deleted';
+
+  @override
+  String get actRunGc => 'Run gc';
+
+  @override
+  String get actRunMaintenance => 'Run maintenance';
+
+  @override
+  String actDeleteRef(String name) {
+    return 'Delete $name';
+  }
+
+  @override
+  String actDeletedLocalOnly(String name, String upstream) {
+    return 'Deleted $name here — $upstream is still on the remote';
+  }
+
+  @override
+  String actRenameBranch(String from, String to) {
+    return 'Rename $from → $to';
+  }
+
+  @override
+  String get actSetUpstream => 'Set upstream';
+
+  @override
+  String actCreateTag(String name) {
+    return 'Create tag $name';
+  }
+
+  @override
+  String actDeleteTag(String name) {
+    return 'Delete tag $name';
+  }
+
+  @override
+  String actPushTag(String name) {
+    return 'Push tag $name';
+  }
+
+  @override
+  String actDeleteRemoteTag(String name, String remote) {
+    return 'Delete tag $name on $remote';
+  }
+
+  @override
+  String actCherryPick(String sha) {
+    return 'Cherry-pick $sha';
+  }
+
+  @override
+  String actCherryPickN(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Cherry-pick $count commits',
+      one: 'Cherry-pick $count commit',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get actMergesNotTogether => 'Merge commits can\'t be picked together';
+
+  @override
+  String actMergePickAlone(String sha) {
+    return '$sha is a merge. Cherry-pick it on its own to choose which parent to replay it against.';
+  }
+
+  @override
+  String get actUncommittedChanges => 'Uncommitted changes';
+
+  @override
+  String get actPickNoCommitDirty =>
+      'Commit or stash your changes before picking without committing.';
+
+  @override
+  String actCherryPickNoCommit(String sha) {
+    return 'Cherry-pick $sha without committing';
+  }
+
+  @override
+  String actCherryPickNoCommitN(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Cherry-pick $count commits without committing',
+      one: 'Cherry-pick $count commit without committing',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String actPicked(String sha) {
+    return 'Picked $sha';
+  }
+
+  @override
+  String actPickedN(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Picked $count commits',
+      one: 'Picked $count commit',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get actPickedStaged =>
+      'The changes are staged — review and commit them.';
+
+  @override
+  String get actNothingPicked => 'Conflicts — nothing was picked';
+
+  @override
+  String get actPickOneByOne =>
+      'Pick with commits to resolve the conflicts one at a time, then squash them.';
+
+  @override
+  String actRevert(String sha) {
+    return 'Revert $sha';
+  }
+
+  @override
+  String get actSequencerUnfinished => 'A cherry-pick or revert is unfinished';
+
+  @override
+  String get actSequencerFinishFirst =>
+      'Continue or abort it before picking again.';
+
+  @override
+  String get actUnresolvedConflicts => 'Unresolved conflicts';
+
+  @override
+  String get actFinishResolution =>
+      'Finish or abort the conflict resolution first.';
+
+  @override
+  String get actResolveButton => 'Resolve';
+
+  @override
+  String get actResolveConflicts => 'Resolve conflicts';
+
+  @override
+  String actResetTo(String target) {
+    return 'Reset to $target';
+  }
+
+  @override
+  String actResetToMixed(String target) {
+    return 'Reset to $target (mixed)';
+  }
+
+  @override
+  String actResetToSoft(String target) {
+    return 'Reset to $target (soft)';
+  }
+
+  @override
+  String get actCannotResetConflicts =>
+      'Cannot reset with unresolved conflicts';
+
+  @override
+  String get actFinishOpFirst =>
+      'Finish or abort the operation in progress first';
+
+  @override
+  String get actCannotMoveCurrent => 'Cannot move the current branch';
+
+  @override
+  String get actResetInstead => 'Reset it instead';
+
+  @override
+  String actMoveBranch(String name, String target) {
+    return 'Move $name to $target';
+  }
+
+  @override
+  String actCannotFastForward(String target) {
+    return 'Cannot fast-forward $target';
+  }
+
+  @override
+  String actHasCommitsNotIn(String target, String to) {
+    return '$target has commits that $to does not';
+  }
+
+  @override
+  String actFastForward(String target, String to) {
+    return 'Fast-forward $target to $to';
+  }
+
+  @override
+  String get actStash => 'Stash';
+
+  @override
+  String get actBranchFromStash => 'Branch from stash';
+
+  @override
+  String get actRenameStash => 'Rename stash';
+
+  @override
+  String actApplyFromStash(String path) {
+    return 'Apply $path from stash';
+  }
+
+  @override
+  String get actApplyHunkFromStash => 'Apply hunk from stash';
+
+  @override
+  String get actStashApply => 'Stash apply';
+
+  @override
+  String get actStashPop => 'Stash pop';
+
+  @override
+  String get actStashedChanges => 'Stashed changes';
+
+  @override
+  String get actDroppedStash => 'Dropped stash';
+
+  @override
+  String get actRestoreStash => 'Restore stash';
+
+  @override
+  String get actStashDrop => 'Stash drop';
+
+  @override
+  String actMerge(String branch) {
+    return 'Merge $branch';
+  }
+
+  @override
+  String get actMergeLabel => 'Merge';
+
+  @override
+  String actMergedStaged(String branch) {
+    return 'Merged $branch — staged, not committed';
+  }
+
+  @override
+  String actMerged(String branch) {
+    return 'Merged $branch';
+  }
+
+  @override
+  String get actSwitchFinished => 'The switch had already finished.';
+
+  @override
+  String actCouldNotSwitch(String branch) {
+    return 'Could not switch to $branch';
+  }
+
+  @override
+  String get actRebase => 'Rebase';
+
+  @override
+  String actMergesFlattened(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count merge commits were flattened into a linear history. Undo restores them.',
+      one: 'A merge commit was flattened into a linear history. Undo restores it.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get actFixupReady => 'Fixup message ready';
+
+  @override
+  String get actFixupHint =>
+      'Stage the fix and commit it; an autosquash rebase folds it in.';
+
+  @override
+  String actRebaseStoppedAt(String command) {
+    return 'Stopped at `$command`. Anything it started may still be running. Continue without it, or abort.';
+  }
+
+  @override
+  String get actExecFailed => 'Exec step failed';
+
+  @override
+  String get actRewordRejected => 'New commit message was rejected';
+
+  @override
+  String get actRebaseBreak => 'Rebase paused at a break';
+
+  @override
+  String actExecFailedHint(String command) {
+    return '`$command` failed. Fix it, commit, then continue from the Changes panel.';
+  }
+
+  @override
+  String get actRewordRejectedHint =>
+      'git refused it — usually a commit hook. Amend the message yourself, or continue to keep the old one.';
+
+  @override
+  String get actBreakHint =>
+      'Look around or amend, then continue from the Changes panel.';
+
+  @override
+  String get actCommitMessageEmpty => 'Commit message is empty';
+
+  @override
+  String get actReword => 'Reword commit';
+
+  @override
+  String get actNotOnBranch => 'Commit is not on the current branch';
+
+  @override
+  String get actCannotEditMessage => 'Cannot edit this message';
+
+  @override
+  String get actRewordWouldFlatten =>
+      'Rewriting it would replay a merge commit, which would flatten the history above it.';
+
+  @override
+  String get actRebaseInProgress => 'A rebase is already in progress';
+
+  @override
+  String get actRebaseFinishFirst =>
+      'Finish or abort it before starting another one.';
+
+  @override
+  String get actAbortRebase => 'Abort rebase';
+
+  @override
+  String get actRebaseRestored => 'The branch is as it was before the rebase.';
+
+  @override
+  String get actRebasePaused => 'Rebase paused';
+
+  @override
+  String get actRebaseNothingToResolve =>
+      'Nothing to resolve — continue it from the Changes panel, or abort to go back.';
+
+  @override
+  String get actConflictsResolved => 'Conflicts resolved';
+
+  @override
+  String get actReviewThenCommit => 'Review the staged result, then commit it.';
+
+  @override
+  String get actReviewThenContinue =>
+      'Review the staged result, then continue.';
+
+  @override
+  String get actContinueRebase => 'Continue rebase';
+
+  @override
+  String actContinueCherryPick(String sha) {
+    return 'Continue cherry-pick $sha';
+  }
+
+  @override
+  String actContinueRevert(String sha) {
+    return 'Continue revert $sha';
+  }
+
+  @override
+  String get actAbort => 'Abort';
+
+  @override
+  String get actBisect => 'Bisect';
+
+  @override
+  String get actBisectRun => 'Bisect run';
+
+  @override
+  String get actBisectStartStep => 'Bisect: start';
+
+  @override
+  String actBisectMarkStep(String term) {
+    return 'Bisect: mark $term';
+  }
+
+  @override
+  String get actBisectResetStep => 'Bisect: reset';
+
+  @override
+  String get actBisectRunStep => 'Bisect: run';
+
+  @override
+  String get actBisectLogStep => 'Bisect: log';
+
+  @override
+  String get actBisectDirty =>
+      'Commit or stash your changes before starting a bisect.';
+
+  @override
+  String get actBisectNeedsBad => 'Mark a bad commit to start a bisect.';
+
+  @override
+  String get actBisectRunDirty =>
+      'Commit or stash your changes before handing the hunt to a command: it would test your uncommitted edits and record the verdict against the commit git checked out.';
+
+  @override
+  String get actAddWorktree => 'Add worktree';
+
+  @override
+  String get actRemoveWorktree => 'Remove worktree';
+
+  @override
+  String get actMoveWorktree => 'Move worktree';
+
+  @override
+  String get actLockWorktree => 'Lock worktree';
+
+  @override
+  String get actUnlockWorktree => 'Unlock worktree';
+
+  @override
+  String get actPruneWorktrees => 'Prune worktrees';
+
+  @override
+  String get bootClone => 'Clone';
+
+  @override
+  String get bootCreate => 'Create';
+
+  @override
+  String get bootUrlDestRequired => 'URL and destination are required';
+
+  @override
+  String get bootBadDepth => 'Depth must be a positive number';
+
+  @override
+  String get bootBadBranch => 'Invalid branch name';
+
+  @override
+  String get bootBadFolder => 'Invalid folder name';
+
+  @override
+  String get bootOutsideParent => 'Destination is outside the parent directory';
+
+  @override
+  String bootDestExists(String path) {
+    return 'Destination already exists: $path';
+  }
+
+  @override
+  String get bootNameFolderRequired => 'Name and folder are required';
+
+  @override
+  String bootFolderExists(String path) {
+    return 'Folder already exists: $path';
+  }
+
+  @override
+  String get bootInitialCommitFailed => 'Initial commit failed';
+
+  @override
+  String get pfSshKeyFileName => 'Key file name (e.g. id_ed25519_work)';
+
+  @override
+  String get pfSshKeyGenerated => 'Key generated without a passphrase';
+
+  @override
+  String pfSshKeyInvalidName(String name) {
+    return 'Invalid key name: $name';
+  }
+
+  @override
+  String pfSshKeyExists(String name) {
+    return 'A key named $name already exists';
+  }
+
+  @override
+  String pfSshKeygenFailed(String detail) {
+    return 'ssh-keygen failed: $detail';
+  }
 }

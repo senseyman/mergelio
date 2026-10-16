@@ -18,6 +18,7 @@ import '../graph/commit_columns.dart';
 import 'forge_account_row.dart';
 import 'logs_row.dart';
 import 'prefs_rows.dart';
+import 'ssh_key_error_text.dart';
 import 'updates_tab.dart';
 
 /// Preferences with General and Appearance tabs. All edits apply live and
@@ -306,7 +307,7 @@ class _CredentialsTabState extends ConsumerState<_CredentialsTab> {
     final name = await showInputDialog(
       context,
       title: l.pfGenerateSshKey,
-      label: 'Key file name (e.g. id_ed25519_work)',
+      label: l.pfSshKeyFileName,
     );
     if (name == null || name.trim().isEmpty) return;
     try {
@@ -315,7 +316,7 @@ class _CredentialsTabState extends ConsumerState<_CredentialsTab> {
       ref
           .read(toastProvider.notifier)
           .show(
-            'Key generated without a passphrase',
+            l.pfSshKeyGenerated,
             description: l.pfAddPassphraseHint(name.trim()),
             kind: ToastKind.success,
           );
@@ -324,7 +325,11 @@ class _CredentialsTabState extends ConsumerState<_CredentialsTab> {
       if (!mounted) return;
       ref
           .read(toastProvider.notifier)
-          .show(l.pfGenerateFailed, description: '$e', kind: ToastKind.error);
+          .show(
+            l.pfGenerateFailed,
+            description: sshKeyErrorText(l, e),
+            kind: ToastKind.error,
+          );
     }
   }
 
