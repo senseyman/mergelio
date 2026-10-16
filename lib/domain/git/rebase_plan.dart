@@ -441,6 +441,38 @@ class RebaseStop {
 /// Reads the stop out of git's `done` file (the steps already run, the one it
 /// stopped on last). Null when the last step was not a break or an exec — a
 /// conflicted or empty pick, which has its own handling.
+/// A step that commits a single commit of its own, and its sha.
+final _ownCommitLine = RegExp(
+  r'^(?:pick|p|reword|r|edit|e)\s+([0-9a-f]{4,64})\b',
+);
+
+/// The step a rebase was stopped in the middle of, ready to go back on the
+/// todo list, or null when there is none to bring back.
+///
+/// git moves a step to [done] before it applies it, and lists each commit in
+/// [rewrittenList] (`old new` per line) once it has made the new one. A pick
+/// in [done] with no entry there was applied but never committed: stopped
+/// while signing, say. git then has nothing recorded that would commit it,
+/// refuses to continue over the staged result, and a skip would drop it.
+///
+/// Only picks, rewords and edits come back. A squash or fixup builds its
+/// message across steps in state files of git's own, so replaying one could
+/// fold that message in twice.
+String? interruptedPick(String done, String rewrittenList) {
+  final lines = [
+    for (final l in done.split('\n'))
+      if (l.trim().isNotEmpty && !l.trimLeft().startsWith('#')) l.trim(),
+  ];
+  if (lines.isEmpty) return null;
+  final sha = _ownCommitLine.firstMatch(lines.last)?.group(1);
+  if (sha == null) return null;
+  final landed = rewrittenList
+      .split('\n')
+      .map((l) => l.trim().split(' ').first)
+      .any((old) => old.isNotEmpty && old.startsWith(sha));
+  return landed ? null : lines.last;
+}
+
 RebaseStop? parseRebaseStop(String done) {
   final lines = [
     for (final l in done.split('\n'))

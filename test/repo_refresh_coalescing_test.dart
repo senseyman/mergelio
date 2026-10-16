@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
+import 'package:mergelio/state/lfs.dart';
 import 'package:mergelio/state/repo_actions.dart';
 import 'package:mergelio/state/repo_data.dart';
 
@@ -86,6 +87,12 @@ void main() {
     // rebuild it rather than being dropped as unobserved.
     c.listen(repoDataProvider(dir.path), (_, _) {}, fireImmediately: true);
     await c.read(repoDataProvider(dir.path).future);
+    // A checkout first asks whether LFS is in play. The two probes behind that
+    // run once a session, and the app's own panels have run them long before
+    // anyone checks out; cold here, they would stretch the gap between the two
+    // operations on a host with git-lfs and not on one without.
+    await c.read(lfsToolProvider.future);
+    await c.read(gitVersionProvider.future);
     git.refReads = 0;
 
     final actions = c.read(repoActionsProvider(dir.path));
