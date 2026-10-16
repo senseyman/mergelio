@@ -35,7 +35,7 @@ if [ -z "$files" ]; then
 fi
 
 # `wc -c` rather than stat: the flags differ between macOS and Linux.
-for f in $files; do
+shard=$(for f in $files; do
   printf '%s %s\n' "$(wc -c <"$f" | tr -d ' ')" "$f"
 done |
   LC_ALL=C sort -k1,1nr -k2,2 |
@@ -46,4 +46,12 @@ done |
       load[best] += $1
       if (best == want) print $2
     }
-  '
+  ')
+
+# An empty shard must fail: piped into xargs, no files at all would run
+# `flutter test` with no arguments — the whole suite — on GNU xargs.
+if [ -z "$shard" ]; then
+  echo "shard $index of $total has no test files; lower TOTAL" >&2
+  exit 1
+fi
+printf '%s\n' "$shard"
