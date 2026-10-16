@@ -112,6 +112,27 @@ void main() {
     expect(toastTitles(), contains('Merge cancelled'));
     expect(toastTitles(), isNot(contains('Merge failed')));
     expect(c.read(busyProvider), isNull);
+    // Killed in the hook, git has already staged the merged tree but written
+    // no MERGE_HEAD. Left there, it reads as the user's own staged work and
+    // the next commit folds the branch in as an ordinary commit.
+    expect(await out(['status', '--porcelain']), isEmpty);
+  });
+
+  test('a cancelled merge keeps unrelated uncommitted edits', () async {
+    await g(['checkout', '-q', '-b', 'topic']);
+    await write('g.txt', 'topic');
+    await g(['add', '.']);
+    await g(['commit', '-q', '-m', 'topic']);
+    await g(['checkout', '-q', 'main']);
+    await write('f.txt', 'mine');
+    await slowHook('pre-merge-commit');
+
+    final run = actions.merge('topic');
+    await cancelWhenOffered();
+    await run;
+
+    expect(await out(['status', '--porcelain']), 'M f.txt');
+    expect(await File('${dir.path}/f.txt').readAsString(), 'mine\n');
   });
 
   test('a cherry-pick continue stuck in a hook can be cancelled', () async {

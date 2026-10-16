@@ -2384,6 +2384,18 @@ class RepoActions {
             kind: ToastKind.success,
           );
     } on GitCancelledException {
+      // Killed in a hook, git has staged the merged tree without writing
+      // MERGE_HEAD, so it would read as the user's own work. git refused to
+      // start with anything staged, so resetting the index drops only the
+      // merge's; unrelated edits in the working tree stay. A kill that came
+      // after the commit landed moved HEAD, and that merge is kept.
+      if (await _headSha() == prev) {
+        try {
+          await _writer.mergeAbort();
+        } on GitException catch (e) {
+          _toastErr('Merge', e);
+        }
+      }
       _refresh();
       _ref
           .read(toastProvider.notifier)
