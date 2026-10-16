@@ -164,4 +164,51 @@ void main() {
     );
     expect(c.read(busyProvider), isNull);
   });
+
+  test('a revert continue stuck in a hook can be cancelled', () async {
+    await write('f.txt', 'a');
+    await g(['commit', '-q', '-am', 'a']);
+    final reverted = await out(['rev-parse', 'HEAD']);
+    await write('f.txt', 'b');
+    await g(['commit', '-q', '-am', 'b']);
+    final before = await out(['rev-parse', 'HEAD']);
+    // Conflicts, as intended: the line the revert would restore moved on.
+    await svc.run(['revert', '--no-edit', reverted], repoPath: dir.path);
+    await write('f.txt', 'resolved');
+    await g(['add', '.']);
+    await slowHook('pre-commit');
+
+    final watch = Stopwatch()..start();
+    final run = actions.continueOp();
+    await cancelWhenOffered();
+    await run;
+
+    expect(watch.elapsed, lessThan(const Duration(seconds: 15)));
+    expect(await out(['rev-parse', 'HEAD']), before);
+    expect(
+      toastTitles(),
+      contains(allOf(startsWith('Continue revert '), endsWith(' cancelled'))),
+    );
+    expect(c.read(busyProvider), isNull);
+    // Still paused with the resolution staged, so it can be continued again.
+    expect(File('${dir.path}/.git/REVERT_HEAD').existsSync(), isTrue);
+  });
+
+  test('rewording HEAD stuck in a hook can be cancelled', () async {
+    final before = await out(['rev-parse', 'HEAD']);
+    await slowHook('pre-commit');
+
+    final watch = Stopwatch()..start();
+    final run = actions.rewordCommit(before, 'reworded');
+    await cancelWhenOffered();
+    final rejection = await run;
+
+    expect(watch.elapsed, lessThan(const Duration(seconds: 15)));
+    expect(rejection, isNull);
+    expect(await out(['rev-parse', 'HEAD']), before);
+    expect(await out(['log', '-1', '--format=%s']), 'base');
+    expect(toastTitles(), contains('Reword commit cancelled'));
+    expect(toastTitles(), isNot(contains('Reword commit failed')));
+    expect(c.read(busyProvider), isNull);
+  });
 }
