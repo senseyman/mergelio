@@ -59,7 +59,7 @@ class GitCancel {
 
   bool get isCancelled => _cancelled;
 
-  /// Kills git itself, and only git.
+  /// Stops git itself, and only git; see [stopGit] for how.
   ///
   /// Known limitation, and it bites `bisect run` hardest: anything git had
   /// spawned in turn — the shell, and the test command under it — outlives
@@ -78,7 +78,7 @@ class GitCancel {
   void cancel() {
     _cancelled = true;
     for (final p in _procs) {
-      p.kill(ProcessSignal.sigkill);
+      unawaited(stopGit(p));
     }
   }
 
@@ -87,12 +87,27 @@ class GitCancel {
   /// exits, so a handle reused for many commands does not hold on to them.
   void attach(Process proc) {
     if (_cancelled) {
-      proc.kill(ProcessSignal.sigkill);
+      unawaited(stopGit(proc));
       return;
     }
     _procs.add(proc);
     unawaited(proc.exitCode.then((_) => _procs.remove(proc), onError: (_) {}));
   }
+}
+
+/// How long git gets to clean up after being asked to stop.
+const _stopGrace = Duration(seconds: 2);
+
+/// Stops [proc], asking first. git removes its own lockfiles on SIGTERM; a
+/// SIGKILL leaves `.git/index.lock` behind, and every later write then fails
+/// until the user deletes it by hand. A child still alive after the grace
+/// period is killed outright. On Windows both signals terminate the process.
+Future<void> stopGit(Process proc) async {
+  proc.kill(ProcessSignal.sigterm);
+  final exited = await proc.exitCode
+      .then((_) => true, onError: (_) => true)
+      .timeout(_stopGrace, onTimeout: () => false);
+  if (!exited) proc.kill(ProcessSignal.sigkill);
 }
 
 /// Stands in for a `git bisect run` command wherever one would otherwise be
@@ -517,7 +532,7 @@ class SystemGitService implements GitService, GitBytesRunner {
       if (broken != null) throw GitUnavailableException(broken);
       return result;
     } on TimeoutException {
-      proc.kill(ProcessSignal.sigkill);
+      await stopGit(proc);
       // Wait briefly for the killed process to release its resources. Without
       // this the OS may hold the pid slot as a zombie until the next wait.
       await proc.exitCode.timeout(
