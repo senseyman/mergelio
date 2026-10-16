@@ -1176,7 +1176,9 @@ class RepoActions {
     // commit its second parent.
     final merging = await _stateFileExists('MERGE_HEAD');
     String? merged;
-    Future<void> doCommit() async {
+    // Only the first run can be cancelled; a redo has no busy bar to show it.
+    final cancel = GitCancel();
+    Future<void> doCommit({GitCancel? cancel}) async {
       await _writer.commit(
         summary,
         description: description,
@@ -1188,6 +1190,7 @@ class RepoActions {
         trailers: trailers,
         authorName: profile?.name,
         authorEmail: profile?.email,
+        cancel: cancel,
       );
       if (merging) merged = await _headSha();
     }
@@ -1199,7 +1202,8 @@ class RepoActions {
           : merging
           ? 'Merge commit'
           : 'Commit',
-      doCommit,
+      () => doCommit(cancel: cancel),
+      cancel: cancel,
       undo: () => _writer.resetSoft(prev),
       // The changes are staged again after undo, so redo just re-commits — but
       // not for a merge, whose second parent went with MERGE_HEAD. That one is
@@ -1270,12 +1274,18 @@ class RepoActions {
     // needs no lock of its own and must not take the one a running op holds.
     bool claimsRepo = true,
     bool Function(GitException)? handled,
+    // Puts Cancel on the busy bar, for an op that runs the user's hooks and so
+    // can wait on them for as long as they take.
+    GitCancel? cancel,
   }) async {
     if (claimsRepo) {
       if (_blockedByRepoOp) return false;
       // Hold the shared busy flag so a second ref op (or network op) cannot
       // run concurrently and race on .git/index.lock.
-      _ref.read(busyProvider.notifier).state = BusyState(label);
+      _ref.read(busyProvider.notifier).state = BusyState(
+        label,
+        onCancel: cancel?.cancel,
+      );
     }
     final opId = await _journalBegin(label);
     try {
@@ -1298,6 +1308,13 @@ class RepoActions {
           );
       _refresh();
       return true;
+    } on GitCancelledException {
+      await _journalFail(opId);
+      _refresh();
+      _ref
+          .read(toastProvider.notifier)
+          .show('$label cancelled', kind: ToastKind.warning);
+      return false;
     } on GitException catch (e) {
       // Refresh on failure too: a conflicted cherry-pick/revert leaves the
       // repo mid-operation, which the UI must show.
@@ -2320,9 +2337,15 @@ class RepoActions {
     if (_blockedByRepoOp) return;
     final prev = await _headSha();
     final staged = squash || noCommit;
-    _ref.read(busyProvider.notifier).state = BusyState('Merge $branch');
+    // The merge commit runs the user's hooks, which can take as long as they
+    // like. Only the first run can be cancelled; a redo has no busy bar.
+    final cancel = GitCancel();
+    _ref.read(busyProvider.notifier).state = BusyState(
+      'Merge $branch',
+      onCancel: cancel.cancel,
+    );
     final id = _identity;
-    Future<void> apply() => _writer.merge(
+    Future<void> apply({GitCancel? cancel}) => _writer.merge(
       branch,
       noFf: true,
       squash: squash,
@@ -2330,9 +2353,10 @@ class RepoActions {
       favor: favor,
       authorName: id.name,
       authorEmail: id.email,
+      cancel: cancel,
     );
     try {
-      await _timed('Merge $branch', apply);
+      await _timed('Merge $branch', () => apply(cancel: cancel));
       if (!staged) {
         _ref
             .read(undoProvider(path).notifier)
@@ -2359,6 +2383,23 @@ class RepoActions {
                 : 'Merged $branch',
             kind: ToastKind.success,
           );
+    } on GitCancelledException {
+      // Killed in a hook, git has staged the merged tree without writing
+      // MERGE_HEAD, so it would read as the user's own work. git refused to
+      // start with anything staged, so resetting the index drops only the
+      // merge's; unrelated edits in the working tree stay. A kill that came
+      // after the commit landed moved HEAD, and that merge is kept.
+      if (await _headSha() == prev) {
+        try {
+          await _writer.mergeAbort();
+        } on GitException catch (e) {
+          _toastErr('Merge', e);
+        }
+      }
+      _refresh();
+      _ref
+          .read(toastProvider.notifier)
+          .show('Merge cancelled', kind: ToastKind.warning);
     } on GitException catch (e) {
       final conflicts = await _conflictFiles();
       if (conflicts.isEmpty) {
@@ -2843,20 +2884,23 @@ class RepoActions {
     if (target == await _headSha()) {
       if (_blockedByRepoOp) return null;
       final prev = target;
-      Future<void> amend() => _writer.amendMessage(
+      final cancel = GitCancel();
+      Future<void> amend({GitCancel? cancel}) => _writer.amendMessage(
         summary,
         description: description,
         sign: wasSigned,
         noVerify: noVerify,
         authorName: _identity.name,
         authorEmail: _identity.email,
+        cancel: cancel,
       );
       HookRejectedException? rejection;
       // The tree is unchanged, so soft-resetting to the original commit puts
       // history back exactly as it was and stages nothing extra.
       await _undoable(
         'Reword commit',
-        amend,
+        () => amend(cancel: cancel),
+        cancel: cancel,
         undo: () => _writer.resetSoft(prev),
         redo: amend,
         handled: (e) {
@@ -3119,10 +3163,11 @@ class RepoActions {
       MergeKind.cherryPick => 'Continue cherry-pick ${pending.branch}',
       _ => 'Continue revert ${pending.branch}',
     };
-    // Steps still queued may include a command of the user's, which can run
-    // for as long as it likes.
+    // A cherry-pick or revert commits through the user's hooks, and a rebase's
+    // queued steps may include a command of the user's; either can run for as
+    // long as it likes.
     final cancel =
-        pending.kind == MergeKind.rebase &&
+        pending.kind != MergeKind.rebase ||
             todoRunsUserExec(await _rebaseFile('git-rebase-todo'))
         ? GitCancel()
         : null;
@@ -3132,6 +3177,11 @@ class RepoActions {
     );
     try {
       await _timed(label, () => _continueOp(pending, cancel));
+    } on GitCancelledException {
+      _refresh();
+      _ref
+          .read(toastProvider.notifier)
+          .show('$label cancelled', kind: ToastKind.warning);
     } on GitException catch (e) {
       _toastErr(label, e);
     } finally {
@@ -3173,6 +3223,7 @@ class RepoActions {
             await _writer.cherryPickContinue(
               authorName: id.name,
               authorEmail: id.email,
+              cancel: cancel,
             );
           }
         case MergeKind.revert:
@@ -3182,6 +3233,7 @@ class RepoActions {
             await _writer.revertContinue(
               authorName: id.name,
               authorEmail: id.email,
+              cancel: cancel,
             );
           }
         case MergeKind.merge:
