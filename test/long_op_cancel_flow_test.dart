@@ -235,6 +235,37 @@ void main() {
       expect(c.read(busyProvider), isNull);
     });
 
+    test(
+      'a remote switch cancelled in post-checkout stops the merge',
+      () async {
+        open(lfsInstalled: true);
+        await g(['config', 'filter.lfs.smudge', 'cat']);
+        await g(['remote', 'add', 'origin', dir.path]);
+        await g(['update-ref', 'refs/remotes/origin/feature', 'topic']);
+        final before = await out(['rev-parse', 'topic']);
+        final hook = File('${dir.path}/.git/hooks/post-checkout');
+        await hook.writeAsString('#!/bin/sh\nsleep 20\n');
+        await Process.run('chmod', ['+x', hook.path]);
+
+        final run = actions.mergeIntoRemote(
+          'main',
+          const RemoteBranch(remote: 'origin', branch: 'feature'),
+        );
+        await cancelWhenOffered();
+        await run;
+
+        // The new branch exists and is checked out; the merge did not run.
+        expect(await out(['symbolic-ref', '--short', 'HEAD']), 'feature');
+        expect(await out(['rev-parse', 'feature']), before);
+        expect(
+          toastTitles().where((t) => t == 'Checkout origin/feature cancelled'),
+          hasLength(1),
+        );
+        expect(toastTitles(), isNot(contains('Merged main')));
+        expect(c.read(busyProvider), isNull);
+      },
+    );
+
     test('a put-back that fails still reports the cancel', () async {
       open(lfsInstalled: true);
       git.failWhen = (args) => args.contains('--pathspec-from-file=-');

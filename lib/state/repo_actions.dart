@@ -2632,9 +2632,10 @@ class RepoActions {
             cancel: cancel,
           ),
         );
-      } on GitCancelledException {
-        cancelled = true;
-        rethrow;
+      } finally {
+        // Also set when the cancel came after the switch landed (in the
+        // post-checkout hook): that returns normally, and is still a cancel.
+        cancelled = cancel?.isCancelled ?? false;
       }
     }, quiet: true);
     // A cancel is the user's answer, not a create that lost a race.

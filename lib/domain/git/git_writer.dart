@@ -797,6 +797,22 @@ class GitWriter {
         timeout: lfsTransferTimeout,
       );
     }
+    // git writes the index after the files, so a stop can come after it was
+    // written: the new files are then staged as well as on disk.
+    if (added.isNotEmpty) {
+      await _ok(
+        [
+          'rm',
+          '--cached',
+          '-q',
+          '--ignore-unmatch',
+          '--pathspec-from-file=-',
+          '--pathspec-file-nul',
+        ],
+        'git rm --cached',
+        stdin: '${added.join('\x00')}\x00',
+      );
+    }
     for (final path in added) {
       try {
         final file = File(p.join(repoPath, path));
