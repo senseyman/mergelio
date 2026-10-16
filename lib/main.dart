@@ -14,6 +14,7 @@ import 'domain/git/askpass.dart';
 import 'domain/window_placement.dart';
 import 'state/diagnostics.dart';
 import 'state/diff_view_options.dart';
+import 'state/l10n.dart';
 import 'state/operation_journal.dart';
 import 'state/profiles.dart';
 import 'state/recents.dart';
@@ -141,6 +142,7 @@ Future<void> main(List<String> args) async {
       observers: const [LoggingProviderObserver()],
       overrides: [
         settingsProvider.overrideWith((ref) => settingsController),
+        appL10nOverride,
         diffViewOptionsProvider.overrideWith(
           (ref) => DiffViewOptions.fromSettings(settings),
         ),

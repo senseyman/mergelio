@@ -7411,6 +7411,1134 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Mergelio {version}'**
   String rnVersionHeading(String version);
+
+  /// No description provided for @actBusy.
+  ///
+  /// In en, this message translates to:
+  /// **'An operation is already running'**
+  String get actBusy;
+
+  /// No description provided for @actComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'{label} complete'**
+  String actComplete(String label);
+
+  /// No description provided for @actCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'{label} cancelled'**
+  String actCancelled(String label);
+
+  /// No description provided for @actFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'{label} failed'**
+  String actFailed(String label);
+
+  /// No description provided for @actUnexpectedError.
+  ///
+  /// In en, this message translates to:
+  /// **'Unexpected error'**
+  String get actUnexpectedError;
+
+  /// No description provided for @actHookStopped.
+  ///
+  /// In en, this message translates to:
+  /// **'The {hook} hook stopped {label}'**
+  String actHookStopped(String hook, String label);
+
+  /// No description provided for @actFetch.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetch'**
+  String get actFetch;
+
+  /// No description provided for @actFetchFullHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetch full history'**
+  String get actFetchFullHistory;
+
+  /// No description provided for @actPruneRemote.
+  ///
+  /// In en, this message translates to:
+  /// **'Prune {remote}'**
+  String actPruneRemote(String remote);
+
+  /// No description provided for @actPull.
+  ///
+  /// In en, this message translates to:
+  /// **'Pull'**
+  String get actPull;
+
+  /// No description provided for @actPush.
+  ///
+  /// In en, this message translates to:
+  /// **'Push'**
+  String get actPush;
+
+  /// No description provided for @actForcePush.
+  ///
+  /// In en, this message translates to:
+  /// **'Force push'**
+  String get actForcePush;
+
+  /// No description provided for @actAddRemote.
+  ///
+  /// In en, this message translates to:
+  /// **'Add remote {name}'**
+  String actAddRemote(String name);
+
+  /// No description provided for @actRemoveRemote.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove remote {name}'**
+  String actRemoveRemote(String name);
+
+  /// No description provided for @actEditRemote.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit remote {name}'**
+  String actEditRemote(String name);
+
+  /// No description provided for @actLfsNoRemote.
+  ///
+  /// In en, this message translates to:
+  /// **'This repository has no remote to download LFS files from.'**
+  String get actLfsNoRemote;
+
+  /// No description provided for @actLfsPull.
+  ///
+  /// In en, this message translates to:
+  /// **'Pull LFS files'**
+  String get actLfsPull;
+
+  /// No description provided for @actLfsFetchAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetch all LFS objects'**
+  String get actLfsFetchAll;
+
+  /// No description provided for @actLfsDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Download {file}'**
+  String actLfsDownload(String file);
+
+  /// No description provided for @actLfsPrunePreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview LFS prune'**
+  String get actLfsPrunePreview;
+
+  /// No description provided for @actLfsPrune.
+  ///
+  /// In en, this message translates to:
+  /// **'Prune LFS objects'**
+  String get actLfsPrune;
+
+  /// No description provided for @actLfsTrack.
+  ///
+  /// In en, this message translates to:
+  /// **'Track {pattern}'**
+  String actLfsTrack(String pattern);
+
+  /// No description provided for @actLfsUntrack.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop tracking {pattern}'**
+  String actLfsUntrack(String pattern);
+
+  /// No description provided for @actOutsideRepo.
+  ///
+  /// In en, this message translates to:
+  /// **'{source} is outside the repository'**
+  String actOutsideRepo(String source);
+
+  /// No description provided for @actPatternNotRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'{pattern} could not be removed from {source}'**
+  String actPatternNotRemoved(String pattern, String source);
+
+  /// No description provided for @actLfsConvert.
+  ///
+  /// In en, this message translates to:
+  /// **'Convert files to LFS'**
+  String get actLfsConvert;
+
+  /// No description provided for @actLfsInstallHooks.
+  ///
+  /// In en, this message translates to:
+  /// **'Install LFS hooks'**
+  String get actLfsInstallHooks;
+
+  /// No description provided for @actLfsLock.
+  ///
+  /// In en, this message translates to:
+  /// **'Lock {path}'**
+  String actLfsLock(String path);
+
+  /// No description provided for @actLfsUnlock.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock {path}'**
+  String actLfsUnlock(String path);
+
+  /// No description provided for @actLfsForceUnlock.
+  ///
+  /// In en, this message translates to:
+  /// **'Force unlock {path}'**
+  String actLfsForceUnlock(String path);
+
+  /// No description provided for @actSubmoduleUpdateAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Update submodules'**
+  String get actSubmoduleUpdateAll;
+
+  /// No description provided for @actSubmoduleUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Update {path}'**
+  String actSubmoduleUpdate(String path);
+
+  /// No description provided for @actSubmoduleUpdateRemote.
+  ///
+  /// In en, this message translates to:
+  /// **'Update {path} to remote'**
+  String actSubmoduleUpdateRemote(String path);
+
+  /// No description provided for @actSubmoduleAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add submodule'**
+  String get actSubmoduleAdd;
+
+  /// No description provided for @actSubmoduleSync.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync submodules'**
+  String get actSubmoduleSync;
+
+  /// No description provided for @actSubmoduleDeinit.
+  ///
+  /// In en, this message translates to:
+  /// **'Deinit {path}'**
+  String actSubmoduleDeinit(String path);
+
+  /// No description provided for @actSubmoduleRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove {path}'**
+  String actSubmoduleRemove(String path);
+
+  /// No description provided for @actBisectRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'A bisect run is in progress'**
+  String get actBisectRunning;
+
+  /// No description provided for @actApplyPatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply patch'**
+  String get actApplyPatch;
+
+  /// No description provided for @actApplyStagePatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply and stage patch'**
+  String get actApplyStagePatch;
+
+  /// No description provided for @actApplyPatch3Way.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply patch (3-way)'**
+  String get actApplyPatch3Way;
+
+  /// No description provided for @actDiscardFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard {path}'**
+  String actDiscardFile(String path);
+
+  /// No description provided for @actDiscardAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard all changes'**
+  String get actDiscardAll;
+
+  /// No description provided for @actDiscardFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Discard {count} file} other{Discard {count} files}}'**
+  String actDiscardFiles(int count);
+
+  /// No description provided for @actDiscardHunk.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard hunk'**
+  String get actDiscardHunk;
+
+  /// No description provided for @actEditFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit {path}'**
+  String actEditFile(String path);
+
+  /// No description provided for @actCouldNotSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save {path}'**
+  String actCouldNotSave(String path);
+
+  /// No description provided for @actAlreadyIgnored.
+  ///
+  /// In en, this message translates to:
+  /// **'{rule} is already in {file}'**
+  String actAlreadyIgnored(String rule, String file);
+
+  /// No description provided for @actIgnore.
+  ///
+  /// In en, this message translates to:
+  /// **'Ignore {rule}'**
+  String actIgnore(String rule);
+
+  /// No description provided for @actCouldNotWrite.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not write {file}'**
+  String actCouldNotWrite(String file);
+
+  /// No description provided for @actAmendCommit.
+  ///
+  /// In en, this message translates to:
+  /// **'Amend commit'**
+  String get actAmendCommit;
+
+  /// No description provided for @actMergeCommit.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge commit'**
+  String get actMergeCommit;
+
+  /// No description provided for @actCommit.
+  ///
+  /// In en, this message translates to:
+  /// **'Commit'**
+  String get actCommit;
+
+  /// No description provided for @actUndoDirty.
+  ///
+  /// In en, this message translates to:
+  /// **'Uncommitted changes — commit or stash before undoing'**
+  String get actUndoDirty;
+
+  /// No description provided for @actUndo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get actUndo;
+
+  /// No description provided for @actRedo.
+  ///
+  /// In en, this message translates to:
+  /// **'Redo'**
+  String get actRedo;
+
+  /// No description provided for @actUndoFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo failed'**
+  String get actUndoFailed;
+
+  /// No description provided for @actRedoFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Redo failed'**
+  String get actRedoFailed;
+
+  /// No description provided for @actUndoButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get actUndoButton;
+
+  /// No description provided for @actCheckout.
+  ///
+  /// In en, this message translates to:
+  /// **'Checkout {ref}'**
+  String actCheckout(String ref);
+
+  /// No description provided for @actCheckoutLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Checkout'**
+  String get actCheckoutLabel;
+
+  /// No description provided for @actResetBranchTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset {branch} to {target}'**
+  String actResetBranchTo(String branch, String target);
+
+  /// No description provided for @actCreateBranch.
+  ///
+  /// In en, this message translates to:
+  /// **'Create branch {name}'**
+  String actCreateBranch(String name);
+
+  /// No description provided for @actDeleteBranch.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete branch {name}'**
+  String actDeleteBranch(String name);
+
+  /// No description provided for @actDeleteBranchesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete branches'**
+  String get actDeleteBranchesLabel;
+
+  /// No description provided for @actBranchGone.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}: no longer exists'**
+  String actBranchGone(String name);
+
+  /// No description provided for @actBranchNotMerged.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}: no longer merged into {target}'**
+  String actBranchNotMerged(String name, String target);
+
+  /// No description provided for @actDeleteBranches.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Delete {count} branch} other{Delete {count} branches}}'**
+  String actDeleteBranches(int count);
+
+  /// No description provided for @actSomeNotDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Some branches were not deleted'**
+  String get actSomeNotDeleted;
+
+  /// No description provided for @actRunGc.
+  ///
+  /// In en, this message translates to:
+  /// **'Run gc'**
+  String get actRunGc;
+
+  /// No description provided for @actRunMaintenance.
+  ///
+  /// In en, this message translates to:
+  /// **'Run maintenance'**
+  String get actRunMaintenance;
+
+  /// No description provided for @actDeleteRef.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete {name}'**
+  String actDeleteRef(String name);
+
+  /// No description provided for @actDeletedLocalOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted {name} here — {upstream} is still on the remote'**
+  String actDeletedLocalOnly(String name, String upstream);
+
+  /// No description provided for @actRenameBranch.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename {from} → {to}'**
+  String actRenameBranch(String from, String to);
+
+  /// No description provided for @actSetUpstream.
+  ///
+  /// In en, this message translates to:
+  /// **'Set upstream'**
+  String get actSetUpstream;
+
+  /// No description provided for @actCreateTag.
+  ///
+  /// In en, this message translates to:
+  /// **'Create tag {name}'**
+  String actCreateTag(String name);
+
+  /// No description provided for @actDeleteTag.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete tag {name}'**
+  String actDeleteTag(String name);
+
+  /// No description provided for @actPushTag.
+  ///
+  /// In en, this message translates to:
+  /// **'Push tag {name}'**
+  String actPushTag(String name);
+
+  /// No description provided for @actDeleteRemoteTag.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete tag {name} on {remote}'**
+  String actDeleteRemoteTag(String name, String remote);
+
+  /// No description provided for @actCherryPick.
+  ///
+  /// In en, this message translates to:
+  /// **'Cherry-pick {sha}'**
+  String actCherryPick(String sha);
+
+  /// No description provided for @actCherryPickN.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Cherry-pick {count} commit} other{Cherry-pick {count} commits}}'**
+  String actCherryPickN(int count);
+
+  /// No description provided for @actMergesNotTogether.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge commits can\'t be picked together'**
+  String get actMergesNotTogether;
+
+  /// No description provided for @actMergePickAlone.
+  ///
+  /// In en, this message translates to:
+  /// **'{sha} is a merge. Cherry-pick it on its own to choose which parent to replay it against.'**
+  String actMergePickAlone(String sha);
+
+  /// No description provided for @actUncommittedChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Uncommitted changes'**
+  String get actUncommittedChanges;
+
+  /// No description provided for @actPickNoCommitDirty.
+  ///
+  /// In en, this message translates to:
+  /// **'Commit or stash your changes before picking without committing.'**
+  String get actPickNoCommitDirty;
+
+  /// No description provided for @actCherryPickNoCommit.
+  ///
+  /// In en, this message translates to:
+  /// **'Cherry-pick {sha} without committing'**
+  String actCherryPickNoCommit(String sha);
+
+  /// No description provided for @actCherryPickNoCommitN.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Cherry-pick {count} commit without committing} other{Cherry-pick {count} commits without committing}}'**
+  String actCherryPickNoCommitN(int count);
+
+  /// No description provided for @actPicked.
+  ///
+  /// In en, this message translates to:
+  /// **'Picked {sha}'**
+  String actPicked(String sha);
+
+  /// No description provided for @actPickedN.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Picked {count} commit} other{Picked {count} commits}}'**
+  String actPickedN(int count);
+
+  /// No description provided for @actPickedStaged.
+  ///
+  /// In en, this message translates to:
+  /// **'The changes are staged — review and commit them.'**
+  String get actPickedStaged;
+
+  /// No description provided for @actNothingPicked.
+  ///
+  /// In en, this message translates to:
+  /// **'Conflicts — nothing was picked'**
+  String get actNothingPicked;
+
+  /// No description provided for @actPickOneByOne.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick with commits to resolve the conflicts one at a time, then squash them.'**
+  String get actPickOneByOne;
+
+  /// No description provided for @actRevert.
+  ///
+  /// In en, this message translates to:
+  /// **'Revert {sha}'**
+  String actRevert(String sha);
+
+  /// No description provided for @actSequencerUnfinished.
+  ///
+  /// In en, this message translates to:
+  /// **'A cherry-pick or revert is unfinished'**
+  String get actSequencerUnfinished;
+
+  /// No description provided for @actSequencerFinishFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue or abort it before picking again.'**
+  String get actSequencerFinishFirst;
+
+  /// No description provided for @actUnresolvedConflicts.
+  ///
+  /// In en, this message translates to:
+  /// **'Unresolved conflicts'**
+  String get actUnresolvedConflicts;
+
+  /// No description provided for @actFinishResolution.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish or abort the conflict resolution first.'**
+  String get actFinishResolution;
+
+  /// No description provided for @actResolveButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolve'**
+  String get actResolveButton;
+
+  /// No description provided for @actResolveConflicts.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolve conflicts'**
+  String get actResolveConflicts;
+
+  /// No description provided for @actResetTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset to {target}'**
+  String actResetTo(String target);
+
+  /// No description provided for @actResetToMixed.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset to {target} (mixed)'**
+  String actResetToMixed(String target);
+
+  /// No description provided for @actResetToSoft.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset to {target} (soft)'**
+  String actResetToSoft(String target);
+
+  /// No description provided for @actCannotResetConflicts.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot reset with unresolved conflicts'**
+  String get actCannotResetConflicts;
+
+  /// No description provided for @actFinishOpFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish or abort the operation in progress first'**
+  String get actFinishOpFirst;
+
+  /// No description provided for @actCannotMoveCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot move the current branch'**
+  String get actCannotMoveCurrent;
+
+  /// No description provided for @actResetInstead.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset it instead'**
+  String get actResetInstead;
+
+  /// No description provided for @actMoveBranch.
+  ///
+  /// In en, this message translates to:
+  /// **'Move {name} to {target}'**
+  String actMoveBranch(String name, String target);
+
+  /// No description provided for @actCannotFastForward.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot fast-forward {target}'**
+  String actCannotFastForward(String target);
+
+  /// No description provided for @actHasCommitsNotIn.
+  ///
+  /// In en, this message translates to:
+  /// **'{target} has commits that {to} does not'**
+  String actHasCommitsNotIn(String target, String to);
+
+  /// No description provided for @actFastForward.
+  ///
+  /// In en, this message translates to:
+  /// **'Fast-forward {target} to {to}'**
+  String actFastForward(String target, String to);
+
+  /// No description provided for @actStash.
+  ///
+  /// In en, this message translates to:
+  /// **'Stash'**
+  String get actStash;
+
+  /// No description provided for @actBranchFromStash.
+  ///
+  /// In en, this message translates to:
+  /// **'Branch from stash'**
+  String get actBranchFromStash;
+
+  /// No description provided for @actRenameStash.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename stash'**
+  String get actRenameStash;
+
+  /// No description provided for @actApplyFromStash.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply {path} from stash'**
+  String actApplyFromStash(String path);
+
+  /// No description provided for @actApplyHunkFromStash.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply hunk from stash'**
+  String get actApplyHunkFromStash;
+
+  /// No description provided for @actStashApply.
+  ///
+  /// In en, this message translates to:
+  /// **'Stash apply'**
+  String get actStashApply;
+
+  /// No description provided for @actStashPop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stash pop'**
+  String get actStashPop;
+
+  /// No description provided for @actStashedChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Stashed changes'**
+  String get actStashedChanges;
+
+  /// No description provided for @actDroppedStash.
+  ///
+  /// In en, this message translates to:
+  /// **'Dropped stash'**
+  String get actDroppedStash;
+
+  /// No description provided for @actRestoreStash.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore stash'**
+  String get actRestoreStash;
+
+  /// No description provided for @actStashDrop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stash drop'**
+  String get actStashDrop;
+
+  /// No description provided for @actMerge.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge {branch}'**
+  String actMerge(String branch);
+
+  /// No description provided for @actMergeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge'**
+  String get actMergeLabel;
+
+  /// No description provided for @actMergedStaged.
+  ///
+  /// In en, this message translates to:
+  /// **'Merged {branch} — staged, not committed'**
+  String actMergedStaged(String branch);
+
+  /// No description provided for @actMerged.
+  ///
+  /// In en, this message translates to:
+  /// **'Merged {branch}'**
+  String actMerged(String branch);
+
+  /// No description provided for @actSwitchFinished.
+  ///
+  /// In en, this message translates to:
+  /// **'The switch had already finished.'**
+  String get actSwitchFinished;
+
+  /// No description provided for @actCouldNotSwitch.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not switch to {branch}'**
+  String actCouldNotSwitch(String branch);
+
+  /// No description provided for @actRebase.
+  ///
+  /// In en, this message translates to:
+  /// **'Rebase'**
+  String get actRebase;
+
+  /// No description provided for @actMergesFlattened.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{A merge commit was flattened into a linear history. Undo restores it.} other{{count} merge commits were flattened into a linear history. Undo restores them.}}'**
+  String actMergesFlattened(int count);
+
+  /// No description provided for @actFixupReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Fixup message ready'**
+  String get actFixupReady;
+
+  /// No description provided for @actFixupHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Stage the fix and commit it; an autosquash rebase folds it in.'**
+  String get actFixupHint;
+
+  /// No description provided for @actRebaseStoppedAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped at `{command}`. Anything it started may still be running. Continue without it, or abort.'**
+  String actRebaseStoppedAt(String command);
+
+  /// No description provided for @actExecFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Exec step failed'**
+  String get actExecFailed;
+
+  /// No description provided for @actRewordRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'New commit message was rejected'**
+  String get actRewordRejected;
+
+  /// No description provided for @actRebaseBreak.
+  ///
+  /// In en, this message translates to:
+  /// **'Rebase paused at a break'**
+  String get actRebaseBreak;
+
+  /// No description provided for @actExecFailedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'`{command}` failed. Fix it, commit, then continue from the Changes panel.'**
+  String actExecFailedHint(String command);
+
+  /// No description provided for @actRewordRejectedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'git refused it — usually a commit hook. Amend the message yourself, or continue to keep the old one.'**
+  String get actRewordRejectedHint;
+
+  /// No description provided for @actBreakHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Look around or amend, then continue from the Changes panel.'**
+  String get actBreakHint;
+
+  /// No description provided for @actCommitMessageEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Commit message is empty'**
+  String get actCommitMessageEmpty;
+
+  /// No description provided for @actReword.
+  ///
+  /// In en, this message translates to:
+  /// **'Reword commit'**
+  String get actReword;
+
+  /// No description provided for @actNotOnBranch.
+  ///
+  /// In en, this message translates to:
+  /// **'Commit is not on the current branch'**
+  String get actNotOnBranch;
+
+  /// No description provided for @actCannotEditMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot edit this message'**
+  String get actCannotEditMessage;
+
+  /// No description provided for @actRewordWouldFlatten.
+  ///
+  /// In en, this message translates to:
+  /// **'Rewriting it would replay a merge commit, which would flatten the history above it.'**
+  String get actRewordWouldFlatten;
+
+  /// No description provided for @actRebaseInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'A rebase is already in progress'**
+  String get actRebaseInProgress;
+
+  /// No description provided for @actRebaseFinishFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish or abort it before starting another one.'**
+  String get actRebaseFinishFirst;
+
+  /// No description provided for @actAbortRebase.
+  ///
+  /// In en, this message translates to:
+  /// **'Abort rebase'**
+  String get actAbortRebase;
+
+  /// No description provided for @actRebaseRestored.
+  ///
+  /// In en, this message translates to:
+  /// **'The branch is as it was before the rebase.'**
+  String get actRebaseRestored;
+
+  /// No description provided for @actRebasePaused.
+  ///
+  /// In en, this message translates to:
+  /// **'Rebase paused'**
+  String get actRebasePaused;
+
+  /// No description provided for @actRebaseNothingToResolve.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to resolve — continue it from the Changes panel, or abort to go back.'**
+  String get actRebaseNothingToResolve;
+
+  /// No description provided for @actConflictsResolved.
+  ///
+  /// In en, this message translates to:
+  /// **'Conflicts resolved'**
+  String get actConflictsResolved;
+
+  /// No description provided for @actReviewThenCommit.
+  ///
+  /// In en, this message translates to:
+  /// **'Review the staged result, then commit it.'**
+  String get actReviewThenCommit;
+
+  /// No description provided for @actReviewThenContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Review the staged result, then continue.'**
+  String get actReviewThenContinue;
+
+  /// No description provided for @actContinueRebase.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue rebase'**
+  String get actContinueRebase;
+
+  /// No description provided for @actContinueCherryPick.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue cherry-pick {sha}'**
+  String actContinueCherryPick(String sha);
+
+  /// No description provided for @actContinueRevert.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue revert {sha}'**
+  String actContinueRevert(String sha);
+
+  /// No description provided for @actAbort.
+  ///
+  /// In en, this message translates to:
+  /// **'Abort'**
+  String get actAbort;
+
+  /// No description provided for @actBisect.
+  ///
+  /// In en, this message translates to:
+  /// **'Bisect'**
+  String get actBisect;
+
+  /// No description provided for @actBisectRun.
+  ///
+  /// In en, this message translates to:
+  /// **'Bisect run'**
+  String get actBisectRun;
+
+  /// No description provided for @actBisectStartStep.
+  ///
+  /// In en, this message translates to:
+  /// **'Bisect: start'**
+  String get actBisectStartStep;
+
+  /// No description provided for @actBisectMarkStep.
+  ///
+  /// In en, this message translates to:
+  /// **'Bisect: mark {term}'**
+  String actBisectMarkStep(String term);
+
+  /// No description provided for @actBisectResetStep.
+  ///
+  /// In en, this message translates to:
+  /// **'Bisect: reset'**
+  String get actBisectResetStep;
+
+  /// No description provided for @actBisectRunStep.
+  ///
+  /// In en, this message translates to:
+  /// **'Bisect: run'**
+  String get actBisectRunStep;
+
+  /// No description provided for @actBisectLogStep.
+  ///
+  /// In en, this message translates to:
+  /// **'Bisect: log'**
+  String get actBisectLogStep;
+
+  /// No description provided for @actBisectDirty.
+  ///
+  /// In en, this message translates to:
+  /// **'Commit or stash your changes before starting a bisect.'**
+  String get actBisectDirty;
+
+  /// No description provided for @actBisectNeedsBad.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark a bad commit to start a bisect.'**
+  String get actBisectNeedsBad;
+
+  /// No description provided for @actBisectRunDirty.
+  ///
+  /// In en, this message translates to:
+  /// **'Commit or stash your changes before handing the hunt to a command: it would test your uncommitted edits and record the verdict against the commit git checked out.'**
+  String get actBisectRunDirty;
+
+  /// No description provided for @actAddWorktree.
+  ///
+  /// In en, this message translates to:
+  /// **'Add worktree'**
+  String get actAddWorktree;
+
+  /// No description provided for @actRemoveWorktree.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove worktree'**
+  String get actRemoveWorktree;
+
+  /// No description provided for @actMoveWorktree.
+  ///
+  /// In en, this message translates to:
+  /// **'Move worktree'**
+  String get actMoveWorktree;
+
+  /// No description provided for @actLockWorktree.
+  ///
+  /// In en, this message translates to:
+  /// **'Lock worktree'**
+  String get actLockWorktree;
+
+  /// No description provided for @actUnlockWorktree.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock worktree'**
+  String get actUnlockWorktree;
+
+  /// No description provided for @actPruneWorktrees.
+  ///
+  /// In en, this message translates to:
+  /// **'Prune worktrees'**
+  String get actPruneWorktrees;
+
+  /// No description provided for @bootClone.
+  ///
+  /// In en, this message translates to:
+  /// **'Clone'**
+  String get bootClone;
+
+  /// No description provided for @bootCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'Create'**
+  String get bootCreate;
+
+  /// No description provided for @bootUrlDestRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'URL and destination are required'**
+  String get bootUrlDestRequired;
+
+  /// No description provided for @bootBadDepth.
+  ///
+  /// In en, this message translates to:
+  /// **'Depth must be a positive number'**
+  String get bootBadDepth;
+
+  /// No description provided for @bootBadBranch.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid branch name'**
+  String get bootBadBranch;
+
+  /// No description provided for @bootBadFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid folder name'**
+  String get bootBadFolder;
+
+  /// No description provided for @bootOutsideParent.
+  ///
+  /// In en, this message translates to:
+  /// **'Destination is outside the parent directory'**
+  String get bootOutsideParent;
+
+  /// No description provided for @bootDestExists.
+  ///
+  /// In en, this message translates to:
+  /// **'Destination already exists: {path}'**
+  String bootDestExists(String path);
+
+  /// No description provided for @bootNameFolderRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Name and folder are required'**
+  String get bootNameFolderRequired;
+
+  /// No description provided for @bootFolderExists.
+  ///
+  /// In en, this message translates to:
+  /// **'Folder already exists: {path}'**
+  String bootFolderExists(String path);
+
+  /// No description provided for @bootInitialCommitFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Initial commit failed'**
+  String get bootInitialCommitFailed;
+
+  /// No description provided for @pfSshKeyFileName.
+  ///
+  /// In en, this message translates to:
+  /// **'Key file name (e.g. id_ed25519_work)'**
+  String get pfSshKeyFileName;
+
+  /// No description provided for @pfSshKeyGenerated.
+  ///
+  /// In en, this message translates to:
+  /// **'Key generated without a passphrase'**
+  String get pfSshKeyGenerated;
+
+  /// No description provided for @pfSshKeyInvalidName.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid key name: {name}'**
+  String pfSshKeyInvalidName(String name);
+
+  /// No description provided for @pfSshKeyExists.
+  ///
+  /// In en, this message translates to:
+  /// **'A key named {name} already exists'**
+  String pfSshKeyExists(String name);
+
+  /// No description provided for @pfSshKeygenFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'ssh-keygen failed: {detail}'**
+  String pfSshKeygenFailed(String detail);
 }
 
 class _AppLocalizationsDelegate

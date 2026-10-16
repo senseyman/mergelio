@@ -22,6 +22,7 @@ import '../domain/git/models.dart';
 import '../domain/git/patch_file.dart';
 import '../domain/git/rebase_plan.dart';
 import '../domain/git/stash.dart';
+import '../l10n/gen/app_localizations.dart';
 import 'bisect.dart';
 import 'feedback.dart';
 import 'forge_refresh.dart';
@@ -29,6 +30,7 @@ import 'merge_session.dart';
 import 'operation_journal.dart';
 import 'profiles.dart';
 import 'graph_selection.dart';
+import 'l10n.dart';
 import 'lfs.dart';
 import 'repo_data.dart';
 import 'undo_stack.dart';
@@ -79,6 +81,10 @@ class RepoActions {
 
   /// Drops a reload that has not run yet. The provider disposes this.
   void dispose() => _refreshes.cancel();
+
+  /// Read per message rather than held, so a language switch applies to the
+  /// next toast without rebuilding the actions.
+  AppLocalizations get _l => _ref.read(appL10nProvider);
 
   /// Every repo action runs through here so the log records what ran, on
   /// which repo, and how long it took — success and failure alike.
@@ -147,7 +153,7 @@ class RepoActions {
     // Background (silent) ops skip quietly instead of warning.
     if (_ref.read(slot) != null) {
       if (!silent) {
-        toasts.show('An operation is already running', kind: ToastKind.warning);
+        toasts.show(_l.actBusy, kind: ToastKind.warning);
       }
       return true;
     }
@@ -163,13 +169,13 @@ class RepoActions {
       await _journalDone(opId);
       onSuccess?.call();
       if (!silent && toastSuccess) {
-        toasts.show('$label complete', kind: ToastKind.success);
+        toasts.show(_l.actComplete(label), kind: ToastKind.success);
       }
       return true;
     } on GitCancelledException {
       await _journalFail(opId);
       if (!silent) {
-        toasts.show('$label cancelled', kind: ToastKind.warning);
+        toasts.show(_l.actCancelled(label), kind: ToastKind.warning);
       }
       // Giving up on purpose is not the remote failing.
       return true;
@@ -179,7 +185,7 @@ class RepoActions {
       final err = e.result?.err ?? '';
       if (!silent) {
         toasts.show(
-          failureTitle ?? '$label failed',
+          failureTitle ?? _l.actFailed(label),
           description: err.isNotEmpty ? err : e.message,
           kind: ToastKind.error,
         );
@@ -189,8 +195,8 @@ class RepoActions {
       await _journalFail(opId);
       if (!silent) {
         toasts.show(
-          failureTitle ?? '$label failed',
-          description: 'Unexpected error',
+          failureTitle ?? _l.actFailed(label),
+          description: _l.actUnexpectedError,
           kind: ToastKind.error,
         );
       }
@@ -204,7 +210,7 @@ class RepoActions {
   }
 
   Future<bool> fetch({String? remote, bool silent = false}) => _network(
-    'Fetch',
+    _l.actFetch,
     (cancel) => _writer.fetch(remote: remote, cancel: cancel),
     silent: silent,
     writesWorkingTree: false,
@@ -232,7 +238,7 @@ class RepoActions {
   /// A repository that is already complete has nothing to fetch, and git
   /// refuses `--unshallow` on one, so it is left as it is.
   Future<bool> fetchFullHistory() => _network(
-    'Fetch full history',
+    _l.actFetchFullHistory,
     (cancel) async {
       final reader = GitReader(_git, path);
       if (!await reader.isShallow()) return;
@@ -248,7 +254,7 @@ class RepoActions {
   /// Shares the fetch lane: pruning rewrites the same remote-tracking refs a
   /// fetch is writing, and nothing else cares about either.
   Future<void> pruneRemote(String remote) => _network(
-    'Prune $remote',
+    _l.actPruneRemote(remote),
     (cancel) => _writer.pruneRemote(remote, cancel: cancel),
     writesWorkingTree: false,
     lane: _Lane.fetch,
@@ -276,9 +282,7 @@ class RepoActions {
           } on GitException catch (e) {
             // git-lfs's own wording names an empty URL; say what it means.
             if (!lfsNoRemote(e.result?.err ?? '')) rethrow;
-            throw GitException(
-              'This repository has no remote to download LFS files from.',
-            );
+            throw GitException(_l.actLfsNoRemote);
           }
         },
         lane: lane,
@@ -301,11 +305,11 @@ class RepoActions {
 
   /// Downloads LFS content and replaces working-tree pointers with it.
   Future<void> lfsPull() =>
-      _lfsNetwork('Pull LFS files', (c) => _writer.lfsPull(cancel: c));
+      _lfsNetwork(_l.actLfsPull, (c) => _writer.lfsPull(cancel: c));
 
   /// Downloads every LFS object any ref needs, for working offline.
   Future<void> lfsFetchAll() => _lfsNetwork(
-    'Fetch all LFS objects',
+    _l.actLfsFetchAll,
     (c) => _writer.lfsFetchAll(cancel: c),
     lane: _Lane.fetch,
     writesWorkingTree: false,
@@ -313,14 +317,14 @@ class RepoActions {
 
   /// Downloads one working-tree file's content and checks it out.
   Future<void> lfsDownloadFile(String file) => _lfsNetwork(
-    'Download $file',
+    _l.actLfsDownload(file),
     (c) => _writer.lfsPull(include: file, cancel: c),
   );
 
   /// Downloads the object [file] has at [rev], leaving the working tree alone.
   Future<void> lfsFetchObject(String remote, String rev, String file) =>
       _lfsNetwork(
-        'Download $file',
+        _l.actLfsDownload(file),
         (c) => _writer.lfsFetchObject(remote, rev, file, cancel: c),
         lane: _Lane.fetch,
         writesWorkingTree: false,
@@ -334,7 +338,7 @@ class RepoActions {
     LfsPrunePreview? preview;
     var completed = false;
     await _lfsNetwork(
-      'Preview LFS prune',
+      _l.actLfsPrunePreview,
       (c) async {
         final r = await _writer.lfsPruneDryRun(cancel: c);
         if (!r.ok) throw GitException('git lfs prune --dry-run', r);
@@ -348,16 +352,16 @@ class RepoActions {
   }
 
   Future<void> lfsPrune() => _lfsNetwork(
-    'Prune LFS objects',
+    _l.actLfsPrune,
     (c) => _writer.lfsPrune(cancel: c),
     writesWorkingTree: false,
   );
 
   Future<bool> lfsTrack(String pattern) =>
-      _lfsLocal('Track $pattern', () => _writer.lfsTrack(pattern));
+      _lfsLocal(_l.actLfsTrack(pattern), () => _writer.lfsTrack(pattern));
 
   Future<bool> lfsTrackFile(String file) =>
-      _lfsLocal('Track $file', () => _writer.lfsTrackFile(file));
+      _lfsLocal(_l.actLfsTrack(file), () => _writer.lfsTrackFile(file));
 
   /// Untracks [pattern] as `git lfs track` lists it, with [source] the
   /// `.gitattributes` file it came from.
@@ -369,21 +373,21 @@ class RepoActions {
   /// from its own `.gitattributes` directly. Nothing is staged either way.
   Future<bool> lfsUntrack(String pattern, String source) {
     final target = lfsUntrackTarget(pattern, source);
-    return _lfsLocal('Stop tracking $pattern', () async {
+    return _lfsLocal(_l.actLfsUntrack(pattern), () async {
       await _writer.lfsUntrack(target.pattern, dir: target.dir);
       final still = parseLfsTrackList(await _writer.lfsTrackList())
           .contains(LfsTrackedPattern(pattern: pattern, source: source));
       if (!still) return;
       final file = p.normalize(p.join(path, source.replaceAll(r'\', '/')));
       if (!p.isWithin(path, file)) {
-        throw GitException('$source is outside the repository');
+        throw GitException(_l.actOutsideRepo(source));
       }
       final edited = withoutLfsPattern(
         await File(file).readAsString(),
         target.pattern,
       );
       if (edited == null) {
-        throw GitException('$pattern could not be removed from $source');
+        throw GitException(_l.actPatternNotRemoved(pattern, source));
       }
       await File(file).writeAsString(edited);
     });
@@ -444,7 +448,7 @@ class RepoActions {
     // A busy-lane skip inside _network reports true; the caller must not
     // read that as "converted".
     if (_blockedByRepoOp) return false;
-    return _lfsNetwork('Convert files to LFS', (c) async {
+    return _lfsNetwork(_l.actLfsConvert, (c) async {
       await _writer.renormalize(files, cancel: c);
       // Pointers staged without the rule that makes them pointers would
       // commit as plain pointer text.
@@ -455,13 +459,13 @@ class RepoActions {
   /// Writes the LFS filters and hooks into this repository. Only ever run on
   /// the user's explicit choice.
   Future<bool> lfsInstallHooks() =>
-      _lfsLocal('Install LFS hooks', _writer.lfsInstallLocal);
+      _lfsLocal(_l.actLfsInstallHooks, _writer.lfsInstallLocal);
 
   /// Locks [path] on the LFS server so nobody else can change it.
   Future<bool> lfsLock(String path) {
     if (_blockedByFetchOp) return Future.value(false);
     return _lfsNetwork(
-      'Lock $path',
+      _l.actLfsLock(path),
       (c) async {
         try {
           await _writer.lfsLock(path, cancel: c);
@@ -484,7 +488,7 @@ class RepoActions {
   Future<bool> _lfsUnlock(LfsLock lock, {required bool force}) {
     if (_blockedByFetchOp) return Future.value(false);
     return _lfsNetwork(
-      '${force ? 'Force unlock' : 'Unlock'} ${lock.path}',
+      force ? _l.actLfsForceUnlock(lock.path) : _l.actLfsUnlock(lock.path),
       (c) async {
         try {
           // git-lfs can exit 0 and still report a refusal in the JSON.
@@ -524,43 +528,45 @@ class RepoActions {
   // — Submodules —
 
   Future<void> submoduleUpdateAll({bool recursive = false}) => _network(
-    'Update submodules',
+    _l.actSubmoduleUpdateAll,
     (_) => _writer.submoduleUpdate(init: true, recursive: recursive),
   );
 
   Future<void> submoduleUpdate(String path) => _network(
-    'Update $path',
+    _l.actSubmoduleUpdate(path),
     (_) => _writer.submoduleUpdate(path: path, init: true),
   );
 
   Future<void> submoduleUpdateRemote(String path) => _network(
-    'Update $path to remote',
+    _l.actSubmoduleUpdateRemote(path),
     (_) => _writer.submoduleUpdateRemote(path),
   );
 
   Future<void> submoduleAdd(String url, String path, {String? branch}) =>
       _network(
-        'Add submodule',
+        _l.actSubmoduleAdd,
         (_) => _writer.submoduleAdd(url, path, branch: branch),
       );
 
   Future<void> submoduleSync([String? path]) =>
-      _network('Sync submodules', (_) => _writer.submoduleSync(path: path));
+      _network(_l.actSubmoduleSync, (_) => _writer.submoduleSync(path: path));
 
   Future<void> submoduleDeinit(String path) => _network(
-    'Deinit $path',
+    _l.actSubmoduleDeinit(path),
     (_) => _writer.submoduleDeinit(path, force: true),
   );
 
-  Future<void> submoduleRemove(String path) =>
-      _network('Remove $path', (_) => _writer.submoduleRemove(path));
+  Future<void> submoduleRemove(String path) => _network(
+    _l.actSubmoduleRemove(path),
+    (_) => _writer.submoduleRemove(path),
+  );
 
   /// Fetch URL for [remote] (read-only; empty if unset).
   Future<String> remoteUrl(String remote) =>
       GitReader(_git, path).remoteUrl(remote);
 
   Future<void> addRemote(String name, String url) => _undoable(
-    'Add remote $name',
+    _l.actAddRemote(name),
     () => _writer.addRemote(name, url),
     undo: () => _writer.removeRemote(name),
     redo: () => _writer.addRemote(name, url),
@@ -571,7 +577,7 @@ class RepoActions {
   Future<void> removeRemote(String name) async {
     final url = await remoteUrl(name);
     await _undoable(
-      'Remove remote $name',
+      _l.actRemoveRemote(name),
       () => _writer.removeRemote(name),
       undo: () => _writer.addRemote(name, url),
       redo: () => _writer.removeRemote(name),
@@ -597,7 +603,7 @@ class RepoActions {
       if (name != from) await _writer.renameRemote(name, from);
     }
 
-    await _undoable('Edit remote $from', forward, undo: back, redo: forward);
+    await _undoable(_l.actEditRemote(from), forward, undo: back, redo: forward);
   }
 
   /// Pulls the current branch's upstream. [ffOnly] declines to reconcile a
@@ -609,7 +615,7 @@ class RepoActions {
     bool autostash = false,
   }) async {
     final ok = await _network(
-      'Pull',
+      _l.actPull,
       (cancel) => _writer.pull(
         rebase: rebase,
         ffOnly: ffOnly,
@@ -633,7 +639,7 @@ class RepoActions {
 
   Future<void> push({bool force = false, String? remote, bool tags = false}) =>
       _network(
-        force ? 'Force push' : 'Push',
+        force ? _l.actForcePush : _l.actPush,
         (cancel) => _writer.push(
           force: force,
           remote: remote,
@@ -649,9 +655,7 @@ class RepoActions {
   /// one must not start beside it.
   bool get _blockedByFetchOp {
     if (_ref.read(fetchBusyProvider) == null) return false;
-    _ref
-        .read(toastProvider.notifier)
-        .show('An operation is already running', kind: ToastKind.warning);
+    _ref.read(toastProvider.notifier).show(_l.actBusy, kind: ToastKind.warning);
     return true;
   }
 
@@ -660,9 +664,7 @@ class RepoActions {
   /// `.git/index.lock`. A running fetch is not that: it holds its own lane.
   bool get _blockedByRepoOp {
     if (_ref.read(busyProvider) == null) return false;
-    _ref
-        .read(toastProvider.notifier)
-        .show('An operation is already running', kind: ToastKind.warning);
+    _ref.read(toastProvider.notifier).show(_l.actBusy, kind: ToastKind.warning);
     return true;
   }
 
@@ -680,7 +682,7 @@ class RepoActions {
     if (_ref.read(bisectRunProvider(path)) == null) return false;
     _ref
         .read(toastProvider.notifier)
-        .show('A bisect run is in progress', kind: ToastKind.warning);
+        .show(_l.actBisectRunning, kind: ToastKind.warning);
     return true;
   }
 
@@ -689,9 +691,7 @@ class RepoActions {
   /// and turning a save away for that long would lose the user's typing.
   bool get _blockedByWorkingTreeOp {
     if (_ref.read(busyProvider)?.touchesWorkingTree != true) return false;
-    _ref
-        .read(toastProvider.notifier)
-        .show('An operation is already running', kind: ToastKind.warning);
+    _ref.read(toastProvider.notifier).show(_l.actBusy, kind: ToastKind.warning);
     return true;
   }
 
@@ -779,16 +779,16 @@ class RepoActions {
     final index = mode == PatchMode.stage;
     if (mode != PatchMode.threeWay) {
       final ok = await _undoable(
-        index ? 'Apply and stage patch' : 'Apply patch',
+        index ? _l.actApplyStagePatch : _l.actApplyPatch,
         () => _writer.applyPatch(patch, index: index),
         undo: () => _writer.applyPatch(patch, index: index, reverse: true),
         redo: () => _writer.applyPatch(patch, index: index),
       );
       return ok ? PatchOutcome.applied : PatchOutcome.failed;
     }
-    const label = 'Apply patch (3-way)';
+    final label = _l.actApplyPatch3Way;
     if (_blockedByRepoOp) return PatchOutcome.failed;
-    _ref.read(busyProvider.notifier).state = const BusyState(label);
+    _ref.read(busyProvider.notifier).state = BusyState(label);
     final opId = await _journalBegin(label);
     try {
       await _timed(label, () => _writer.applyPatch(patch, threeWay: true));
@@ -824,7 +824,7 @@ class RepoActions {
     if (f.isUntracked) {
       final bytes = await file.readAsBytes();
       await _undoable(
-        'Discard ${f.path}',
+        _l.actDiscardFile(f.path),
         () async => file.delete(),
         undo: () async => file.writeAsBytes(bytes),
         redo: () async => file.delete(),
@@ -846,7 +846,7 @@ class RepoActions {
     }
 
     await _undoable(
-      'Discard ${f.path}',
+      _l.actDiscardFile(f.path),
       () => _writer.restoreFromHead(f.path),
       undo: restore,
       redo: () => _writer.restoreFromHead(f.path),
@@ -912,12 +912,7 @@ class RepoActions {
       }
     }
 
-    await _undoable(
-      'Discard all changes',
-      discard,
-      undo: restore,
-      redo: discard,
-    );
+    await _undoable(_l.actDiscardAll, discard, undo: restore, redo: discard);
   }
 
   /// Discards every uncommitted change to [files] at once: tracked files
@@ -977,7 +972,7 @@ class RepoActions {
     }
 
     await _undoable(
-      'Discard ${files.length} files',
+      _l.actDiscardFiles(files.length),
       discard,
       undo: restore,
       redo: discard,
@@ -989,7 +984,7 @@ class RepoActions {
   Future<void> discardHunk(String patch) async {
     if (_blockedByRepoOp) return;
     await _undoable(
-      'Discard hunk',
+      _l.actDiscardHunk,
       () => _writer.applyToWorktree(patch, reverse: true),
       undo: () => _writer.applyToWorktree(patch),
       redo: () => _writer.applyToWorktree(patch, reverse: true),
@@ -1017,7 +1012,7 @@ class RepoActions {
     try {
       final before = await file.exists() ? await file.readAsBytes() : null;
       await _undoable(
-        'Edit $relPath',
+        _l.actEditFile(relPath),
         () async {
           await write();
           saved = true;
@@ -1040,7 +1035,7 @@ class RepoActions {
       _ref
           .read(toastProvider.notifier)
           .show(
-            'Could not save $relPath',
+            _l.actCouldNotSave(relPath),
             description: e.osError?.message ?? e.message,
             kind: ToastKind.error,
           );
@@ -1112,7 +1107,7 @@ class RepoActions {
       if (appended == null) {
         _ref
             .read(toastProvider.notifier)
-            .show('$rule is already in $name', kind: ToastKind.info);
+            .show(_l.actAlreadyIgnored(rule, name), kind: ToastKind.info);
         return true;
       }
       // Appending, not rewriting, keeps whatever bytes are already there
@@ -1125,7 +1120,7 @@ class RepoActions {
 
       var written = false;
       await _undoable(
-        'Ignore $rule',
+        _l.actIgnore(rule),
         () async {
           await write();
           written = true;
@@ -1146,7 +1141,7 @@ class RepoActions {
       _ref
           .read(toastProvider.notifier)
           .show(
-            'Could not write $name',
+            _l.actCouldNotWrite(name),
             description: e.osError?.message ?? e.message,
             kind: ToastKind.error,
           );
@@ -1198,10 +1193,10 @@ class RepoActions {
     HookRejectedException? rejection;
     final committed = await _undoable(
       amend
-          ? 'Amend commit'
+          ? _l.actAmendCommit
           : merging
-          ? 'Merge commit'
-          : 'Commit',
+          ? _l.actMergeCommit
+          : _l.actCommit,
       () => doCommit(cancel: cancel),
       cancel: cancel,
       undo: () => _writer.resetSoft(prev),
@@ -1254,8 +1249,8 @@ class RepoActions {
     // A hook's refusal carries only the hook's own output; the title says
     // whose it is.
     final title = e is HookRejectedException
-        ? 'The ${e.hook} hook stopped $label'
-        : '$label failed';
+        ? _l.actHookStopped(e.hook, label)
+        : _l.actFailed(label);
     _ref
         .read(toastProvider.notifier)
         .show(title, description: description, kind: ToastKind.error);
@@ -1313,7 +1308,7 @@ class RepoActions {
       _refresh();
       _ref
           .read(toastProvider.notifier)
-          .show('$label cancelled', kind: ToastKind.warning);
+          .show(_l.actCancelled(label), kind: ToastKind.warning);
       return false;
     } on GitException catch (e) {
       // Refresh on failure too: a conflicted cherry-pick/revert leaves the
@@ -1339,26 +1334,24 @@ class RepoActions {
   Future<void> _undoReset(String prev) async {
     final dirty = (await _out(['status', '--porcelain'])).isNotEmpty;
     if (dirty) {
-      throw GitException(
-        'Uncommitted changes — commit or stash before undoing',
-      );
+      throw GitException(_l.actUndoDirty);
     }
     await _writer.resetHard(prev);
   }
 
   Future<void> undo() async {
     if (_blockedByRepoOp) return;
-    _ref.read(busyProvider.notifier).state = const BusyState('Undo');
+    _ref.read(busyProvider.notifier).state = BusyState(_l.actUndo);
     try {
       await _timed('Undo', _ref.read(undoProvider(path).notifier).undo);
     } on GitException catch (e) {
-      _toastErr('Undo', e);
+      _toastErr(_l.actUndo, e);
     } on Object catch (e) {
       // File-edit undo entries do filesystem writes, which can fail with
       // more than GitException; surface it rather than crash.
       _ref
           .read(toastProvider.notifier)
-          .show('Undo failed', description: '$e', kind: ToastKind.error);
+          .show(_l.actUndoFailed, description: '$e', kind: ToastKind.error);
     } finally {
       _ref.read(busyProvider.notifier).state = null;
     }
@@ -1366,15 +1359,15 @@ class RepoActions {
 
   Future<void> redo() async {
     if (_blockedByRepoOp) return;
-    _ref.read(busyProvider.notifier).state = const BusyState('Redo');
+    _ref.read(busyProvider.notifier).state = BusyState(_l.actRedo);
     try {
       await _timed('Redo', _ref.read(undoProvider(path).notifier).redo);
     } on GitException catch (e) {
-      _toastErr('Redo', e);
+      _toastErr(_l.actRedo, e);
     } on Object catch (e) {
       _ref
           .read(toastProvider.notifier)
-          .show('Redo failed', description: '$e', kind: ToastKind.error);
+          .show(_l.actRedoFailed, description: '$e', kind: ToastKind.error);
     } finally {
       _ref.read(busyProvider.notifier).state = null;
     }
@@ -1442,7 +1435,7 @@ class RepoActions {
     // Only the first run can be cancelled; undo and redo have no busy bar.
     final cancel = lfs ? GitCancel() : null;
     await _undoable(
-      'Checkout $ref',
+      _l.actCheckout(ref),
       () => _checkoutPuttingBack(
         ref,
         cancel,
@@ -1476,7 +1469,7 @@ class RepoActions {
     final timeout = lfs ? GitWriter.lfsTransferTimeout : null;
     final cancel = lfs ? GitCancel() : null;
     await _undoable(
-      'Checkout ${rb.name}',
+      _l.actCheckout(rb.name),
       () => _checkoutPuttingBack(
         rb.name,
         cancel,
@@ -1512,7 +1505,7 @@ class RepoActions {
     final prevLocalSha = await _out(['rev-parse', rb.branch]);
     String? stashRef;
     await _undoable(
-      'Reset ${rb.branch} to ${rb.name}',
+      _l.actResetBranchTo(rb.branch, rb.name),
       () async {
         stashRef = await _switchAndResetToRemote(
           rb,
@@ -1568,7 +1561,7 @@ class RepoActions {
     // deleted it (the branch name no longer resolves at that point).
     final target = at ?? await _headSha();
     await _undoable(
-      'Create branch $name',
+      _l.actCreateBranch(name),
       () => _writer.createBranch(name, at: target),
       undo: () => _writer.deleteBranch(name, force: true),
       redo: () => _writer.createBranch(name, at: target),
@@ -1580,7 +1573,7 @@ class RepoActions {
     // Non-force `-d`: keep git's unmerged-branch protection so an unmerged
     // branch is not silently orphaned.
     await _undoable(
-      'Delete branch $name',
+      _l.actDeleteBranch(name),
       () => _writer.deleteBranch(name),
       undo: () => _writer.createBranch(name, at: sha),
       redo: () => _writer.deleteBranch(name),
@@ -1611,7 +1604,7 @@ class RepoActions {
       'refs/heads',
     ], repoPath: path);
     if (!r.ok) {
-      _toastErr('Delete branches', GitException('git for-each-ref', r));
+      _toastErr(_l.actDeleteBranchesLabel, GitException('git for-each-ref', r));
       return;
     }
     final tips = <String, String>{
@@ -1627,7 +1620,7 @@ class RepoActions {
       for (final b in branches) {
         final sha = tips[b.name];
         if (sha == null) {
-          refused.add('${b.name}: no longer exists');
+          refused.add(_l.actBranchGone(b.name));
           continue;
         }
         if (!b.needsForce) {
@@ -1640,7 +1633,7 @@ class RepoActions {
                 'refs/heads/$trunk',
               ], repoPath: path)).ok;
           if (!still) {
-            refused.add('${b.name}: no longer merged into ${trunk ?? 'HEAD'}');
+            refused.add(_l.actBranchNotMerged(b.name, trunk ?? 'HEAD'));
             continue;
           }
         }
@@ -1658,8 +1651,8 @@ class RepoActions {
 
     await _undoable(
       branches.length == 1
-          ? 'Delete branch ${branches.single.name}'
-          : 'Delete ${branches.length} branches',
+          ? _l.actDeleteBranch(branches.single.name)
+          : _l.actDeleteBranches(branches.length),
       forward,
       undo: () async {
         for (final (name, sha) in deleted) {
@@ -1676,7 +1669,7 @@ class RepoActions {
       _ref
           .read(toastProvider.notifier)
           .show(
-            'Some branches were not deleted',
+            _l.actSomeNotDeleted,
             description: refused.join('\n'),
             kind: ToastKind.warning,
           );
@@ -1684,11 +1677,11 @@ class RepoActions {
   }
 
   /// `git gc`. True when it ran to the end.
-  Future<bool> runGc() => _housekeeping('Run gc', _writer.gc);
+  Future<bool> runGc() => _housekeeping(_l.actRunGc, _writer.gc);
 
   /// `git maintenance run`. True when it ran to the end.
   Future<bool> runMaintenance() =>
-      _housekeeping('Run maintenance', _writer.maintenanceRun);
+      _housekeeping(_l.actRunMaintenance, _writer.maintenanceRun);
 
   /// Holds the repository lane but leaves file saves alone: housekeeping
   /// repacks objects and refs and never touches the working tree. Refused
@@ -1711,7 +1704,7 @@ class RepoActions {
   /// the old sha would resurrect a ref that someone else may have moved on
   /// since, which is not the same thing as putting it back.
   Future<void> deleteRemoteBranch(RemoteBranch rb) => _network(
-    'Delete ${rb.name}',
+    _l.actDeleteRef(rb.name),
     (cancel) =>
         _writer.deleteRemoteBranch(rb.remote, rb.branch, cancel: cancel),
     writesWorkingTree: false,
@@ -1729,14 +1722,14 @@ class RepoActions {
     // refused local delete does not still wipe the branch on the remote.
     if (await _branchExists(name)) return;
     await _network(
-      'Delete $upstream',
+      _l.actDeleteRef(upstream),
       (cancel) => _writer.deleteRemoteBranch(
         upstream.substring(0, slash),
         upstream.substring(slash + 1),
         cancel: cancel,
       ),
       writesWorkingTree: false,
-      failureTitle: 'Deleted $name here — $upstream is still on the remote',
+      failureTitle: _l.actDeletedLocalOnly(name, upstream),
     );
   }
 
@@ -1748,7 +1741,7 @@ class RepoActions {
   ], repoPath: path)).ok;
 
   Future<void> renameBranch(String from, String to) => _undoable(
-    'Rename $from → $to',
+    _l.actRenameBranch(from, to),
     () => _writer.renameBranch(from, to),
     undo: () => _writer.renameBranch(to, from),
     redo: () => _writer.renameBranch(from, to),
@@ -1763,14 +1756,14 @@ class RepoActions {
       );
       _refresh();
     } on GitException catch (e) {
-      _toastErr('Set upstream', e);
+      _toastErr(_l.actSetUpstream, e);
     }
   }
 
   Future<void> createTag(String name, {String? at, String? message}) async {
     final target = at ?? await _headSha();
     await _undoable(
-      'Create tag $name',
+      _l.actCreateTag(name),
       () => _writer.createTag(name, at: target, message: message),
       undo: () => _writer.deleteTag(name),
       redo: () => _writer.createTag(name, at: target, message: message),
@@ -1782,7 +1775,7 @@ class RepoActions {
     // returns the tag object, not the commit it points at.
     final sha = await _out(['rev-parse', '$name^{commit}']);
     await _undoable(
-      'Delete tag $name',
+      _l.actDeleteTag(name),
       () => _writer.deleteTag(name),
       undo: () => _writer.createTag(name, at: sha),
       redo: () => _writer.deleteTag(name),
@@ -1793,7 +1786,7 @@ class RepoActions {
   /// against, and must be given when [sha] is a merge commit — the caller picks
   /// it, since only the user knows which side of the merge they want.
   Future<void> cherryPick(String sha, {int? mainline}) => _sequencerOp(
-    label: 'Cherry-pick ${_short(sha)}',
+    label: _l.actCherryPick(_short(sha)),
     branch: _short(sha),
     kind: MergeKind.cherryPick,
     op: () => _writer.cherryPick(sha, mainline: mainline),
@@ -1821,10 +1814,8 @@ class RepoActions {
       _ref
           .read(toastProvider.notifier)
           .show(
-            'Merge commits can\'t be picked together',
-            description:
-                '${_short(merges.split('\n').first)} is a merge. Cherry-pick '
-                'it on its own to choose which parent to replay it against.',
+            _l.actMergesNotTogether,
+            description: _l.actMergePickAlone(_short(merges.split('\n').first)),
             kind: ToastKind.warning,
           );
       return false;
@@ -1832,8 +1823,8 @@ class RepoActions {
     if (noCommit) return _pickStaged(shas);
     return _sequencerOp(
       label: shas.length == 1
-          ? 'Cherry-pick ${_short(shas.single)}'
-          : 'Cherry-pick ${shas.length} commits',
+          ? _l.actCherryPick(_short(shas.single))
+          : _l.actCherryPickN(shas.length),
       branch: _short(shas.first),
       kind: MergeKind.cherryPick,
       op: () => _writer.cherryPickAll(shas),
@@ -1857,17 +1848,16 @@ class RepoActions {
     if ((await _out(['status', '--porcelain', '--untracked-files=no']))
         .isNotEmpty) {
       toast.show(
-        'Uncommitted changes',
-        description:
-            'Commit or stash your changes before picking without committing.',
+        _l.actUncommittedChanges,
+        description: _l.actPickNoCommitDirty,
         kind: ToastKind.warning,
       );
       return false;
     }
     final n = shas.length;
     final label = n == 1
-        ? 'Cherry-pick ${_short(shas.single)} without committing'
-        : 'Cherry-pick $n commits without committing';
+        ? _l.actCherryPickNoCommit(_short(shas.single))
+        : _l.actCherryPickNoCommitN(n);
     final prev = await _headSha();
     _ref.read(busyProvider.notifier).state = BusyState(label);
     final opId = await _journalBegin(label);
@@ -1876,8 +1866,8 @@ class RepoActions {
       await _journalDone(opId);
       _refresh();
       toast.show(
-        n == 1 ? 'Picked ${_short(shas.single)}' : 'Picked $n commits',
-        description: 'The changes are staged — review and commit them.',
+        n == 1 ? _l.actPicked(_short(shas.single)) : _l.actPickedN(n),
+        description: _l.actPickedStaged,
         kind: ToastKind.success,
       );
       return true;
@@ -1900,10 +1890,8 @@ class RepoActions {
       }
       if (conflicted) {
         toast.show(
-          'Conflicts — nothing was picked',
-          description:
-              'Pick with commits to resolve the conflicts one at a time, '
-              'then squash them.',
+          _l.actNothingPicked,
+          description: _l.actPickOneByOne,
           kind: ToastKind.warning,
         );
       } else {
@@ -1937,7 +1925,7 @@ class RepoActions {
 
   /// Reverts [sha], with the same [mainline] requirement for merge commits.
   Future<void> revert(String sha, {int? mainline}) => _sequencerOp(
-    label: 'Revert ${_short(sha)}',
+    label: _l.actRevert(_short(sha)),
     branch: _short(sha),
     kind: MergeKind.revert,
     op: () => _writer.revert(sha, mainline: mainline),
@@ -2034,8 +2022,8 @@ class RepoActions {
       _ref
           .read(toastProvider.notifier)
           .show(
-            'A cherry-pick or revert is unfinished',
-            description: 'Continue or abort it before picking again.',
+            _l.actSequencerUnfinished,
+            description: _l.actSequencerFinishFirst,
             kind: ToastKind.warning,
           );
       return true;
@@ -2043,10 +2031,10 @@ class RepoActions {
     _ref
         .read(toastProvider.notifier)
         .show(
-          'Unresolved conflicts',
-          description: 'Finish or abort the conflict resolution first.',
+          _l.actUnresolvedConflicts,
+          description: _l.actFinishResolution,
           kind: ToastKind.warning,
-          action: ToastAction('Resolve', () {
+          action: ToastAction(_l.actResolveButton, () {
             openConflictResolution();
           }),
         );
@@ -2083,7 +2071,7 @@ class RepoActions {
   Future<bool> _sequencerInProgress() async => await _sequencerKind() != null;
 
   Future<void> resetHard(String sha) =>
-      _resetTo(sha, 'Reset to ${_short(sha)}');
+      _resetTo(sha, _l.actResetTo(_short(sha)));
 
   /// Moves the current branch to [sha] with git's default `--mixed`: the
   /// commits' content stays on disk as unstaged edits, so nothing is lost.
@@ -2098,15 +2086,15 @@ class RepoActions {
       _ref
           .read(toastProvider.notifier)
           .show(
-            'Cannot reset with unresolved conflicts',
-            description: 'Finish or abort the operation in progress first',
+            _l.actCannotResetConflicts,
+            description: _l.actFinishOpFirst,
             kind: ToastKind.warning,
           );
       return;
     }
     Future<void> run() => _writer.resetMixed(sha);
     await _undoable(
-      'Reset to ${_short(sha)} (mixed)',
+      _l.actResetToMixed(_short(sha)),
       run,
       undo: () async {
         await _writer.resetSoft(prev);
@@ -2121,7 +2109,7 @@ class RepoActions {
   Future<void> resetSoft(String sha) async {
     final prev = await _headSha();
     await _undoable(
-      'Reset to ${_short(sha)} (soft)',
+      _l.actResetToSoft(_short(sha)),
       () => _writer.resetSoft(sha),
       undo: () => _writer.resetSoft(prev),
       redo: () => _writer.resetSoft(sha),
@@ -2145,8 +2133,8 @@ class RepoActions {
       _ref
           .read(toastProvider.notifier)
           .show(
-            'Cannot move the current branch',
-            description: 'Reset it instead',
+            _l.actCannotMoveCurrent,
+            description: _l.actResetInstead,
             kind: ToastKind.warning,
           );
       return;
@@ -2156,7 +2144,7 @@ class RepoActions {
     // branch name that has moved since.
     final to = await _out(['rev-parse', sha]);
     await _undoable(
-      'Move $name to ${_short(sha)}',
+      _l.actMoveBranch(name, _short(sha)),
       () => _writer.forceBranch(name, to),
       undo: () => _writer.forceBranch(name, prev),
       redo: () => _writer.forceBranch(name, to),
@@ -2171,8 +2159,8 @@ class RepoActions {
       _ref
           .read(toastProvider.notifier)
           .show(
-            'Cannot fast-forward $target',
-            description: '$target has commits that $to does not',
+            _l.actCannotFastForward(target),
+            description: _l.actHasCommitsNotIn(target, to),
             kind: ToastKind.warning,
           );
       return;
@@ -2181,7 +2169,7 @@ class RepoActions {
       final prev = await _out(['rev-parse', target]);
       final sha = await _out(['rev-parse', to]);
       await _undoable(
-        'Fast-forward $target to $to',
+        _l.actFastForward(target, to),
         () => _writer.forceBranch(target, sha),
         undo: () => _writer.forceBranch(target, prev),
         redo: () => _writer.forceBranch(target, sha),
@@ -2190,7 +2178,7 @@ class RepoActions {
     }
     final prev = await _headSha();
     await _undoable(
-      'Fast-forward $target to $to',
+      _l.actFastForward(target, to),
       () => _writer.mergeFfOnly(to),
       undo: () => _undoReset(prev),
       redo: () => _writer.mergeFfOnly(to),
@@ -2207,7 +2195,7 @@ class RepoActions {
   /// Resets the current branch to a remote-tracking ref (e.g. `origin/x`),
   /// discarding any unpushed commits. Uncommitted work is auto-stashed and the
   /// whole reset is undoable, exactly like [resetHard].
-  Future<void> resetToRemote(String ref) => _resetTo(ref, 'Reset to $ref');
+  Future<void> resetToRemote(String ref) => _resetTo(ref, _l.actResetTo(ref));
 
   Future<void> _resetTo(String target, String label) async {
     final prev = await _headSha();
@@ -2249,7 +2237,7 @@ class RepoActions {
   }
 
   Future<void> pushTag(String name) => _network(
-    'Push tag $name',
+    _l.actPushTag(name),
     (cancel) => _writer.pushTag(name, cancel: cancel),
     writesWorkingTree: false,
   );
@@ -2259,7 +2247,7 @@ class RepoActions {
   /// back on a remote that other people may have already re-synced against.
   Future<void> deleteRemoteTag(String name, {String remote = 'origin'}) =>
       _network(
-        'Delete tag $name on $remote',
+        _l.actDeleteRemoteTag(name, remote),
         (cancel) =>
             _writer.deleteRemoteTag(name, remote: remote, cancel: cancel),
         writesWorkingTree: false,
@@ -2279,7 +2267,7 @@ class RepoActions {
       await _timed('Stash push', () => _writer.stashPush(options, timeout));
       _refresh();
     } on GitException catch (e) {
-      _toastErr('Stash', e);
+      _toastErr(_l.actStash, e);
     }
   }
 
@@ -2296,7 +2284,7 @@ class RepoActions {
     } on GitException catch (e) {
       // A refused checkout can still have created the branch; show that.
       _refresh();
-      _toastErr('Branch from stash', e);
+      _toastErr(_l.actBranchFromStash, e);
     }
   }
 
@@ -2307,7 +2295,7 @@ class RepoActions {
       _refresh();
     } on GitException catch (e) {
       _refresh();
-      _toastErr('Rename stash', e);
+      _toastErr(_l.actRenameStash, e);
     }
   }
 
@@ -2321,7 +2309,7 @@ class RepoActions {
     bool untracked = false,
   }) async {
     if (_blockedByRepoOp) return;
-    final label = 'Apply $path from stash';
+    final label = _l.actApplyFromStash(path);
     final String patch;
     try {
       patch = await GitReader(_git, this.path).stashFilePatch(
@@ -2339,11 +2327,8 @@ class RepoActions {
   }
 
   /// Lays [patch], taken from a stash, onto the working tree. Undoable.
-  Future<void> applyStashPatch(
-    String patch, {
-    String label = 'Apply hunk from stash',
-  }) => _undoable(
-    label,
+  Future<void> applyStashPatch(String patch, {String? label}) => _undoable(
+    label ?? _l.actApplyHunkFromStash,
     () => _writer.applyToWorktree(patch),
     undo: () => _writer.applyToWorktree(patch, reverse: true),
     redo: () => _writer.applyToWorktree(patch),
@@ -2355,7 +2340,7 @@ class RepoActions {
       await _timed('Stash apply $ref', () => _writer.stashApply(ref));
       _refresh();
     } on GitException catch (e) {
-      await _openStashConflictOrToast('Stash apply', e, dropRef: null);
+      await _openStashConflictOrToast(_l.actStashApply, e, dropRef: null);
     }
   }
 
@@ -2366,7 +2351,7 @@ class RepoActions {
       _refresh();
     } on GitException catch (e) {
       // A conflicted pop keeps the stash; drop it once the resolution finishes.
-      await _openStashConflictOrToast('Stash pop', e, dropRef: ref);
+      await _openStashConflictOrToast(_l.actStashPop, e, dropRef: ref);
     }
   }
 
@@ -2384,7 +2369,7 @@ class RepoActions {
     }
     _ref.read(mergeSessionProvider(path).notifier).state = MergeSession(
       kind: MergeKind.stash,
-      branch: 'Stashed changes',
+      branch: _l.actStashedChanges,
       dropStashRef: dropRef,
       files: conflicts,
     );
@@ -2401,18 +2386,18 @@ class RepoActions {
       _ref
           .read(toastProvider.notifier)
           .show(
-            'Dropped stash',
-            action: ToastAction('Undo', () async {
+            _l.actDroppedStash,
+            action: ToastAction(_l.actUndoButton, () async {
               try {
                 await _writer.stashStore(sha);
                 _refresh();
               } on GitException catch (e) {
-                _toastErr('Restore stash', e);
+                _toastErr(_l.actRestoreStash, e);
               }
             }),
           );
     } on GitException catch (e) {
-      _toastErr('Stash drop', e);
+      _toastErr(_l.actStashDrop, e);
     }
   }
 
@@ -2439,7 +2424,7 @@ class RepoActions {
     // like. Only the first run can be cancelled; a redo has no busy bar.
     final cancel = GitCancel();
     _ref.read(busyProvider.notifier).state = BusyState(
-      'Merge $branch',
+      _l.actMerge(branch),
       onCancel: cancel.cancel,
     );
     final id = _identity;
@@ -2460,7 +2445,7 @@ class RepoActions {
             .read(undoProvider(path).notifier)
             .record(
               UndoEntry(
-                'Merge $branch',
+                _l.actMerge(branch),
                 undo: () async {
                   await _undoReset(prev);
                   _refresh();
@@ -2476,9 +2461,7 @@ class RepoActions {
       _ref
           .read(toastProvider.notifier)
           .show(
-            staged
-                ? 'Merged $branch — staged, not committed'
-                : 'Merged $branch',
+            staged ? _l.actMergedStaged(branch) : _l.actMerged(branch),
             kind: ToastKind.success,
           );
     } on GitCancelledException {
@@ -2491,17 +2474,17 @@ class RepoActions {
         try {
           await _writer.mergeAbort();
         } on GitException catch (e) {
-          _toastErr('Merge', e);
+          _toastErr(_l.actMergeLabel, e);
         }
       }
       _refresh();
       _ref
           .read(toastProvider.notifier)
-          .show('Merge cancelled', kind: ToastKind.warning);
+          .show(_l.actCancelled(_l.actMergeLabel), kind: ToastKind.warning);
     } on GitException catch (e) {
       final conflicts = await _conflictFiles();
       if (conflicts.isEmpty) {
-        _toastErr('Merge', e);
+        _toastErr(_l.actMergeLabel, e);
         return;
       }
       _ref.read(mergeSessionProvider(path).notifier).state = MergeSession(
@@ -2555,8 +2538,8 @@ class RepoActions {
         _ref
             .read(toastProvider.notifier)
             .show(
-              '$label cancelled',
-              description: 'The switch had already finished.',
+              _l.actCancelled(label),
+              description: _l.actSwitchFinished,
               kind: ToastKind.warning,
             );
         return false;
@@ -2566,10 +2549,10 @@ class RepoActions {
       _refresh();
       _ref
           .read(toastProvider.notifier)
-          .show('$label cancelled', kind: ToastKind.warning);
+          .show(_l.actCancelled(label), kind: ToastKind.warning);
       return false;
     } on GitException catch (e) {
-      if (!quiet) _toastErr('Checkout', e);
+      if (!quiet) _toastErr(_l.actCheckoutLabel, e);
       return false;
     } finally {
       if (claimed) _ref.read(busyProvider.notifier).state = null;
@@ -2578,7 +2561,7 @@ class RepoActions {
 
   Future<bool> _switchTo(String branch) async {
     final ok = await _lfsSwitch(
-      'Checkout $branch',
+      _l.actCheckout(branch),
       branch,
       (timeout, cancel) => _checkoutPuttingBack(
         branch,
@@ -2590,7 +2573,7 @@ class RepoActions {
     if (await _headRef() != branch) {
       _ref
           .read(toastProvider.notifier)
-          .show('Could not switch to $branch', kind: ToastKind.warning);
+          .show(_l.actCouldNotSwitch(branch), kind: ToastKind.warning);
       return false;
     }
     return true;
@@ -2617,7 +2600,7 @@ class RepoActions {
   Future<bool> _switchToRemote(RemoteBranch rb) async {
     if (rb.hasLocal) return _switchTo(rb.branch);
     var cancelled = false;
-    final ok = await _lfsSwitch('Checkout ${rb.name}', rb.name, (
+    final ok = await _lfsSwitch(_l.actCheckout(rb.name), rb.name, (
       timeout,
       cancel,
     ) async {
@@ -2644,7 +2627,7 @@ class RepoActions {
     if (await _headRef() != rb.branch) {
       _ref
           .read(toastProvider.notifier)
-          .show('Could not switch to ${rb.branch}', kind: ToastKind.warning);
+          .show(_l.actCouldNotSwitch(rb.branch), kind: ToastKind.warning);
       return false;
     }
     return true;
@@ -2777,10 +2760,7 @@ class RepoActions {
       ),
       // As for [rebase]: signing waits on a prompt per commit.
       cancellable: sign,
-      note: merges == 0
-          ? null
-          : '${merges == 1 ? 'A merge commit was' : '$merges merge commits were'} '
-                'flattened into a linear history. Undo restores them.',
+      note: merges == 0 ? null : _l.actMergesFlattened(merges),
     );
   }
 
@@ -2870,11 +2850,7 @@ class RepoActions {
     );
     _ref
         .read(toastProvider.notifier)
-        .show(
-          'Fixup message ready',
-          description:
-              'Stage the fix and commit it; an autosquash rebase folds it in.',
-        );
+        .show(_l.actFixupReady, description: _l.actFixupHint);
   }
 
   /// Everything git printed for [e], stdout first: an exec's own output lands
@@ -2903,12 +2879,10 @@ class RepoActions {
       _ref
           .read(toastProvider.notifier)
           .show(
-            'Rebase cancelled',
+            _l.actCancelled(_l.actRebase),
             // Only git itself is killed (see GitCancel.cancel): the command it
             // was running can outlive it.
-            description:
-                'Stopped at `${stop.command ?? stop.kind.name}`. Anything it '
-                'started may still be running. Continue without it, or abort.',
+            description: _l.actRebaseStoppedAt(stop.command ?? stop.kind.name),
             kind: ToastKind.warning,
           );
       return;
@@ -2917,19 +2891,14 @@ class RepoActions {
         .read(toastProvider.notifier)
         .show(
           switch (stop.kind) {
-            RebaseStopKind.exec => 'Exec step failed',
-            RebaseStopKind.reword => 'New commit message was rejected',
-            RebaseStopKind.breakpoint => 'Rebase paused at a break',
+            RebaseStopKind.exec => _l.actExecFailed,
+            RebaseStopKind.reword => _l.actRewordRejected,
+            RebaseStopKind.breakpoint => _l.actRebaseBreak,
           },
           description: switch (stop.kind) {
-            RebaseStopKind.exec =>
-              '`${stop.command}` failed. Fix it, commit, then continue from '
-                  'the Changes panel.',
-            RebaseStopKind.reword =>
-              'git refused it — usually a commit hook. Amend the message '
-                  'yourself, or continue to keep the old one.',
-            RebaseStopKind.breakpoint =>
-              'Look around or amend, then continue from the Changes panel.',
+            RebaseStopKind.exec => _l.actExecFailedHint(stop.command ?? ''),
+            RebaseStopKind.reword => _l.actRewordRejectedHint,
+            RebaseStopKind.breakpoint => _l.actBreakHint,
           },
           kind: ToastKind.warning,
         );
@@ -3076,7 +3045,7 @@ class RepoActions {
   }) async {
     final toasts = _ref.read(toastProvider.notifier);
     if (summary.trim().isEmpty) {
-      toasts.show('Commit message is empty', kind: ToastKind.warning);
+      toasts.show(_l.actCommitMessageEmpty, kind: ToastKind.warning);
       return null;
     }
     final target = await _out(['rev-parse', sha]);
@@ -3100,7 +3069,7 @@ class RepoActions {
       // The tree is unchanged, so soft-resetting to the original commit puts
       // history back exactly as it was and stages nothing extra.
       await _undoable(
-        'Reword commit',
+        _l.actReword,
         () => amend(cancel: cancel),
         cancel: cancel,
         undo: () => _writer.resetSoft(prev),
@@ -3114,10 +3083,7 @@ class RepoActions {
       return rejection;
     }
     if (!await _isAncestorOfHead(target)) {
-      toasts.show(
-        'Commit is not on the current branch',
-        kind: ToastKind.warning,
-      );
+      toasts.show(_l.actNotOnBranch, kind: ToastKind.warning);
       return null;
     }
     // An empty parent means the root commit, which git rebases with `--root`.
@@ -3125,10 +3091,8 @@ class RepoActions {
     final range = parent.isEmpty ? 'HEAD' : '$parent..HEAD';
     if (await rebaseCrossesMerge(parent)) {
       toasts.show(
-        'Cannot edit this message',
-        description:
-            'Rewriting it would replay a merge commit, which would flatten '
-            'the history above it.',
+        _l.actCannotEditMessage,
+        description: _l.actRewordWouldFlatten,
         kind: ToastKind.warning,
       );
       return null;
@@ -3176,15 +3140,15 @@ class RepoActions {
       _ref
           .read(toastProvider.notifier)
           .show(
-            'A rebase is already in progress',
-            description: 'Finish or abort it before starting another one.',
+            _l.actRebaseInProgress,
+            description: _l.actRebaseFinishFirst,
             kind: ToastKind.warning,
-            action: ToastAction('Abort rebase', () async {
+            action: ToastAction(_l.actAbortRebase, () async {
               try {
                 await _writer.rebaseAbort();
                 _refresh();
               } on GitException catch (e) {
-                _toastErr('Abort rebase', e);
+                _toastErr(_l.actAbortRebase, e);
               }
             }),
           );
@@ -3194,7 +3158,7 @@ class RepoActions {
     _ref.read(rebaseExecOutputProvider(path).notifier).state = null;
     final cancel = cancellable ? GitCancel() : null;
     _ref.read(busyProvider.notifier).state = BusyState(
-      'Rebase',
+      _l.actRebase,
       onCancel: cancel?.cancel,
     );
     try {
@@ -3210,7 +3174,7 @@ class RepoActions {
           .read(undoProvider(path).notifier)
           .record(
             UndoEntry(
-              'Rebase',
+              _l.actRebase,
               undo: () async {
                 await _undoReset(prev);
                 _refresh();
@@ -3225,7 +3189,11 @@ class RepoActions {
       _refresh();
       _ref
           .read(toastProvider.notifier)
-          .show('Rebase complete', description: note, kind: ToastKind.success);
+          .show(
+            _l.actComplete(_l.actRebase),
+            description: note,
+            kind: ToastKind.success,
+          );
     } on GitException catch (e) {
       final conflicts = await _conflictFiles();
       if (conflicts.isEmpty) {
@@ -3257,8 +3225,8 @@ class RepoActions {
           _ref
               .read(toastProvider.notifier)
               .show(
-                'Rebase cancelled',
-                description: 'The branch is as it was before the rebase.',
+                _l.actCancelled(_l.actRebase),
+                description: _l.actRebaseRestored,
                 kind: ToastKind.warning,
               );
           return;
@@ -3273,11 +3241,9 @@ class RepoActions {
               .read(toastProvider.notifier)
               .show(
                 e is GitCancelledException
-                    ? 'Rebase cancelled'
-                    : 'Rebase paused',
-                description:
-                    'Nothing to resolve — continue it from the Changes panel, '
-                    'or abort to go back.',
+                    ? _l.actCancelled(_l.actRebase)
+                    : _l.actRebasePaused,
+                description: _l.actRebaseNothingToResolve,
                 kind: ToastKind.warning,
               );
           return;
@@ -3286,7 +3252,7 @@ class RepoActions {
         // failure. Clear any state directory git left, which would otherwise
         // poison every later rebase.
         if (await isRebaseInProgress()) await _writer.rebaseAbort();
-        _toastErr('Rebase', e);
+        _toastErr(_l.actRebase, e);
         return;
       }
       _ref.read(mergeSessionProvider(path).notifier).state = MergeSession(
@@ -3310,7 +3276,7 @@ class RepoActions {
     try {
       await _timed('Resolve conflicts', () => _resolveConflicts(session));
     } on GitException catch (e) {
-      _toastErr('Resolve', e);
+      _toastErr(_l.actResolveConflicts, e);
     }
   }
 
@@ -3362,11 +3328,11 @@ class RepoActions {
     _ref
         .read(toastProvider.notifier)
         .show(
-          'Conflicts resolved',
+          _l.actConflictsResolved,
           description: switch (session.kind) {
             MergeKind.stash => null,
-            MergeKind.merge => 'Review the staged result, then commit it.',
-            _ => 'Review the staged result, then continue.',
+            MergeKind.merge => _l.actReviewThenCommit,
+            _ => _l.actReviewThenContinue,
           },
           kind: ToastKind.success,
         );
@@ -3380,9 +3346,9 @@ class RepoActions {
     if (pending == null || !pending.continues) return;
     if (_blockedByRepoOp) return;
     final label = switch (pending.kind) {
-      MergeKind.rebase => 'Continue rebase',
-      MergeKind.cherryPick => 'Continue cherry-pick ${pending.branch}',
-      _ => 'Continue revert ${pending.branch}',
+      MergeKind.rebase => _l.actContinueRebase,
+      MergeKind.cherryPick => _l.actContinueCherryPick(pending.branch),
+      _ => _l.actContinueRevert(pending.branch),
     };
     // A cherry-pick or revert commits through the user's hooks, and a rebase's
     // queued steps may include a command of the user's, or a signature that
@@ -3404,7 +3370,7 @@ class RepoActions {
       _refresh();
       _ref
           .read(toastProvider.notifier)
-          .show('$label cancelled', kind: ToastKind.warning);
+          .show(_l.actCancelled(label), kind: ToastKind.warning);
     } on GitException catch (e) {
       _toastErr(label, e);
     } finally {
@@ -3507,17 +3473,17 @@ class RepoActions {
         (base != null && await _headSha() != base);
     if (base != null && moved) {
       await _recordFinishUndo(base, switch (pending.kind) {
-        MergeKind.rebase => 'Rebase',
-        MergeKind.cherryPick => 'Cherry-pick ${pending.branch}',
-        _ => 'Revert ${pending.branch}',
+        MergeKind.rebase => _l.actRebase,
+        MergeKind.cherryPick => _l.actCherryPick(pending.branch),
+        _ => _l.actRevert(pending.branch),
       });
     }
     _ref.read(_opBaseProvider(path).notifier).state = null;
     _refresh();
     _ref.read(toastProvider.notifier).show(switch (pending.kind) {
-      MergeKind.rebase => 'Rebase complete',
-      MergeKind.cherryPick => 'Cherry-pick ${pending.branch} complete',
-      _ => 'Revert ${pending.branch} complete',
+      MergeKind.rebase => _l.actComplete(_l.actRebase),
+      MergeKind.cherryPick => _l.actComplete(_l.actCherryPick(pending.branch)),
+      _ => _l.actComplete(_l.actRevert(pending.branch)),
     }, kind: ToastKind.success);
   }
 
@@ -3623,15 +3589,13 @@ class RepoActions {
   /// someone's work without being asked.
   Future<void> startBisect(String sha) async {
     if (_blockedByBisectRun) return;
-    final id = await _journalBegin('Bisect: start');
+    final id = await _journalBegin(_l.actBisectStartStep);
     try {
       // Inside the try because it is a git call like any other: one that
       // cannot run has to be reported, not thrown out of a button callback
       // nobody awaits, where it disappears without a toast or a journal entry.
       if (await _treeIsDirty()) {
-        throw GitException(
-          'Commit or stash your changes before starting a bisect.',
-        );
+        throw GitException(_l.actBisectDirty);
       }
       await _timed('Bisect start', () async {
         await _writer.bisectStart();
@@ -3640,7 +3604,7 @@ class RepoActions {
       await _journalDone(id);
     } catch (e) {
       await _journalFail(id);
-      _toastErr('Bisect', e);
+      _toastErr(_l.actBisect, e);
     }
     _refresh();
   }
@@ -3658,7 +3622,7 @@ class RepoActions {
     try {
       current = await bisectState();
     } catch (e) {
-      _toastErr('Bisect', e);
+      _toastErr(_l.actBisect, e);
       return;
     }
     if (current == null) {
@@ -3666,8 +3630,8 @@ class RepoActions {
         _ref
             .read(toastProvider.notifier)
             .show(
-              'Bisect',
-              description: 'Mark a bad commit to start a bisect.',
+              _l.actBisect,
+              description: _l.actBisectNeedsBad,
               kind: ToastKind.error,
             );
         return;
@@ -3678,7 +3642,7 @@ class RepoActions {
     // somewhere other than its declaration keeps its promotion in straight
     // line code but loses it inside a closure.
     final terms = current.terms;
-    final id = await _journalBegin('Bisect: mark ${kind.name}');
+    final id = await _journalBegin(_l.actBisectMarkStep(kind.name));
     try {
       await _timed('Bisect ${kind.name}', () async {
         if (kind == BisectKind.skip) {
@@ -3690,7 +3654,7 @@ class RepoActions {
       await _journalDone(id);
     } catch (e) {
       await _journalFail(id);
-      _toastErr('Bisect', e);
+      _toastErr(_l.actBisect, e);
     }
     _refresh();
   }
@@ -3702,7 +3666,7 @@ class RepoActions {
     try {
       sha = (await bisectState())?.currentSha;
     } catch (e) {
-      _toastErr('Bisect', e);
+      _toastErr(_l.actBisect, e);
       return;
     }
     if (sha == null) return;
@@ -3718,13 +3682,13 @@ class RepoActions {
   /// launch can still read and reset cleanly.
   Future<void> resetBisect() async {
     if (_blockedByBisectRun) return;
-    final id = await _journalBegin('Bisect: reset');
+    final id = await _journalBegin(_l.actBisectResetStep);
     try {
       await _timed('Bisect reset', () => _writer.bisectReset());
       await _journalDone(id);
     } catch (e) {
       await _journalFail(id);
-      _toastErr('Bisect', e);
+      _toastErr(_l.actBisect, e);
     }
     _refresh();
   }
@@ -3770,18 +3734,15 @@ class RepoActions {
     } catch (e) {
       // Unknown is not clean, and there is no lane or journal entry to unwind
       // because nothing has been claimed yet.
-      _toastErr('Bisect run', e);
+      _toastErr(_l.actBisectRun, e);
       return null;
     }
     if (dirty) {
       _ref
           .read(toastProvider.notifier)
           .show(
-            'Bisect run',
-            description:
-                'Commit or stash your changes before handing the hunt to a '
-                'command: it would test your uncommitted edits and record the '
-                'verdict against the commit git checked out.',
+            _l.actBisectRun,
+            description: _l.actBisectRunDirty,
             kind: ToastKind.error,
           );
       return null;
@@ -3791,10 +3752,10 @@ class RepoActions {
     // The status bar renders Cancel from this, so a stalled command can be
     // given up on without a second affordance of our own.
     _ref.read(busyProvider.notifier).state = BusyState(
-      'Bisect run',
+      _l.actBisectRun,
       onCancel: cancel.cancel,
     );
-    final id = await _journalBegin('Bisect: run');
+    final id = await _journalBegin(_l.actBisectRunStep);
     try {
       final r = await _timed(
         'Bisect run',
@@ -3823,7 +3784,7 @@ class RepoActions {
         // Wrapped so the shared handler applies the usual preference for
         // git's own stderr over any message of ours — for an unrecognised
         // failure git's wording is all there is to go on.
-        _toastErr('Bisect run', GitException('git bisect run', r));
+        _toastErr(_l.actBisectRun, GitException('git bisect run', r));
       }
       return outcome;
     } on GitCancelledException {
@@ -3831,7 +3792,7 @@ class RepoActions {
       return BisectRunOutcome.cancelled;
     } catch (e) {
       await _journalFail(id);
-      _toastErr('Bisect run', e);
+      _toastErr(_l.actBisectRun, e);
       return BisectRunOutcome.failed;
     } finally {
       _ref.read(bisectRunProvider(path).notifier).state = null;
@@ -3852,14 +3813,14 @@ class RepoActions {
   /// Reads nothing about the repository's own state, so there is nothing for
   /// the graph to catch up with and no refresh to schedule.
   Future<String?> bisectLog() async {
-    final id = await _journalBegin('Bisect: log');
+    final id = await _journalBegin(_l.actBisectLogStep);
     try {
       final log = await _timed('Bisect log', () => _writer.bisectLog());
       await _journalDone(id);
       return log;
     } catch (e) {
       await _journalFail(id);
-      _toastErr('Bisect', e);
+      _toastErr(_l.actBisect, e);
       return null;
     }
   }
@@ -3976,7 +3937,7 @@ class RepoActions {
         }
       });
     } on GitException catch (e) {
-      _toastErr('Abort', e);
+      _toastErr(_l.actAbort, e);
     }
     _ref.read(mergeSessionProvider(path).notifier).state = null;
     _ref.read(_opBaseProvider(path).notifier).state = null;
@@ -4000,7 +3961,7 @@ class RepoActions {
       await _timed(label, op);
       _ref
           .read(toastProvider.notifier)
-          .show('$label complete', kind: ToastKind.success);
+          .show(_l.actComplete(label), kind: ToastKind.success);
       return true;
     } on GitException catch (e) {
       _toastErr(label, e);
@@ -4009,8 +3970,8 @@ class RepoActions {
       _ref
           .read(toastProvider.notifier)
           .show(
-            '$label failed',
-            description: 'Unexpected error',
+            _l.actFailed(label),
+            description: _l.actUnexpectedError,
             kind: ToastKind.error,
           );
       return false;
@@ -4034,7 +3995,7 @@ class RepoActions {
     String? existingBranch,
     bool detach = false,
   }) => _local(
-    'Add worktree',
+    _l.actAddWorktree,
     () => _writer.addWorktree(
       at,
       newBranch: newBranch,
@@ -4058,13 +4019,13 @@ class RepoActions {
       _ref.read(workspaceProvider.notifier).closeTabsAt(at);
       _ref
           .read(toastProvider.notifier)
-          .show('Remove worktree complete', kind: ToastKind.success);
+          .show(_l.actComplete(_l.actRemoveWorktree), kind: ToastKind.success);
       return null;
     } on GitException catch (e) {
       final err = e.result?.err ?? '';
       return err.isNotEmpty ? err : e.message;
     } on Object catch (_) {
-      return 'Unexpected error';
+      return _l.actUnexpectedError;
     } finally {
       _refresh();
       _invalidateWorktrees();
@@ -4076,18 +4037,20 @@ class RepoActions {
   /// on the old path would sit on nothing.
   Future<bool> worktreeMove(String from, String to) async {
     final ok = await _local(
-      'Move worktree',
+      _l.actMoveWorktree,
       () => _writer.moveWorktree(from, to),
     );
     if (ok) _ref.read(workspaceProvider.notifier).retargetTabs(from, to);
     return ok;
   }
 
-  Future<bool> worktreeLock(String at, {String? reason}) =>
-      _local('Lock worktree', () => _writer.lockWorktree(at, reason: reason));
+  Future<bool> worktreeLock(String at, {String? reason}) => _local(
+    _l.actLockWorktree,
+    () => _writer.lockWorktree(at, reason: reason),
+  );
 
   Future<bool> worktreeUnlock(String at) =>
-      _local('Unlock worktree', () => _writer.unlockWorktree(at));
+      _local(_l.actUnlockWorktree, () => _writer.unlockWorktree(at));
 
   /// Returns git's report. A dry run changes nothing and is shown to the user
   /// before the real prune.
@@ -4098,14 +4061,14 @@ class RepoActions {
         () => _writer.pruneWorktrees(dryRun: dryRun),
       );
     } on GitException catch (e) {
-      _toastErr('Prune worktrees', e);
+      _toastErr(_l.actPruneWorktrees, e);
       return '';
     } on Object catch (_) {
       _ref
           .read(toastProvider.notifier)
           .show(
-            'Prune worktrees failed',
-            description: 'Unexpected error',
+            _l.actFailed(_l.actPruneWorktrees),
+            description: _l.actUnexpectedError,
             kind: ToastKind.error,
           );
       return '';

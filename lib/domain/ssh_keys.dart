@@ -56,18 +56,19 @@ class SshKeys {
   /// Generates a new ed25519 key pair named [name] via the system
   /// `ssh-keygen`. The key is created without a passphrase (the standard for
   /// tooling-managed keys); the UI advises `ssh-keygen -p` to add one.
-  /// Returns the new public key, or throws with ssh-keygen's stderr.
+  /// Returns the new public key, or throws an [SshKeyException] carrying
+  /// ssh-keygen's stderr when it fails.
   Future<SshKey> generate(String name, {required String comment}) async {
     // The name is a file stem inside ~/.ssh — never a path. Reject separators
     // and dot-segments so a crafted name cannot write outside the directory.
     if (name.isEmpty ||
         !RegExp(r'^[A-Za-z0-9._-]+$').hasMatch(name) ||
         name.contains('..')) {
-      throw StateError('Invalid key name: $name');
+      throw SshKeyException(SshKeyError.invalidName, name);
     }
     final keyPath = p.join(sshDir, name);
     if (File(keyPath).existsSync() || File('$keyPath.pub').existsSync()) {
-      throw StateError('A key named $name already exists');
+      throw SshKeyException(SshKeyError.exists, name);
     }
     await Directory(sshDir).create(recursive: true);
     // Strip control characters and leading dashes from the comment to prevent
@@ -86,9 +87,35 @@ class SshKeys {
       safeComment,
     ]);
     if (r.exitCode != 0) {
-      throw StateError('ssh-keygen failed: ${r.stderr}');
+      throw SshKeyException(
+        SshKeyError.keygenFailed,
+        name,
+        detail: '${r.stderr}',
+      );
     }
     final publicKey = (await File('$keyPath.pub').readAsString()).trim();
     return SshKey(name: name, path: '$keyPath.pub', publicKey: publicKey);
   }
+}
+
+/// Why [SshKeys.generate] refused or failed.
+enum SshKeyError { invalidName, exists, keygenFailed }
+
+/// A key that could not be generated. The UI words it from [kind]; the
+/// English [toString] is for logs.
+class SshKeyException implements Exception {
+  final SshKeyError kind;
+  final String name;
+
+  /// What ssh-keygen printed, for [SshKeyError.keygenFailed].
+  final String detail;
+
+  const SshKeyException(this.kind, this.name, {this.detail = ''});
+
+  @override
+  String toString() => switch (kind) {
+    SshKeyError.invalidName => 'Invalid key name: $name',
+    SshKeyError.exists => 'A key named $name already exists',
+    SshKeyError.keygenFailed => 'ssh-keygen failed: $detail',
+  };
 }
