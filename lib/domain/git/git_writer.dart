@@ -115,6 +115,12 @@ class GitWriter {
   /// outlast the ordinary default.
   static const patchApplyTimeout = Duration(minutes: 5);
 
+  /// Ceiling for a command that runs the user's commit hooks. A pre-commit
+  /// running a linter or a test suite, or a signed commit waiting on a GPG
+  /// passphrase prompt, routinely outlasts the ordinary default; cancelling
+  /// remains the way out of one that is actually stuck.
+  static const hookTimeout = Duration(minutes: 30);
+
   /// Resolved once per repository: the ssh command git would use anyway, plus
   /// what a command that hits an authentication prompt needs.
   Map<String, String>? _netEnvCache;
@@ -522,7 +528,8 @@ class GitWriter {
     MergeFavor favor = MergeFavor.none,
     String? authorName,
     String? authorEmail,
-  }) => _traced(what: 'git merge', [
+    GitCancel? cancel,
+  }) => _traced(what: 'git merge', cancel: cancel, [
     ..._identity(authorName, authorEmail),
     'merge',
     if (squash)
@@ -830,12 +837,16 @@ class GitWriter {
 
   /// Commits a cherry-pick that paused on conflicts, once the resolution is
   /// staged. `GIT_EDITOR=true` keeps the picked message without prompting.
-  Future<void> cherryPickContinue({String? authorName, String? authorEmail}) =>
-      _traced(
-        [..._identity(authorName, authorEmail), 'cherry-pick', '--continue'],
-        what: 'git cherry-pick --continue',
-        environment: {'GIT_EDITOR': 'true'},
-      );
+  Future<void> cherryPickContinue({
+    String? authorName,
+    String? authorEmail,
+    GitCancel? cancel,
+  }) => _traced(
+    [..._identity(authorName, authorEmail), 'cherry-pick', '--continue'],
+    what: 'git cherry-pick --continue',
+    environment: {'GIT_EDITOR': 'true'},
+    cancel: cancel,
+  );
 
   /// Drops the paused commit from the cherry-pick sequence — the way out when
   /// the resolution left nothing to commit.
@@ -855,12 +866,16 @@ class GitWriter {
       _ok(['revert', '--abort'], 'git revert --abort');
 
   /// Commits a revert that paused on conflicts, once the resolution is staged.
-  Future<void> revertContinue({String? authorName, String? authorEmail}) =>
-      _traced(
-        [..._identity(authorName, authorEmail), 'revert', '--continue'],
-        what: 'git revert --continue',
-        environment: {'GIT_EDITOR': 'true'},
-      );
+  Future<void> revertContinue({
+    String? authorName,
+    String? authorEmail,
+    GitCancel? cancel,
+  }) => _traced(
+    [..._identity(authorName, authorEmail), 'revert', '--continue'],
+    what: 'git revert --continue',
+    environment: {'GIT_EDITOR': 'true'},
+    cancel: cancel,
+  );
 
   /// Drops the paused commit from the revert sequence (empty resolution).
   Future<void> revertSkip() => _ok(['revert', '--skip'], 'git revert --skip');
@@ -1112,6 +1127,7 @@ class GitWriter {
     List<CommitTrailer> trailers = const [],
     String? authorName,
     String? authorEmail,
+    GitCancel? cancel,
   }) async {
     final message = buildCommitMessage(
       summary,
@@ -1134,17 +1150,21 @@ class GitWriter {
       if (signoff) '--signoff',
       '-m',
       message,
-    ]);
+    ], cancel: cancel);
   }
 
   /// Runs a git command that may run hooks and, when one refuses it, throws
   /// [HookRejectedException] naming the hook. Git prints little or nothing of
   /// its own in that case — the transcript is the hook's — so the hook is read
-  /// from the trace git writes as it runs children.
+  /// from the trace git writes as it runs children. Hooks are the user's own
+  /// programs, so the command runs under [timeout] rather than the ordinary
+  /// default.
   Future<void> _traced(
     List<String> args, {
     String what = 'git commit',
     Map<String, String>? environment,
+    Duration timeout = hookTimeout,
+    GitCancel? cancel,
   }) async {
     final dir = _privateTempDir();
     // Without a private place for the trace the command still runs; it only
@@ -1163,6 +1183,8 @@ class GitWriter {
           ...?environment,
           if (trace != null) 'GIT_TRACE2_EVENT': trace.path,
         },
+        timeout: timeout,
+        cancel: cancel,
       );
       if (r.ok) return;
       final hook = trace != null && await trace.exists()
@@ -1223,7 +1245,8 @@ class GitWriter {
     bool noVerify = false,
     String? authorName,
     String? authorEmail,
-  }) => _traced([
+    GitCancel? cancel,
+  }) => _traced(cancel: cancel, [
     ..._identity(authorName, authorEmail),
     'commit',
     '--amend',
