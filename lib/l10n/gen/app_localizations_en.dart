@@ -5269,4 +5269,100 @@ class AppLocalizationsEn extends AppLocalizations {
   String pfSshKeygenFailed(String detail) {
     return 'ssh-keygen failed: $detail';
   }
+
+  @override
+  String get prefsTabRepository => 'Repository';
+
+  @override
+  String get rcfgNoRepo => 'Open a repository to see its git settings.';
+
+  @override
+  String get rcfgWriteTo => 'Write to';
+
+  @override
+  String get rcfgScopeLocal => 'This repository';
+
+  @override
+  String get rcfgScopeGlobal => 'Global';
+
+  @override
+  String get rcfgScopeSystem => 'System';
+
+  @override
+  String get rcfgScopeWorktree => 'Worktree';
+
+  @override
+  String get rcfgScopeCommand => 'Command line';
+
+  @override
+  String get rcfgScopeOther => 'Other';
+
+  @override
+  String get rcfgInherit => 'Inherit';
+
+  @override
+  String rcfgInEffect(String value, String scope) {
+    return 'In effect: $value — $scope';
+  }
+
+  @override
+  String get rcfgNotSet => 'In effect: not set — git\'s default';
+
+  @override
+  String get rcfgUserName => 'Name';
+
+  @override
+  String get rcfgUserEmail => 'Email';
+
+  @override
+  String get rcfgPullRebase => 'Pull with rebase';
+
+  @override
+  String get rcfgAutoSetupRemote => 'Set upstream on first push';
+
+  @override
+  String get rcfgFetchPrune => 'Prune on fetch';
+
+  @override
+  String get rcfgAutocrlf => 'Line endings';
+
+  @override
+  String get rcfgGpgSign => 'Sign commits';
+
+  @override
+  String get rcfgRerere => 'Reuse recorded resolutions';
+
+  @override
+  String get rcfgSave => 'Save';
+
+  @override
+  String rcfgProfileNote(String label, String name, String email) {
+    return 'Commits made in Mergelio use the profile «$label»: $name <$email>. These values apply to git outside Mergelio.';
+  }
+
+  @override
+  String get rcfgPullRebaseApp =>
+      'Mergelio\'s pull strategy is Rebase, so Mergelio pulls with --rebase whatever this says.';
+
+  @override
+  String get rcfgPullMergeApp =>
+      'Mergelio\'s pull strategy is Merge, which leaves it to git: this setting decides.';
+
+  @override
+  String get rcfgPruneNote =>
+      'Mergelio always prunes when it fetches; this applies to git outside Mergelio.';
+
+  @override
+  String get rcfgAutoSetupNote =>
+      'Mergelio sets the upstream on a branch\'s first push itself; this applies to git outside Mergelio.';
+
+  @override
+  String rcfgWriteFailed(String key) {
+    return 'Could not change $key';
+  }
+
+  @override
+  String rcfgReadFailed(String error) {
+    return 'Could not read git config: $error';
+  }
 }

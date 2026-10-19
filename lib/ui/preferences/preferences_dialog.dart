@@ -18,6 +18,7 @@ import '../graph/commit_columns.dart';
 import 'forge_account_row.dart';
 import 'logs_row.dart';
 import 'prefs_rows.dart';
+import 'repo_config_tab.dart';
 import 'ssh_key_error_text.dart';
 import 'updates_tab.dart';
 
@@ -31,15 +32,17 @@ Future<void> showPreferencesDialog(BuildContext context) => showAppModal<void>(
   body: const SizedBox(height: 460, child: _PrefsBody()),
 );
 
-class _PrefsBody extends StatelessWidget {
+class _PrefsBody extends ConsumerWidget {
   const _PrefsBody();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final t = context.tokens;
     final l = AppLocalizations.of(context);
+    // The repository on screen, not one the dashboard is covering.
+    final repo = ref.watch(workspaceProvider.select((w) => w.shownTab?.path));
     return DefaultTabController(
-      length: 5,
+      length: 6,
       child: Column(
         children: [
           TabBar(
@@ -49,20 +52,22 @@ class _PrefsBody extends StatelessWidget {
             indicatorColor: t.accent,
             tabs: [
               Tab(text: l.prefsTabGeneral),
+              Tab(text: l.prefsTabRepository),
               Tab(text: l.prefsTabAppearance),
               Tab(text: l.prefsTabShortcuts),
               Tab(text: l.prefsTabCredentials),
               Tab(text: l.prefsTabUpdates),
             ],
           ),
-          const Expanded(
+          Expanded(
             child: TabBarView(
               children: [
-                _GeneralTab(),
-                _AppearanceTab(),
-                _ShortcutsTab(),
-                _CredentialsTab(),
-                UpdatesTab(),
+                const _GeneralTab(),
+                RepoConfigTab(repoPath: repo),
+                const _AppearanceTab(),
+                const _ShortcutsTab(),
+                const _CredentialsTab(),
+                const UpdatesTab(),
               ],
             ),
           ),

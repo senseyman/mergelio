@@ -10,6 +10,7 @@ import 'git_service.dart';
 import 'line_history.dart';
 import 'models.dart';
 import 'reflog.dart';
+import 'repo_config.dart';
 import 'review.dart';
 import 'signature.dart';
 import 'stash.dart';
@@ -1013,6 +1014,23 @@ class GitReader {
   Future<String?> allowedSignersFile() async {
     final r = await _run(['config', '--get', 'gpg.ssh.allowedSignersFile']);
     return r.ok && r.out.isNotEmpty ? r.out : null;
+  }
+
+  /// Every value the Repository preferences show, in every scope, with the
+  /// file each came from. git exits 1 when none of the keys is set; anything
+  /// else non-zero is a config it cannot read.
+  Future<RepoConfig> repoConfig() async {
+    final r = await _run([
+      'config',
+      '--show-scope',
+      '--show-origin',
+      '-z',
+      '--get-regexp',
+      kRepoConfigPattern,
+    ]);
+    if (r.exitCode == 1) return RepoConfig.empty;
+    if (!r.ok) throw GitException('git config failed', r);
+    return parseScopedConfig(r.stdout);
   }
 
   /// Verifies the tag [name]. git exits non-zero for anything short of a

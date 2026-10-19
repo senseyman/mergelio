@@ -42,6 +42,13 @@ void main() {
     );
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
+    // The tab bar scrolls; bring Shortcuts into view before tapping it.
+    await tester.dragUntilVisible(
+      find.text('Shortcuts'),
+      find.byType(TabBar),
+      const Offset(-200, 0),
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Shortcuts'));
     await tester.pumpAndSettle();
 
