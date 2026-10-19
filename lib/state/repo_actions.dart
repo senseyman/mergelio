@@ -1760,24 +1760,47 @@ class RepoActions {
     }
   }
 
-  Future<void> createTag(String name, {String? at, String? message}) async {
+  /// Creates tag [name]; [sign] signs it, with [signingKey] or git's own.
+  /// The tagger is the active profile, as for a commit.
+  Future<void> createTag(
+    String name, {
+    String? at,
+    String? message,
+    bool sign = false,
+    String? signingKey,
+  }) async {
     final target = at ?? await _headSha();
+    final id = _identity;
+    // Signing waits on the signer for as long as it takes (a passphrase
+    // prompt, say), so only a signed create needs a way out.
+    final cancel = sign ? GitCancel() : null;
+    Future<void> create({GitCancel? cancel}) => _writer.createTag(
+      name,
+      at: target,
+      message: message,
+      sign: sign,
+      signingKey: signingKey,
+      authorName: id.name,
+      authorEmail: id.email,
+      cancel: cancel,
+    );
     await _undoable(
       _l.actCreateTag(name),
-      () => _writer.createTag(name, at: target, message: message),
+      () => create(cancel: cancel),
+      cancel: cancel,
       undo: () => _writer.deleteTag(name),
-      redo: () => _writer.createTag(name, at: target, message: message),
+      redo: create,
     );
   }
 
   Future<void> deleteTag(String name) async {
-    // Dereference to the target commit: for an annotated tag `rev-parse name`
-    // returns the tag object, not the commit it points at.
-    final sha = await _out(['rev-parse', '$name^{commit}']);
+    // The ref's own object: for an annotated tag that is the tag object, so
+    // undo brings back its message, tagger and signature, not a bare pointer.
+    final object = await _out(['rev-parse', 'refs/tags/$name']);
     await _undoable(
       _l.actDeleteTag(name),
       () => _writer.deleteTag(name),
-      undo: () => _writer.createTag(name, at: sha),
+      undo: () => _writer.restoreTag(name, object),
       redo: () => _writer.deleteTag(name),
     );
   }

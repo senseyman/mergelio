@@ -5,6 +5,7 @@ import 'package:mergelio/core/tokens.dart';
 import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/domain/git/models.dart';
 import 'package:mergelio/domain/git/signature.dart';
+import 'package:mergelio/domain/git/tag_info.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/state/graph_selection.dart';
 import 'package:mergelio/state/lfs.dart';
@@ -31,6 +32,10 @@ Widget _harness({
   Map<String, SignatureVerdict> tags = const {},
   List<String>? verifiedTags,
   List<String>? signersReads,
+  // Defaults to every tag in [tags], lightweight, as git would list them.
+  List<TagInfo>? tagInfos,
+  bool tagInfosFail = false,
+  List<String>? tagInfoReads,
   Future<Set<String>> Function(Ref ref, LfsQuery q)? lfsPaths,
 }) => ProviderScope(
   overrides: [
@@ -45,6 +50,12 @@ Widget _harness({
     tagSignatureProvider.overrideWith((ref, key) async {
       verifiedTags?.add(key.name);
       return tags[key.name] ?? SignatureVerdict.unsigned;
+    }),
+    tagInfosProvider.overrideWith((ref, key) async {
+      tagInfoReads?.add(key.sha);
+      if (tagInfosFail) throw StateError('cannot lock ref');
+      return tagInfos ??
+          [for (final n in tags.keys) TagInfo(name: n, annotated: false)];
     }),
     allowedSignersFileProvider.overrideWith((ref, repo) async {
       signersReads?.add(repo);
@@ -145,6 +156,120 @@ void main() {
     expect(find.text('Bad signature'), findsOneWidget);
     // An unsigned tag has nothing to say.
     expect(find.text('Tag lightweight'), findsNothing);
+  });
+
+  testWidgets('an annotated tag shows its tagger, date and message', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        sigStatus: 'N',
+        tags: const {'v2.0': SignatureVerdict.unsigned},
+        tagInfos: [
+          TagInfo(
+            name: 'v2.0',
+            annotated: true,
+            tagger: 'Release Bot',
+            taggerEmail: 'bot@example.com',
+            date: DateTime.utc(2026, 10, 19, 10, 30),
+            dateOffset: const Duration(hours: 1),
+            subject: 'Version 2.0',
+            body: 'Highlights:\n- signed tags',
+          ),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tag v2.0'), findsOneWidget);
+    expect(find.text('Release Bot <bot@example.com>'), findsOneWidget);
+    // In the tagger's own offset, as commit dates are.
+    expect(find.textContaining('Oct 19, 2026 11:30'), findsOneWidget);
+    expect(
+      find.text('Version 2.0\n\nHighlights:\n- signed tags'),
+      findsOneWidget,
+    );
+    // Unsigned: no badge.
+    expect(find.textContaining('signature'), findsNothing);
+  });
+
+  testWidgets('a signed tag shows its message under its verdict', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        sigStatus: 'N',
+        tags: const {'v3': SignatureVerdict(state: SignatureState.good)},
+        tagInfos: const [
+          TagInfo(name: 'v3', annotated: true, tagger: 'T', subject: 'Three'),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tag v3'), findsOneWidget);
+    expect(find.text('Verified signature'), findsOneWidget);
+    expect(find.text('Three'), findsOneWidget);
+  });
+
+  testWidgets('tags are read in one go, and not at all without tags', (
+    tester,
+  ) async {
+    final reads = <String>[];
+    await tester.pumpWidget(_harness(tagInfoReads: reads));
+    await tester.pumpAndSettle();
+    expect(reads, isEmpty);
+
+    await tester.pumpWidget(
+      _harness(
+        tagInfoReads: reads,
+        tags: const {
+          'a': SignatureVerdict.unsigned,
+          'b': SignatureVerdict.unsigned,
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(reads, [_commit.sha]);
+  });
+
+  testWidgets('a tag added to the shown commit is read afresh', (tester) async {
+    final reads = <String>[];
+    await tester.pumpWidget(
+      _harness(
+        tagInfoReads: reads,
+        tags: const {'a': SignatureVerdict.unsigned},
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(
+      _harness(
+        tagInfoReads: reads,
+        tags: const {
+          'a': SignatureVerdict.unsigned,
+          'b': SignatureVerdict.unsigned,
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(reads, hasLength(2));
+  });
+
+  testWidgets('a tag without a recorded tagger shows no empty tagger line', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        sigStatus: 'N',
+        tags: const {'old': SignatureVerdict.unsigned},
+        tagInfos: const [
+          TagInfo(name: 'old', annotated: true, subject: 'Ancient'),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Ancient'), findsOneWidget);
+    expect(find.text('Tagger'), findsNothing);
   });
 
   testWidgets('a commit with many tags verifies a bounded number', (
@@ -287,5 +412,49 @@ void main() {
 
     expect(seen, isNotEmpty);
     expect(seen.first.source.parentRev, isNull);
+  });
+
+  testWidgets('a tag read that fails says so rather than hiding the tag', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        sigStatus: 'N',
+        tags: const {'v1': SignatureVerdict.unsigned},
+        tagInfosFail: true,
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Tag v1'), findsOneWidget);
+    expect(find.text('Could not read this tag'), findsOneWidget);
+  });
+
+  testWidgets('a tag on the commit that git no longer lists still shows', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        sigStatus: 'N',
+        tags: const {'gone': SignatureVerdict.unsigned},
+        tagInfos: const [TagInfo(name: 'other', annotated: false)],
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Tag gone'), findsOneWidget);
+    expect(find.text('Could not read this tag'), findsOneWidget);
+  });
+
+  testWidgets('a lightweight unsigned tag stays quiet once read', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        sigStatus: 'N',
+        tags: const {'lw': SignatureVerdict.unsigned},
+        tagInfos: const [TagInfo(name: 'lw', annotated: false)],
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Tag lw'), findsNothing);
   });
 }

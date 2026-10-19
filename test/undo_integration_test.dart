@@ -193,6 +193,49 @@ void main() {
     );
   });
 
+  test('undo of an annotated-tag delete keeps its message', () async {
+    final c = container();
+    final actions = c.read(repoActionsProvider(dir.path));
+    await g(['tag', '-a', 'v1', '-m', 'release notes']);
+    final object = (await svc.run([
+      'rev-parse',
+      'refs/tags/v1',
+    ], repoPath: dir.path)).out;
+
+    await actions.deleteTag('v1');
+    await actions.undo();
+
+    expect(
+      (await svc.run(['rev-parse', 'refs/tags/v1'], repoPath: dir.path)).out,
+      object,
+    );
+    expect(
+      (await svc.run([
+        'tag',
+        '-l',
+        '--format=%(contents:subject)',
+        'v1',
+      ], repoPath: dir.path)).out,
+      'release notes',
+    );
+  });
+
+  test('tags create and undo under tag.gpgSign without a key', () async {
+    final c = container();
+    final actions = c.read(repoActionsProvider(dir.path));
+    // An unusable signing setup: anything that tried to sign would fail.
+    await g(['config', 'tag.gpgSign', 'true']);
+    await g(['config', 'gpg.program', 'false']);
+
+    await actions.createTag('lw');
+    await g(['tag', '--no-sign', 'v1']);
+    await actions.deleteTag('v1');
+    await actions.undo();
+
+    final tags = (await svc.run(['tag', '-l'], repoPath: dir.path)).out;
+    expect(tags.split('\n'), containsAll(['lw', 'v1']));
+  });
+
   test('a conflicting cherry-pick pauses for in-app resolution', () async {
     final c = container();
     final actions = c.read(repoActionsProvider(dir.path));

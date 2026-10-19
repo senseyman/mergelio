@@ -1268,6 +1268,21 @@ class AppLocalizationsUk extends AppLocalizations {
   String get ropTagMessage => 'Повідомлення тегу';
 
   @override
+  String get ropTagLightweight => 'легкий';
+
+  @override
+  String get ropTagAnnotated => 'анотований';
+
+  @override
+  String get ropTagSign => 'Підписати тег';
+
+  @override
+  String get ropTagSigningKey => 'Ключ підпису';
+
+  @override
+  String get ropTagDefaultKey => 'Типовий ключ';
+
+  @override
   String get ropPushTitle => 'Відправити';
 
   @override
@@ -1626,6 +1641,12 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get cdDate => 'Дата';
+
+  @override
+  String get cdTagger => 'Автор';
+
+  @override
+  String get cdTagUnreadable => 'Не вдалося прочитати тег';
 
   @override
   String get cdParent => 'Батьківський';

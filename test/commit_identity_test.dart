@@ -29,28 +29,30 @@ void main() {
     if (await dir.exists()) await dir.delete(recursive: true);
   });
 
-  test('commit uses the active profile identity', () async {
-    final container = ProviderContainer(
-      overrides: [
-        profilesProvider.overrideWith(
-          (ref) => ProfilesController(
-            InMemoryKeyValueStore(),
-            const ProfilesState(
-              profiles: [
-                Profile(
-                  id: '1',
-                  label: 'Work',
-                  name: 'Maria K',
-                  email: 'maria@work.com',
-                  colorValue: 0xFF112233,
-                ),
-              ],
-              activeId: '1',
-            ),
+  ProviderContainer profileContainer() => ProviderContainer(
+    overrides: [
+      profilesProvider.overrideWith(
+        (ref) => ProfilesController(
+          InMemoryKeyValueStore(),
+          const ProfilesState(
+            profiles: [
+              Profile(
+                id: '1',
+                label: 'Work',
+                name: 'Maria K',
+                email: 'maria@work.com',
+                colorValue: 0xFF112233,
+              ),
+            ],
+            activeId: '1',
           ),
         ),
-      ],
-    );
+      ),
+    ],
+  );
+
+  test('commit uses the active profile identity', () async {
+    final container = profileContainer();
     addTearDown(container.dispose);
 
     await File('${dir.path}/a.txt').writeAsString('x\n');
@@ -64,5 +66,22 @@ void main() {
       '--format=%an <%ae>',
     ], repoPath: dir.path)).out;
     expect(author, 'Maria K <maria@work.com>');
+  });
+
+  test('a tag is tagged by the active profile', () async {
+    final container = profileContainer();
+    addTearDown(container.dispose);
+    await g(['commit', '-q', '--allow-empty', '-m', 'base']);
+
+    final actions = container.read(repoActionsProvider(dir.path));
+    await actions.createTag('v1', message: 'release');
+
+    final tagger = (await svc.run([
+      'tag',
+      '-l',
+      '--format=%(taggername) %(taggeremail)',
+      'v1',
+    ], repoPath: dir.path)).out;
+    expect(tagger, 'Maria K <maria@work.com>');
   });
 }

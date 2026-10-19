@@ -9,6 +9,7 @@ import '../../domain/git/stash.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
+import '../../state/signatures.dart';
 import '../common/confirm.dart';
 import '../common/dialogs.dart';
 import 'lfs_push_guard.dart';
@@ -102,19 +103,54 @@ class _TagBody extends ConsumerStatefulWidget {
 class _TagBodyState extends ConsumerState<_TagBody> {
   final _name = TextEditingController();
   final _message = TextEditingController();
+  final _key = TextEditingController();
   bool _annotated = false;
+  bool _sign = false;
+
+  /// Set once the user types a name, picks a type or ticks Sign, so the
+  /// repository's default arriving late cannot change a tag already being
+  /// made.
+  bool _touched = false;
+
+  @override
+  void initState() {
+    super.initState();
+    ref.listenManual(tagSigningProvider(widget.repoPath), (_, next) {
+      final s = next.valueOrNull;
+      if (s == null || _touched || !s.byDefault) return;
+      setState(() {
+        _sign = true;
+        _annotated = true;
+      });
+    }, fireImmediately: true);
+  }
 
   @override
   void dispose() {
     _name.dispose();
     _message.dispose();
+    _key.dispose();
     super.dispose();
   }
+
+  // A signature lives in a tag object, so signing means an annotated tag.
+  void _setAnnotated(bool annotated) => setState(() {
+    _touched = true;
+    _annotated = annotated;
+    if (!annotated) _sign = false;
+  });
+
+  void _setSign(bool sign) => setState(() {
+    _touched = true;
+    _sign = sign;
+    if (sign) _annotated = true;
+  });
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final t = context.tokens;
+    final signing = ref.watch(tagSigningProvider(widget.repoPath)).valueOrNull;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
@@ -124,7 +160,7 @@ class _TagBodyState extends ConsumerState<_TagBody> {
         TextField(
           controller: _name,
           autofocus: true,
-          onChanged: (_) => setState(() {}),
+          onChanged: (_) => setState(() => _touched = true),
           decoration: InputDecoration(
             hintText: 'v1.0.0',
             isDense: true,
@@ -142,20 +178,49 @@ class _TagBodyState extends ConsumerState<_TagBody> {
                 style: TextStyle(color: t.textMuted, fontSize: 12),
               ),
             ),
-            for (final (label, annotated) in const [
-              ('lightweight', false),
-              ('annotated', true),
+            for (final (label, annotated) in [
+              (l.ropTagLightweight, false),
+              (l.ropTagAnnotated, true),
             ])
               Padding(
                 padding: const EdgeInsets.only(left: 6),
                 child: ChoiceChip(
                   label: Text(label, style: const TextStyle(fontSize: 12)),
                   selected: _annotated == annotated,
-                  onSelected: (_) => setState(() => _annotated = annotated),
+                  onSelected: (_) => _setAnnotated(annotated),
                 ),
               ),
           ],
         ),
+        CheckboxListTile(
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          controlAffinity: ListTileControlAffinity.leading,
+          title: Text(
+            l.ropTagSign,
+            style: TextStyle(color: t.textPrimary, fontSize: 13),
+          ),
+          value: _sign,
+          onChanged: (v) => _setSign(v ?? false),
+        ),
+        if (_sign) ...[
+          Text(
+            l.ropTagSigningKey,
+            style: TextStyle(color: t.textMuted, fontSize: 12),
+          ),
+          const SizedBox(height: 6),
+          TextField(
+            controller: _key,
+            decoration: InputDecoration(
+              // Left empty, git signs with this key.
+              hintText: signing?.key ?? l.ropTagDefaultKey,
+              isDense: true,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(t.rButton),
+              ),
+            ),
+          ),
+        ],
         if (_annotated) ...[
           const SizedBox(height: 12),
           TextField(
@@ -191,11 +256,15 @@ class _TagBodyState extends ConsumerState<_TagBody> {
                       final name = _name.text.trim();
                       final msg = _message.text.trim();
                       final annotated = _annotated;
+                      final sign = _sign;
+                      final key = _key.text.trim();
                       Navigator.of(context).pop();
                       actions.createTag(
                         name,
                         at: widget.at,
                         message: annotated ? (msg.isEmpty ? name : msg) : null,
+                        sign: sign,
+                        signingKey: sign && key.isNotEmpty ? key : null,
                       );
                     },
               child: Text(l.create),

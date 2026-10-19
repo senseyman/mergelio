@@ -1259,6 +1259,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get ropTagMessage => 'Tag message';
 
   @override
+  String get ropTagLightweight => 'lightweight';
+
+  @override
+  String get ropTagAnnotated => 'annotated';
+
+  @override
+  String get ropTagSign => 'Sign tag';
+
+  @override
+  String get ropTagSigningKey => 'Signing key';
+
+  @override
+  String get ropTagDefaultKey => 'Default key';
+
+  @override
   String get ropPushTitle => 'Push';
 
   @override
@@ -1618,6 +1633,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cdDate => 'Date';
+
+  @override
+  String get cdTagger => 'Tagger';
+
+  @override
+  String get cdTagUnreadable => 'Could not read this tag';
 
   @override
   String get cdParent => 'Parent';

@@ -13,6 +13,7 @@ import 'reflog.dart';
 import 'review.dart';
 import 'signature.dart';
 import 'stash.dart';
+import 'tag_info.dart';
 import 'worktree.dart';
 
 /// Context-line count that makes git emit every unchanged line of a file, so
@@ -1019,6 +1020,32 @@ class GitReader {
   Future<SignatureVerdict> verifyTag(String name) async {
     final r = await _run(['verify-tag', '--raw', 'refs/tags/$name']);
     return parseTagVerification(r.err);
+  }
+
+  /// Every tag on commit [sha], annotated ones with their tagger and message.
+  /// One process however many tags there are; `--points-at` also matches an
+  /// annotated tag whose object peels to [sha].
+  Future<List<TagInfo>> tagInfos(String sha) async {
+    final r = await _run([
+      'for-each-ref',
+      '--format=$kTagInfoFormat',
+      '--points-at',
+      sha,
+      'refs/tags',
+    ]);
+    if (!r.ok) throw GitException('git for-each-ref failed', r);
+    return parseTagInfos(r.stdout);
+  }
+
+  /// The signing key and default the create-tag dialog starts from.
+  /// One process for all three keys. git exits 1 when none of them is set;
+  /// anything else non-zero is a config git cannot read, reported as such
+  /// rather than passed off as "nothing set".
+  Future<TagSigning> tagSigning() async {
+    final r = await _run(['config', '--get-regexp', '-z', kTagSigningKeys]);
+    if (r.exitCode == 1) return const TagSigning();
+    if (!r.ok) throw GitException('git config failed', r);
+    return parseTagSigning(r.stdout);
   }
 
   /// Budget for [signatureAudit]: every signed commit in the range costs a
