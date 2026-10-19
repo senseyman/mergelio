@@ -211,4 +211,28 @@ void main() {
     expect(toastTitles(), isNot(contains('Reword commit failed')));
     expect(c.read(busyProvider), isNull);
   });
+
+  test('a signed tag stuck waiting on its signer can be cancelled', () async {
+    // Stands in for a pinentry nobody answers.
+    final signer = File('${dir.path}/slow-signer');
+    await signer.writeAsString('#!/bin/sh\nsleep 20\n');
+    await Process.run('chmod', ['+x', signer.path]);
+    await g(['config', 'gpg.program', signer.path]);
+
+    final watch = Stopwatch()..start();
+    final run = actions.createTag('v1', message: 'release', sign: true);
+    await cancelWhenOffered();
+    await run;
+
+    expect(watch.elapsed, lessThan(const Duration(seconds: 15)));
+    expect(await out(['tag', '-l']), isEmpty);
+    expect(toastTitles(), contains('Create tag v1 cancelled'));
+    expect(c.read(busyProvider), isNull);
+  });
+
+  test('an unsigned tag offers no Cancel', () async {
+    await actions.createTag('v1');
+    expect(seen.whereType<BusyState>(), isNotEmpty);
+    expect(seen.whereType<BusyState>().any((b) => b.onCancel != null), isFalse);
+  });
 }

@@ -2192,6 +2192,36 @@ abstract class AppLocalizations {
   /// **'Tag message'**
   String get ropTagMessage;
 
+  /// No description provided for @ropTagLightweight.
+  ///
+  /// In en, this message translates to:
+  /// **'lightweight'**
+  String get ropTagLightweight;
+
+  /// No description provided for @ropTagAnnotated.
+  ///
+  /// In en, this message translates to:
+  /// **'annotated'**
+  String get ropTagAnnotated;
+
+  /// No description provided for @ropTagSign.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign tag'**
+  String get ropTagSign;
+
+  /// No description provided for @ropTagSigningKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Signing key'**
+  String get ropTagSigningKey;
+
+  /// No description provided for @ropTagDefaultKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Default key'**
+  String get ropTagDefaultKey;
+
   /// No description provided for @ropPushTitle.
   ///
   /// In en, this message translates to:
@@ -2833,6 +2863,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Date'**
   String get cdDate;
+
+  /// No description provided for @cdTagger.
+  ///
+  /// In en, this message translates to:
+  /// **'Tagger'**
+  String get cdTagger;
+
+  /// No description provided for @cdTagUnreadable.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read this tag'**
+  String get cdTagUnreadable;
 
   /// No description provided for @cdParent.
   ///

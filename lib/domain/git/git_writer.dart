@@ -870,13 +870,48 @@ class GitWriter {
   // --- Tag ops --------------------------------------------------------------
 
   /// Creates tag [name] at [at] (default HEAD); an annotated tag when
-  /// [message] is given.
-  Future<void> createTag(String name, {String? at, String? message}) => _ok([
-    'tag',
-    if (message != null) ...['-m', message],
-    name,
-    ?at,
-  ], 'git tag');
+  /// [message] is given. [sign] makes it a signed (so annotated) tag, with
+  /// [signingKey] when given and git's configured key otherwise. The tagger is
+  /// [authorName] / [authorEmail] when given. [cancel] stops a signer left
+  /// waiting; git writes the ref only once signing is done, so a cancelled
+  /// create leaves no tag behind.
+  Future<void> createTag(
+    String name, {
+    String? at,
+    String? message,
+    bool sign = false,
+    String? signingKey,
+    String? authorName,
+    String? authorEmail,
+    GitCancel? cancel,
+  }) => _ok(
+    [
+      ..._identity(authorName, authorEmail),
+      'tag',
+      // Unsigned is said out loud: with tag.gpgSign set git would otherwise
+      // sign an annotated tag unasked, and refuse a lightweight one outright.
+      if (!sign)
+        '--no-sign'
+      else if (signingKey != null && signingKey.isNotEmpty) ...[
+        '-u',
+        signingKey,
+      ] else
+        '-s',
+      if (message != null || sign) ...['-m', message ?? ''],
+      name,
+      ?at,
+    ],
+    'git tag',
+    // Signing can wait on a passphrase prompt.
+    timeout: sign ? hookTimeout : null,
+    cancel: cancel,
+  );
+
+  /// Points tag [name] back at [object] — the tag object itself for an
+  /// annotated tag, so its message and signature come back untouched. Fails
+  /// rather than overwrite when [name] exists again.
+  Future<void> restoreTag(String name, String object) =>
+      _ok(['update-ref', 'refs/tags/$name', object, ''], 'git update-ref');
 
   Future<void> deleteTag(String name) => _ok(['tag', '-d', name], 'git tag -d');
 

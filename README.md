@@ -130,6 +130,11 @@ change never needs a second window.*
   public key, or gpg / ssh-keygen not found). **Check signatures…** in the
   command palette lists every commit since a base ref (the upstream by default)
   without a verified signature.
+- **Signed tags**: the create-tag dialog signs a tag with the repository's
+  signing setup (on by default when `tag.gpgSign`, or else `commit.gpgsign`, is
+  set) or a key you name. Commit details show each annotated tag's tagger, date
+  and message beside its signature, and undoing a tag delete brings back the
+  original tag, message and signature intact.
 - **File history** and per-line **blame** for any changed file. Blame's options
   menu ignores whitespace (`-w`) and follows moved lines within the file (`-M`)
   or from other files (`-C`). Commits listed in `blame.ignoreRevsFile`, or in a
