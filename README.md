@@ -102,6 +102,12 @@ change never needs a second window.*
 - **Profiles** — separate identities, SSH keys and per-profile workspaces.
   SSH keys are generated through the system `ssh-keygen`, so key material stays
   with the OS tooling.
+- **Repository git settings** (Preferences → Repository) — identity,
+  `pull.rebase`, `push.autoSetupRemote`, `fetch.prune`, `core.autocrlf`,
+  `commit.gpgsign` and `rerere.enabled`, each with the value git uses and where
+  it comes from (system, global, this repository). Changes go to the
+  repository's own config unless you pick Global. Notes say where Mergelio
+  overrides a setting itself, such as an active profile's identity.
 - Submodules: add, update, sync, deinit and remove.
 
 ### Worktrees

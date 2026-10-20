@@ -867,6 +867,35 @@ class GitWriter {
     branch,
   ], 'git branch --set-upstream-to');
 
+  // --- Config ----------------------------------------------------------------
+
+  /// Sets [key] to [value] in this repository's config, or the user's global
+  /// one when [global]. `--replace-all` because a key set more than once
+  /// makes a plain set refuse.
+  Future<void> setConfig(String key, String value, {bool global = false}) =>
+      _ok([
+        'config',
+        global ? '--global' : '--local',
+        '--replace-all',
+        key,
+        value,
+      ], 'git config');
+
+  /// Removes every value of [key] from this repository's config, or the
+  /// global one when [global], so the next scope down shows through. A key
+  /// that is not set there (git exits 5) is already unset.
+  Future<void> unsetConfig(String key, {bool global = false}) async {
+    final r = await _run([
+      'config',
+      global ? '--global' : '--local',
+      '--unset-all',
+      key,
+    ]);
+    if (!r.ok && r.exitCode != 5) {
+      throw GitException('git config --unset-all', r);
+    }
+  }
+
   // --- Tag ops --------------------------------------------------------------
 
   /// Creates tag [name] at [at] (default HEAD); an annotated tag when

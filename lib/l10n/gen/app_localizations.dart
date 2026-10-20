@@ -8581,6 +8581,174 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'ssh-keygen failed: {detail}'**
   String pfSshKeygenFailed(String detail);
+
+  /// No description provided for @prefsTabRepository.
+  ///
+  /// In en, this message translates to:
+  /// **'Repository'**
+  String get prefsTabRepository;
+
+  /// No description provided for @rcfgNoRepo.
+  ///
+  /// In en, this message translates to:
+  /// **'Open a repository to see its git settings.'**
+  String get rcfgNoRepo;
+
+  /// No description provided for @rcfgWriteTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Write to'**
+  String get rcfgWriteTo;
+
+  /// No description provided for @rcfgScopeLocal.
+  ///
+  /// In en, this message translates to:
+  /// **'This repository'**
+  String get rcfgScopeLocal;
+
+  /// No description provided for @rcfgScopeGlobal.
+  ///
+  /// In en, this message translates to:
+  /// **'Global'**
+  String get rcfgScopeGlobal;
+
+  /// No description provided for @rcfgScopeSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'System'**
+  String get rcfgScopeSystem;
+
+  /// No description provided for @rcfgScopeWorktree.
+  ///
+  /// In en, this message translates to:
+  /// **'Worktree'**
+  String get rcfgScopeWorktree;
+
+  /// No description provided for @rcfgScopeCommand.
+  ///
+  /// In en, this message translates to:
+  /// **'Command line'**
+  String get rcfgScopeCommand;
+
+  /// No description provided for @rcfgScopeOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get rcfgScopeOther;
+
+  /// No description provided for @rcfgInherit.
+  ///
+  /// In en, this message translates to:
+  /// **'Inherit'**
+  String get rcfgInherit;
+
+  /// No description provided for @rcfgInEffect.
+  ///
+  /// In en, this message translates to:
+  /// **'In effect: {value} — {scope}'**
+  String rcfgInEffect(String value, String scope);
+
+  /// No description provided for @rcfgNotSet.
+  ///
+  /// In en, this message translates to:
+  /// **'In effect: not set — git\'s default'**
+  String get rcfgNotSet;
+
+  /// No description provided for @rcfgUserName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get rcfgUserName;
+
+  /// No description provided for @rcfgUserEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get rcfgUserEmail;
+
+  /// No description provided for @rcfgPullRebase.
+  ///
+  /// In en, this message translates to:
+  /// **'Pull with rebase'**
+  String get rcfgPullRebase;
+
+  /// No description provided for @rcfgAutoSetupRemote.
+  ///
+  /// In en, this message translates to:
+  /// **'Set upstream on first push'**
+  String get rcfgAutoSetupRemote;
+
+  /// No description provided for @rcfgFetchPrune.
+  ///
+  /// In en, this message translates to:
+  /// **'Prune on fetch'**
+  String get rcfgFetchPrune;
+
+  /// No description provided for @rcfgAutocrlf.
+  ///
+  /// In en, this message translates to:
+  /// **'Line endings'**
+  String get rcfgAutocrlf;
+
+  /// No description provided for @rcfgGpgSign.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign commits'**
+  String get rcfgGpgSign;
+
+  /// No description provided for @rcfgRerere.
+  ///
+  /// In en, this message translates to:
+  /// **'Reuse recorded resolutions'**
+  String get rcfgRerere;
+
+  /// No description provided for @rcfgSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get rcfgSave;
+
+  /// No description provided for @rcfgProfileNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Commits made in Mergelio use the profile «{label}»: {name} <{email}>. These values apply to git outside Mergelio.'**
+  String rcfgProfileNote(String label, String name, String email);
+
+  /// No description provided for @rcfgPullRebaseApp.
+  ///
+  /// In en, this message translates to:
+  /// **'Mergelio\'s pull strategy is Rebase, so Mergelio pulls with --rebase whatever this says.'**
+  String get rcfgPullRebaseApp;
+
+  /// No description provided for @rcfgPullMergeApp.
+  ///
+  /// In en, this message translates to:
+  /// **'Mergelio\'s pull strategy is Merge, which leaves it to git: this setting decides.'**
+  String get rcfgPullMergeApp;
+
+  /// No description provided for @rcfgPruneNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Mergelio always prunes when it fetches; this applies to git outside Mergelio.'**
+  String get rcfgPruneNote;
+
+  /// No description provided for @rcfgAutoSetupNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Mergelio sets the upstream on a branch\'s first push itself; this applies to git outside Mergelio.'**
+  String get rcfgAutoSetupNote;
+
+  /// No description provided for @rcfgWriteFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not change {key}'**
+  String rcfgWriteFailed(String key);
+
+  /// No description provided for @rcfgReadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read git config: {error}'**
+  String rcfgReadFailed(String error);
 }
 
 class _AppLocalizationsDelegate

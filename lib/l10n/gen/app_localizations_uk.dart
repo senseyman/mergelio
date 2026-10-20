@@ -5366,4 +5366,102 @@ class AppLocalizationsUk extends AppLocalizations {
   String pfSshKeygenFailed(String detail) {
     return 'ssh-keygen не вдалося: $detail';
   }
+
+  @override
+  String get prefsTabRepository => 'Репозиторій';
+
+  @override
+  String get rcfgNoRepo =>
+      'Відкрийте репозиторій, щоб побачити його налаштування git.';
+
+  @override
+  String get rcfgWriteTo => 'Записувати в';
+
+  @override
+  String get rcfgScopeLocal => 'Цей репозиторій';
+
+  @override
+  String get rcfgScopeGlobal => 'Глобально';
+
+  @override
+  String get rcfgScopeSystem => 'Система';
+
+  @override
+  String get rcfgScopeWorktree => 'Робоче дерево';
+
+  @override
+  String get rcfgScopeCommand => 'Командний рядок';
+
+  @override
+  String get rcfgScopeOther => 'Інше';
+
+  @override
+  String get rcfgInherit => 'Успадкувати';
+
+  @override
+  String rcfgInEffect(String value, String scope) {
+    return 'Діє: $value — $scope';
+  }
+
+  @override
+  String get rcfgNotSet => 'Діє: не задано — типове значення git';
+
+  @override
+  String get rcfgUserName => 'Ім\'я';
+
+  @override
+  String get rcfgUserEmail => 'Ел. пошта';
+
+  @override
+  String get rcfgPullRebase => 'Pull з rebase';
+
+  @override
+  String get rcfgAutoSetupRemote =>
+      'Встановлювати upstream під час першого push';
+
+  @override
+  String get rcfgFetchPrune => 'Prune під час fetch';
+
+  @override
+  String get rcfgAutocrlf => 'Закінчення рядків';
+
+  @override
+  String get rcfgGpgSign => 'Підписувати коміти';
+
+  @override
+  String get rcfgRerere => 'Повторно використовувати записані розв\'язки';
+
+  @override
+  String get rcfgSave => 'Зберегти';
+
+  @override
+  String rcfgProfileNote(String label, String name, String email) {
+    return 'Коміти в Mergelio використовують профіль «$label»: $name <$email>. Ці значення діють для git поза Mergelio.';
+  }
+
+  @override
+  String get rcfgPullRebaseApp =>
+      'Стратегія pull у Mergelio — Rebase, тож Mergelio виконує pull з --rebase незалежно від цього значення.';
+
+  @override
+  String get rcfgPullMergeApp =>
+      'Стратегія pull у Mergelio — Merge, вона залишає вибір git: вирішує це налаштування.';
+
+  @override
+  String get rcfgPruneNote =>
+      'Mergelio завжди виконує prune під час fetch; це налаштування діє для git поза Mergelio.';
+
+  @override
+  String get rcfgAutoSetupNote =>
+      'Mergelio сам встановлює upstream під час першого push гілки; це налаштування діє для git поза Mergelio.';
+
+  @override
+  String rcfgWriteFailed(String key) {
+    return 'Не вдалося змінити $key';
+  }
+
+  @override
+  String rcfgReadFailed(String error) {
+    return 'Не вдалося прочитати конфігурацію git: $error';
+  }
 }
