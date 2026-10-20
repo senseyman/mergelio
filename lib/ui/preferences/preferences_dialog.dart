@@ -15,6 +15,7 @@ import '../../state/settings_controller.dart';
 import '../../state/workspace.dart';
 import '../common/dialogs.dart';
 import '../graph/commit_columns.dart';
+import 'editor_command_row.dart';
 import 'forge_account_row.dart';
 import 'logs_row.dart';
 import 'prefs_rows.dart';
@@ -131,6 +132,10 @@ class _GeneralTab extends ConsumerWidget {
           labelFor: (v) => v == 'rebase' ? l.strategyRebase : l.strategyMerge,
         ),
         SwitchRow(l.prefsPullAutostash, s.pullAutostash, c.setPullAutostash),
+        EditorCommandRow(
+          command: s.editorCommand,
+          onChanged: c.setEditorCommand,
+        ),
         _ChoiceRow(
           l.prefsDateFormat,
           const ['medium', 'iso', 'short'],

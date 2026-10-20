@@ -15,6 +15,7 @@ import '../../state/merge_session.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
 import '../../state/workspace.dart';
+import '../common/dialogs.dart';
 import '../diff/image_diff.dart';
 
 /// Full-panel conflict resolver shown while a [MergeSession] is active. Lists
@@ -30,6 +31,10 @@ class MergeTool extends ConsumerStatefulWidget {
 
 class _MergeToolState extends ConsumerState<MergeTool> {
   int _fileIndex = 0;
+
+  /// The file open at [_fileIndex], so it stays open when a file before it
+  /// leaves the session — resolved in the merge tool — and the list shifts.
+  String? _filePath;
   final _view = GlobalKey<_ConflictViewState>();
 
   MergeSession? get _session => ref.read(mergeSessionProvider(widget.repoPath));
@@ -64,12 +69,17 @@ class _MergeToolState extends ConsumerState<MergeTool> {
             ctx.findAncestorWidgetOfExactType<EditableText>() != null);
   }
 
+  void _select(MergeSession session, int i) => setState(() {
+    _fileIndex = i;
+    _filePath = session.files[i].path;
+  });
+
   /// Selects the next file with unresolved conflicts (wraps around).
   void _nextUnresolved(MergeSession session) {
     for (var i = 1; i <= session.files.length; i++) {
       final idx = (_fileIndex + i) % session.files.length;
       if (!session.files[idx].resolved) {
-        setState(() => _fileIndex = idx);
+        _select(session, idx);
         return;
       }
     }
@@ -82,8 +92,18 @@ class _MergeToolState extends ConsumerState<MergeTool> {
     final session = ref.watch(mergeSessionProvider(widget.repoPath));
     if (session == null) return const SizedBox.shrink();
     final actions = ref.read(repoActionsProvider(widget.repoPath));
-    if (_fileIndex >= session.files.length) _fileIndex = 0;
+    final kept = _filePath == null
+        ? -1
+        : session.files.indexWhere((f) => f.path == _filePath);
+    if (kept >= 0) {
+      _fileIndex = kept;
+    } else if (_fileIndex >= session.files.length) {
+      // The open file left from the end of the list: show the one before.
+      _fileIndex = session.files.length - 1;
+    }
+    // A file that left from anywhere else hands its place to the next one.
     final file = session.files[_fileIndex];
+    _filePath = file.path;
     // The branch being merged into — the current branch.
     final into = ref
         .watch(repoDataProvider(widget.repoPath))
@@ -128,6 +148,10 @@ class _MergeToolState extends ConsumerState<MergeTool> {
                     : () => _nextUnresolved(session),
                 onAbort: actions.abortMerge,
                 onResolve: () => actions.resolveConflicts(session),
+                onMergeTool: canUseMergeTool(file)
+                    ? () => actions.openMergeTool(file.path)
+                    : null,
+                mergeToolTooltip: l.extOpenInMergeToolNamed(file.path),
               ),
               Expanded(
                 child: Row(
@@ -136,7 +160,8 @@ class _MergeToolState extends ConsumerState<MergeTool> {
                     _FileList(
                       files: session.files,
                       active: _fileIndex,
-                      onSelect: (i) => setState(() => _fileIndex = i),
+                      onSelect: (i) => _select(session, i),
+                      onMergeTool: actions.openMergeTool,
                     ),
                     Container(width: 1, color: t.border),
                     Expanded(
@@ -175,6 +200,8 @@ class _Header extends StatelessWidget {
   final VoidCallback? onNext;
   final VoidCallback onAbort;
   final VoidCallback onResolve;
+  final VoidCallback? onMergeTool;
+  final String mergeToolTooltip;
   const _Header({
     required this.kind,
     required this.branch,
@@ -185,6 +212,8 @@ class _Header extends StatelessWidget {
     required this.onNext,
     required this.onAbort,
     required this.onResolve,
+    required this.onMergeTool,
+    required this.mergeToolTooltip,
   });
 
   @override
@@ -233,6 +262,14 @@ class _Header extends StatelessWidget {
             ),
           ),
           const Spacer(),
+          IconButton(
+            tooltip: mergeToolTooltip,
+            iconSize: 18,
+            visualDensity: VisualDensity.compact,
+            onPressed: onMergeTool,
+            icon: const Icon(Icons.open_in_new),
+          ),
+          const SizedBox(width: 4),
           TextButton(onPressed: onNext, child: Text(l.mergeNextUnresolved)),
           const SizedBox(width: 8),
           TextButton(onPressed: onAbort, child: Text(l.mergeAbort)),
@@ -253,11 +290,33 @@ class _FileList extends StatelessWidget {
   final List<ConflictFile> files;
   final int active;
   final ValueChanged<int> onSelect;
+  final ValueChanged<String> onMergeTool;
   const _FileList({
     required this.files,
     required this.active,
     required this.onSelect,
+    required this.onMergeTool,
   });
+
+  // No "Open in editor" here: Resolve writes the app's own result over each
+  // text file, so an edit made in an editor meanwhile would be lost.
+  void _menu(BuildContext context, Offset at, ConflictFile file) {
+    final l = AppLocalizations.of(context);
+    showContextMenu<void>(
+      context: context,
+      position: at,
+      items: [
+        PopupMenuItem(
+          height: 34,
+          onTap: () => onMergeTool(file.path),
+          child: Text(
+            l.extOpenInMergeTool,
+            style: const TextStyle(fontSize: 13),
+          ),
+        ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -267,36 +326,41 @@ class _FileList extends StatelessWidget {
       child: ListView(
         children: [
           for (var i = 0; i < files.length; i++)
-            InkWell(
-              onTap: () => onSelect(i),
-              child: Container(
-                color: i == active ? t.active : null,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      files[i].resolved
-                          ? Icons.check_circle
-                          : Icons.error_outline,
-                      size: 14,
-                      color: files[i].resolved ? t.success : t.warning,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        files[i].path,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: t.textMuted, fontSize: 12.5),
+            GestureDetector(
+              onSecondaryTapUp: canUseMergeTool(files[i])
+                  ? (d) => _menu(context, d.globalPosition, files[i])
+                  : null,
+              child: InkWell(
+                onTap: () => onSelect(i),
+                child: Container(
+                  color: i == active ? t.active : null,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        files[i].resolved
+                            ? Icons.check_circle
+                            : Icons.error_outline,
+                        size: 14,
+                        color: files[i].resolved ? t.success : t.warning,
                       ),
-                    ),
-                    Text(
-                      '${files[i].resolvedCount}/${files[i].total}',
-                      style: TextStyle(color: t.textFaint, fontSize: 11),
-                    ),
-                  ],
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          files[i].path,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: t.textMuted, fontSize: 12.5),
+                        ),
+                      ),
+                      Text(
+                        '${files[i].resolvedCount}/${files[i].total}',
+                        style: TextStyle(color: t.textFaint, fontSize: 11),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

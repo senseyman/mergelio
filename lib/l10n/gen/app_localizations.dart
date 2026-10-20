@@ -8749,6 +8749,204 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not read git config: {error}'**
   String rcfgReadFailed(String error);
+
+  /// No description provided for @extOpenInEditor.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in editor'**
+  String get extOpenInEditor;
+
+  /// No description provided for @extOpenInDiffTool.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in diff tool'**
+  String get extOpenInDiffTool;
+
+  /// No description provided for @extOpenInMergeTool.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in merge tool'**
+  String get extOpenInMergeTool;
+
+  /// No description provided for @extOpenInMergeToolNamed.
+  ///
+  /// In en, this message translates to:
+  /// **'Open {path} in merge tool'**
+  String extOpenInMergeToolNamed(String path);
+
+  /// No description provided for @extMergeTool.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge tool'**
+  String get extMergeTool;
+
+  /// No description provided for @extFileMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'{path} is not in the working tree'**
+  String extFileMissing(String path);
+
+  /// No description provided for @extBadCommand.
+  ///
+  /// In en, this message translates to:
+  /// **'The editor command cannot be read'**
+  String get extBadCommand;
+
+  /// No description provided for @extBadCommandHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Check its quotes in Preferences → General → Open files with.'**
+  String get extBadCommandHint;
+
+  /// No description provided for @extLaunchFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open {program}'**
+  String extLaunchFailed(String program);
+
+  /// No description provided for @extNoDiffTool.
+  ///
+  /// In en, this message translates to:
+  /// **'No diff tool is set'**
+  String get extNoDiffTool;
+
+  /// No description provided for @extNoDiffToolHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Set one with: git config --global diff.tool <name>'**
+  String get extNoDiffToolHint;
+
+  /// No description provided for @extNoMergeTool.
+  ///
+  /// In en, this message translates to:
+  /// **'No merge tool is set'**
+  String get extNoMergeTool;
+
+  /// No description provided for @extNoMergeToolHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Set one with: git config --global merge.tool <name>'**
+  String get extNoMergeToolHint;
+
+  /// No description provided for @extTerminalTool.
+  ///
+  /// In en, this message translates to:
+  /// **'{tool} runs in a terminal'**
+  String extTerminalTool(String tool);
+
+  /// No description provided for @extTerminalToolHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Mergelio cannot show a terminal tool. Set a graphical one in diff.guitool or merge.guitool.'**
+  String get extTerminalToolHint;
+
+  /// No description provided for @extToolFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'{tool} reported an error'**
+  String extToolFailed(String tool);
+
+  /// No description provided for @extResolvedInTool.
+  ///
+  /// In en, this message translates to:
+  /// **'{path} resolved in {tool}'**
+  String extResolvedInTool(String path, String tool);
+
+  /// No description provided for @extStillConflicted.
+  ///
+  /// In en, this message translates to:
+  /// **'{path} still has conflicts'**
+  String extStillConflicted(String path);
+
+  /// No description provided for @extStillConflictedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The merge tool did not report success, so git left the file unresolved.'**
+  String get extStillConflictedHint;
+
+  /// No description provided for @prefsOpenFilesWith.
+  ///
+  /// In en, this message translates to:
+  /// **'Open files with'**
+  String get prefsOpenFilesWith;
+
+  /// No description provided for @extEditorSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'System default'**
+  String get extEditorSystem;
+
+  /// No description provided for @extEditorVsCode.
+  ///
+  /// In en, this message translates to:
+  /// **'VS Code'**
+  String get extEditorVsCode;
+
+  /// No description provided for @extEditorIdea.
+  ///
+  /// In en, this message translates to:
+  /// **'IntelliJ IDEA'**
+  String get extEditorIdea;
+
+  /// No description provided for @extEditorCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get extEditorCustom;
+
+  /// No description provided for @extEditorCommandLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Editor command'**
+  String get extEditorCommandLabel;
+
+  /// No description provided for @extEditorPlaceholders.
+  ///
+  /// In en, this message translates to:
+  /// **'Filled in:'**
+  String get extEditorPlaceholders;
+
+  /// No description provided for @extOpenIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in…'**
+  String get extOpenIn;
+
+  /// No description provided for @extTooManyDiffTools.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} diff tools are already open'**
+  String extTooManyDiffTools(int count);
+
+  /// No description provided for @extTooManyDiffToolsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Close one to open another.'**
+  String get extTooManyDiffToolsHint;
+
+  /// No description provided for @extMergeToolNeedsBoth.
+  ///
+  /// In en, this message translates to:
+  /// **'{path} was deleted on one side'**
+  String extMergeToolNeedsBoth(String path);
+
+  /// No description provided for @extMergeToolNeedsBothHint.
+  ///
+  /// In en, this message translates to:
+  /// **'A merge tool cannot settle that. Keep a side or delete the file here.'**
+  String get extMergeToolNeedsBothHint;
+
+  /// No description provided for @extMergeToolLeftOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'{tool} may still be open'**
+  String extMergeToolLeftOpen(String tool);
+
+  /// No description provided for @extMergeToolLeftOpenHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Mergelio stopped waiting for it. The file stays conflicted, and anything the tool saves now is not staged.'**
+  String get extMergeToolLeftOpenHint;
 }
 
 class _AppLocalizationsDelegate

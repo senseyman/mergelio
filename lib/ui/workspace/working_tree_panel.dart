@@ -30,6 +30,7 @@ import '../../state/settings_controller.dart';
 import '../../state/working_selection.dart';
 import '../common/confirm.dart';
 import '../common/dialogs.dart';
+import '../common/external_tool_items.dart';
 import '../common/file_tree_view.dart';
 import '../common/lfs_chip.dart';
 import '../common/lfs_lock_chip.dart';
@@ -799,6 +800,24 @@ class _FileRow extends StatelessWidget {
                   ),
                   child: Text(l.wtpBlame, style: TextStyle(fontSize: 13)),
                 ),
+                if (!file.submodule)
+                  ...externalToolMenuItems(
+                    context: context,
+                    actions: ProviderScope.containerOf(
+                      context,
+                      listen: false,
+                    ).read(repoActionsProvider(repoPath)),
+                    path: file.path,
+                    // An untracked file has nothing to compare against.
+                    diff: file.worktree == GitChange.untracked
+                        ? null
+                        : DiffTarget(
+                            repoPath: repoPath,
+                            path: file.path,
+                            origPath: file.origPath,
+                            staged: staged,
+                          ),
+                  ),
                 ...trackItems(file, lfs),
                 PopupMenuItem(
                   height: 34,

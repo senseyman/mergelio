@@ -67,6 +67,26 @@ class DiffHunk {
   });
 }
 
+/// The new-side line of the first change in [hunks], for opening the file
+/// there. A deletion has no line of its own, so it lands on the line that now
+/// sits where it was. 1 when there is no change at all.
+int firstChangedLine(List<DiffHunk> hunks) {
+  for (final h in hunks) {
+    var next = h.newStart;
+    for (final line in h.lines) {
+      switch (line.type) {
+        case DiffLineType.context:
+          next = (line.newNo ?? next) + 1;
+        case DiffLineType.add:
+          return line.newNo ?? next;
+        case DiffLineType.del:
+          return next < 1 ? 1 : next;
+      }
+    }
+  }
+  return 1;
+}
+
 /// The LFS pointers on the two sides of a file's diff. Either side is null
 /// where that side is not a pointer (absent, or ordinary content).
 class LfsDiff {

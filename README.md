@@ -316,6 +316,26 @@ change never needs a second window.*
 - Resolving only stages the result. Nothing is committed behind your back: you
   review the staged files, then commit the merge yourself or continue the paused
   rebase / cherry-pick / revert from the working-tree panel.
+- **Open in merge tool** hands a conflicted file to git's `merge.tool` (or
+  `merge.guitool`). git stages the file when the tool reports success, and it
+  leaves the session; that is as far as it goes, so committing or continuing
+  is still yours. A file one side deleted is settled in Mergelio instead,
+  since git would stop to ask whether to keep it.
+
+### External tools
+
+- **Open in editor** from the working tree, commit details, diff sheet and
+  Files browser. Preferences → General → *Open files with* picks the
+  system default app, VS Code, IntelliJ IDEA, or a command of your own with
+  `{file}` and `{line}` filled in. From the unstaged side of the diff sheet it
+  opens at the first change.
+- **Open in diff tool** runs `git difftool` with your `diff.tool` /
+  `diff.guitool` (falling back to `merge.tool`) on the side or commit shown.
+  Up to four can be open at once.
+- Tools in `/opt/homebrew/bin`, `/usr/local/bin`, `~/.local/bin` and VS Code's
+  bundled `code` are found even when Mergelio is started from Finder or the
+  Dock. Terminal-only tools such as `vimdiff` are refused with a hint, since
+  there is no terminal for them to draw in.
 
 ### Safety net
 

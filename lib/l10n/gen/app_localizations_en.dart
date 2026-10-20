@@ -5365,4 +5365,130 @@ class AppLocalizationsEn extends AppLocalizations {
   String rcfgReadFailed(String error) {
     return 'Could not read git config: $error';
   }
+
+  @override
+  String get extOpenInEditor => 'Open in editor';
+
+  @override
+  String get extOpenInDiffTool => 'Open in diff tool';
+
+  @override
+  String get extOpenInMergeTool => 'Open in merge tool';
+
+  @override
+  String extOpenInMergeToolNamed(String path) {
+    return 'Open $path in merge tool';
+  }
+
+  @override
+  String get extMergeTool => 'Merge tool';
+
+  @override
+  String extFileMissing(String path) {
+    return '$path is not in the working tree';
+  }
+
+  @override
+  String get extBadCommand => 'The editor command cannot be read';
+
+  @override
+  String get extBadCommandHint =>
+      'Check its quotes in Preferences → General → Open files with.';
+
+  @override
+  String extLaunchFailed(String program) {
+    return 'Could not open $program';
+  }
+
+  @override
+  String get extNoDiffTool => 'No diff tool is set';
+
+  @override
+  String get extNoDiffToolHint =>
+      'Set one with: git config --global diff.tool <name>';
+
+  @override
+  String get extNoMergeTool => 'No merge tool is set';
+
+  @override
+  String get extNoMergeToolHint =>
+      'Set one with: git config --global merge.tool <name>';
+
+  @override
+  String extTerminalTool(String tool) {
+    return '$tool runs in a terminal';
+  }
+
+  @override
+  String get extTerminalToolHint =>
+      'Mergelio cannot show a terminal tool. Set a graphical one in diff.guitool or merge.guitool.';
+
+  @override
+  String extToolFailed(String tool) {
+    return '$tool reported an error';
+  }
+
+  @override
+  String extResolvedInTool(String path, String tool) {
+    return '$path resolved in $tool';
+  }
+
+  @override
+  String extStillConflicted(String path) {
+    return '$path still has conflicts';
+  }
+
+  @override
+  String get extStillConflictedHint =>
+      'The merge tool did not report success, so git left the file unresolved.';
+
+  @override
+  String get prefsOpenFilesWith => 'Open files with';
+
+  @override
+  String get extEditorSystem => 'System default';
+
+  @override
+  String get extEditorVsCode => 'VS Code';
+
+  @override
+  String get extEditorIdea => 'IntelliJ IDEA';
+
+  @override
+  String get extEditorCustom => 'Custom';
+
+  @override
+  String get extEditorCommandLabel => 'Editor command';
+
+  @override
+  String get extEditorPlaceholders => 'Filled in:';
+
+  @override
+  String get extOpenIn => 'Open in…';
+
+  @override
+  String extTooManyDiffTools(int count) {
+    return '$count diff tools are already open';
+  }
+
+  @override
+  String get extTooManyDiffToolsHint => 'Close one to open another.';
+
+  @override
+  String extMergeToolNeedsBoth(String path) {
+    return '$path was deleted on one side';
+  }
+
+  @override
+  String get extMergeToolNeedsBothHint =>
+      'A merge tool cannot settle that. Keep a side or delete the file here.';
+
+  @override
+  String extMergeToolLeftOpen(String tool) {
+    return '$tool may still be open';
+  }
+
+  @override
+  String get extMergeToolLeftOpenHint =>
+      'Mergelio stopped waiting for it. The file stays conflicted, and anything the tool saves now is not staged.';
 }

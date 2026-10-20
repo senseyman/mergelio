@@ -3,6 +3,7 @@ import 'project_status.dart';
 
 /// What the navigator's context menu can offer for one row.
 enum ProjectMenuItem {
+  openInEditor,
   newFile,
   newFolder,
   rename,
@@ -25,6 +26,7 @@ List<ProjectMenuItem> projectMenuItems({
   required EntryStatus status,
   WorkingFile? change,
 }) => [
+  if (!isDir) ProjectMenuItem.openInEditor,
   if (isDir) ...[ProjectMenuItem.newFile, ProjectMenuItem.newFolder],
   ProjectMenuItem.rename,
   ProjectMenuItem.delete,

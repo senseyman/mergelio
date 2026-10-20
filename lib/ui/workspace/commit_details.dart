@@ -12,10 +12,12 @@ import '../../l10n/gen/app_localizations.dart';
 import '../../state/diff_target.dart';
 import '../../state/graph_selection.dart';
 import '../../state/lfs.dart';
+import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
 import '../../state/settings_controller.dart';
 import '../../state/signatures.dart';
 import '../common/change_file_row.dart';
+import '../common/external_tool_items.dart';
 import '../common/file_tree_view.dart';
 import '../common/signature_badge.dart';
 import '../graph/commit_columns.dart';
@@ -288,13 +290,26 @@ class CommitDetails extends ConsumerWidget {
                         lfs: lfs.contains(path),
                         lock: locks.lockFor(path),
                         lockIsOurs: locks.isOurs(path),
-                        extraMenu: (ctx) => lfsLockMenuItems(
-                          context: ctx,
-                          ref: ref,
-                          repoPath: repoPath,
-                          path: path,
-                          isLfs: lfs.contains(path),
-                        ),
+                        extraMenu: (ctx) => [
+                          ...externalToolMenuItems(
+                            context: ctx,
+                            actions: ref.read(repoActionsProvider(repoPath)),
+                            path: path,
+                            diff: DiffTarget(
+                              repoPath: repoPath,
+                              path: path,
+                              commitSha: c.sha,
+                              origPath: byPath[path]!.origPath,
+                            ),
+                          ),
+                          ...lfsLockMenuItems(
+                            context: ctx,
+                            ref: ref,
+                            repoPath: repoPath,
+                            path: path,
+                            isLfs: lfs.contains(path),
+                          ),
+                        ],
                         onTap: () =>
                             ref
                                 .read(diffTargetProvider.notifier)

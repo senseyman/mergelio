@@ -274,6 +274,8 @@ class _ProjectNavPanelState extends ConsumerState<ProjectNavPanel> {
     if (picked == null || !mounted) return;
     final actions = ref.read(repoActionsProvider(repoPath));
     switch (picked) {
+      case ProjectMenuItem.openInEditor:
+        await actions.openInEditor(row.path);
       case ProjectMenuItem.newFile:
         await _create(row.path, dir: false);
       case ProjectMenuItem.newFolder:
@@ -341,6 +343,7 @@ class _ProjectNavPanelState extends ConsumerState<ProjectNavPanel> {
 
   static String _menuLabel(AppLocalizations l, ProjectMenuItem item) =>
       switch (item) {
+        ProjectMenuItem.openInEditor => l.extOpenInEditor,
         ProjectMenuItem.newFile => l.pnpNewFileMenu,
         ProjectMenuItem.newFolder => l.pnpNewFolderMenu,
         ProjectMenuItem.rename => l.pnpRenameMenu,
