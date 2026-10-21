@@ -6,10 +6,12 @@ import 'package:path/path.dart' as p;
 
 import '../core/concurrency.dart';
 import '../core/logging.dart';
+import '../domain/external_tools.dart';
 import '../domain/file_edit.dart';
 import '../domain/git/bisect.dart';
 import '../domain/git/commit_message.dart';
 import '../domain/git/conflict.dart';
+import '../domain/git/external_git_tools.dart';
 import '../domain/git/git_providers.dart';
 import '../domain/git/git_reader.dart';
 import '../domain/git/git_service.dart';
@@ -24,6 +26,8 @@ import '../domain/git/rebase_plan.dart';
 import '../domain/git/stash.dart';
 import '../l10n/gen/app_localizations.dart';
 import 'bisect.dart';
+import 'diff_target.dart';
+import 'external_tools.dart';
 import 'feedback.dart';
 import 'forge_refresh.dart';
 import 'merge_session.dart';
@@ -33,6 +37,7 @@ import 'graph_selection.dart';
 import 'l10n.dart';
 import 'lfs.dart';
 import 'repo_data.dart';
+import 'settings_controller.dart';
 import 'undo_stack.dart';
 import 'workspace.dart';
 import 'worktrees.dart';
@@ -3296,10 +3301,294 @@ class RepoActions {
   /// resolution is complete once staged, so its stash is dropped. Call only
   /// when the session reports all conflicts resolved.
   Future<void> resolveConflicts(MergeSession session) async {
+    // A merge tool still open on one of the files would stage its own result
+    // over this one when it closes.
+    if (_blockedByRepoOp) return;
     try {
       await _timed('Resolve conflicts', () => _resolveConflicts(session));
     } on GitException catch (e) {
       _toastErr(_l.actResolveConflicts, e);
+    }
+  }
+
+  /// Opens the working-tree copy of [relPath] in the user's editor, at [line]
+  /// when the command takes one. Completes once the editor process ends; the
+  /// UI does not wait on it. Failures surface as toasts.
+  Future<void> openInEditor(String relPath, {int line = 1}) async {
+    final toasts = _ref.read(toastProvider.notifier);
+    final file = p.join(path, relPath);
+    if (!File(file).existsSync()) {
+      toasts.show(_l.extFileMissing(relPath), kind: ToastKind.warning);
+      return;
+    }
+    final String exe;
+    final List<String> args;
+    try {
+      (exe, args) = editorInvocation(
+        _ref.read(settingsProvider).editorCommand,
+        file,
+        line: line,
+        os: Platform.operatingSystem,
+      );
+    } on FormatException {
+      toasts.show(
+        _l.extBadCommand,
+        description: _l.extBadCommandHint,
+        kind: ToastKind.error,
+      );
+      return;
+    }
+    try {
+      final r = await _ref.read(externalLauncherProvider).run(exe, args);
+      // Explorer exits 1 even when it opened the file.
+      if (r.exitCode != 0 && exe != 'explorer') {
+        final err = r.stderr.toString().trim();
+        toasts.show(
+          _l.extLaunchFailed(exe),
+          description: err.isEmpty ? null : err,
+          kind: ToastKind.error,
+        );
+      }
+    } on ProcessException catch (e) {
+      toasts.show(
+        _l.extLaunchFailed(exe),
+        description: e.message,
+        kind: ToastKind.error,
+      );
+    }
+  }
+
+  /// The tool git would run for [kind], or null — after saying why — when
+  /// there is none Mergelio can start.
+  Future<ToolReady?> _externalTool(ToolKind kind) async {
+    final toasts = _ref.read(toastProvider.notifier);
+    final ExternalToolConfig config;
+    try {
+      config = await ExternalGitTools(_git, path).config();
+    } on GitException catch (e) {
+      _toastErr(
+        kind == ToolKind.diff ? _l.extOpenInDiffTool : _l.extMergeTool,
+        e,
+      );
+      return null;
+    }
+    switch (pickExternalTool(config, kind)) {
+      case final ToolReady tool:
+        return tool;
+      case ToolMissing():
+        toasts.show(
+          kind == ToolKind.diff ? _l.extNoDiffTool : _l.extNoMergeTool,
+          description: kind == ToolKind.diff
+              ? _l.extNoDiffToolHint
+              : _l.extNoMergeToolHint,
+          kind: ToastKind.warning,
+        );
+      case ToolNeedsTerminal(:final name):
+        toasts.show(
+          _l.extTerminalTool(name),
+          description: _l.extTerminalToolHint,
+          kind: ToastKind.warning,
+        );
+    }
+    return null;
+  }
+
+  /// Shows [target] in git's configured diff tool. Read-only, so it holds no
+  /// lane: several can be open while the user keeps working.
+  Future<void> openDifftool(DiffTarget target) async {
+    final open = openDiffToolsProvider.notifier;
+    if (_ref.read(openDiffToolsProvider) >= kMaxOpenDiffTools) {
+      _ref
+          .read(toastProvider.notifier)
+          .show(
+            _l.extTooManyDiffTools(kMaxOpenDiffTools),
+            description: _l.extTooManyDiffToolsHint,
+            kind: ToastKind.warning,
+          );
+      return;
+    }
+    // Counted from before the config read, so a burst of clicks cannot slip
+    // past the limit while it is in flight.
+    _ref.read(open).state++;
+    try {
+      await _openDifftool(target);
+    } finally {
+      _ref.read(open).state--;
+    }
+  }
+
+  Future<void> _openDifftool(DiffTarget target) async {
+    final tool = await _externalTool(ToolKind.diff);
+    if (tool == null) return;
+    final tools = ExternalGitTools(_git, path);
+    try {
+      final sha = target.commitSha;
+      final args = difftoolArgs(
+        path: target.path,
+        origPath: target.origPath,
+        staged: target.staged,
+        gui: tool.gui,
+        from: sha == null ? null : target.baseRev ?? await tools.diffBase(sha),
+        to: sha,
+      );
+      final r = await _timed('Diff tool', () => tools.difftool(args));
+      if (!r.ok) {
+        _ref
+            .read(toastProvider.notifier)
+            .show(
+              _l.extToolFailed(tool.name),
+              description: r.err.isEmpty ? null : r.err,
+              kind: ToastKind.error,
+            );
+      }
+    } on GitException catch (e) {
+      _toastErr(_l.extOpenInDiffTool, e);
+    }
+  }
+
+  /// Hands the conflicted [relPath] to git's configured merge tool. git
+  /// stages the file when the tool reports success; that is as far as this
+  /// goes — committing, or continuing the operation, stays with the user.
+  ///
+  /// Only a file both sides still have can go to the tool; see
+  /// [canUseMergeTool].
+  ///
+  /// Holds the repository lane while the tool is open, since git writes the
+  /// file and the index when it closes. A file git staged leaves the merge
+  /// session, and the last one to go finishes it the way Resolve does. A
+  /// file still conflicted stays in the session as it was.
+  Future<void> openMergeTool(String relPath) async {
+    if (_blockedByRepoOp) return;
+    final toasts = _ref.read(toastProvider.notifier);
+    final conflict = _ref
+        .read(mergeSessionProvider(path))
+        ?.files
+        .where((f) => f.path == relPath)
+        .firstOrNull;
+    if (conflict != null && !canUseMergeTool(conflict)) {
+      // git would stop to ask whether to keep or delete the file, and leave
+      // its temporary copies behind when nobody answers.
+      toasts.show(
+        _l.extMergeToolNeedsBoth(relPath),
+        description: _l.extMergeToolNeedsBothHint,
+        kind: ToastKind.warning,
+      );
+      return;
+    }
+    final cancel = GitCancel();
+    final label = _l.extMergeTool;
+    // Taken before the config read, so a second click cannot start a second
+    // tool on the same file.
+    _ref.read(busyProvider.notifier).state = BusyState(
+      label,
+      onCancel: cancel.cancel,
+    );
+    GitResult? result;
+    ToolReady? tool;
+    final dir = Directory(p.dirname(p.join(path, relPath)));
+    var copiesBefore = const <String>{};
+    try {
+      tool = await _externalTool(ToolKind.merge);
+      if (tool == null) return;
+      // Cancelled while the config was read: nothing has opened, so there is
+      // nothing to warn about or clean up.
+      if (cancel.isCancelled) {
+        toasts.show(_l.actCancelled(label), kind: ToastKind.warning);
+        tool = null;
+        return;
+      }
+      copiesBefore = _mergetoolCopies(dir, relPath);
+      final args = mergetoolArgs(relPath, gui: tool.gui);
+      result = await _timed(
+        label,
+        () => ExternalGitTools(_git, path).mergetool(args, cancel: cancel),
+      );
+    } on GitCancelledException {
+      toasts.show(
+        _l.extMergeToolLeftOpen(tool!.name),
+        description: _l.extMergeToolLeftOpenHint,
+        kind: ToastKind.warning,
+      );
+    } on GitException catch (e) {
+      _toastErr(label, e);
+    } finally {
+      // git was stopped before it could tidy up after itself: take away the
+      // copies it made, and only those — any already there are not ours.
+      if (tool != null && result == null) {
+        for (final n in _mergetoolCopies(dir, relPath)) {
+          if (copiesBefore.contains(n)) continue;
+          try {
+            File(p.join(dir.path, n)).deleteSync();
+          } on FileSystemException {
+            // Gone already, or not ours to remove.
+          }
+        }
+      }
+      _ref.read(busyProvider.notifier).state = null;
+    }
+    if (tool == null) return;
+    await _afterMergeTool(relPath, tool.name, result);
+  }
+
+  /// The names in [dir] that look like `git mergetool`'s copies of [relPath].
+  Set<String> _mergetoolCopies(Directory dir, String relPath) {
+    try {
+      return mergetoolLeftovers(relPath, [
+        for (final e in dir.listSync()) p.basename(e.path),
+      ]).toSet();
+    } on FileSystemException {
+      return const {};
+    }
+  }
+
+  Future<void> _afterMergeTool(
+    String relPath,
+    String toolName,
+    GitResult? result,
+  ) async {
+    final toasts = _ref.read(toastProvider.notifier);
+    try {
+      final still = (await GitReader(
+        _git,
+        path,
+      ).unmergedFiles()).any((f) => f.path == relPath);
+      // Read after git answers: a choice made in the meantime must survive.
+      final session = _ref.read(mergeSessionProvider(path));
+      if (session == null) return;
+      if (still) {
+        // git puts the file back as it was when the tool fails, so the
+        // session's reading of it, and any choices made in it, still hold.
+        // A cancel or a failed start has already said so.
+        if (result != null) {
+          toasts.show(
+            _l.extStillConflicted(relPath),
+            description: result.err.isNotEmpty
+                ? result.err
+                : _l.extStillConflictedHint,
+            kind: ToastKind.warning,
+          );
+        }
+        return;
+      }
+      final rest = [
+        for (final f in session.files)
+          if (f.path != relPath) f,
+      ];
+      if (rest.isEmpty) {
+        await _resolveConflicts(session.withFiles(const []));
+        return;
+      }
+      _ref.read(mergeSessionProvider(path).notifier).state = session.withFiles(
+        rest,
+      );
+      toasts.show(
+        _l.extResolvedInTool(relPath, toolName),
+        kind: ToastKind.success,
+      );
+    } on GitException catch (e) {
+      _toastErr(_l.extMergeTool, e);
+    } finally {
+      _refresh();
     }
   }
 
@@ -3933,6 +4222,9 @@ class RepoActions {
   /// session when there is one, and from git's own state otherwise — by the
   /// time the user reviews a staged resolution the session is already closed.
   Future<void> abortMerge() async {
+    // A merge tool still open would stage its result into a tree that is
+    // no longer merging once it closes.
+    if (_blockedByRepoOp) return;
     final kind =
         _ref.read(mergeSessionProvider(path))?.kind ??
         (await pendingOp())?.kind;

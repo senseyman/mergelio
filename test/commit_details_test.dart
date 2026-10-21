@@ -1,8 +1,11 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/core/tokens.dart';
 import 'package:mergelio/data/settings_repository.dart';
+import 'package:mergelio/domain/git/git_providers.dart';
+import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/domain/git/models.dart';
 import 'package:mergelio/domain/git/signature.dart';
 import 'package:mergelio/domain/git/tag_info.dart';
@@ -37,8 +40,10 @@ Widget _harness({
   bool tagInfosFail = false,
   List<String>? tagInfoReads,
   Future<Set<String>> Function(Ref ref, LfsQuery q)? lfsPaths,
+  GitService? git,
 }) => ProviderScope(
   overrides: [
+    if (git != null) gitServiceProvider.overrideWithValue(git),
     commitFilesProvider.overrideWith(
       (ref, key) async =>
           files ??
@@ -93,7 +98,69 @@ Widget _harness({
   ),
 );
 
+/// Answers the tool config read with a diff tool and records what ran.
+class _ToolGit implements GitService {
+  final calls = <List<String>>[];
+
+  @override
+  Future<GitResult> run(
+    List<String> a, {
+    String? repoPath,
+    Duration? timeout,
+    Map<String, String>? environment,
+    GitCancel? cancel,
+    String? stdin,
+  }) async {
+    calls.add(a);
+    if (a.first == 'config') return const GitResult(0, 'diff.tool\nx\x00', '');
+    if (a.first == 'rev-parse') return const GitResult(0, '1111111aaaa\n', '');
+    return const GitResult(0, '', '');
+  }
+
+  @override
+  Future<String> version() async => 'git version 2';
+  @override
+  Future<bool> isRepository(String path) async => true;
+}
+
 void main() {
+  testWidgets('a changed file opens in the diff tool against its parent', (
+    tester,
+  ) async {
+    final git = _ToolGit();
+    await tester.pumpWidget(
+      _harness(
+        git: git,
+        files: const [
+          CommitFileChange(
+            path: 'lib/new.dart',
+            change: GitChange.renamed,
+            origPath: 'lib/old.dart',
+          ),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.text('lib/old.dart → lib/new.dart'),
+      buttons: kSecondaryButton,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Open in editor'), findsOneWidget);
+    await tester.tap(find.text('Open in diff tool'));
+    await tester.pumpAndSettle();
+    expect(git.calls.where((c) => c.first == 'difftool').single, [
+      'difftool',
+      '--no-prompt',
+      '-M',
+      '1111111aaaa',
+      'abcdef1234567890',
+      '--',
+      'lib/old.dart',
+      'lib/new.dart',
+    ]);
+  });
+
   testWidgets('shows metadata, signature and changed files', (tester) async {
     await tester.pumpWidget(
       _harness(

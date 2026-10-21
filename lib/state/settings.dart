@@ -88,6 +88,9 @@ abstract class AppSettings with _$AppSettings {
     // Shelve and restore uncommitted work around a pull, so a dirty tree does
     // not turn every pull into an error.
     @Default(true) bool pullAutostash,
+    // Command that opens a file for editing, with {file} and {line} filled
+    // in. '' opens it with the platform's default app.
+    @Default('') String editorCommand,
     // 'medium' (Jul 2, 2026) | 'iso' (2026-07-02) | 'short' (07/02/26).
     @Default('medium') String dateFormat,
     // '24h' (14:33) | '12h' (2:33 PM) — used wherever a clock is shown.

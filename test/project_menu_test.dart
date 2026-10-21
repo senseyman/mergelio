@@ -148,4 +148,15 @@ void main() {
       ProjectMenuItem.reveal,
     ]);
   });
+
+  test('a file can be opened in the editor, first; a directory cannot', () {
+    for (final status in EntryStatus.values) {
+      expect(file(status).first, ProjectMenuItem.openInEditor);
+    }
+    expect(dir(), isNot(contains(ProjectMenuItem.openInEditor)));
+    expect(
+      projectRootMenuItems(),
+      isNot(contains(ProjectMenuItem.openInEditor)),
+    );
+  });
 }

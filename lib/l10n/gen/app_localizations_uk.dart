@@ -5464,4 +5464,130 @@ class AppLocalizationsUk extends AppLocalizations {
   String rcfgReadFailed(String error) {
     return 'Не вдалося прочитати конфігурацію git: $error';
   }
+
+  @override
+  String get extOpenInEditor => 'Відкрити в редакторі';
+
+  @override
+  String get extOpenInDiffTool => 'Відкрити в інструменті порівняння';
+
+  @override
+  String get extOpenInMergeTool => 'Відкрити в інструменті злиття';
+
+  @override
+  String extOpenInMergeToolNamed(String path) {
+    return 'Відкрити $path в інструменті злиття';
+  }
+
+  @override
+  String get extMergeTool => 'Інструмент злиття';
+
+  @override
+  String extFileMissing(String path) {
+    return '$path немає в робочому дереві';
+  }
+
+  @override
+  String get extBadCommand => 'Не вдається прочитати команду редактора';
+
+  @override
+  String get extBadCommandHint =>
+      'Перевірте лапки в Налаштування → Загальні → Відкривати файли в.';
+
+  @override
+  String extLaunchFailed(String program) {
+    return 'Не вдалося відкрити $program';
+  }
+
+  @override
+  String get extNoDiffTool => 'Інструмент порівняння не задано';
+
+  @override
+  String get extNoDiffToolHint =>
+      'Задайте його командою: git config --global diff.tool <name>';
+
+  @override
+  String get extNoMergeTool => 'Інструмент злиття не задано';
+
+  @override
+  String get extNoMergeToolHint =>
+      'Задайте його командою: git config --global merge.tool <name>';
+
+  @override
+  String extTerminalTool(String tool) {
+    return '$tool працює в терміналі';
+  }
+
+  @override
+  String get extTerminalToolHint =>
+      'Mergelio не може показати термінальний інструмент. Задайте графічний у diff.guitool або merge.guitool.';
+
+  @override
+  String extToolFailed(String tool) {
+    return '$tool повідомив про помилку';
+  }
+
+  @override
+  String extResolvedInTool(String path, String tool) {
+    return '$path розв\'язано в $tool';
+  }
+
+  @override
+  String extStillConflicted(String path) {
+    return '$path досі має конфлікти';
+  }
+
+  @override
+  String get extStillConflictedHint =>
+      'Інструмент злиття не повідомив про успіх, тож git залишив файл нерозв\'язаним.';
+
+  @override
+  String get prefsOpenFilesWith => 'Відкривати файли в';
+
+  @override
+  String get extEditorSystem => 'Системна програма';
+
+  @override
+  String get extEditorVsCode => 'VS Code';
+
+  @override
+  String get extEditorIdea => 'IntelliJ IDEA';
+
+  @override
+  String get extEditorCustom => 'Власна';
+
+  @override
+  String get extEditorCommandLabel => 'Команда редактора';
+
+  @override
+  String get extEditorPlaceholders => 'Підставляються:';
+
+  @override
+  String get extOpenIn => 'Відкрити в…';
+
+  @override
+  String extTooManyDiffTools(int count) {
+    return '$count інструменти порівняння вже відкрито';
+  }
+
+  @override
+  String get extTooManyDiffToolsHint => 'Закрийте один, щоб відкрити інший.';
+
+  @override
+  String extMergeToolNeedsBoth(String path) {
+    return '$path видалено з одного боку';
+  }
+
+  @override
+  String get extMergeToolNeedsBothHint =>
+      'Інструмент злиття цього не розв\'яже. Залиште одну зі сторін або видаліть файл тут.';
+
+  @override
+  String extMergeToolLeftOpen(String tool) {
+    return '$tool може бути досі відкритий';
+  }
+
+  @override
+  String get extMergeToolLeftOpenHint =>
+      'Mergelio більше не чекає на нього. Файл залишається з конфліктами, а те, що інструмент збереже тепер, не буде проіндексовано.';
 }

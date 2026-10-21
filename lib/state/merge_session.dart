@@ -91,6 +91,12 @@ class ConflictFile {
   ConflictFile withFileChoice(FileResolution r) => _copy(fileChoice: r);
 }
 
+/// Whether git's merge tool can take [f]. A gitlink has no file to open, and
+/// for a path one side deleted git stops to ask, before any tool runs,
+/// whether to keep it or delete it.
+bool canUseMergeTool(ConflictFile f) =>
+    !f.submodule && f.kind.hasOurs && f.kind.hasTheirs;
+
 /// What produced the conflicts being resolved. Resolving only ever stages the
 /// result; how the operation is then closed differs by kind — [merge] waits for
 /// an ordinary commit, [rebase], [cherryPick] and [revert] wait for a

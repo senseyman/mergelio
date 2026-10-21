@@ -265,6 +265,30 @@ class _DiffHeader extends ConsumerWidget {
     // whitespace change is never silently missing from what the user reads.
     final optionsActive = target.wholeFile || !options.isDefault;
 
+    // Handing the file to another program. The editor always gets the
+    // working-tree copy, so only the unstaged side's line numbers are the
+    // file's own; any other side opens at the top.
+    final actions = ref.read(repoActionsProvider(target.repoPath));
+    final line = target.isWorkingTree && !target.staged
+        ? firstChangedLine([
+            for (final f in doc?.files ?? const <FileDiff>[]) ...f.hunks,
+          ])
+        : 1;
+    // An untracked file has nothing in the index for a diff tool to compare.
+    final untracked =
+        target.isWorkingTree && wf?.worktree == GitChange.untracked;
+    List<PopupMenuEntry<VoidCallback>> externalItems() => [
+      PopupMenuItem(
+        value: () => actions.openInEditor(target.path, line: line),
+        child: Text(l.extOpenInEditor),
+      ),
+      if (!untracked)
+        PopupMenuItem(
+          value: () => actions.openDifftool(target),
+          child: Text(l.extOpenInDiffTool),
+        ),
+    ];
+
     // Every action as a button, for when there is room for all of them.
     final full = Row(
       mainAxisSize: MainAxisSize.min,
@@ -294,6 +318,14 @@ class _DiffHeader extends ConsumerWidget {
           onInline: () => ctl.setDiffSplit(false),
           onSplit: () => ctl.setDiffSplit(true),
         ),
+        if (!editing)
+          PopupMenuButton<VoidCallback>(
+            tooltip: l.extOpenIn,
+            iconSize: 18,
+            icon: const Icon(Icons.open_in_new),
+            onSelected: (action) => action(),
+            itemBuilder: (_) => externalItems(),
+          ),
         if (!editing)
           PopupMenuButton<VoidCallback>(
             tooltip: l.diffOptions,
@@ -338,7 +370,12 @@ class _DiffHeader extends ConsumerWidget {
           checked: split,
           child: Text(l.diffViewSplit),
         ),
-        if (!editing) ...[const PopupMenuDivider(), ...optionItems()],
+        if (!editing) ...[
+          const PopupMenuDivider(),
+          ...externalItems(),
+          const PopupMenuDivider(),
+          ...optionItems(),
+        ],
       ],
     );
 
