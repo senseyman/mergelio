@@ -17,6 +17,7 @@ import '../domain/git/git_reader.dart';
 import '../domain/git/git_service.dart';
 import '../domain/git/git_writer.dart';
 import '../domain/git/hooks.dart';
+import '../domain/git/in_flight_git.dart';
 import '../domain/git/ignore.dart';
 import '../domain/git/lfs.dart';
 import '../domain/git/maintenance.dart';
@@ -66,10 +67,19 @@ class RepoActions {
   final GitWriter _writer;
   late final RefreshCoalescer _refreshes;
 
-  RepoActions(this._ref, this.path, this._writer) {
+  /// Every git command the actions run, counted while it runs. [_writer] is
+  /// given the same one by [repoActionsProvider]; one built elsewhere keeps
+  /// its own, and only the reads made here are counted.
+  final InFlightGit? _tracked;
+
+  RepoActions(this._ref, this.path, this._writer, {InFlightGit? git})
+    : _tracked = git {
     _refreshes = RefreshCoalescer(
       settle: actionSettle,
       busy: () => _ref.read(repoDataProvider(path)).isLoading,
+      // An action between two of its commands is not done: the reload its
+      // first step asked for would only be read again after its last.
+      held: () => (_tracked?.inFlight ?? 0) > 0,
       onRefresh: () => _ref.invalidate(repoDataProvider(path)),
     );
   }
@@ -170,7 +180,9 @@ class RepoActions {
         : BusyState.network(label, onCancel: cancel.cancel);
     final opId = await _journalBegin(label);
     try {
-      await _timed(label, () => op(cancel));
+      // A network op waits on the remote: holding the view's refresh for it
+      // would only make other actions' changes show late.
+      await _timed(label, () => InFlightGit.uncounted(() => op(cancel)));
       await _journalDone(opId);
       onSuccess?.call();
       if (!silent && toastSuccess) {
@@ -1223,7 +1235,7 @@ class RepoActions {
 
   // --- Undoable ref operations ----------------------------------------------
 
-  GitService get _git => _ref.read(gitServiceProvider);
+  GitService get _git => _tracked ?? _ref.read(gitServiceProvider);
   Future<String> _out(List<String> args) async =>
       (await _git.run(args, repoPath: path)).out;
 
@@ -4436,11 +4448,8 @@ class CommitOutcome {
 }
 
 final repoActionsProvider = Provider.family<RepoActions, String>((ref, path) {
-  final actions = RepoActions(
-    ref,
-    path,
-    GitWriter(ref.watch(gitServiceProvider), path),
-  );
+  final git = InFlightGit(ref.watch(gitServiceProvider));
+  final actions = RepoActions(ref, path, GitWriter(git, path), git: git);
   ref.onDispose(actions.dispose);
   return actions;
 });

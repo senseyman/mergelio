@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,7 +22,22 @@ class _CountingGit implements GitService {
   final GitService _inner;
   var refReads = 0;
 
-  _CountingGit(this._inner);
+  /// Added before every `checkout`, the way a slow CI runner or a large
+  /// working tree stretches it past the settle window.
+  final Duration checkoutDelay;
+
+  /// Holds every `fetch` until completed: a remote that is slow to answer.
+  Completer<void>? fetchGate;
+
+  /// Added before every `checkout`'s opening read of the current branch:
+  /// the action is under way, but has not written anything yet.
+  final Duration headRefDelay;
+
+  _CountingGit(
+    this._inner, {
+    this.checkoutDelay = Duration.zero,
+    this.headRefDelay = Duration.zero,
+  });
 
   @override
   Future<GitResult> run(
@@ -36,6 +52,26 @@ class _CountingGit implements GitService {
         args.first == 'for-each-ref' &&
         args[1] == '--format=%(objectname) %(refname)') {
       refReads++;
+    }
+    final gate = fetchGate;
+    if (args.isNotEmpty && args.first == 'fetch' && gate != null) {
+      return gate.future.then((_) => const GitResult(0, '', ''));
+    }
+    final slow = switch (args) {
+      ['checkout', ...] => checkoutDelay,
+      ['rev-parse', '--abbrev-ref', 'HEAD'] => headRefDelay,
+      _ => Duration.zero,
+    };
+    if (slow > Duration.zero) {
+      return Future<void>.delayed(slow).then(
+        (_) => _inner.run(
+          args,
+          repoPath: repoPath,
+          timeout: timeout,
+          environment: environment,
+          cancel: cancel,
+        ),
+      );
     }
     return _inner.run(
       args,
@@ -76,8 +112,15 @@ void main() {
 
   tearDown(() async => dir.delete(recursive: true));
 
-  test('a branch created and checked out reads the repository once', () async {
-    final git = _CountingGit(svc);
+  Future<void> createThenCheckout({
+    Duration checkoutDelay = Duration.zero,
+    Duration headRefDelay = Duration.zero,
+  }) async {
+    final git = _CountingGit(
+      svc,
+      checkoutDelay: checkoutDelay,
+      headRefDelay: headRefDelay,
+    );
     final c = ProviderContainer(
       overrides: [gitServiceProvider.overrideWithValue(git)],
     );
@@ -112,5 +155,42 @@ void main() {
       'feature',
       reason: 'the single read still reflects both operations',
     );
+  }
+
+  test(
+    'a branch created and checked out reads the repository once',
+    () => createThenCheckout(),
+  );
+
+  test(
+    'a checkout slower than the settle window still reads once',
+    () => createThenCheckout(checkoutDelay: actionSettle * 3),
+  );
+
+  test(
+    'so does one slow before it writes anything',
+    () => createThenCheckout(headRefDelay: actionSettle * 3),
+  );
+
+  test('a fetch still on the network does not hold the view back', () async {
+    final git = _CountingGit(svc)..fetchGate = Completer<void>();
+    final c = ProviderContainer(
+      overrides: [gitServiceProvider.overrideWithValue(git)],
+    );
+    addTearDown(c.dispose);
+    c.listen(repoDataProvider(dir.path), (_, _) {}, fireImmediately: true);
+    await c.read(repoDataProvider(dir.path).future);
+    final actions = c.read(repoActionsProvider(dir.path));
+
+    // A background fetch that will not finish during this test.
+    final fetch = actions.fetch(silent: true);
+    git.refReads = 0;
+    await actions.createBranch('feature');
+    await Future<void>.delayed(actionSettle * 6);
+
+    expect(git.refReads, 1, reason: 'the branch shows without the fetch');
+
+    git.fetchGate!.complete();
+    await fetch;
   });
 }
