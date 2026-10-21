@@ -208,7 +208,6 @@ void main() {
       'difftool.wait.cmd',
       'while [ ! -f "$release" ]; do sleep 0.05; done',
     ]);
-    addTearDown(() => File(release).writeAsString(''));
     await File('${dir.path}/a.txt').writeAsString('2\n');
 
     final git = _CountingGit(svc);
@@ -216,15 +215,28 @@ void main() {
       overrides: [gitServiceProvider.overrideWithValue(git)],
     );
     addTearDown(c.dispose);
+    Future<void>? tool;
+    // Registered after the container's, so it runs first (teardowns run in
+    // reverse): let the tool go, wait for the action to finish with the
+    // container still alive, and take the file away — being outside the
+    // repository, it would outlive the test.
+    addTearDown(() async {
+      await File(release).writeAsString('');
+      await tool;
+      await File(release).delete();
+    });
     c.listen(repoDataProvider(dir.path), (_, _) {}, fireImmediately: true);
     await c.read(repoDataProvider(dir.path).future);
     final actions = c.read(repoActionsProvider(dir.path));
 
     // The user's window onto the change: open for as long as they look.
-    final tool = actions.openDifftool(
-      DiffTarget(repoPath: dir.path, path: 'a.txt'),
-    );
+    tool = actions.openDifftool(DiffTarget(repoPath: dir.path, path: 'a.txt'));
+    // Well short of the test's own 30s timeout, so this says what went wrong.
+    final deadline = DateTime.now().add(const Duration(seconds: 10));
     while (!git.started.contains('difftool')) {
+      if (DateTime.now().isAfter(deadline)) {
+        fail('git never started the diff tool');
+      }
       await Future<void>.delayed(const Duration(milliseconds: 20));
     }
     git.refReads = 0;
@@ -233,8 +245,5 @@ void main() {
     await Future<void>.delayed(actionSettle * 6);
 
     expect(git.refReads, 1, reason: 'the staged file shows at once');
-
-    await File(release).writeAsString('');
-    await tool;
   });
 }
