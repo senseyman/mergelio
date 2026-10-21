@@ -2,6 +2,7 @@ import 'dart:io';
 
 import '../external_tools.dart';
 import 'git_service.dart';
+import 'in_flight_git.dart';
 
 /// The git side of handing a file to the user's diff or merge tool: reading
 /// which tool is set, and running `difftool` / `mergetool` long enough for
@@ -54,15 +55,21 @@ class ExternalGitTools {
   Future<GitResult> mergetool(List<String> args, {GitCancel? cancel}) =>
       _runTool(args, cancel);
 
-  Future<GitResult> _runTool(List<String> args, GitCancel? cancel) => git.run(
-    args,
-    repoPath: repoPath,
-    timeout: kExternalToolTimeout,
-    cancel: cancel,
-    // git starts the tool through PATH, which a Finder or Dock launch keeps
-    // to the system directories.
-    environment: {'PATH': externalToolPath()},
-  );
+  /// Left out of [InFlightGit]'s count: an open tool is a window the user
+  /// reads at their own pace, not repository work about to finish, and
+  /// counting it would hold every refresh back for as long as it is open.
+  Future<GitResult> _runTool(List<String> args, GitCancel? cancel) =>
+      InFlightGit.uncounted(
+        () => git.run(
+          args,
+          repoPath: repoPath,
+          timeout: kExternalToolTimeout,
+          cancel: cancel,
+          // git starts the tool through PATH, which a Finder or Dock launch
+          // keeps to the system directories.
+          environment: {'PATH': externalToolPath()},
+        ),
+      );
 }
 
 /// The app's PATH widened with [toolSearchDirs], for starting the user's

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/state/lfs.dart';
+import 'package:mergelio/state/diff_target.dart';
 import 'package:mergelio/state/repo_actions.dart';
 import 'package:mergelio/state/repo_data.dart';
 
@@ -21,7 +23,25 @@ class _CountingGit implements GitService {
   final GitService _inner;
   var refReads = 0;
 
-  _CountingGit(this._inner);
+  /// The first word of every command started, in order.
+  final started = <String>[];
+
+  /// Added before every `checkout`, the way a slow CI runner or a large
+  /// working tree stretches it past the settle window.
+  final Duration checkoutDelay;
+
+  /// Holds every `fetch` until completed: a remote that is slow to answer.
+  Completer<void>? fetchGate;
+
+  /// Added before every `checkout`'s opening read of the current branch:
+  /// the action is under way, but has not written anything yet.
+  final Duration headRefDelay;
+
+  _CountingGit(
+    this._inner, {
+    this.checkoutDelay = Duration.zero,
+    this.headRefDelay = Duration.zero,
+  });
 
   @override
   Future<GitResult> run(
@@ -32,10 +52,31 @@ class _CountingGit implements GitService {
     GitCancel? cancel,
     String? stdin,
   }) {
+    if (args.isNotEmpty) started.add(args.first);
     if (args.length == 2 &&
         args.first == 'for-each-ref' &&
         args[1] == '--format=%(objectname) %(refname)') {
       refReads++;
+    }
+    final gate = fetchGate;
+    if (args.isNotEmpty && args.first == 'fetch' && gate != null) {
+      return gate.future.then((_) => const GitResult(0, '', ''));
+    }
+    final slow = switch (args) {
+      ['checkout', ...] => checkoutDelay,
+      ['rev-parse', '--abbrev-ref', 'HEAD'] => headRefDelay,
+      _ => Duration.zero,
+    };
+    if (slow > Duration.zero) {
+      return Future<void>.delayed(slow).then(
+        (_) => _inner.run(
+          args,
+          repoPath: repoPath,
+          timeout: timeout,
+          environment: environment,
+          cancel: cancel,
+        ),
+      );
     }
     return _inner.run(
       args,
@@ -76,8 +117,15 @@ void main() {
 
   tearDown(() async => dir.delete(recursive: true));
 
-  test('a branch created and checked out reads the repository once', () async {
-    final git = _CountingGit(svc);
+  Future<void> createThenCheckout({
+    Duration checkoutDelay = Duration.zero,
+    Duration headRefDelay = Duration.zero,
+  }) async {
+    final git = _CountingGit(
+      svc,
+      checkoutDelay: checkoutDelay,
+      headRefDelay: headRefDelay,
+    );
     final c = ProviderContainer(
       overrides: [gitServiceProvider.overrideWithValue(git)],
     );
@@ -112,5 +160,90 @@ void main() {
       'feature',
       reason: 'the single read still reflects both operations',
     );
+  }
+
+  test(
+    'a branch created and checked out reads the repository once',
+    () => createThenCheckout(),
+  );
+
+  test(
+    'a checkout slower than the settle window still reads once',
+    () => createThenCheckout(checkoutDelay: actionSettle * 3),
+  );
+
+  test(
+    'so does one slow before it writes anything',
+    () => createThenCheckout(headRefDelay: actionSettle * 3),
+  );
+
+  test('a fetch still on the network does not hold the view back', () async {
+    final git = _CountingGit(svc)..fetchGate = Completer<void>();
+    final c = ProviderContainer(
+      overrides: [gitServiceProvider.overrideWithValue(git)],
+    );
+    addTearDown(c.dispose);
+    c.listen(repoDataProvider(dir.path), (_, _) {}, fireImmediately: true);
+    await c.read(repoDataProvider(dir.path).future);
+    final actions = c.read(repoActionsProvider(dir.path));
+
+    // A background fetch that will not finish during this test.
+    final fetch = actions.fetch(silent: true);
+    git.refReads = 0;
+    await actions.createBranch('feature');
+    await Future<void>.delayed(actionSettle * 6);
+
+    expect(git.refReads, 1, reason: 'the branch shows without the fetch');
+
+    git.fetchGate!.complete();
+    await fetch;
+  });
+
+  test('a diff tool left open does not hold the view back', () async {
+    // Beside the repository, not in it, so it is no change to the tree.
+    final release = '${dir.path}.release';
+    await g(['config', 'diff.tool', 'wait']);
+    await g([
+      'config',
+      'difftool.wait.cmd',
+      'while [ ! -f "$release" ]; do sleep 0.05; done',
+    ]);
+    await File('${dir.path}/a.txt').writeAsString('2\n');
+
+    final git = _CountingGit(svc);
+    final c = ProviderContainer(
+      overrides: [gitServiceProvider.overrideWithValue(git)],
+    );
+    addTearDown(c.dispose);
+    Future<void>? tool;
+    // Registered after the container's, so it runs first (teardowns run in
+    // reverse): let the tool go, wait for the action to finish with the
+    // container still alive, and take the file away — being outside the
+    // repository, it would outlive the test.
+    addTearDown(() async {
+      await File(release).writeAsString('');
+      await tool;
+      await File(release).delete();
+    });
+    c.listen(repoDataProvider(dir.path), (_, _) {}, fireImmediately: true);
+    await c.read(repoDataProvider(dir.path).future);
+    final actions = c.read(repoActionsProvider(dir.path));
+
+    // The user's window onto the change: open for as long as they look.
+    tool = actions.openDifftool(DiffTarget(repoPath: dir.path, path: 'a.txt'));
+    // Well short of the test's own 30s timeout, so this says what went wrong.
+    final deadline = DateTime.now().add(const Duration(seconds: 10));
+    while (!git.started.contains('difftool')) {
+      if (DateTime.now().isAfter(deadline)) {
+        fail('git never started the diff tool');
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
+    git.refReads = 0;
+    await actions.stageFile('a.txt');
+    // Well inside the 2s a held reload would wait.
+    await Future<void>.delayed(actionSettle * 6);
+
+    expect(git.refReads, 1, reason: 'the staged file shows at once');
   });
 }

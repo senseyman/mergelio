@@ -465,12 +465,19 @@ void main() {
       return release;
     }
 
+    /// Waits until git has handed the file to the tool. git makes its copies
+    /// just before starting it, so their being there is the signal — a fixed
+    /// wait is too short on a loaded machine.
     Future<void> untilToolRuns() async {
-      while (!git.log.any((a) => a.first == 'mergetool')) {
+      final deadline = DateTime.now().add(const Duration(seconds: 30));
+      bool copied() =>
+          Directory(repo).listSync().any((e) => e.path.contains('f_LOCAL_'));
+      while (!copied()) {
+        if (DateTime.now().isAfter(deadline)) {
+          fail('git never started the merge tool');
+        }
         await Future<void>.delayed(const Duration(milliseconds: 20));
       }
-      // Long enough for git to have made its copies of the file.
-      await Future<void>.delayed(const Duration(milliseconds: 300));
     }
 
     test('abort and resolve wait while the tool is open', () async {
