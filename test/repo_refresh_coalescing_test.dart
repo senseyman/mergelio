@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/state/lfs.dart';
+import 'package:mergelio/state/diff_target.dart';
 import 'package:mergelio/state/repo_actions.dart';
 import 'package:mergelio/state/repo_data.dart';
 
@@ -21,6 +22,9 @@ import 'package:mergelio/state/repo_data.dart';
 class _CountingGit implements GitService {
   final GitService _inner;
   var refReads = 0;
+
+  /// The first word of every command started, in order.
+  final started = <String>[];
 
   /// Added before every `checkout`, the way a slow CI runner or a large
   /// working tree stretches it past the settle window.
@@ -48,6 +52,7 @@ class _CountingGit implements GitService {
     GitCancel? cancel,
     String? stdin,
   }) {
+    if (args.isNotEmpty) started.add(args.first);
     if (args.length == 2 &&
         args.first == 'for-each-ref' &&
         args[1] == '--format=%(objectname) %(refname)') {
@@ -192,5 +197,44 @@ void main() {
 
     git.fetchGate!.complete();
     await fetch;
+  });
+
+  test('a diff tool left open does not hold the view back', () async {
+    // Beside the repository, not in it, so it is no change to the tree.
+    final release = '${dir.path}.release';
+    await g(['config', 'diff.tool', 'wait']);
+    await g([
+      'config',
+      'difftool.wait.cmd',
+      'while [ ! -f "$release" ]; do sleep 0.05; done',
+    ]);
+    addTearDown(() => File(release).writeAsString(''));
+    await File('${dir.path}/a.txt').writeAsString('2\n');
+
+    final git = _CountingGit(svc);
+    final c = ProviderContainer(
+      overrides: [gitServiceProvider.overrideWithValue(git)],
+    );
+    addTearDown(c.dispose);
+    c.listen(repoDataProvider(dir.path), (_, _) {}, fireImmediately: true);
+    await c.read(repoDataProvider(dir.path).future);
+    final actions = c.read(repoActionsProvider(dir.path));
+
+    // The user's window onto the change: open for as long as they look.
+    final tool = actions.openDifftool(
+      DiffTarget(repoPath: dir.path, path: 'a.txt'),
+    );
+    while (!git.started.contains('difftool')) {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
+    git.refReads = 0;
+    await actions.stageFile('a.txt');
+    // Well inside the 2s a held reload would wait.
+    await Future<void>.delayed(actionSettle * 6);
+
+    expect(git.refReads, 1, reason: 'the staged file shows at once');
+
+    await File(release).writeAsString('');
+    await tool;
   });
 }
