@@ -2293,6 +2293,87 @@ class RepoActions {
         writesWorkingTree: false,
       );
 
+  // — Notes —
+
+  /// The note on [sha] as git has it now, or null when there is none.
+  Future<String?> note(String sha) => GitReader(_git, path).note(sha);
+
+  /// Makes [text] the note on [sha]; empty text removes it. Text git would
+  /// store unchanged writes nothing, so it leaves no undo entry either. The
+  /// note is authored by the active profile, as a commit is.
+  Future<void> setNote(String sha, String text) async {
+    final label = _l.actSetNote(_short(sha));
+    final (:ok, :prev) = await _noteBefore(label, sha);
+    if (!ok) return;
+    final next = text.trim();
+    if (next == (prev ?? '')) return;
+    final id = _identity;
+    Future<void> write(String? note) => note == null || note.isEmpty
+        ? _writer.removeNote(sha)
+        : _writer.setNote(
+            sha,
+            note,
+            authorName: id.name,
+            authorEmail: id.email,
+          );
+    await _undoable(
+      label,
+      () => write(next),
+      // git hands a note back in the form it stores, so writing the old text
+      // again restores it exactly.
+      undo: () => write(prev),
+      redo: () => write(next),
+    );
+  }
+
+  /// Removes the note on [sha]; undo writes its text back.
+  Future<void> removeNote(String sha) async {
+    final label = _l.actRemoveNote(_short(sha));
+    final (:ok, :prev) = await _noteBefore(label, sha);
+    if (!ok || prev == null) return;
+    final id = _identity;
+    await _undoable(
+      label,
+      () => _writer.removeNote(sha),
+      undo: () => _writer.setNote(
+        sha,
+        prev,
+        authorName: id.name,
+        authorEmail: id.email,
+      ),
+      redo: () => _writer.removeNote(sha),
+    );
+  }
+
+  /// The note on [sha] before [label] changes it, which its undo writes
+  /// back. A read git fails is toasted under [label], and [ok] is false.
+  Future<({bool ok, String? prev})> _noteBefore(
+    String label,
+    String sha,
+  ) async {
+    try {
+      return (ok: true, prev: await note(sha));
+    } on GitException catch (e) {
+      _toastErr(label, e);
+      return (ok: false, prev: null);
+    }
+  }
+
+  /// Publishes notes to [remote]. Outside the undo journal, as any push is.
+  Future<void> pushNotes(String remote) => _network(
+    _l.actPushNotes(remote),
+    (cancel) => _writer.pushNotes(remote, cancel: cancel),
+    writesWorkingTree: false,
+  );
+
+  /// Brings [remote]'s notes in. Shares the fetch lane: it writes refs only.
+  Future<void> fetchNotes(String remote) => _network(
+    _l.actFetchNotes(remote),
+    (cancel) => _writer.fetchNotes(remote, cancel: cancel),
+    writesWorkingTree: false,
+    lane: _Lane.fetch,
+  );
+
   Future<void> stashPush([
     StashPushOptions options = const StashPushOptions(),
   ]) async {

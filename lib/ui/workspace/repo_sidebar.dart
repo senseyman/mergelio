@@ -1006,6 +1006,17 @@ Future<void> _remoteMenu(
         onTap: () => actions.pruneRemote(remote),
         child: Text(l.sbPrune, style: const TextStyle(fontSize: 13)),
       ),
+      // No default refspec carries notes, so sharing them is its own step.
+      PopupMenuItem(
+        height: 34,
+        onTap: () => actions.fetchNotes(remote),
+        child: Text(l.sbFetchNotes, style: const TextStyle(fontSize: 13)),
+      ),
+      PopupMenuItem(
+        height: 34,
+        onTap: () => actions.pushNotes(remote),
+        child: Text(l.sbPushNotes, style: const TextStyle(fontSize: 13)),
+      ),
       PopupMenuItem(
         height: 34,
         onTap: () async {

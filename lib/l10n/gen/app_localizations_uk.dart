@@ -5590,4 +5590,55 @@ class AppLocalizationsUk extends AppLocalizations {
   @override
   String get extMergeToolLeftOpenHint =>
       'Mergelio більше не чекає на нього. Файл залишається з конфліктами, а те, що інструмент збереже тепер, не буде проіндексовано.';
+
+  @override
+  String get menuAddNote => 'Додати нотатку…';
+
+  @override
+  String get menuEditNote => 'Редагувати нотатку…';
+
+  @override
+  String get menuRemoveNote => 'Видалити нотатку';
+
+  @override
+  String get cdNote => 'Нотатка';
+
+  @override
+  String get cdNoteUnreadable => 'Не вдалося прочитати нотатку';
+
+  @override
+  String get noteAddTitle => 'Додати нотатку';
+
+  @override
+  String get noteEditTitle => 'Редагувати нотатку';
+
+  @override
+  String get noteHint =>
+      'Нотатка прикріплюється до коміту, не змінюючи його. Збережіть порожню, щоб видалити. Нотатки залишаються на цьому комп\'ютері, доки ви не відправите їх з меню віддаленого репозиторію.';
+
+  @override
+  String get sbPushNotes => 'Відправити нотатки';
+
+  @override
+  String get sbFetchNotes => 'Отримати нотатки';
+
+  @override
+  String actSetNote(String sha) {
+    return 'Збереження нотатки до $sha';
+  }
+
+  @override
+  String actRemoveNote(String sha) {
+    return 'Видалення нотатки до $sha';
+  }
+
+  @override
+  String actPushNotes(String remote) {
+    return 'Відправлення нотаток до $remote';
+  }
+
+  @override
+  String actFetchNotes(String remote) {
+    return 'Отримання нотаток з $remote';
+  }
 }

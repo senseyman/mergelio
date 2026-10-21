@@ -14,6 +14,7 @@ import 'repo_config.dart';
 import 'review.dart';
 import 'signature.dart';
 import 'stash.dart';
+import 'notes.dart';
 import 'tag_info.dart';
 import 'worktree.dart';
 
@@ -1064,6 +1065,30 @@ class GitReader {
     if (r.exitCode == 1) return const TagSigning();
     if (!r.ok) throw GitException('git config failed', r);
     return parseTagSigning(r.stdout);
+  }
+
+  /// Every commit with a note, mapped to the note's blob. One process for the
+  /// whole repository; no notes ref yet is no notes, not a failure.
+  Future<Map<String, String>> noteIndex() async {
+    final r = await _run(['notes', 'list']);
+    if (!r.ok) throw GitException('git notes list failed', r);
+    return parseNoteIndex(r.stdout);
+  }
+
+  /// The note on [sha], or null when it has none (git exits 1 for that).
+  Future<String?> note(String sha) async {
+    final r = await _run(['notes', 'show', sha]);
+    if (r.exitCode == 1) return null;
+    if (!r.ok) throw GitException('git notes show failed', r);
+    return r.out;
+  }
+
+  /// The notes ref git reads and writes here: `refs/notes/commits` unless
+  /// `core.notesRef` says otherwise.
+  Future<String> notesRef() async {
+    final r = await _run(['notes', 'get-ref']);
+    if (!r.ok) throw GitException('git notes get-ref failed', r);
+    return r.out;
   }
 
   /// Budget for [signatureAudit]: every signed commit in the range costs a

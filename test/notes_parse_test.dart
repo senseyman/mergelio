@@ -1,0 +1,36 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mergelio/domain/git/notes.dart';
+
+void main() {
+  group('parseNoteIndex', () {
+    test('no notes ref lists nothing', () {
+      expect(parseNoteIndex(''), isEmpty);
+    });
+
+    test('maps each annotated commit to its note blob', () {
+      final index = parseNoteIndex(
+        '4caf81228fbdb9e54041e34cfec1537d0a0572fb '
+        'a6df318300536269b1332e4f39f16e4fc3748d98\n'
+        'e69de29bb2d1d6434b8b29ae775ad8c2e48c5391 '
+        '11bb9e345d88e41c28d5cba1198b35ad86ac5da5\n',
+      );
+      expect(index, {
+        'a6df318300536269b1332e4f39f16e4fc3748d98':
+            '4caf81228fbdb9e54041e34cfec1537d0a0572fb',
+        '11bb9e345d88e41c28d5cba1198b35ad86ac5da5':
+            'e69de29bb2d1d6434b8b29ae775ad8c2e48c5391',
+      });
+    });
+
+    test('skips lines that are not a pair of object names', () {
+      final index = parseNoteIndex(
+        'warning: something\n'
+        '\n'
+        'aaaa bbbb cccc\n'
+        '4caf81228fbdb9e54041e34cfec1537d0a0572fb '
+        'a6df318300536269b1332e4f39f16e4fc3748d98\r\n',
+      );
+      expect(index.keys, ['a6df318300536269b1332e4f39f16e4fc3748d98']);
+    });
+  });
+}

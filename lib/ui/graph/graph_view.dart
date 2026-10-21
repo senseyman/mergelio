@@ -14,6 +14,7 @@ import '../../state/bisect.dart';
 import '../../state/content_search.dart';
 import '../../state/feedback.dart';
 import '../../state/history_filter.dart';
+import '../../state/notes.dart';
 import '../../state/compare_target.dart';
 import '../../state/graph_selection.dart';
 import '../../state/path_history.dart';
@@ -30,6 +31,7 @@ import '../shell/repo_op_dialogs.dart';
 import '../shell/resize_handle.dart';
 import '../workspace/branch_switch.dart';
 import '../workspace/edit_commit_message.dart';
+import '../workspace/edit_note.dart';
 import '../../l10n/gen/app_localizations.dart';
 import 'bisect_bar.dart';
 import 'commit_columns.dart';
@@ -1627,6 +1629,15 @@ class _CommitContextMenu extends ConsumerWidget {
     final picked = picks.contains(sha)
         ? picks.oldestFirst([for (final c in commits) c.sha]).length
         : 0;
+    // Normally already listed (the details panel watches it). A read that
+    // fails or stalls offers Add, and the note dialog still opens on the
+    // note git has.
+    final notes = await ref
+        .read(noteIndexProvider(path).future)
+        .timeout(const Duration(seconds: 2))
+        .catchError((Object _) => const <String, String>{});
+    final hasNote = notes.containsKey(sha);
+    if (!context.mounted) return;
 
     PopupMenuItem<void> item(
       String label,
@@ -1766,6 +1777,11 @@ class _CommitContextMenu extends ConsumerWidget {
           l.menuEditMessage,
           () => editCommitMessage(context, ref, repoPath: path, commit: commit),
         ),
+        item(
+          hasNote ? l.menuEditNote : l.menuAddNote,
+          () => editCommitNote(context, ref, repoPath: path, sha: sha),
+        ),
+        if (hasNote) item(l.menuRemoveNote, () => actions.removeNote(sha)),
         // One menu covers the whole row, gutter included, so a right-click
         // anywhere on it reaches both the commit's actions and the names of
         // the branches sitting on it — each named, since a row can carry

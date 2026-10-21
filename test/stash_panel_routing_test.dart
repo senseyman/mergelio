@@ -13,6 +13,7 @@ import 'package:mergelio/domain/git/stash.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/state/graph_selection.dart';
 import 'package:mergelio/state/lfs.dart';
+import 'package:mergelio/state/notes.dart';
 import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
@@ -59,6 +60,7 @@ Future<void> _pump(
   final container = ProviderContainer(
     overrides: [
       gitServiceProvider.overrideWithValue(_FakeGit()),
+      noteIndexProvider.overrideWith((ref, repo) async => const {}),
       lfsLocksProvider.overrideWith((ref, repo) async => LfsLockState.none),
       workspaceProvider.overrideWith((ref) => workspace),
       repoDataProvider.overrideWith(

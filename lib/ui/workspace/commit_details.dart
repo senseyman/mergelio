@@ -12,6 +12,7 @@ import '../../l10n/gen/app_localizations.dart';
 import '../../state/diff_target.dart';
 import '../../state/graph_selection.dart';
 import '../../state/lfs.dart';
+import '../../state/notes.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
 import '../../state/settings_controller.dart';
@@ -23,6 +24,7 @@ import '../common/signature_badge.dart';
 import '../graph/commit_columns.dart';
 import '../graph/ref_pill.dart';
 import 'edit_commit_message.dart';
+import 'edit_note.dart';
 import 'lfs_lock_menu.dart';
 
 /// Right panel content for a selected commit: metadata, signature, the list of
@@ -55,6 +57,9 @@ class CommitDetails extends ConsumerWidget {
       for (final r in c.refs)
         if (r.kind == RefKind.tag) r.name,
     ];
+    // Null until the repository's notes are listed, and when this commit
+    // has none.
+    final noteBlob = ref.watch(noteIndexProvider(repoPath)).valueOrNull?[c.sha];
 
     return Container(
       color: t.bgPanel,
@@ -201,6 +206,8 @@ class CommitDetails extends ConsumerWidget {
                     sha: c.sha,
                     tags: tags,
                   ),
+                if (noteBlob != null)
+                  _Note(repoPath: repoPath, sha: c.sha, blob: noteBlob),
                 if (c.coauthor)
                   Padding(
                     padding: const EdgeInsets.only(top: 6),
@@ -524,6 +531,66 @@ class _TagEntry extends ConsumerWidget {
                 ),
               ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+/// The commit's note: a header with edit and remove, then the text. Shown only
+/// for a commit the notes index lists.
+class _Note extends ConsumerWidget {
+  final String repoPath;
+  final String sha;
+  final String blob;
+  const _Note({required this.repoPath, required this.sha, required this.blob});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = context.tokens;
+    final l = AppLocalizations.of(context);
+    final read = ref.watch(
+      commitNoteProvider((repo: repoPath, sha: sha, blob: blob)),
+    );
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.sticky_note_2_outlined, size: 13, color: t.textFaint),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  l.cdNote,
+                  style: TextStyle(color: t.textFaint, fontSize: 12),
+                ),
+              ),
+              _MsgAction(
+                icon: Icons.edit_outlined,
+                tooltip: l.menuEditNote,
+                onTap: () =>
+                    editCommitNote(context, ref, repoPath: repoPath, sha: sha),
+              ),
+              _MsgAction(
+                icon: Icons.delete_outline,
+                tooltip: l.menuRemoveNote,
+                onTap: () =>
+                    ref.read(repoActionsProvider(repoPath)).removeNote(sha),
+              ),
+            ],
+          ),
+          if (read.hasError)
+            Text(
+              l.cdNoteUnreadable,
+              style: TextStyle(color: t.textFaint, fontSize: 12),
+            )
+          else if (read.valueOrNull case final text?)
+            SelectableText(
+              text,
+              style: TextStyle(color: t.textMuted, fontSize: 12.5, height: 1.4),
+            ),
         ],
       ),
     );

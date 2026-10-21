@@ -141,6 +141,10 @@ change never needs a second window.*
   set) or a key you name. Commit details show each annotated tag's tagger, date
   and message beside its signature, and undoing a tag delete brings back the
   original tag, message and signature intact.
+- **Notes**: add, edit or remove a commit's git note from the graph's context
+  menu; commit details show it with edit and remove at hand, and both changes
+  undo. Notes follow `core.notesRef`. No ordinary push or fetch carries them,
+  so a remote's menu has **Push notes** and **Fetch notes**.
 - **File history** and per-line **blame** for any changed file. Blame's options
   menu ignores whitespace (`-w`) and follows moved lines within the file (`-M`)
   or from other files (`-C`). Commits listed in `blame.ignoreRevsFile`, or in a

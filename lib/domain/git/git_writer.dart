@@ -963,6 +963,60 @@ class GitWriter {
     cancel: cancel,
   );
 
+  // --- Notes ----------------------------------------------------------------
+
+  /// Writes [text] as the note on [sha], replacing any note already there.
+  /// Text that is empty once git tidies it removes the note instead. The
+  /// notes commit is authored by [authorName] / [authorEmail] when given.
+  Future<void> setNote(
+    String sha,
+    String text, {
+    String? authorName,
+    String? authorEmail,
+  }) => _ok(
+    [
+      ..._identity(authorName, authorEmail),
+      'notes',
+      'add',
+      '-f',
+      '-F',
+      '-',
+      sha,
+    ],
+    'git notes add',
+    stdin: text,
+  );
+
+  /// Removes the note on [sha]; a commit without one is left as it is.
+  Future<void> removeNote(String sha) =>
+      _ok(['notes', 'remove', '--ignore-missing', sha], 'git notes remove');
+
+  /// The notes ref in use here, which no default refspec carries: sharing
+  /// notes has to name it.
+  Future<String> _notesRef() async {
+    final r = await _run(['notes', 'get-ref']);
+    if (!r.ok) throw GitException('git notes get-ref', r);
+    return r.out;
+  }
+
+  /// Publishes the notes ref to [remote]. Notes someone else pushed first
+  /// make git reject it rather than drop theirs.
+  Future<void> pushNotes(String remote, {GitCancel? cancel}) async {
+    final ref = await _notesRef();
+    await _net(['push', remote, ref], 'git push notes', cancel: cancel);
+  }
+
+  /// Brings [remote]'s notes into the notes ref. Local notes the remote does
+  /// not have make git reject it rather than drop them.
+  Future<void> fetchNotes(String remote, {GitCancel? cancel}) async {
+    final ref = await _notesRef();
+    await _net(
+      ['fetch', remote, '$ref:$ref'],
+      'git fetch notes',
+      cancel: cancel,
+    );
+  }
+
   // --- Commit-context ops ---------------------------------------------------
 
   /// Cherry-picks [sha]. A merge commit has no single diff to replay, so git

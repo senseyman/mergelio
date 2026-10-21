@@ -8,6 +8,7 @@ import 'package:mergelio/domain/git/models.dart';
 import 'package:mergelio/domain/git/signature.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/state/lfs.dart';
+import 'package:mergelio/state/notes.dart';
 import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
@@ -57,6 +58,7 @@ void main() {
           tagSignatureProvider.overrideWith(
             (ref, key) async => SignatureVerdict.unsigned,
           ),
+          noteIndexProvider.overrideWith((ref, repo) async => const {}),
           lfsLocksProvider.overrideWith((ref, p) async => LfsLockState.none),
           lfsPathsProvider.overrideWith((ref, q) async => const <String>{}),
           settingsProvider.overrideWith(
