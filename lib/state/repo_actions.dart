@@ -22,6 +22,7 @@ import '../domain/git/ignore.dart';
 import '../domain/git/lfs.dart';
 import '../domain/git/maintenance.dart';
 import '../domain/git/models.dart';
+import '../domain/git/notes.dart';
 import '../domain/git/patch_file.dart';
 import '../domain/git/rebase_plan.dart';
 import '../domain/git/stash.dart';
@@ -226,22 +227,73 @@ class RepoActions {
     }
   }
 
-  Future<bool> fetch({String? remote, bool silent = false}) => _network(
-    _l.actFetch,
-    (cancel) => _writer.fetch(remote: remote, cancel: cancel),
-    silent: silent,
-    writesWorkingTree: false,
-    lane: _Lane.fetch,
-    // Only a fetch the user asked for earns a forge refresh. Auto-fetch's
-    // silent background polling ticks every few minutes and must not spend
-    // the same rate-limit budget again each time it runs.
-    onSuccess: silent
-        ? null
-        : () {
-            _ref.read(forgeRefreshProvider).refreshAfterGitOp(path);
-            _bumpLfs();
-          },
-  );
+  Future<bool> fetch({String? remote, bool silent = false}) async {
+    var fetched = false;
+    var remotes = <String>[];
+    final ok = await _network(
+      _l.actFetch,
+      (cancel) async {
+        await _writer.fetch(remote: remote, cancel: cancel);
+        if (!_ref.read(settingsProvider).fetchNotesWithFetch) return;
+        // The download is the slow part and touches only the aside copies,
+        // so it rides on the fetch lane; only the merge below needs the
+        // repository lane, which every open repository shares.
+        remotes = remote != null
+            ? [remote]
+            : await GitReader(_git, path).remotes();
+        for (final r in remotes) {
+          await _writer.fetchNotesAside(r, cancel: cancel);
+        }
+      },
+      silent: silent,
+      writesWorkingTree: false,
+      lane: _Lane.fetch,
+      // Only a fetch the user asked for earns a forge refresh. Auto-fetch's
+      // silent background polling ticks every few minutes and must not spend
+      // the same rate-limit budget again each time it runs.
+      onSuccess: () {
+        fetched = true;
+        if (silent) return;
+        _ref.read(forgeRefreshProvider).refreshAfterGitOp(path);
+        _bumpLfs();
+      },
+    );
+    if (fetched && remotes.isNotEmpty) {
+      await _mergeFetchedNotes(remotes, silent: silent);
+    }
+    return ok;
+  }
+
+  /// Merges the notes a fetch downloaded for [remotes], when the preference
+  /// asked fetches to carry them. A local step, held on the repository lane
+  /// only as long as the merge takes. Quiet about remotes without notes, and
+  /// about a repository another operation holds: those notes are merged on
+  /// the next fetch rather than turn a finished fetch into a warning. Behind
+  /// an auto-fetch ([silent]) a failure is not toasted either, as the fetch's
+  /// own is not.
+  Future<void> _mergeFetchedNotes(
+    List<String> remotes, {
+    bool silent = false,
+  }) async {
+    if (_ref.read(busyProvider) != null) return;
+    final id = _identity;
+    await _network(
+      _l.actFetchNotes(remotes.join(', ')),
+      (cancel) async {
+        for (final r in remotes) {
+          await _writer.mergeFetchedNotes(
+            r,
+            authorName: id.name,
+            authorEmail: id.email,
+            cancel: cancel,
+          );
+        }
+      },
+      silent: silent,
+      writesWorkingTree: false,
+      toastSuccess: false,
+    );
+  }
 
   /// Downloads the history a shallow clone left out, and the branches a
   /// single-branch one did. On the fetch lane: like a fetch it writes objects
@@ -654,19 +706,31 @@ class RepoActions {
     _ref.read(selectedCommitProvider.notifier).state = sha;
   }
 
-  Future<void> push({bool force = false, String? remote, bool tags = false}) =>
-      _network(
-        force ? _l.actForcePush : _l.actPush,
-        (cancel) => _writer.push(
-          force: force,
-          remote: remote,
-          tags: tags,
-          cancel: cancel,
-        ),
-        writesWorkingTree: false,
-        onSuccess: () =>
-            _ref.read(forgeRefreshProvider).refreshAfterGitOp(path),
-      );
+  /// Pushes the current branch. True only when the push went through — not
+  /// when it failed, was cancelled, or was turned away by a busy lane — so a
+  /// step that should follow only a pushed branch can tell.
+  Future<bool> push({
+    bool force = false,
+    String? remote,
+    bool tags = false,
+  }) async {
+    var pushed = false;
+    await _network(
+      force ? _l.actForcePush : _l.actPush,
+      (cancel) => _writer.push(
+        force: force,
+        remote: remote,
+        tags: tags,
+        cancel: cancel,
+      ),
+      writesWorkingTree: false,
+      onSuccess: () {
+        pushed = true;
+        _ref.read(forgeRefreshProvider).refreshAfterGitOp(path);
+      },
+    );
+    return pushed;
+  }
 
   /// True (and toasts) when a fetch-lane operation is running, so a second
   /// one must not start beside it.
@@ -2292,6 +2356,136 @@ class RepoActions {
             _writer.deleteRemoteTag(name, remote: remote, cancel: cancel),
         writesWorkingTree: false,
       );
+
+  // — Notes —
+
+  /// The note on [sha] as git has it now, or null when there is none.
+  Future<String?> note(String sha) => GitReader(_git, path).note(sha);
+
+  /// Makes [text] the note on [sha]; empty text removes it. Text git would
+  /// store unchanged writes nothing, so it leaves no undo entry either. The
+  /// note is authored by the active profile, as a commit is.
+  Future<void> setNote(String sha, String text) async {
+    // Tidied as git will store it; git hands the old note back already in
+    // that form. A note written outside the app with `--no-stripspace` can
+    // still hold trailing spaces, and then an unchanged save rewrites it —
+    // harmless, and the stored text is the tidy one from then on.
+    final next = normalizeNote(text);
+    await _noteEdit(
+      _l.actSetNote(_short(sha)),
+      sha,
+      (prev) => next == (prev ?? '') ? null : next,
+    );
+  }
+
+  /// Removes the note on [sha]; undo writes its text back.
+  Future<void> removeNote(String sha) => _noteEdit(
+    _l.actRemoveNote(_short(sha)),
+    sha,
+    (prev) => prev == null ? null : '',
+  );
+
+  /// Reads the note on [sha], asks [change] what to write instead (null:
+  /// nothing to do; empty: remove it) and writes it, undoably. The lane is
+  /// held from the read to the write, so another edit cannot land between
+  /// them and leave this one's undo restoring text that is no longer there.
+  ///
+  /// Undo and redo restore the note's text, written afresh by the active
+  /// profile: the original notes commit, with its author and date, is not
+  /// brought back.
+  Future<void> _noteEdit(
+    String label,
+    String sha,
+    String? Function(String? prev) change,
+  ) async {
+    if (_blockedByRepoOp) return;
+    final busy = _ref.read(busyProvider.notifier);
+    busy.state = BusyState(label);
+    try {
+      final String? prev;
+      try {
+        prev = await note(sha);
+      } on GitException catch (e) {
+        _toastErr(label, e);
+        return;
+      }
+      final next = change(prev);
+      if (next == null) return;
+      final id = _identity;
+      Future<void> write(String? text) => text == null || text.isEmpty
+          ? _writer.removeNote(sha)
+          : _writer.setNote(
+              sha,
+              text,
+              authorName: id.name,
+              authorEmail: id.email,
+            );
+      await _undoable(
+        label,
+        () => write(next),
+        undo: () => write(prev),
+        redo: () => write(next),
+        // The lane is already ours, taken before the read.
+        claimsRepo: false,
+      );
+    } finally {
+      busy.state = null;
+    }
+  }
+
+  /// Merges [remote]'s notes in, then publishes them. Outside the undo
+  /// journal, as any push is. With no notes on either side there is nothing
+  /// to send, which is said as such rather than as git's refspec error.
+  Future<void> pushNotes(String remote) async {
+    final id = _identity;
+    var none = false;
+    await _network(
+      _l.actPushNotes(remote),
+      (cancel) async => none = !await _writer.pushNotes(
+        remote,
+        authorName: id.name,
+        authorEmail: id.email,
+        cancel: cancel,
+      ),
+      writesWorkingTree: false,
+      toastSuccess: false,
+      onSuccess: () => _ref
+          .read(toastProvider.notifier)
+          .show(
+            none
+                ? _l.actNoNotesToPush
+                : _l.actComplete(_l.actPushNotes(remote)),
+            kind: none ? ToastKind.info : ToastKind.success,
+          ),
+    );
+  }
+
+  /// Merges [remote]'s notes into ours. On the repository lane, not the
+  /// fetch one: it writes the same notes ref a note edit does. A remote with
+  /// no notes is news, not a failure.
+  Future<void> fetchNotes(String remote) async {
+    final id = _identity;
+    var none = false;
+    await _network(
+      _l.actFetchNotes(remote),
+      (cancel) async => none = !await _writer.fetchNotes(
+        remote,
+        authorName: id.name,
+        authorEmail: id.email,
+        cancel: cancel,
+      ),
+      writesWorkingTree: false,
+      toastSuccess: false,
+      onSuccess: () => _ref
+          .read(toastProvider.notifier)
+          .show(
+            none
+                ? _l.actRemoteHasNoNotes(remote)
+                : _l.actComplete(_l.actFetchNotes(remote)),
+            kind: none ? ToastKind.info : ToastKind.success,
+          ),
+    );
+  }
 
   Future<void> stashPush([
     StashPushOptions options = const StashPushOptions(),

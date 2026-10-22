@@ -53,6 +53,9 @@ class AppBottomBar extends ConsumerWidget {
     // Pull obeys them, and the menu still offers the other strategy outright.
     final defaults = ref.watch(settingsProvider.select(pullDefaults));
     final autostash = defaults.autostash;
+    final fetchNotes = ref.watch(
+      settingsProvider.select((s) => s.fetchNotesWithFetch),
+    );
     final undo = path == null
         ? const UndoState()
         : ref.watch(undoProvider(path));
@@ -122,6 +125,18 @@ class AppBottomBar extends ConsumerWidget {
                               () => actions!.fetch(remote: 'origin'),
                             ),
                             _Op(l.bbFetchAllRemotes, () => actions!.fetch()),
+                            for (final r in remotes)
+                              _Op(
+                                l.actFetchNotes(r),
+                                () => actions!.fetchNotes(r),
+                              ),
+                            _Op(
+                              l.prefsFetchNotesWithFetch,
+                              () async => ref
+                                  .read(settingsProvider.notifier)
+                                  .setFetchNotesWithFetch(!fetchNotes),
+                              checked: fetchNotes,
+                            ),
                             if (lfsReady)
                               _Op(
                                 l.lfsOpFetchAll,
@@ -270,7 +285,10 @@ class _Op {
   final String label;
   final Future<void> Function() run;
   final bool danger;
-  const _Op(this.label, this.run, {this.danger = false});
+
+  /// Non-null for an on/off entry, drawn with a tick when on.
+  final bool? checked;
+  const _Op(this.label, this.run, {this.danger = false, this.checked});
 }
 
 /// Bar button that opens its menu upward (there is no room below at the screen
@@ -301,17 +319,28 @@ class _OpButton extends StatelessWidget {
       position: topCentre,
       items: [
         for (final op in items())
-          PopupMenuItem<_Op>(
-            value: op,
-            height: 38,
-            child: Text(
-              op.label,
-              style: TextStyle(
-                fontSize: 13,
-                color: op.danger ? t.danger : t.textPrimary,
+          if (op.checked != null)
+            CheckedPopupMenuItem<_Op>(
+              value: op,
+              height: 38,
+              checked: op.checked!,
+              child: Text(
+                op.label,
+                style: TextStyle(fontSize: 13, color: t.textPrimary),
+              ),
+            )
+          else
+            PopupMenuItem<_Op>(
+              value: op,
+              height: 38,
+              child: Text(
+                op.label,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: op.danger ? t.danger : t.textPrimary,
+                ),
               ),
             ),
-          ),
       ],
     ).then((op) => op?.run());
   }

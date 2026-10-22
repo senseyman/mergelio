@@ -117,6 +117,11 @@ class _GeneralTab extends ConsumerWidget {
             },
           ),
         SwitchRow(
+          l.prefsFetchNotesWithFetch,
+          s.fetchNotesWithFetch,
+          c.setFetchNotesWithFetch,
+        ),
+        SwitchRow(
           l.prefsConfirmDestructive,
           s.confirmDestructive,
           c.setConfirmDestructive,

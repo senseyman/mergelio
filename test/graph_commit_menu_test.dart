@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,6 +10,7 @@ import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/domain/git/lane_layout.dart';
 import 'package:mergelio/domain/git/models.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
+import 'package:mergelio/state/notes.dart';
 import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/bisect.dart';
@@ -44,13 +47,22 @@ void main() {
         .setMockMethodCallHandler(SystemChannels.platform, null);
   });
 
-  Future<void> openMenu(WidgetTester tester, {String body = 'the body'}) async {
+  Future<void> openMenu(
+    WidgetTester tester, {
+    String body = 'the body',
+    Map<String, String> notes = const {},
+    // Overrides [notes]: the index as a read still running or failed.
+    Future<Map<String, String>> Function()? index,
+  }) async {
     final workspace = WorkspaceController()..openRepo('/r');
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           workspaceProvider.overrideWith((ref) => workspace),
           bisectStateProvider('/r').overrideWith((ref) => null),
+          noteIndexProvider('/r').overrideWith(
+            (ref) => index != null ? index() : Future.value(notes),
+          ),
           settingsProvider.overrideWith(
             (ref) => SettingsController(
               InMemorySettingsRepository(),
@@ -121,5 +133,49 @@ void main() {
     expect(find.text('Copy summary'), findsOneWidget);
     expect(find.text('Copy description'), findsNothing);
     expect(find.text('Copy message'), findsNothing);
+  });
+
+  testWidgets('a commit without a note offers to add one', (tester) async {
+    await openMenu(tester);
+
+    expect(find.text('Add note…'), findsOneWidget);
+    expect(find.text('Edit note…'), findsNothing);
+    expect(find.text('Remove note'), findsNothing);
+  });
+
+  testWidgets('a commit with a note offers to edit or remove it', (
+    tester,
+  ) async {
+    await openMenu(tester, notes: const {'aaa': 'blob1'});
+
+    expect(find.text('Add note…'), findsNothing);
+    expect(find.text('Edit note…'), findsOneWidget);
+    expect(find.text('Remove note'), findsOneWidget);
+  });
+
+  testWidgets('the menu opens at once while the notes are still listed', (
+    tester,
+  ) async {
+    final pending = Completer<Map<String, String>>();
+    await openMenu(tester, index: () => pending.future);
+
+    expect(find.text('Add note…'), findsOneWidget);
+    expect(find.text('Copy SHA'), findsOneWidget);
+  });
+
+  testWidgets('a notes list that failed still offers to add one', (
+    tester,
+  ) async {
+    await openMenu(tester, index: () => Future.error(StateError('no git')));
+
+    expect(find.text('Add note…'), findsOneWidget);
+    expect(find.text('Remove note'), findsNothing);
+  });
+
+  testWidgets('Remove note reads as a removal', (tester) async {
+    await openMenu(tester, notes: const {'aaa': 'blob1'});
+
+    final text = tester.widget<Text>(find.text('Remove note'));
+    expect(text.style?.color, AppTokens.dark().danger);
   });
 }

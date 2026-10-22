@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/git/git_providers.dart';
+import '../domain/git/notes.dart';
 import '../domain/search.dart';
 
 /// Identifies one content search inside one repository, so the pickaxe is run
@@ -62,6 +63,7 @@ final contentSearchProvider = FutureProvider.autoDispose
             // The graph draws every branch, so the search has to walk every
             // branch too — walking HEAD alone would dim a matching commit
             // that is sitting right there on screen.
+            ...notesWalkExcludes,
             '--all',
             '--pretty=format:%H',
             flag,

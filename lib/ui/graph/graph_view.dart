@@ -14,6 +14,7 @@ import '../../state/bisect.dart';
 import '../../state/content_search.dart';
 import '../../state/feedback.dart';
 import '../../state/history_filter.dart';
+import '../../state/notes.dart';
 import '../../state/compare_target.dart';
 import '../../state/graph_selection.dart';
 import '../../state/path_history.dart';
@@ -30,6 +31,7 @@ import '../shell/repo_op_dialogs.dart';
 import '../shell/resize_handle.dart';
 import '../workspace/branch_switch.dart';
 import '../workspace/edit_commit_message.dart';
+import '../workspace/edit_note.dart';
 import '../../l10n/gen/app_localizations.dart';
 import 'bisect_bar.dart';
 import 'commit_columns.dart';
@@ -523,6 +525,14 @@ class _GraphListState extends ConsumerState<GraphList> {
         (_) => _scrollToSha(sha, metrics.rowHeight, arm: true),
       );
     });
+
+    // Kept listed while the graph is up, so a row's menu can say at once
+    // whether its commit has a note. Listened to, not watched: a new list
+    // does not redraw the graph.
+    final notesRepo = ref.watch(
+      workspaceProvider.select((w) => w.activeTab?.path),
+    );
+    if (notesRepo != null) ref.listen(noteIndexProvider(notesRepo), (_, _) {});
 
     final derived = _deriveFor(d);
     final maxLane = derived.maxLane;
@@ -1627,6 +1637,12 @@ class _CommitContextMenu extends ConsumerWidget {
     final picked = picks.contains(sha)
         ? picks.oldestFirst([for (final c in commits) c.sha]).length
         : 0;
+    // Labelled from what is already listed: a right-click does not wait on
+    // git. Before the list is in, or when it failed, the item offers Add, and
+    // the dialog still opens on the note git has.
+    final hasNote =
+        ref.read(noteIndexProvider(path)).valueOrNull?.containsKey(sha) ??
+        false;
 
     PopupMenuItem<void> item(
       String label,
@@ -1766,6 +1782,12 @@ class _CommitContextMenu extends ConsumerWidget {
           l.menuEditMessage,
           () => editCommitMessage(context, ref, repoPath: path, commit: commit),
         ),
+        item(
+          hasNote ? l.menuEditNote : l.menuAddNote,
+          () => editCommitNote(context, ref, repoPath: path, sha: sha),
+        ),
+        if (hasNote)
+          item(l.menuRemoveNote, () => actions.removeNote(sha), danger: true),
         // One menu covers the whole row, gutter included, so a right-click
         // anywhere on it reaches both the commit's actions and the names of
         // the branches sitting on it — each named, since a row can carry

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import 'git/models.dart';
+import 'git/notes.dart';
 
 /// How [CommitQuery.content] is handed to git's pickaxe.
 enum ContentSearchMode {
@@ -140,7 +141,9 @@ List<String> historyFilterArgs(
   final a = author.trim();
   return [
     'log',
-    // The graph draws every branch, so the filter walks every branch too.
+    // The graph draws every branch, so the filter walks every branch too —
+    // and leaves out the notes refs the graph leaves out.
+    ...notesWalkExcludes,
     '--all',
     // With mailmap on, git matches the mapped identity while the graph shows
     // the one recorded in the commit, and a name on screen would find nothing.

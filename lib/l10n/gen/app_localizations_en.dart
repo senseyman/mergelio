@@ -103,6 +103,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get prefsAutoFetch => 'Auto-fetch';
 
   @override
+  String get prefsFetchNotesWithFetch => 'Fetch notes with every fetch';
+
+  @override
   String get prefsAutoFetchInterval => 'Auto-fetch interval';
 
   @override
@@ -1281,6 +1284,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ropPushTags => 'Also push all tags';
+
+  @override
+  String get ropPushNotes => 'Also push notes';
 
   @override
   String get ropPushForce => 'Force (with lease)';
@@ -5491,4 +5497,66 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get extMergeToolLeftOpenHint =>
       'Mergelio stopped waiting for it. The file stays conflicted, and anything the tool saves now is not staged.';
+
+  @override
+  String get menuAddNote => 'Add note…';
+
+  @override
+  String get menuEditNote => 'Edit note…';
+
+  @override
+  String get menuRemoveNote => 'Remove note';
+
+  @override
+  String get cdNote => 'Note';
+
+  @override
+  String get cdNoteUnreadable => 'Could not read the note';
+
+  @override
+  String get cdCopyNote => 'Copy note';
+
+  @override
+  String get noteAddTitle => 'Add note';
+
+  @override
+  String get noteEditTitle => 'Edit note';
+
+  @override
+  String get noteHint =>
+      'A note is attached to the commit without changing it. Save it empty to remove it. Notes stay on this machine until you push them from a remote\'s menu.';
+
+  @override
+  String get sbPushNotes => 'Push notes';
+
+  @override
+  String get sbFetchNotes => 'Fetch notes';
+
+  @override
+  String actSetNote(String sha) {
+    return 'Save note on $sha';
+  }
+
+  @override
+  String actRemoveNote(String sha) {
+    return 'Remove note on $sha';
+  }
+
+  @override
+  String actPushNotes(String remote) {
+    return 'Push notes to $remote';
+  }
+
+  @override
+  String actFetchNotes(String remote) {
+    return 'Fetch notes from $remote';
+  }
+
+  @override
+  String get actNoNotesToPush => 'No notes to push';
+
+  @override
+  String actRemoteHasNoNotes(String remote) {
+    return '$remote has no notes';
+  }
 }

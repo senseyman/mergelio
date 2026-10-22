@@ -8,6 +8,7 @@ import 'package:mergelio/domain/git/lane_layout.dart';
 import 'package:mergelio/domain/git/models.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/state/compare_target.dart';
+import 'package:mergelio/state/notes.dart';
 import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/bisect.dart';
@@ -32,6 +33,7 @@ void main() {
     container = ProviderContainer(
       overrides: [
         workspaceProvider.overrideWith((ref) => workspace),
+        noteIndexProvider('/r').overrideWith((ref) async => const {}),
         bisectStateProvider('/r').overrideWith((ref) => null),
         settingsProvider.overrideWith(
           (ref) => SettingsController(

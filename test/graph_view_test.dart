@@ -13,6 +13,7 @@ import 'package:mergelio/domain/git/lane_layout.dart';
 import 'package:mergelio/domain/git/models.dart';
 import 'package:mergelio/state/bisect.dart';
 import 'package:mergelio/state/graph_selection.dart';
+import 'package:mergelio/state/notes.dart';
 import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
@@ -142,6 +143,7 @@ void main() {
             workspaceProvider.overrideWith(
               (ref) => WorkspaceController()..openRepo('/r'),
             ),
+            noteIndexProvider('/r').overrideWith((ref) async => const {}),
             bisectStateProvider('/r').overrideWith((ref) => null),
             repoDataProvider('/r').overrideWith((ref) async => _data()),
             settingsProvider.overrideWith(
@@ -335,6 +337,7 @@ void main() {
           workspaceProvider.overrideWith(
             (ref) => WorkspaceController()..openRepo('/r'),
           ),
+          noteIndexProvider('/r').overrideWith((ref) async => const {}),
           bisectStateProvider('/r').overrideWith((ref) => null),
           repoDataProvider('/r').overrideWith((ref) async => data),
           squashLinksProvider('/r').overrideWith((ref) => links.future),

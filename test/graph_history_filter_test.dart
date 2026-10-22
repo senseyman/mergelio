@@ -14,6 +14,7 @@ import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/state/bisect.dart';
 import 'package:mergelio/state/content_search.dart';
 import 'package:mergelio/state/history_filter.dart';
+import 'package:mergelio/state/notes.dart';
 import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/state/search.dart';
 import 'package:mergelio/state/settings.dart';
@@ -51,6 +52,7 @@ void main() {
       ProviderScope(
         overrides: [
           workspaceProvider.overrideWith((ref) => workspace),
+          noteIndexProvider('/r').overrideWith((ref) async => const {}),
           bisectStateProvider('/r').overrideWith((ref) => null),
           settingsProvider.overrideWith(
             (ref) => SettingsController(

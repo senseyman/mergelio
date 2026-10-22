@@ -29,6 +29,7 @@ class _FakeGit implements GitService {
     calls.add(args);
     final out = switch (args.first) {
       'remote' when args.length == 1 => hasRemote ? 'origin\n' : '',
+      'notes' when args.contains('get-ref') => 'refs/notes/commits\n',
       'for-each-ref' => 'main\t*\t\n',
       _ => '',
     };
@@ -230,5 +231,69 @@ void main() {
       git.calls.firstWhere((c) => c.first == 'pull'),
       contains('--rebase'),
     );
+  });
+
+  bool fetchedNotes(_FakeGit git) => git.calls.any(
+    (c) =>
+        c.first == 'fetch' &&
+        c.contains('+refs/notes/*:refs/mergelio/notes/origin/*'),
+  );
+
+  testWidgets('Fetch menu fetches notes on their own', (tester) async {
+    final git = _FakeGit();
+    await _pump(tester, git);
+
+    await tester.tap(find.text('Fetch'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Fetch notes from origin'));
+    await tester.pumpAndSettle();
+
+    expect(fetchedNotes(git), isTrue);
+  });
+
+  testWidgets('a plain fetch leaves notes alone by default', (tester) async {
+    final git = _FakeGit();
+    await _pump(tester, git);
+
+    await tester.tap(find.text('Fetch'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Fetch origin'));
+    await tester.pumpAndSettle();
+
+    expect(git.calls.any((c) => c.first == 'fetch'), isTrue);
+    expect(fetchedNotes(git), isFalse);
+  });
+
+  testWidgets('the Fetch menu switches notes on for every fetch', (
+    tester,
+  ) async {
+    final git = _FakeGit();
+    final c = await _pump(tester, git);
+
+    await tester.tap(find.text('Fetch'));
+    await tester.pumpAndSettle();
+    final toggle = find.ancestor(
+      of: find.text('Fetch notes with every fetch'),
+      matching: find.byWidgetPredicate((w) => w is CheckedPopupMenuItem),
+    );
+    expect(toggle, findsOneWidget);
+    expect((tester.widget(toggle) as CheckedPopupMenuItem).checked, isFalse);
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    expect(c.read(settingsProvider).fetchNotesWithFetch, isTrue);
+
+    await tester.tap(find.text('Fetch'));
+    await tester.pumpAndSettle();
+    expect((tester.widget(toggle) as CheckedPopupMenuItem).checked, isTrue);
+    await tester.tap(find.text('Fetch origin'));
+    await tester.pumpAndSettle();
+    expect(fetchedNotes(git), isTrue);
+
+    // A second tick switches it back off.
+    await tester.tap(find.text('Fetch'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Fetch notes with every fetch'));
+    await tester.pumpAndSettle();
+    expect(c.read(settingsProvider).fetchNotesWithFetch, isFalse);
   });
 }

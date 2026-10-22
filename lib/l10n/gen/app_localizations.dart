@@ -284,6 +284,12 @@ abstract class AppLocalizations {
   /// **'Auto-fetch'**
   String get prefsAutoFetch;
 
+  /// No description provided for @prefsFetchNotesWithFetch.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetch notes with every fetch'**
+  String get prefsFetchNotesWithFetch;
+
   /// No description provided for @prefsAutoFetchInterval.
   ///
   /// In en, this message translates to:
@@ -2239,6 +2245,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Also push all tags'**
   String get ropPushTags;
+
+  /// No description provided for @ropPushNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Also push notes'**
+  String get ropPushNotes;
 
   /// No description provided for @ropPushForce.
   ///
@@ -8947,6 +8959,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Mergelio stopped waiting for it. The file stays conflicted, and anything the tool saves now is not staged.'**
   String get extMergeToolLeftOpenHint;
+
+  /// No description provided for @menuAddNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Add note…'**
+  String get menuAddNote;
+
+  /// No description provided for @menuEditNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit note…'**
+  String get menuEditNote;
+
+  /// No description provided for @menuRemoveNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove note'**
+  String get menuRemoveNote;
+
+  /// No description provided for @cdNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Note'**
+  String get cdNote;
+
+  /// No description provided for @cdNoteUnreadable.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read the note'**
+  String get cdNoteUnreadable;
+
+  /// No description provided for @cdCopyNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy note'**
+  String get cdCopyNote;
+
+  /// No description provided for @noteAddTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add note'**
+  String get noteAddTitle;
+
+  /// No description provided for @noteEditTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit note'**
+  String get noteEditTitle;
+
+  /// No description provided for @noteHint.
+  ///
+  /// In en, this message translates to:
+  /// **'A note is attached to the commit without changing it. Save it empty to remove it. Notes stay on this machine until you push them from a remote\'s menu.'**
+  String get noteHint;
+
+  /// No description provided for @sbPushNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Push notes'**
+  String get sbPushNotes;
+
+  /// No description provided for @sbFetchNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetch notes'**
+  String get sbFetchNotes;
+
+  /// No description provided for @actSetNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Save note on {sha}'**
+  String actSetNote(String sha);
+
+  /// No description provided for @actRemoveNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove note on {sha}'**
+  String actRemoveNote(String sha);
+
+  /// No description provided for @actPushNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Push notes to {remote}'**
+  String actPushNotes(String remote);
+
+  /// No description provided for @actFetchNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetch notes from {remote}'**
+  String actFetchNotes(String remote);
+
+  /// No description provided for @actNoNotesToPush.
+  ///
+  /// In en, this message translates to:
+  /// **'No notes to push'**
+  String get actNoNotesToPush;
+
+  /// No description provided for @actRemoteHasNoNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'{remote} has no notes'**
+  String actRemoteHasNoNotes(String remote);
 }
 
 class _AppLocalizationsDelegate

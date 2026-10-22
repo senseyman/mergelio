@@ -30,6 +30,7 @@ class _FakeGit implements GitService {
       'remote' when args.contains('get-url') => 'https://example.com/o.git\n',
       'for-each-ref' when args.contains('refs/heads') => 'main\t*\t\n',
       'rev-parse' => 'deadbeef\n',
+      'notes' when args.contains('get-ref') => 'refs/notes/commits\n',
       _ => '',
     };
     return GitResult(0, out, '');
@@ -89,5 +90,41 @@ void main() {
 
     expect(find.text('Edit remote…'), findsOneWidget);
     expect(find.text('Remove remote…'), findsOneWidget);
+  });
+
+  testWidgets('a remote row offers sharing notes, which name their ref', (
+    tester,
+  ) async {
+    final git = await pumpSidebar(tester);
+
+    await tester.tap(find.text('origin'), buttons: kSecondaryButton);
+    await tester.pumpAndSettle();
+    expect(find.text('Fetch notes'), findsOneWidget);
+    expect(find.text('Push notes'), findsOneWidget);
+
+    await tester.tap(find.text('Push notes'));
+    await tester.pumpAndSettle();
+    // Theirs are merged in first, so the push is a fast-forward.
+    expect(
+      git.calls,
+      contains(
+        equals([
+          'fetch',
+          '--prune',
+          'origin',
+          '+refs/notes/*:refs/mergelio/notes/origin/*',
+        ]),
+      ),
+    );
+    expect(
+      git.calls,
+      contains(equals(['push', 'origin', 'refs/notes/commits'])),
+    );
+
+    await tester.tap(find.text('origin'), buttons: kSecondaryButton);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Fetch notes'));
+    await tester.pumpAndSettle();
+    expect(git.calls.where((c) => c.first == 'fetch'), hasLength(2));
   });
 }

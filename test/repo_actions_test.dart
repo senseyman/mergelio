@@ -1,5 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mergelio/state/settings_controller.dart';
+import 'package:mergelio/state/settings.dart';
+import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/state/feedback.dart';
@@ -142,6 +145,12 @@ void main() {
         overrides: [
           gitServiceProvider.overrideWithValue(git),
           forgeRefreshProvider.overrideWithValue(forge),
+          settingsProvider.overrideWith(
+            (ref) => SettingsController(
+              InMemorySettingsRepository(),
+              const AppSettings(),
+            ),
+          ),
         ],
       );
       addTearDown(c.dispose);

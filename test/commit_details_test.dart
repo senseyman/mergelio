@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/core/tokens.dart';
@@ -12,6 +13,7 @@ import 'package:mergelio/domain/git/tag_info.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/state/graph_selection.dart';
 import 'package:mergelio/state/lfs.dart';
+import 'package:mergelio/state/notes.dart';
 import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
@@ -41,9 +43,20 @@ Widget _harness({
   List<String>? tagInfoReads,
   Future<Set<String>> Function(Ref ref, LfsQuery q)? lfsPaths,
   GitService? git,
+  // Commit sha to note blob, as `git notes list` would report it.
+  Map<String, String> noteIndex = const {},
+  String noteText = '',
+  bool noteFail = false,
+  List<String>? noteReads,
 }) => ProviderScope(
   overrides: [
     if (git != null) gitServiceProvider.overrideWithValue(git),
+    noteIndexProvider.overrideWith((ref, repo) async => noteIndex),
+    commitNoteProvider.overrideWith((ref, key) async {
+      noteReads?.add('${key.sha}@${key.blob}');
+      if (noteFail) throw StateError('bad object');
+      return noteText;
+    }),
     commitFilesProvider.overrideWith(
       (ref, key) async =>
           files ??
@@ -523,5 +536,86 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Tag lw'), findsNothing);
+  });
+
+  group('note', () {
+    testWidgets('a commit with a note shows it below the metadata', (
+      tester,
+    ) async {
+      final reads = <String>[];
+      await tester.pumpWidget(
+        _harness(
+          sigStatus: 'N',
+          noteIndex: {_commit.sha: 'blob1'},
+          noteText: 'Reviewed\n\nby QA',
+          noteReads: reads,
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Note'), findsOneWidget);
+      expect(find.text('Reviewed\n\nby QA'), findsOneWidget);
+      expect(find.byTooltip('Edit note…'), findsOneWidget);
+      expect(find.byTooltip('Remove note'), findsOneWidget);
+      // Keyed by the blob, so an edited note is a different read.
+      expect(reads, ['${_commit.sha}@blob1']);
+    });
+
+    testWidgets('the note can be copied', (tester) async {
+      String? copied;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            copied = (call.arguments as Map)['text'] as String?;
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+      await tester.pumpWidget(
+        _harness(
+          sigStatus: 'N',
+          noteIndex: {_commit.sha: 'blob1'},
+          noteText: 'copy me',
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Copy note'));
+      expect(copied, 'copy me');
+    });
+
+    testWidgets('a commit without a note reads none and shows none', (
+      tester,
+    ) async {
+      final reads = <String>[];
+      await tester.pumpWidget(
+        _harness(
+          sigStatus: 'N',
+          noteIndex: const {'0000000other': 'blob1'},
+          noteReads: reads,
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Note'), findsNothing);
+      expect(reads, isEmpty);
+    });
+
+    testWidgets('a note that cannot be read says so', (tester) async {
+      await tester.pumpWidget(
+        _harness(
+          sigStatus: 'N',
+          noteIndex: {_commit.sha: 'blob1'},
+          noteFail: true,
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Note'), findsOneWidget);
+      expect(find.text('Could not read the note'), findsOneWidget);
+    });
   });
 }
