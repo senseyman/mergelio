@@ -41,7 +41,7 @@ Future<void> editCommitNote(
 }
 
 /// Multi-line note editor, titled "Add" or "Edit" by whether [initial] holds
-/// a note. Returns the trimmed text — empty when the user cleared it, which
+/// a note. Returns the text as typed — blank when the user cleared it, which
 /// removes the note — or null on cancel.
 Future<String?> showNoteDialog(
   BuildContext context, {
@@ -109,8 +109,9 @@ class _NoteBodyState extends State<_NoteBody> {
             ),
             const SizedBox(width: 8),
             FilledButton(
-              onPressed: () =>
-                  Navigator.of(context).pop(_controller.text.trim()),
+              // Returned as typed: git tidies it, and trimming here would
+              // take a leading indent git keeps.
+              onPressed: () => Navigator.of(context).pop(_controller.text),
               child: Text(l.save),
             ),
           ],

@@ -1805,5 +1805,6 @@
   "actSetNote": "Збереження нотатки до {sha}",
   "actRemoveNote": "Видалення нотатки до {sha}",
   "actPushNotes": "Відправлення нотаток до {remote}",
-  "actFetchNotes": "Отримання нотаток з {remote}"
+  "actFetchNotes": "Отримання нотаток з {remote}",
+  "actNoNotesToPush": "Немає нотаток для відправлення"
 }

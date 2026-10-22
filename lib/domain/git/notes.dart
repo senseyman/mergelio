@@ -1,5 +1,25 @@
-/// Which commits carry a git note, as `git notes list` reports it.
+/// Git notes: which commits carry one, and the form git stores them in.
 library;
+
+/// [text] as git stores a note: trailing whitespace off every line, runs of
+/// blank lines down to one, blank lines at either end dropped. Empty means no
+/// note. Comparing this, not the raw text, tells whether an edit would change
+/// anything git keeps.
+String normalizeNote(String text) {
+  final out = <String>[];
+  var blank = false;
+  for (final raw in text.split('\n')) {
+    final line = raw.trimRight();
+    if (line.isEmpty) {
+      blank = out.isNotEmpty;
+      continue;
+    }
+    if (blank) out.add('');
+    blank = false;
+    out.add(line);
+  }
+  return out.join('\n');
+}
 
 final _objectName = RegExp(r'^[0-9a-f]{4,64}$');
 

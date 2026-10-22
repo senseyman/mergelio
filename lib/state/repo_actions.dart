@@ -22,6 +22,7 @@ import '../domain/git/ignore.dart';
 import '../domain/git/lfs.dart';
 import '../domain/git/maintenance.dart';
 import '../domain/git/models.dart';
+import '../domain/git/notes.dart';
 import '../domain/git/patch_file.dart';
 import '../domain/git/rebase_plan.dart';
 import '../domain/git/stash.dart';
@@ -2305,7 +2306,8 @@ class RepoActions {
     final label = _l.actSetNote(_short(sha));
     final (:ok, :prev) = await _noteBefore(label, sha);
     if (!ok) return;
-    final next = text.trim();
+    // git hands a note back already tidied, so only the new text needs it.
+    final next = normalizeNote(text);
     if (next == (prev ?? '')) return;
     final id = _identity;
     Future<void> write(String? note) => note == null || note.isEmpty
@@ -2360,18 +2362,32 @@ class RepoActions {
   }
 
   /// Publishes notes to [remote]. Outside the undo journal, as any push is.
-  Future<void> pushNotes(String remote) => _network(
-    _l.actPushNotes(remote),
-    (cancel) => _writer.pushNotes(remote, cancel: cancel),
-    writesWorkingTree: false,
-  );
+  /// With no notes here there is nothing to send, which is said as such
+  /// rather than as git's refspec error.
+  Future<void> pushNotes(String remote) async {
+    var none = false;
+    await _network(
+      _l.actPushNotes(remote),
+      (cancel) async => none = !await _writer.pushNotes(remote, cancel: cancel),
+      writesWorkingTree: false,
+      toastSuccess: false,
+      onSuccess: () => _ref
+          .read(toastProvider.notifier)
+          .show(
+            none
+                ? _l.actNoNotesToPush
+                : _l.actComplete(_l.actPushNotes(remote)),
+            kind: none ? ToastKind.info : ToastKind.success,
+          ),
+    );
+  }
 
-  /// Brings [remote]'s notes in. Shares the fetch lane: it writes refs only.
+  /// Brings [remote]'s notes in. On the repository lane, not the fetch one:
+  /// it writes the same notes ref a note edit does.
   Future<void> fetchNotes(String remote) => _network(
     _l.actFetchNotes(remote),
     (cancel) => _writer.fetchNotes(remote, cancel: cancel),
     writesWorkingTree: false,
-    lane: _Lane.fetch,
   );
 
   Future<void> stashPush([

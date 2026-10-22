@@ -999,11 +999,16 @@ class GitWriter {
     return r.out;
   }
 
-  /// Publishes the notes ref to [remote]. Notes someone else pushed first
-  /// make git reject it rather than drop theirs.
-  Future<void> pushNotes(String remote, {GitCancel? cancel}) async {
+  /// Publishes the notes ref to [remote]; false, with nothing run, when there
+  /// are no notes here to publish. Notes someone else pushed first make git
+  /// reject it rather than drop theirs.
+  Future<bool> pushNotes(String remote, {GitCancel? cancel}) async {
     final ref = await _notesRef();
+    if (!(await _run(['rev-parse', '--quiet', '--verify', ref])).ok) {
+      return false;
+    }
     await _net(['push', remote, ref], 'git push notes', cancel: cancel);
+    return true;
   }
 
   /// Brings [remote]'s notes into the notes ref. Local notes the remote does

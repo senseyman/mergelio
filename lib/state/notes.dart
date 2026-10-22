@@ -13,9 +13,14 @@ import 'repo_data.dart';
 final noteIndexProvider = FutureProvider.family<Map<String, String>, String>((
   ref,
   repo,
-) {
+) async {
   ref.watch(repoDataProvider(repo));
-  return GitReader(ref.watch(gitServiceProvider), repo).noteIndex();
+  try {
+    return await GitReader(ref.watch(gitServiceProvider), repo).noteIndex();
+  } catch (e) {
+    appLog.warn('listing notes failed: $e', scope: 'notes');
+    rethrow;
+  }
 });
 
 /// The note on one commit. Asked for only when [noteIndexProvider] lists the

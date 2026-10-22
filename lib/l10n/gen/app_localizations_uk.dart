@@ -5641,4 +5641,7 @@ class AppLocalizationsUk extends AppLocalizations {
   String actFetchNotes(String remote) {
     return 'Отримання нотаток з $remote';
   }
+
+  @override
+  String get actNoNotesToPush => 'Немає нотаток для відправлення';
 }

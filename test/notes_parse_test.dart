@@ -33,4 +33,14 @@ void main() {
       expect(index.keys, ['a6df318300536269b1332e4f39f16e4fc3748d98']);
     });
   });
+
+  group('normalizeNote', () {
+    test('tidies text the way git stores it', () {
+      expect(normalizeNote('\n\n  a  \n\n\n\nb\t\r\n\n'), '  a\n\nb');
+    });
+
+    test('blank text is no note', () {
+      expect(normalizeNote(' \n\t\n'), '');
+    });
+  });
 }

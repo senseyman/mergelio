@@ -67,6 +67,12 @@ void main() {
       expect(await reader().note(sha), 'line one\n\nline three');
     });
 
+    test('a note that starts indented reads back with its indent', () async {
+      final sha = await head();
+      await g(['notes', 'add', '-m', '  indented\nnext', sha]);
+      expect(await reader().note(sha), '  indented\nnext');
+    });
+
     test('follows core.notesRef', () async {
       final sha = await head();
       await g(['notes', 'add', '-m', 'default', sha]);

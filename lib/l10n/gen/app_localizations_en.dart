@@ -5542,4 +5542,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String actFetchNotes(String remote) {
     return 'Fetch notes from $remote';
   }
+
+  @override
+  String get actNoNotesToPush => 'No notes to push';
 }

@@ -9031,6 +9031,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Fetch notes from {remote}'**
   String actFetchNotes(String remote);
+
+  /// No description provided for @actNoNotesToPush.
+  ///
+  /// In en, this message translates to:
+  /// **'No notes to push'**
+  String get actNoNotesToPush;
 }
 
 class _AppLocalizationsDelegate

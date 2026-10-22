@@ -3024,5 +3024,6 @@
   "actPushNotes": "Push notes to {remote}",
   "@actPushNotes": {"placeholders": {"remote": {"type": "String"}}},
   "actFetchNotes": "Fetch notes from {remote}",
-  "@actFetchNotes": {"placeholders": {"remote": {"type": "String"}}}
+  "@actFetchNotes": {"placeholders": {"remote": {"type": "String"}}},
+  "actNoNotesToPush": "No notes to push"
 }

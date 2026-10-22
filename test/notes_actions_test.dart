@@ -154,6 +154,27 @@ void main() {
       expect(ranNotesWrite(), isFalse);
     });
 
+    test('a change git would tidy away writes nothing', () async {
+      await g(['notes', 'add', '-m', 'a\n\nb', sha]);
+      git.log.clear();
+      await actions().setNote(sha, 'a   \n\n\n\nb  \n\n');
+      expect(ranNotesWrite(), isFalse);
+    });
+
+    test('undo keeps the indentation a note starts with', () async {
+      await g(['notes', 'add', '-m', '    indented\nnext', sha]);
+      await actions().setNote(sha, 'replaced');
+      await actions().undo();
+      expect(
+        (await const HermeticGit().run([
+          'notes',
+          'show',
+          sha,
+        ], repoPath: repo)).stdout,
+        '    indented\nnext\n',
+      );
+    });
+
     test('empty text on a commit without a note writes nothing', () async {
       await actions().setNote(sha, '');
       expect(ranNotesWrite(), isFalse);
@@ -204,6 +225,25 @@ void main() {
         await g(['rev-parse', 'refs/notes/commits']),
       );
       expect(c.read(toastProvider).last.kind, ToastKind.success);
+    });
+
+    test('pushNotes with no notes says so and pushes nothing', () async {
+      await actions().pushNotes('origin');
+      final t = c.read(toastProvider).last;
+      expect(t.kind, ToastKind.info);
+      expect(t.title, 'No notes to push');
+      expect(git.log.any((a) => a.first == 'push'), isFalse);
+    });
+
+    test('fetchNotes waits for an operation on the repository', () async {
+      // Fetching writes the notes ref a note edit writes too.
+      c.read(busyProvider.notifier).state = BusyState('Save note');
+      await actions().fetchNotes('origin');
+      expect(
+        c.read(toastProvider).last.title,
+        'An operation is already running',
+      );
+      expect(git.log.any((a) => a.first == 'fetch'), isFalse);
     });
 
     test('fetchNotes reports a remote without notes as a failure', () async {

@@ -1080,7 +1080,10 @@ class GitReader {
     final r = await _run(['notes', 'show', sha]);
     if (r.exitCode == 1) return null;
     if (!r.ok) throw GitException('git notes show failed', r);
-    return r.out;
+    // Only git's closing newline goes: a note may start indented.
+    return r.stdout.endsWith('\n')
+        ? r.stdout.substring(0, r.stdout.length - 1)
+        : r.stdout;
   }
 
   /// The notes ref git reads and writes here: `refs/notes/commits` unless
