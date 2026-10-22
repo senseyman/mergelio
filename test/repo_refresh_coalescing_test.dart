@@ -3,12 +3,15 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/state/lfs.dart';
 import 'package:mergelio/state/diff_target.dart';
 import 'package:mergelio/state/repo_actions.dart';
 import 'package:mergelio/state/repo_data.dart';
+import 'package:mergelio/state/settings.dart';
+import 'package:mergelio/state/settings_controller.dart';
 
 /// Creating a branch and checking it out is one gesture but two operations, and
 /// each one asks the graph to reload. Reading the repository twice for that is
@@ -127,7 +130,15 @@ void main() {
       headRefDelay: headRefDelay,
     );
     final c = ProviderContainer(
-      overrides: [gitServiceProvider.overrideWithValue(git)],
+      overrides: [
+        gitServiceProvider.overrideWithValue(git),
+        settingsProvider.overrideWith(
+          (ref) => SettingsController(
+            InMemorySettingsRepository(),
+            const AppSettings(),
+          ),
+        ),
+      ],
     );
     addTearDown(c.dispose);
 
@@ -180,7 +191,15 @@ void main() {
   test('a fetch still on the network does not hold the view back', () async {
     final git = _CountingGit(svc)..fetchGate = Completer<void>();
     final c = ProviderContainer(
-      overrides: [gitServiceProvider.overrideWithValue(git)],
+      overrides: [
+        gitServiceProvider.overrideWithValue(git),
+        settingsProvider.overrideWith(
+          (ref) => SettingsController(
+            InMemorySettingsRepository(),
+            const AppSettings(),
+          ),
+        ),
+      ],
     );
     addTearDown(c.dispose);
     c.listen(repoDataProvider(dir.path), (_, _) {}, fireImmediately: true);
@@ -212,7 +231,15 @@ void main() {
 
     final git = _CountingGit(svc);
     final c = ProviderContainer(
-      overrides: [gitServiceProvider.overrideWithValue(git)],
+      overrides: [
+        gitServiceProvider.overrideWithValue(git),
+        settingsProvider.overrideWith(
+          (ref) => SettingsController(
+            InMemorySettingsRepository(),
+            const AppSettings(),
+          ),
+        ),
+      ],
     );
     addTearDown(c.dispose);
     Future<void>? tool;

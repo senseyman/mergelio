@@ -238,16 +238,15 @@ class RepoActions {
       // Only a fetch the user asked for earns a forge refresh. Auto-fetch's
       // silent background polling ticks every few minutes and must not spend
       // the same rate-limit budget again each time it runs.
-      onSuccess: silent
-          ? null
-          : () {
-              fetched = true;
-              _ref.read(forgeRefreshProvider).refreshAfterGitOp(path);
-              _bumpLfs();
-            },
+      onSuccess: () {
+        fetched = true;
+        if (silent) return;
+        _ref.read(forgeRefreshProvider).refreshAfterGitOp(path);
+        _bumpLfs();
+      },
     );
     if (fetched && _ref.read(settingsProvider).fetchNotesWithFetch) {
-      await _fetchNotesAlong(remote);
+      await _fetchNotesAlong(remote, silent: silent);
     }
     return ok;
   }
@@ -255,8 +254,10 @@ class RepoActions {
   /// Merges the notes of [remote] (or of every remote) after a fetch the
   /// preference asked to carry them. Quiet about remotes without notes, and
   /// about a repository another operation holds: those notes wait for the
-  /// next fetch rather than turn a finished fetch into a warning.
-  Future<void> _fetchNotesAlong(String? remote) async {
+  /// next fetch rather than turn a finished fetch into a warning. Behind an
+  /// auto-fetch ([silent]) a failure is not toasted either, as the fetch's
+  /// own is not.
+  Future<void> _fetchNotesAlong(String? remote, {bool silent = false}) async {
     if (_ref.read(busyProvider) != null) return;
     final List<String> remotes;
     try {
@@ -280,6 +281,7 @@ class RepoActions {
           );
         }
       },
+      silent: silent,
       writesWorkingTree: false,
       toastSuccess: false,
     );

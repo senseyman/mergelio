@@ -76,9 +76,9 @@ abstract class AppSettings with _$AppSettings {
     @Default(false) bool autoFetch,
     // Auto-fetch poll interval in seconds (only used while autoFetch is on).
     @Default(kDefaultAutoFetchIntervalSeconds) int autoFetchIntervalSeconds,
-    // A fetch the user starts also merges each remote's git notes. Off by
-    // default: merging notes writes a notes commit, which is not something a
-    // fetch does unasked. Auto-fetch never does it.
+    // Every fetch, auto-fetch included, also merges each remote's git notes.
+    // Off by default: merging notes writes a notes commit, which is not
+    // something a fetch does unasked.
     @Default(false) bool fetchNotesWithFetch,
     // Pull-request panel refresh interval in seconds. Only ever consulted
     // while a token is connected — see kMinForgeRefreshIntervalSeconds for

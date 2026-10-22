@@ -58,8 +58,12 @@ void main() {
   late _LoggingGit git;
   late ProviderContainer c;
 
-  Future<String> g(List<String> args, {String? at}) async {
-    final r = await const HermeticGit().run(args, repoPath: at ?? repo);
+  Future<String> g(List<String> args, {String? at, String? stdin}) async {
+    final r = await const HermeticGit().run(
+      args,
+      repoPath: at ?? repo,
+      stdin: stdin,
+    );
     if (!r.ok) throw StateError('git ${args.join(' ')} failed: ${r.err}');
     return r.out;
   }
@@ -318,10 +322,22 @@ void main() {
       expect(await note(), isNull);
     });
 
-    test('auto-fetch never merges notes in the background', () async {
+    test('auto-fetch brings notes too, without a word', () async {
       enable(true);
       await actions().fetch(silent: true);
-      expect(await note(), isNull);
+      expect(await note(), 'theirs');
+      expect(c.read(toastProvider), isEmpty);
+    });
+
+    test('auto-fetch keeps a notes failure to itself', () async {
+      enable(true);
+      // Local notes on a commit the remote's notes also changed cannot
+      // conflict under union, so break the merge another way: a notes ref
+      // that is not a commit.
+      final blob = await g(['hash-object', '-w', '--stdin'], stdin: 'x');
+      await g(['update-ref', 'refs/notes/commits', blob]);
+      await actions().fetch(silent: true);
+      expect(c.read(toastProvider), isEmpty);
     });
 
     test('a remote without notes adds no toast to the fetch', () async {
