@@ -223,7 +223,7 @@ class StashPanel extends ConsumerWidget {
                             file: f,
                             repoPath: repoPath,
                             extraMenu: (_) => applyItem(c, f),
-                            selected: open == trackedDiff(f),
+                            selected: trackedDiff(f).showsSameFile(open),
                             onTap: () =>
                                 ref.read(diffTargetProvider.notifier).state =
                                     trackedDiff(f),
@@ -247,7 +247,7 @@ class StashPanel extends ConsumerWidget {
                               ),
                               untracked: true,
                             ),
-                            selected: open == untrackedDiff(p),
+                            selected: untrackedDiff(p).showsSameFile(open),
                             onTap: () =>
                                 ref.read(diffTargetProvider.notifier).state =
                                     untrackedDiff(p),

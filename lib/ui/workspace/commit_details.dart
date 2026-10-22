@@ -299,7 +299,7 @@ class CommitDetails extends ConsumerWidget {
                       fileRow: (path, depth) => ChangeFileRow(
                         file: byPath[path]!,
                         repoPath: repoPath,
-                        selected: open == diffOf(path),
+                        selected: diffOf(path).showsSameFile(open),
                         indent: FileTreeView.indent(depth),
                         inTree: tree,
                         lfs: lfs.contains(path),

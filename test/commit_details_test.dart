@@ -690,6 +690,50 @@ void main() {
       expect(_selectedRows(tester), isEmpty);
     });
 
+    testWidgets('stays highlighted when the diff shows the whole file', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_harness(files: files));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('lib/b.dart'));
+      await tester.pumpAndSettle();
+
+      final c = containerOf(tester);
+      c.read(diffTargetProvider.notifier).state = c
+          .read(diffTargetProvider)!
+          .withWholeFile(true);
+      await tester.pumpAndSettle();
+
+      expect(_selectedRows(tester), ['lib/b.dart']);
+    });
+
+    testWidgets('a renamed file opened from its history is highlighted', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _harness(
+          files: const [
+            CommitFileChange(
+              path: 'lib/new.dart',
+              change: GitChange.renamed,
+              origPath: 'lib/old.dart',
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // File history names the commit and path, not where it was renamed from.
+      containerOf(tester).read(diffTargetProvider.notifier).state = DiffTarget(
+        repoPath: '/repo',
+        path: 'lib/new.dart',
+        commitSha: _commit.sha,
+      );
+      await tester.pumpAndSettle();
+
+      expect(_selectedRows(tester), ['lib/new.dart']);
+    });
+
     testWidgets('is highlighted in the tree view too', (tester) async {
       await tester.pumpWidget(_harness(files: files, tree: true));
       await tester.pumpAndSettle();

@@ -161,7 +161,7 @@ class CompareDetails extends ConsumerWidget {
                       paths: [for (final f in list) f.path],
                       tree: tree,
                       fileRow: (path, depth) => ChangeFileRow(
-                        selected: open == target.fileTarget(path),
+                        selected: target.fileTarget(path).showsSameFile(open),
                         file:
                             byPath[path] ??
                             CommitFileChange(
