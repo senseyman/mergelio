@@ -36,12 +36,22 @@ void main() {
     expect(drafts.state, isEmpty);
   });
 
-  test('the other side of the file is a different draft', () {
+  test('both sides of a working-tree file share its one draft', () {
+    // Either side edits the same file on disk.
     final drafts = DiffDrafts()
-      ..put(_f, _draft('unstaged'))
-      ..put(_f.withStaged(true), _draft('staged'));
+      ..put(_f, _draft('first'))
+      ..put(_f.withStaged(true), _draft('second'));
 
-    expect(drafts.state.length, 2);
-    expect(draftFor(drafts.state, _f)?.text, 'unstaged');
+    expect(drafts.state.length, 1);
+    expect(draftFor(drafts.state, _f)?.text, 'second');
+  });
+
+  test('another file is another draft', () {
+    final drafts = DiffDrafts()
+      ..put(_f, _draft('a'))
+      ..put(const DiffTarget(repoPath: '/r', path: 'g.txt'), _draft('b'))
+      ..put(const DiffTarget(repoPath: '/s', path: 'f.txt'), _draft('c'));
+
+    expect(drafts.state.length, 3);
   });
 }

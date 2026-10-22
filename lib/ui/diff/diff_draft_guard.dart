@@ -119,11 +119,13 @@ class _DiffDraftGuardState extends ConsumerState<DiffDraftGuard> {
         .saveFileText(target.path, draft.text);
   }
 
-  /// Drops the draft, and the sheet with it if that is where it is showing.
+  /// Drops the draft, and the sheet with it if that is where it is showing —
+  /// in whichever view or side.
   void _forget(DiffTarget target) {
     if (!mounted) return;
     ref.read(diffDraftsProvider.notifier).drop(target);
-    if (ref.read(diffTargetProvider) == target) {
+    final open = ref.read(diffTargetProvider);
+    if (open != null && editsSameFile(open, target)) {
       ref.read(diffEditorDirtyProvider.notifier).state = false;
       ref.read(diffEditingProvider.notifier).state = null;
       ref.read(diffTargetProvider.notifier).state = null;

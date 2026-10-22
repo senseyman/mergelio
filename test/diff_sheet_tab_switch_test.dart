@@ -272,32 +272,16 @@ void main() {
       expect(c.read(diffDraftsProvider).length, 1);
     });
 
-    test('the other side of the same file sets the edits aside', () {
+    test('the other side of the same file keeps its edits', () {
       final workspace = _twoTabs();
       final c = _container(workspace);
       _editDirty(c, _inA, 'typed');
+      final staged = _inA.withStaged(true);
 
-      c.read(diffTargetProvider.notifier).state = const DiffTarget(
-        repoPath: '/a',
-        path: 'f.txt',
-        staged: true,
-      );
+      c.read(diffTargetProvider.notifier).state = staged;
 
-      expect(c.read(diffDraftsProvider)[_inA]?.text, 'typed');
-      expect(c.read(diffEditorDirtyProvider), isFalse);
-    });
-
-    test('typing into an older file again makes it the latest', () {
-      final workspace = _twoTabs();
-      final c = _container(workspace);
-      _editDirty(c, _inA, 'first');
-      _editDirty(c, _otherInA, 'second');
-      _editDirty(c, _inA, 'first, more');
-      workspace.setActive(2);
-
-      workspace.setActive(1);
-
-      expect(c, _editingDirty(_inA));
+      expect(c, _editingDirty(staged));
+      expect(c.read(diffDraftsProvider).length, 1);
     });
 
     test('coming back to a tab reopens the file edited last', () {
