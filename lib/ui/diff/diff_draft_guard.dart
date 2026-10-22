@@ -37,8 +37,11 @@ class _DiffDraftGuardState extends ConsumerState<DiffDraftGuard> {
   void initState() {
     super.initState();
     _guards = ref.read(unsavedGuardsProvider);
+    // NUL cannot appear in a path, so it keeps the joined key unambiguous.
     ref.listenManual(
-      diffDraftsProvider.select((d) => d.keys.join('\n')),
+      diffDraftsProvider.select(
+        (d) => {for (final t in d.keys) t.repoPath}.join('\u0000'),
+      ),
       (_, _) => _sync(),
       fireImmediately: true,
     );
@@ -53,7 +56,9 @@ class _DiffDraftGuardState extends ConsumerState<DiffDraftGuard> {
   }
 
   void _sync() {
-    final repos = ref.read(diffDraftsProvider).keys.toSet();
+    final repos = {
+      for (final t in ref.read(diffDraftsProvider).keys) t.repoPath,
+    };
     for (final repo in [..._drops.keys]) {
       if (!repos.contains(repo)) _drops.remove(repo)!();
     }
@@ -67,29 +72,36 @@ class _DiffDraftGuardState extends ConsumerState<DiffDraftGuard> {
     }
   }
 
+  /// One prompt for every file edited in [repo], like the Files-mode editors.
   Future<bool> _confirm(String repo) async {
-    final draft = ref.read(diffDraftsProvider)[repo];
-    if (draft == null || !mounted) return true;
-    final choice = await showUnsavedDialog(context, paths: [draft.target.path]);
+    final targets = draftTargetsIn(ref.read(diffDraftsProvider), repo);
+    if (targets.isEmpty || !mounted) return true;
+    final choice = await showUnsavedDialog(
+      context,
+      paths: [for (final t in targets) t.path],
+    );
     switch (choice) {
       case UnsavedChoice.cancel:
         return false;
       case UnsavedChoice.discard:
-        _forget(draft.target);
+        targets.forEach(_forget);
         return true;
       case UnsavedChoice.save:
-        if (!await _save(draft)) return false;
-        _forget(draft.target);
+        for (final target in targets) {
+          if (!await _save(target)) return false;
+          _forget(target);
+        }
         return true;
     }
   }
 
   /// Writes the draft the way the editor's own save would, outside-change
   /// check included.
-  Future<bool> _save(DiffDraft draft) async {
-    final target = draft.target;
+  Future<bool> _save(DiffTarget target) async {
+    final draft = ref.read(diffDraftsProvider)[target];
+    if (draft == null) return true;
     final onDisk = File('${target.repoPath}/${target.path}');
-    if (await fileChangedSince(onDisk, draft.editor.baseline.loadedAt)) {
+    if (await fileChangedSince(onDisk, draft.baseline.loadedAt)) {
       if (!mounted) return false;
       final l = AppLocalizations.of(context);
       final ok = await confirmDestructive(
@@ -104,13 +116,13 @@ class _DiffDraftGuardState extends ConsumerState<DiffDraftGuard> {
     if (!mounted) return false;
     return ref
         .read(repoActionsProvider(target.repoPath))
-        .saveFileText(target.path, draft.editor.text);
+        .saveFileText(target.path, draft.text);
   }
 
   /// Drops the draft, and the sheet with it if that is where it is showing.
   void _forget(DiffTarget target) {
     if (!mounted) return;
-    ref.read(diffDraftsProvider.notifier).drop(target.repoPath);
+    ref.read(diffDraftsProvider.notifier).drop(target);
     if (ref.read(diffTargetProvider) == target) {
       ref.read(diffEditorDirtyProvider.notifier).state = false;
       ref.read(diffEditingProvider.notifier).state = null;

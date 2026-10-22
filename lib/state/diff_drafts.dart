@@ -3,30 +3,46 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'diff_target.dart';
 import 'file_editor.dart';
 
-/// Text typed into the diff sheet's editor that is not on disk yet, and the
-/// diff it was typed into.
-class DiffDraft {
-  final DiffTarget target;
-  final EditorDraft editor;
-  const DiffDraft({required this.target, required this.editor});
-}
-
-/// Unsaved diff-sheet edits, one per repository — the sheet edits one file at
-/// a time. Held here rather than in the editor so the text outlives it: a tab
-/// switch puts the sheet away, Files mode and the dashboard take the whole
-/// centre column down, and the text has to be there when the editor is back.
-class DiffDrafts extends StateNotifier<Map<String, DiffDraft>> {
+/// Unsaved text typed into the diff sheet's editor, one entry per diff it was
+/// typed into. Held here rather than in the editor so the text outlives it:
+/// opening another file, switching tabs, Files mode and the dashboard all take
+/// the editor away, and the text has to be there when it is back. Only saving
+/// or a discard the user agreed to removes an entry.
+///
+/// Kept in the order the entries were last typed into, so the last one for a
+/// repository is the one the user was working on.
+class DiffDrafts extends StateNotifier<Map<DiffTarget, EditorDraft>> {
   DiffDrafts() : super(const {});
 
-  void put(DiffDraft draft) => state = {...state, draft.target.repoPath: draft};
+  void put(DiffTarget target, EditorDraft draft) {
+    final next = {...state}..remove(target);
+    state = next..[target] = draft;
+  }
 
-  void drop(String repoPath) {
-    if (!state.containsKey(repoPath)) return;
-    state = {...state}..remove(repoPath);
+  void drop(DiffTarget target) {
+    if (!state.containsKey(target)) return;
+    state = {...state}..remove(target);
+  }
+
+  void dropRepo(String repoPath) {
+    if (!state.keys.any((t) => t.repoPath == repoPath)) return;
+    state = {
+      for (final e in state.entries)
+        if (e.key.repoPath != repoPath) e.key: e.value,
+    };
   }
 }
 
+/// The diffs in [repoPath] holding unsaved text, oldest first.
+List<DiffTarget> draftTargetsIn(
+  Map<DiffTarget, EditorDraft> drafts,
+  String repoPath,
+) => [
+  for (final t in drafts.keys)
+    if (t.repoPath == repoPath) t,
+];
+
 final diffDraftsProvider =
-    StateNotifierProvider<DiffDrafts, Map<String, DiffDraft>>(
+    StateNotifierProvider<DiffDrafts, Map<DiffTarget, EditorDraft>>(
       (ref) => DiffDrafts(),
     );

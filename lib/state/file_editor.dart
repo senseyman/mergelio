@@ -28,9 +28,9 @@ class EditableFile {
   bool get canEdit => blocker == null;
 }
 
-/// Editor text that is not on disk, with the file as it was read when the
-/// typing started — what saving checks for outside changes, and what the text
-/// reads clean against.
+/// One editor's text that is not on disk, with the file as it was read when
+/// the typing started — what saving checks for outside changes, and what the
+/// text reads clean against.
 class EditorDraft {
   final String text;
   final EditableFile baseline;

@@ -85,9 +85,7 @@ class _CenterWithDiff extends ConsumerWidget {
         children: [
           Positioned.fill(
             child: GestureDetector(
-              onTap: open
-                  ? () => ref.read(diffTargetProvider.notifier).state = null
-                  : null,
+              onTap: open ? () => closeDiffSheet(ref, context) : null,
               child: const _CenterContent(),
             ),
           ),
@@ -114,8 +112,8 @@ class DiffSheetSlot extends ConsumerWidget {
       ref.watch(diffTargetProvider),
       ref.watch(workspaceProvider.select((w) => w.activeTab?.path)),
     );
-    // The sheet slides up from the bottom edge (~240ms ease-out) and stays
-    // mounted during the exit slide.
+    // The sheet slides up from the bottom edge (~240ms ease-out). Closing
+    // takes it down at once: there is no diff left to show on the way out.
     return Positioned(
       left: 0,
       right: 0,

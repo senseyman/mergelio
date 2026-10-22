@@ -36,13 +36,11 @@ class _FakeGit implements GitService {
 
 const _inA = DiffTarget(repoPath: '/a', path: 'f.txt');
 const _inB = DiffTarget(repoPath: '/b', path: 'g.txt');
+const _otherInA = DiffTarget(repoPath: '/a', path: 'other.txt');
 
-DiffDraft _draft(DiffTarget target, String text) => DiffDraft(
-  target: target,
-  editor: EditorDraft(
-    text: text,
-    baseline: const EditableFile(text: 'disk'),
-  ),
+EditorDraft _draft(String text) => EditorDraft(
+  text: text,
+  baseline: const EditableFile(text: 'disk'),
 );
 
 /// Two tabs, `/a` (id 1) and `/b` (id 2), with `/a` active.
@@ -66,7 +64,7 @@ void _editDirty(ProviderContainer c, DiffTarget target, String text) {
   c.read(diffTargetProvider.notifier).state = target;
   c.read(diffEditingProvider.notifier).state = target;
   c.read(diffEditorDirtyProvider.notifier).state = true;
-  c.read(diffDraftsProvider.notifier).put(_draft(target, text));
+  c.read(diffDraftsProvider.notifier).put(target, _draft(text));
 }
 
 /// Whether the sheet is in edit mode on [target] with unsaved text.
@@ -161,7 +159,7 @@ void main() {
       workspace.setActive(2);
 
       expect(c, _closed);
-      expect(c.read(diffDraftsProvider)['/a']?.editor.text, 'typed');
+      expect(c.read(diffDraftsProvider)[_inA]?.text, 'typed');
     });
 
     test('the other repository opens its own diffs while edits wait', () {
@@ -172,7 +170,7 @@ void main() {
 
       c.read(diffTargetProvider.notifier).state = _inB;
 
-      expect(c.read(diffDraftsProvider)['/a']?.editor.text, 'typed');
+      expect(c.read(diffDraftsProvider)[_inA]?.text, 'typed');
     });
 
     test('coming back reopens the edits that were put aside', () {
@@ -185,7 +183,7 @@ void main() {
       workspace.setActive(1);
 
       expect(c, _editingDirty(_inA));
-      expect(c.read(diffDraftsProvider)['/a']?.editor.text, 'typed');
+      expect(c.read(diffDraftsProvider)[_inA]?.text, 'typed');
     });
 
     test('each repository gets its own unsaved edits back', () {
@@ -200,8 +198,8 @@ void main() {
 
       workspace.setActive(2);
       expect(c, _editingDirty(_inB));
-      expect(c.read(diffDraftsProvider)['/a']?.editor.text, 'typed in a');
-      expect(c.read(diffDraftsProvider)['/b']?.editor.text, 'typed in b');
+      expect(c.read(diffDraftsProvider)[_inA]?.text, 'typed in a');
+      expect(c.read(diffDraftsProvider)[_inB]?.text, 'typed in b');
     });
 
     test('re-selecting the active tab keeps the diff', () {
@@ -225,17 +223,82 @@ void main() {
       expect(c.read(diffDraftsProvider), isEmpty);
     });
 
-    test('opening another file of the repository drops the stale draft', () {
+    test('opening another file of the repository sets the edits aside', () {
+      final workspace = _twoTabs();
+      final c = _container(workspace);
+      _editDirty(c, _inA, 'typed');
+
+      c.read(diffTargetProvider.notifier).state = _otherInA;
+
+      expect(c.read(diffDraftsProvider)[_inA]?.text, 'typed');
+      expect(c.read(diffEditingProvider), isNull);
+      expect(c.read(diffEditorDirtyProvider), isFalse);
+    });
+
+    test('going back to the file reopens its edits', () {
+      final workspace = _twoTabs();
+      final c = _container(workspace);
+      _editDirty(c, _inA, 'typed');
+      c.read(diffTargetProvider.notifier).state = _otherInA;
+
+      c.read(diffTargetProvider.notifier).state = _inA;
+
+      expect(c, _editingDirty(_inA));
+    });
+
+    test('opening the same file again stays in edit mode', () {
+      final workspace = _twoTabs();
+      final c = _container(workspace);
+      c.read(diffTargetProvider.notifier).state = _inA;
+      c.read(diffEditingProvider.notifier).state = _inA;
+
+      c.read(diffTargetProvider.notifier).state = const DiffTarget(
+        repoPath: '/a',
+        path: 'f.txt',
+      );
+
+      expect(c.read(diffEditingProvider), _inA);
+    });
+
+    test('the other side of the same file sets the edits aside', () {
       final workspace = _twoTabs();
       final c = _container(workspace);
       _editDirty(c, _inA, 'typed');
 
       c.read(diffTargetProvider.notifier).state = const DiffTarget(
         repoPath: '/a',
-        path: 'other.txt',
+        path: 'f.txt',
+        staged: true,
       );
 
-      expect(c.read(diffDraftsProvider), isEmpty);
+      expect(c.read(diffDraftsProvider)[_inA]?.text, 'typed');
+      expect(c.read(diffEditorDirtyProvider), isFalse);
+    });
+
+    test('typing into an older file again makes it the latest', () {
+      final workspace = _twoTabs();
+      final c = _container(workspace);
+      _editDirty(c, _inA, 'first');
+      _editDirty(c, _otherInA, 'second');
+      _editDirty(c, _inA, 'first, more');
+      workspace.setActive(2);
+
+      workspace.setActive(1);
+
+      expect(c, _editingDirty(_inA));
+    });
+
+    test('coming back to a tab reopens the file edited last', () {
+      final workspace = _twoTabs();
+      final c = _container(workspace);
+      _editDirty(c, _inA, 'first');
+      _editDirty(c, _otherInA, 'second');
+      workspace.setActive(2);
+
+      workspace.setActive(1);
+
+      expect(c, _editingDirty(_otherInA));
+      expect(c.read(diffDraftsProvider)[_inA]?.text, 'first');
     });
   });
 

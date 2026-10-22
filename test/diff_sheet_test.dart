@@ -9,6 +9,7 @@ import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/domain/git/models.dart';
 import 'package:mergelio/state/diff_target.dart';
+import 'package:mergelio/state/file_editor.dart';
 import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
@@ -163,5 +164,33 @@ void main() {
     await tester.tap(find.text('Staged').hitTestable());
     await tester.pump();
     expect(container.read(diffTargetProvider)?.staged, isTrue);
+  });
+
+  testWidgets('the side toggle steps aside while the file is being edited', (
+    tester,
+  ) async {
+    // Flipping sides mid-edit would move the sheet off the file being typed
+    // into; the other header actions step aside for the same reason.
+    tester.view.physicalSize = const Size(1000, 600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(_harnessPartial('/pr'));
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(DiffSheet)),
+    );
+    const target = DiffTarget(repoPath: '/pr', path: 'p.txt');
+    container.read(diffTargetProvider.notifier).state = target;
+    await tester.pumpAndSettle();
+    expect(find.text('Staged').hitTestable(), findsOneWidget);
+
+    container.read(diffEditingProvider.notifier).state = target;
+    // The editor's file read never completes in a widget test, and its
+    // spinner never settles; a few frames are enough for the header.
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 30));
+    }
+
+    expect(find.text('Staged'), findsNothing);
+    expect(find.text('Unstaged'), findsNothing);
   });
 }

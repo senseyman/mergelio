@@ -37,6 +37,30 @@ import 'line_selection.dart';
 import 'linked_scroll.dart';
 import 'syntax_style.dart';
 
+/// Closes the diff sheet — the X, Escape, and a tap on the graph above it all
+/// come here. Unsaved text in its editor is asked about first; agreeing
+/// discards it, and backing out leaves the sheet as it was.
+Future<void> closeDiffSheet(WidgetRef ref, BuildContext context) async {
+  final target = ref.read(diffTargetProvider);
+  if (target == null) return;
+  final l = AppLocalizations.of(context);
+  if (ref.read(diffEditingProvider) == target &&
+      ref.read(diffEditorDirtyProvider)) {
+    final ok = await confirmDestructive(
+      ref,
+      context,
+      title: l.diffDiscardEditsTitle,
+      body: l.diffUnsavedBody(target.path),
+      confirmLabel: l.discard,
+    );
+    if (!ok) return;
+  }
+  ref.read(diffDraftsProvider.notifier).drop(target);
+  ref.read(diffEditorDirtyProvider.notifier).state = false;
+  ref.read(diffEditingProvider.notifier).state = null;
+  ref.read(diffTargetProvider.notifier).state = null;
+}
+
 /// Slide-up diff sheet over the graph. Occupies [settings.diffHeight] of the
 /// available height; the grip resizes it. Renders inline/split with word-level
 /// and syntax highlighting, and — for the working tree — a staging gutter.
@@ -54,24 +78,7 @@ class DiffSheet extends ConsumerWidget {
     final height = availableHeight * frac;
     final editing = ref.watch(diffEditingProvider) == target;
 
-    Future<void> close() async {
-      final l = AppLocalizations.of(context);
-      // Closing the sheet mid-edit would drop the typed text without a word.
-      if (editing && ref.read(diffEditorDirtyProvider)) {
-        final ok = await confirmDestructive(
-          ref,
-          context,
-          title: l.diffDiscardEditsTitle,
-          body: l.diffUnsavedBody(target.path),
-          confirmLabel: l.discard,
-        );
-        if (!ok) return;
-      }
-      ref.read(diffDraftsProvider.notifier).drop(target.repoPath);
-      ref.read(diffEditorDirtyProvider.notifier).state = false;
-      ref.read(diffEditingProvider.notifier).state = null;
-      ref.read(diffTargetProvider.notifier).state = null;
-    }
+    Future<void> close() => closeDiffSheet(ref, context);
 
     return Focus(
       autofocus: true,
@@ -295,7 +302,7 @@ class _DiffHeader extends ConsumerWidget {
     final full = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (partial) ...[
+        if (partial && !editing) ...[
           _SideToggle(
             staged: target.staged,
             onUnstaged: () => setStaged(false),
@@ -346,7 +353,7 @@ class _DiffHeader extends ConsumerWidget {
       icon: const Icon(Icons.more_horiz),
       onSelected: (action) => action(),
       itemBuilder: (_) => [
-        if (partial) ...[
+        if (partial && !editing) ...[
           CheckedPopupMenuItem(
             value: () => setStaged(false),
             checked: !target.staged,

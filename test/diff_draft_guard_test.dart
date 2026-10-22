@@ -88,12 +88,10 @@ void main() {
     c
         .read(diffDraftsProvider.notifier)
         .put(
-          const DiffDraft(
-            target: _inA,
-            editor: EditorDraft(
-              text: 'typed',
-              baseline: EditableFile(text: 'disk'),
-            ),
+          _inA,
+          const EditorDraft(
+            text: 'typed',
+            baseline: EditableFile(text: 'disk'),
           ),
         );
     await tester.pump();
@@ -130,7 +128,7 @@ void main() {
     await draftInA(tester, c);
 
     expect(await answer(tester, c, 'Cancel'), isFalse);
-    expect(c.read(diffDraftsProvider)['/a']?.editor.text, 'typed');
+    expect(c.read(diffDraftsProvider)[_inA]?.text, 'typed');
     expect(c.read(diffEditorDirtyProvider), isTrue);
   });
 
@@ -168,7 +166,7 @@ void main() {
     actions.succeeds = false;
 
     expect(await answer(tester, c, 'Save'), isFalse);
-    expect(c.read(diffDraftsProvider)['/a']?.editor.text, 'typed');
+    expect(c.read(diffDraftsProvider)[_inA]?.text, 'typed');
   });
 
   testWidgets('a draft that is settled is no longer asked about', (
@@ -176,7 +174,7 @@ void main() {
   ) async {
     final c = await pump(tester);
     await draftInA(tester, c);
-    c.read(diffDraftsProvider.notifier).drop('/a');
+    c.read(diffDraftsProvider.notifier).drop(_inA);
     await tester.pump();
 
     final asked = c.read(unsavedGuardsProvider).confirm('/a');
@@ -197,5 +195,68 @@ void main() {
 
     expect(find.text('Discard'), findsNothing);
     expect(await asked, isTrue);
+  });
+
+  group('several files edited in one repository', () {
+    const other = DiffTarget(repoPath: '/a', path: 'g.txt');
+
+    Future<void> draftOther(WidgetTester tester, ProviderContainer c) async {
+      c
+          .read(diffDraftsProvider.notifier)
+          .put(
+            other,
+            const EditorDraft(
+              text: 'more',
+              baseline: EditableFile(text: ''),
+            ),
+          );
+      await tester.pump();
+    }
+
+    testWidgets('one prompt names them all', (tester) async {
+      final c = await pump(tester);
+      await draftInA(tester, c);
+      await draftOther(tester, c);
+
+      final asked = c.read(unsavedGuardsProvider).confirm('/a');
+      await tester.pumpAndSettle();
+
+      expect(find.text('Discard'), findsOneWidget);
+      expect(find.textContaining('f.txt'), findsOneWidget);
+      expect(find.textContaining('g.txt'), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(await asked, isFalse);
+    });
+
+    testWidgets('Save writes every one of them', (tester) async {
+      final c = await pump(tester);
+      await draftInA(tester, c);
+      await draftOther(tester, c);
+
+      final asked = c.read(unsavedGuardsProvider).confirm('/a');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(await asked, isTrue);
+      expect(actions.saved, {'f.txt': 'typed', 'g.txt': 'more'});
+      expect(c.read(diffDraftsProvider), isEmpty);
+    });
+
+    testWidgets('Discard forgets every one of them', (tester) async {
+      final c = await pump(tester);
+      await draftInA(tester, c);
+      await draftOther(tester, c);
+
+      final asked = c.read(unsavedGuardsProvider).confirm('/a');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Discard'));
+      await tester.pumpAndSettle();
+
+      expect(await asked, isTrue);
+      expect(c.read(diffDraftsProvider), isEmpty);
+      expect(actions.saved, isEmpty);
+    });
   });
 }

@@ -19,7 +19,7 @@ class DiffEditor extends ConsumerWidget {
   const DiffEditor({super.key, required this.target});
 
   void _exit(WidgetRef ref) {
-    ref.read(diffDraftsProvider.notifier).drop(target.repoPath);
+    ref.read(diffDraftsProvider.notifier).drop(target);
     ref.read(diffEditorDirtyProvider.notifier).state = false;
     ref.read(diffEditingProvider.notifier).state = null;
   }
@@ -45,14 +45,12 @@ class DiffEditor extends ConsumerWidget {
     final drafts = ref.read(diffDraftsProvider.notifier);
     // Read, not watched: the editor keeps the store up to date as it types,
     // and only a fresh editor needs what is in it.
-    final draft = ref.read(diffDraftsProvider)[target.repoPath];
     return FileTextEditor(
       repoPath: target.repoPath,
       relPath: target.path,
-      draft: draft?.target == target ? draft!.editor : null,
-      onDraftChanged: (editor) => editor == null
-          ? drafts.drop(target.repoPath)
-          : drafts.put(DiffDraft(target: target, editor: editor)),
+      draft: ref.read(diffDraftsProvider)[target],
+      onDraftChanged: (draft) =>
+          draft == null ? drafts.drop(target) : drafts.put(target, draft),
       onDirtyChanged: (dirty) =>
           ref.read(diffEditorDirtyProvider.notifier).state = dirty,
       onSave: (path, text) => ref

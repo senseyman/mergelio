@@ -297,7 +297,7 @@ void main() {
       await settle(tester);
 
       expect(
-        containerOf(tester).read(diffDraftsProvider)['/r']?.editor.text,
+        containerOf(tester).read(diffDraftsProvider).values.singleOrNull?.text,
         'typed\n',
       );
     });
@@ -343,6 +343,62 @@ void main() {
       await settle(tester);
 
       expect(containerOf(tester).read(diffDraftsProvider), isEmpty);
+    });
+  });
+
+  group('closeDiffSheet, which the graph strip calls too', () {
+    testWidgets('asks before dropping unsaved edits', (tester) async {
+      await open(tester);
+      await enterEditMode(tester);
+      await tester.enterText(find.byType(TextField), 'unsaved\n');
+      await settle(tester);
+
+      final sheet = tester.element(find.byType(DiffSheet));
+      closeDiffSheet(sheet as WidgetRef, sheet);
+      await settle(tester);
+
+      expect(find.text('Discard edits?'), findsOneWidget);
+    });
+
+    testWidgets('a discard closes the sheet and forgets the edits', (
+      tester,
+    ) async {
+      await open(tester);
+      final c = ProviderScope.containerOf(
+        tester.element(find.byType(DiffSheet)),
+      );
+      await enterEditMode(tester);
+      await tester.enterText(find.byType(TextField), 'unsaved\n');
+      await settle(tester);
+
+      final sheet = tester.element(find.byType(DiffSheet));
+      closeDiffSheet(sheet as WidgetRef, sheet);
+      await settle(tester);
+      await tester.tap(find.text('Discard'));
+      await settle(tester);
+
+      expect(c.read(diffTargetProvider), isNull);
+      expect(c.read(diffDraftsProvider), isEmpty);
+      expect(c.read(diffEditorDirtyProvider), isFalse);
+    });
+
+    testWidgets('keeping the edits leaves the sheet open', (tester) async {
+      await open(tester);
+      final c = ProviderScope.containerOf(
+        tester.element(find.byType(DiffSheet)),
+      );
+      await enterEditMode(tester);
+      await tester.enterText(find.byType(TextField), 'unsaved\n');
+      await settle(tester);
+
+      final sheet = tester.element(find.byType(DiffSheet));
+      closeDiffSheet(sheet as WidgetRef, sheet);
+      await settle(tester);
+      await tester.tap(find.text('Cancel').last);
+      await settle(tester);
+
+      expect(c.read(diffTargetProvider), isNotNull);
+      expect(c.read(diffDraftsProvider), isNotEmpty);
     });
   });
 }
