@@ -48,7 +48,7 @@ class DiffEditor extends ConsumerWidget {
     return FileTextEditor(
       repoPath: target.repoPath,
       relPath: target.path,
-      draft: ref.read(diffDraftsProvider)[target],
+      draft: draftFor(ref.read(diffDraftsProvider), target),
       onDraftChanged: (draft) =>
           draft == null ? drafts.drop(target) : drafts.put(target, draft),
       onDirtyChanged: (dirty) =>

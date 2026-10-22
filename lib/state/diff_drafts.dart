@@ -14,14 +14,22 @@ import 'file_editor.dart';
 class DiffDrafts extends StateNotifier<Map<DiffTarget, EditorDraft>> {
   DiffDrafts() : super(const {});
 
+  /// Entries are per file, not per way of viewing it: typing into the file in
+  /// whole-file view continues the same draft.
   void put(DiffTarget target, EditorDraft draft) {
-    final next = {...state}..remove(target);
-    state = next..[target] = draft;
+    state = {
+      for (final e in state.entries)
+        if (!e.key.showsSameFile(target)) e.key: e.value,
+      target: draft,
+    };
   }
 
   void drop(DiffTarget target) {
-    if (!state.containsKey(target)) return;
-    state = {...state}..remove(target);
+    if (!state.keys.any(target.showsSameFile)) return;
+    state = {
+      for (final e in state.entries)
+        if (!e.key.showsSameFile(target)) e.key: e.value,
+    };
   }
 
   void dropRepo(String repoPath) {
@@ -31,6 +39,14 @@ class DiffDrafts extends StateNotifier<Map<DiffTarget, EditorDraft>> {
         if (e.key.repoPath != repoPath) e.key: e.value,
     };
   }
+}
+
+/// The unsaved text for [target]'s file, however its diff is being viewed.
+EditorDraft? draftFor(Map<DiffTarget, EditorDraft> drafts, DiffTarget target) {
+  for (final e in drafts.entries) {
+    if (e.key.showsSameFile(target)) return e.value;
+  }
+  return null;
 }
 
 /// The diffs in [repoPath] holding unsaved text, oldest first.

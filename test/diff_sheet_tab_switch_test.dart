@@ -260,6 +260,18 @@ void main() {
       expect(c.read(diffEditingProvider), _inA);
     });
 
+    test('the same file opened in another view keeps its edits', () {
+      final workspace = _twoTabs();
+      final c = _container(workspace);
+      final whole = _inA.withWholeFile(true);
+      _editDirty(c, whole, 'typed');
+
+      c.read(diffTargetProvider.notifier).state = _inA;
+
+      expect(c, _editingDirty(_inA));
+      expect(c.read(diffDraftsProvider).length, 1);
+    });
+
     test('the other side of the same file sets the edits aside', () {
       final workspace = _twoTabs();
       final c = _container(workspace);
@@ -369,6 +381,31 @@ void main() {
 
       workspace.setActive(1);
       await _settle(tester);
+      expect(find.text('typed'), findsOneWidget);
+      expect(c.read(diffEditorDirtyProvider), isTrue);
+    });
+
+    testWidgets('typed text stays when the file is opened in another view', (
+      tester,
+    ) async {
+      final c = await typeIntoA(tester);
+
+      c.read(diffTargetProvider.notifier).state = _inA.withWholeFile(true);
+      await _settle(tester);
+
+      expect(find.text('typed'), findsOneWidget);
+      expect(c.read(diffEditorDirtyProvider), isTrue);
+    });
+
+    testWidgets('typed text comes back when the file is reopened in another '
+        'view', (tester) async {
+      final c = await typeIntoA(tester);
+      c.read(diffTargetProvider.notifier).state = _otherInA;
+      await _settle(tester);
+
+      c.read(diffTargetProvider.notifier).state = _inA.withWholeFile(true);
+      await _settle(tester);
+
       expect(find.text('typed'), findsOneWidget);
       expect(c.read(diffEditorDirtyProvider), isTrue);
     });

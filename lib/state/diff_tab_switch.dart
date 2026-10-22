@@ -17,7 +17,8 @@ import 'workspace.dart';
 /// repository being left; coming back reopens the diff last edited there.
 final diffTabSwitchProvider = Provider<void>((ref) {
   ref.listen(diffTargetProvider, (_, next) {
-    final hasDraft = next != null && ref.read(diffDraftsProvider)[next] != null;
+    final hasDraft =
+        next != null && draftFor(ref.read(diffDraftsProvider), next) != null;
     ref.read(diffEditingProvider.notifier).state = hasDraft ? next : null;
     ref.read(diffEditorDirtyProvider.notifier).state = hasDraft;
   });
