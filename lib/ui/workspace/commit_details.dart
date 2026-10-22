@@ -346,10 +346,14 @@ class _MsgAction extends StatelessWidget {
   final IconData icon;
   final String tooltip;
   final VoidCallback onTap;
+
+  /// Faint unless the action needs to stand out, as a removal does.
+  final Color? color;
   const _MsgAction({
     required this.icon,
     required this.tooltip,
     required this.onTap,
+    this.color,
   });
 
   @override
@@ -362,7 +366,7 @@ class _MsgAction extends StatelessWidget {
         borderRadius: BorderRadius.circular(4),
         child: Padding(
           padding: const EdgeInsets.all(4),
-          child: Icon(icon, size: 13, color: t.textFaint),
+          child: Icon(icon, size: 13, color: color ?? t.textFaint),
         ),
       ),
     );
@@ -573,9 +577,16 @@ class _Note extends ConsumerWidget {
                 onTap: () =>
                     editCommitNote(context, ref, repoPath: repoPath, sha: sha),
               ),
+              if (read.valueOrNull case final text? when text.isNotEmpty)
+                _MsgAction(
+                  icon: Icons.content_copy_outlined,
+                  tooltip: l.cdCopyNote,
+                  onTap: () => Clipboard.setData(ClipboardData(text: text)),
+                ),
               _MsgAction(
                 icon: Icons.delete_outline,
                 tooltip: l.menuRemoveNote,
+                color: t.danger,
                 onTap: () =>
                     ref.read(repoActionsProvider(repoPath)).removeNote(sha),
               ),

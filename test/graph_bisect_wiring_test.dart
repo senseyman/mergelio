@@ -10,6 +10,7 @@ import 'package:mergelio/domain/git/models.dart';
 import 'package:mergelio/domain/search.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/state/bisect.dart';
+import 'package:mergelio/state/notes.dart';
 import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/state/search.dart';
 import 'package:mergelio/state/settings.dart';
@@ -50,6 +51,7 @@ Future<void> _mount(
     ProviderScope(
       overrides: [
         workspaceProvider.overrideWith((ref) => workspace),
+        noteIndexProvider('/r').overrideWith((ref) async => const {}),
         bisectStateProvider('/r').overrideWith((ref) => bisectState),
         searchQueryProvider.overrideWith((ref) => query),
         settingsProvider.overrideWith(

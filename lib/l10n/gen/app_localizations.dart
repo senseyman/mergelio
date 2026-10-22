@@ -8978,6 +8978,12 @@ abstract class AppLocalizations {
   /// **'Could not read the note'**
   String get cdNoteUnreadable;
 
+  /// No description provided for @cdCopyNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy note'**
+  String get cdCopyNote;
+
   /// No description provided for @noteAddTitle.
   ///
   /// In en, this message translates to:
@@ -9037,6 +9043,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No notes to push'**
   String get actNoNotesToPush;
+
+  /// No description provided for @actRemoteHasNoNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'{remote} has no notes'**
+  String actRemoteHasNoNotes(String remote);
 }
 
 class _AppLocalizationsDelegate

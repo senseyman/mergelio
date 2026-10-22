@@ -6,15 +6,19 @@ import '../domain/git/git_reader.dart';
 import 'repo_data.dart';
 
 /// Every commit in the repository with a note, mapped to the note's blob.
-/// One `git notes list` per refresh: every note action ends in one, and
-/// watching the repository data is what re-reads this. Kept while the
-/// repository is open, so the graph menu knows at once whether a commit has
-/// a note to edit.
+/// Follows the notes refs the repository data last read, so `git notes list`
+/// runs only when a note changed, not on every refresh, and never in a
+/// repository without notes. Kept while the repository is open, so the graph
+/// menu can tell from what is already here whether a commit has a note.
 final noteIndexProvider = FutureProvider.family<Map<String, String>, String>((
   ref,
   repo,
 ) async {
-  ref.watch(repoDataProvider(repo));
+  final sig = ref.watch(
+    repoDataProvider(repo).select((d) => d.valueOrNull?.notesSignature),
+  );
+  // Not loaded yet, or no notes refs at all: nothing to list.
+  if (sig == null || sig.isEmpty) return const {};
   try {
     return await GitReader(ref.watch(gitServiceProvider), repo).noteIndex();
   } catch (e) {

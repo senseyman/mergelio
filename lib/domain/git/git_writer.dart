@@ -7,6 +7,7 @@ import 'askpass.dart';
 import 'commit_message.dart';
 import 'git_service.dart';
 import 'hooks.dart';
+import 'notes.dart';
 import 'rebase_plan.dart';
 import 'stash.dart';
 
@@ -999,28 +1000,79 @@ class GitWriter {
     return r.out;
   }
 
-  /// Publishes the notes ref to [remote]; false, with nothing run, when there
-  /// are no notes here to publish. Notes someone else pushed first make git
-  /// reject it rather than drop theirs.
-  Future<bool> pushNotes(String remote, {GitCancel? cancel}) async {
+  /// Publishes the notes ref to [remote]. The remote's notes are merged in
+  /// first, so notes someone else pushed are kept and the push is a
+  /// fast-forward. False, with nothing pushed, when neither side has notes.
+  Future<bool> pushNotes(
+    String remote, {
+    String? authorName,
+    String? authorEmail,
+    GitCancel? cancel,
+  }) async {
     final ref = await _notesRef();
-    if (!(await _run(['rev-parse', '--quiet', '--verify', ref])).ok) {
-      return false;
-    }
+    await _mergeRemoteNotes(remote, ref, authorName, authorEmail, cancel);
+    if (!await _refExists(ref)) return false;
     await _net(['push', remote, ref], 'git push notes', cancel: cancel);
     return true;
   }
 
-  /// Brings [remote]'s notes into the notes ref. Local notes the remote does
-  /// not have make git reject it rather than drop them.
-  Future<void> fetchNotes(String remote, {GitCancel? cancel}) async {
+  /// Merges [remote]'s notes into the notes ref. False when the remote has no
+  /// notes under that name.
+  Future<bool> fetchNotes(
+    String remote, {
+    String? authorName,
+    String? authorEmail,
+    GitCancel? cancel,
+  }) async {
     final ref = await _notesRef();
+    return _mergeRemoteNotes(remote, ref, authorName, authorEmail, cancel);
+  }
+
+  /// Where [remote]'s notes refs are fetched to before they are merged. Kept
+  /// out of `refs/notes/` so they never pass for notes of this repository,
+  /// and out of the graph's walk (see [notesWalkExcludes]).
+  static String remoteNotesNamespace(String remote) =>
+      'refs/mergelio/notes/$remote';
+
+  /// Fetches [remote]'s notes aside, then merges its counterpart of [ref]
+  /// into [ref]. A notes ref is a history of its own: two people's notes
+  /// never fast-forward onto each other, so they are merged rather than one
+  /// overwriting the other. A note both sides wrote on the same commit keeps
+  /// both texts, ours first (`union`). Reports whether the remote had notes.
+  Future<bool> _mergeRemoteNotes(
+    String remote,
+    String ref,
+    String? authorName,
+    String? authorEmail,
+    GitCancel? cancel,
+  ) async {
+    final aside = remoteNotesNamespace(remote);
+    // Forced and pruned: the aside copy mirrors the remote, whatever it did.
     await _net(
-      ['fetch', remote, '$ref:$ref'],
+      ['fetch', '--prune', remote, '+refs/notes/*:$aside/*'],
       'git fetch notes',
       cancel: cancel,
     );
+    final theirs = '$aside/${ref.substring('refs/notes/'.length)}';
+    if (!await _refExists(theirs)) return false;
+    await _ok(
+      [
+        ..._identity(authorName, authorEmail),
+        'notes',
+        'merge',
+        '--quiet',
+        '-s',
+        'union',
+        theirs,
+      ],
+      'git notes merge',
+      cancel: cancel,
+    );
+    return true;
   }
+
+  Future<bool> _refExists(String ref) async =>
+      (await _run(['rev-parse', '--quiet', '--verify', ref])).ok;
 
   // --- Commit-context ops ---------------------------------------------------
 

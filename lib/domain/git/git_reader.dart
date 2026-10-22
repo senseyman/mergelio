@@ -193,6 +193,8 @@ class GitReader {
 
     final r = await _run([
       'log',
+      // Must come before `--all`, which they narrow.
+      ...notesWalkExcludes,
       '--all',
       '--topo-order',
       '--decorate=full',

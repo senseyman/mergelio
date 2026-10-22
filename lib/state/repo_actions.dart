@@ -2303,72 +2303,87 @@ class RepoActions {
   /// store unchanged writes nothing, so it leaves no undo entry either. The
   /// note is authored by the active profile, as a commit is.
   Future<void> setNote(String sha, String text) async {
-    final label = _l.actSetNote(_short(sha));
-    final (:ok, :prev) = await _noteBefore(label, sha);
-    if (!ok) return;
-    // git hands a note back already tidied, so only the new text needs it.
+    // Tidied as git will store it; git hands the old note back already in
+    // that form. A note written outside the app with `--no-stripspace` can
+    // still hold trailing spaces, and then an unchanged save rewrites it —
+    // harmless, and the stored text is the tidy one from then on.
     final next = normalizeNote(text);
-    if (next == (prev ?? '')) return;
-    final id = _identity;
-    Future<void> write(String? note) => note == null || note.isEmpty
-        ? _writer.removeNote(sha)
-        : _writer.setNote(
-            sha,
-            note,
-            authorName: id.name,
-            authorEmail: id.email,
-          );
-    await _undoable(
-      label,
-      () => write(next),
-      // git hands a note back in the form it stores, so writing the old text
-      // again restores it exactly.
-      undo: () => write(prev),
-      redo: () => write(next),
+    await _noteEdit(
+      _l.actSetNote(_short(sha)),
+      sha,
+      (prev) => next == (prev ?? '') ? null : next,
     );
   }
 
   /// Removes the note on [sha]; undo writes its text back.
-  Future<void> removeNote(String sha) async {
-    final label = _l.actRemoveNote(_short(sha));
-    final (:ok, :prev) = await _noteBefore(label, sha);
-    if (!ok || prev == null) return;
-    final id = _identity;
-    await _undoable(
-      label,
-      () => _writer.removeNote(sha),
-      undo: () => _writer.setNote(
-        sha,
-        prev,
-        authorName: id.name,
-        authorEmail: id.email,
-      ),
-      redo: () => _writer.removeNote(sha),
-    );
-  }
+  Future<void> removeNote(String sha) => _noteEdit(
+    _l.actRemoveNote(_short(sha)),
+    sha,
+    (prev) => prev == null ? null : '',
+  );
 
-  /// The note on [sha] before [label] changes it, which its undo writes
-  /// back. A read git fails is toasted under [label], and [ok] is false.
-  Future<({bool ok, String? prev})> _noteBefore(
+  /// Reads the note on [sha], asks [change] what to write instead (null:
+  /// nothing to do; empty: remove it) and writes it, undoably. The lane is
+  /// held from the read to the write, so another edit cannot land between
+  /// them and leave this one's undo restoring text that is no longer there.
+  ///
+  /// Undo and redo restore the note's text, written afresh by the active
+  /// profile: the original notes commit, with its author and date, is not
+  /// brought back.
+  Future<void> _noteEdit(
     String label,
     String sha,
+    String? Function(String? prev) change,
   ) async {
+    if (_blockedByRepoOp) return;
+    final busy = _ref.read(busyProvider.notifier);
+    busy.state = BusyState(label);
     try {
-      return (ok: true, prev: await note(sha));
-    } on GitException catch (e) {
-      _toastErr(label, e);
-      return (ok: false, prev: null);
+      final String? prev;
+      try {
+        prev = await note(sha);
+      } on GitException catch (e) {
+        _toastErr(label, e);
+        return;
+      }
+      final next = change(prev);
+      if (next == null) return;
+      final id = _identity;
+      Future<void> write(String? text) => text == null || text.isEmpty
+          ? _writer.removeNote(sha)
+          : _writer.setNote(
+              sha,
+              text,
+              authorName: id.name,
+              authorEmail: id.email,
+            );
+      await _undoable(
+        label,
+        () => write(next),
+        undo: () => write(prev),
+        redo: () => write(next),
+        // The lane is already ours, taken before the read.
+        claimsRepo: false,
+      );
+    } finally {
+      busy.state = null;
     }
   }
 
-  /// Publishes notes to [remote]. Outside the undo journal, as any push is.
-  /// With no notes here there is nothing to send, which is said as such
-  /// rather than as git's refspec error.
+  /// Merges [remote]'s notes in, then publishes them. Outside the undo
+  /// journal, as any push is. With no notes on either side there is nothing
+  /// to send, which is said as such rather than as git's refspec error.
   Future<void> pushNotes(String remote) async {
+    final id = _identity;
     var none = false;
     await _network(
       _l.actPushNotes(remote),
-      (cancel) async => none = !await _writer.pushNotes(remote, cancel: cancel),
+      (cancel) async => none = !await _writer.pushNotes(
+        remote,
+        authorName: id.name,
+        authorEmail: id.email,
+        cancel: cancel,
+      ),
       writesWorkingTree: false,
       toastSuccess: false,
       onSuccess: () => _ref
@@ -2382,13 +2397,32 @@ class RepoActions {
     );
   }
 
-  /// Brings [remote]'s notes in. On the repository lane, not the fetch one:
-  /// it writes the same notes ref a note edit does.
-  Future<void> fetchNotes(String remote) => _network(
-    _l.actFetchNotes(remote),
-    (cancel) => _writer.fetchNotes(remote, cancel: cancel),
-    writesWorkingTree: false,
-  );
+  /// Merges [remote]'s notes into ours. On the repository lane, not the
+  /// fetch one: it writes the same notes ref a note edit does. A remote with
+  /// no notes is news, not a failure.
+  Future<void> fetchNotes(String remote) async {
+    final id = _identity;
+    var none = false;
+    await _network(
+      _l.actFetchNotes(remote),
+      (cancel) async => none = !await _writer.fetchNotes(
+        remote,
+        authorName: id.name,
+        authorEmail: id.email,
+        cancel: cancel,
+      ),
+      writesWorkingTree: false,
+      toastSuccess: false,
+      onSuccess: () => _ref
+          .read(toastProvider.notifier)
+          .show(
+            none
+                ? _l.actRemoteHasNoNotes(remote)
+                : _l.actComplete(_l.actFetchNotes(remote)),
+            kind: none ? ToastKind.info : ToastKind.success,
+          ),
+    );
+  }
 
   Future<void> stashPush([
     StashPushOptions options = const StashPushOptions(),

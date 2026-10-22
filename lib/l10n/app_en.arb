@@ -3012,6 +3012,7 @@
   "menuRemoveNote": "Remove note",
   "cdNote": "Note",
   "cdNoteUnreadable": "Could not read the note",
+  "cdCopyNote": "Copy note",
   "noteAddTitle": "Add note",
   "noteEditTitle": "Edit note",
   "noteHint": "A note is attached to the commit without changing it. Save it empty to remove it. Notes stay on this machine until you push them from a remote's menu.",
@@ -3025,5 +3026,7 @@
   "@actPushNotes": {"placeholders": {"remote": {"type": "String"}}},
   "actFetchNotes": "Fetch notes from {remote}",
   "@actFetchNotes": {"placeholders": {"remote": {"type": "String"}}},
-  "actNoNotesToPush": "No notes to push"
+  "actNoNotesToPush": "No notes to push",
+  "actRemoteHasNoNotes": "{remote} has no notes",
+  "@actRemoteHasNoNotes": {"placeholders": {"remote": {"type": "String"}}}
 }

@@ -6,14 +6,17 @@ import 'package:mergelio/data/kv_store.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/state/feedback.dart';
+import 'package:mergelio/state/notes.dart';
 import 'package:mergelio/state/profiles.dart';
 import 'package:mergelio/state/repo_actions.dart';
+import 'package:mergelio/state/repo_data.dart';
 
 import 'support/hermetic_git.dart';
 
 /// Records every git command so a test can say which ones ran.
 class _LoggingGit implements GitService {
   final log = <List<String>>[];
+  void Function(List<String> args)? onRun;
   static const _inner = HermeticGit();
 
   @override
@@ -26,6 +29,7 @@ class _LoggingGit implements GitService {
     String? stdin,
   }) {
     log.add(args);
+    onRun?.call(args);
     return _inner.run(
       args,
       repoPath: repoPath,
@@ -246,11 +250,80 @@ void main() {
       expect(git.log.any((a) => a.first == 'fetch'), isFalse);
     });
 
-    test('fetchNotes reports a remote without notes as a failure', () async {
+    test('fetchNotes from a remote without notes says so calmly', () async {
       await actions().fetchNotes('origin');
       final t = c.read(toastProvider).last;
-      expect(t.kind, ToastKind.error);
-      expect(t.description, contains('refs/notes/commits'));
+      expect(t.kind, ToastKind.info);
+      expect(t.title, 'origin has no notes');
     });
+
+    test('fetchNotes merges in the remote notes, under the profile', () async {
+      final clone = '${dir.path}/clone';
+      await g(['push', '-q', 'origin', 'main']);
+      await g(['clone', '-q', '-b', 'main', remote, clone], at: dir.path);
+      await g(['config', 'user.email', 'o@example.com'], at: clone);
+      await g(['config', 'user.name', 'Other'], at: clone);
+      await g(['notes', 'add', '-m', 'theirs', sha], at: clone);
+      await g(['push', '-q', 'origin', 'refs/notes/commits'], at: clone);
+      await g(['notes', 'add', '-m', 'mine', sha]);
+
+      await actions().fetchNotes('origin');
+      expect(await note(), 'mine\n\ntheirs');
+      expect(c.read(toastProvider).last.kind, ToastKind.success);
+      expect(
+        await g(['log', '-1', '--format=%an <%ae>', 'refs/notes/commits']),
+        'Maria K <maria@work.com>',
+      );
+    });
+  });
+
+  group('lane', () {
+    test('a note edit reads nothing while another operation runs', () async {
+      await g(['notes', 'add', '-m', 'before', sha]);
+      c.read(busyProvider.notifier).state = BusyState('Merge');
+      git.log.clear();
+      await actions().setNote(sha, 'after');
+      await actions().removeNote(sha);
+      expect(git.log.where((a) => a.contains('notes')), isEmpty);
+      expect(await note(), 'before');
+    });
+
+    test('a note edit holds the lane from its read to its write', () async {
+      await g(['notes', 'add', '-m', 'before', sha]);
+      BusyState? duringRead;
+      git.onRun = (args) {
+        if (args.contains('show')) duringRead = c.read(busyProvider);
+      };
+      await actions().setNote(sha, 'after');
+      expect(duringRead, isNotNull);
+      expect(c.read(busyProvider), isNull);
+    });
+
+    test('a no-op edit gives the lane back', () async {
+      await g(['notes', 'add', '-m', 'same', sha]);
+      await actions().setNote(sha, 'same');
+      expect(c.read(busyProvider), isNull);
+    });
+  });
+
+  test('a repository without notes never lists them', () async {
+    final sub = c.listen(noteIndexProvider(repo), (_, _) {});
+    addTearDown(sub.close);
+    await c.read(repoDataProvider(repo).future);
+    expect(await c.read(noteIndexProvider(repo).future), isEmpty);
+    expect(git.log.where((a) => a.take(2).join(' ') == 'notes list'), isEmpty);
+  });
+
+  test('a saved note reaches the notes index after the refresh', () async {
+    // The index follows the repository data, which every action refreshes.
+    final sub = c.listen(noteIndexProvider(repo), (_, _) {});
+    addTearDown(sub.close);
+    expect(await c.read(noteIndexProvider(repo).future), isEmpty);
+
+    await actions().setNote(sha, 'indexed');
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+    await c.read(repoDataProvider(repo).future);
+    final index = await c.read(noteIndexProvider(repo).future);
+    expect(index.keys, [sha]);
   });
 }

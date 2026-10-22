@@ -5508,6 +5508,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cdNoteUnreadable => 'Could not read the note';
 
   @override
+  String get cdCopyNote => 'Copy note';
+
+  @override
   String get noteAddTitle => 'Add note';
 
   @override
@@ -5545,4 +5548,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get actNoNotesToPush => 'No notes to push';
+
+  @override
+  String actRemoteHasNoNotes(String remote) {
+    return '$remote has no notes';
+  }
 }

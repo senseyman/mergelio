@@ -21,6 +21,21 @@ String normalizeNote(String text) {
   return out.join('\n');
 }
 
+/// The lines of a `<sha> <refname>` listing that name a notes ref. A note
+/// write changes exactly these, so the notes index is re-read only when they
+/// do. Empty when the repository has no notes at all.
+String notesRefsSignature(String refListing) => [
+  for (final line in refListing.split('\n'))
+    if (line.contains(' refs/notes/')) line.trim(),
+].join('\n');
+
+/// Refs the graph's history walk leaves out: notes commits, and the remote
+/// notes fetched aside before a merge, are bookkeeping, not history.
+const notesWalkExcludes = [
+  '--exclude=refs/notes/*',
+  '--exclude=refs/mergelio/notes/*',
+];
+
 final _objectName = RegExp(r'^[0-9a-f]{4,64}$');
 
 /// Parses `git notes list` output — `<note-blob> <annotated-object>` per line

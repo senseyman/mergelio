@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/domain/git/git_reader.dart';
-import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/domain/git/git_writer.dart';
 
 import 'support/hermetic_git.dart';
@@ -123,14 +122,38 @@ void main() {
   });
 
   group('sharing', () {
+    // A second person on the same remote, with notes of their own.
+    late String clone;
+    Future<void> theirNote(String sha, String text) async {
+      await g(['notes', 'add', '-f', '-m', text, sha], at: clone);
+      await g(['push', '-q', 'origin', 'refs/notes/commits'], at: clone);
+    }
+
+    setUp(() async {
+      clone = '${dir.path}/clone';
+      await g(['clone', '-q', '-b', 'main', remote, clone], at: dir.path);
+      await g(['config', 'user.email', 'o@example.com'], at: clone);
+      await g(['config', 'user.name', 'Other'], at: clone);
+    });
+
     test('pushNotes publishes the notes ref', () async {
       final sha = await head();
       await writer().setNote(sha, 'shared');
-      await writer().pushNotes('origin');
+      expect(await writer().pushNotes('origin'), isTrue);
       expect(
         await g(['rev-parse', 'refs/notes/commits'], at: remote),
         await g(['rev-parse', 'refs/notes/commits']),
       );
+    });
+
+    test('pushNotes with no notes on either side sends nothing', () async {
+      expect(await writer().pushNotes('origin'), isFalse);
+      final r = await svc.run([
+        'rev-parse',
+        '--verify',
+        'refs/notes/commits',
+      ], repoPath: remote);
+      expect(r.ok, isFalse);
     });
 
     test('pushNotes sends the ref core.notesRef names', () async {
@@ -145,37 +168,129 @@ void main() {
 
     test('fetchNotes brings notes from the remote', () async {
       final sha = await head();
-      final clone = '${dir.path}/clone';
-      await g(['clone', '-q', '-b', 'main', remote, clone], at: dir.path);
-      await g(['config', 'user.email', 'o@example.com'], at: clone);
-      await g(['config', 'user.name', 'Other'], at: clone);
-      await g(['notes', 'add', '-m', 'from afar', sha], at: clone);
-      await g(['push', '-q', 'origin', 'refs/notes/commits'], at: clone);
+      await theirNote(sha, 'from afar');
 
-      await writer().fetchNotes('origin');
+      expect(await writer().fetchNotes('origin'), isTrue);
       expect(await reader().note(sha), 'from afar');
     });
 
-    test('a diverged push fails with git\'s explanation', () async {
+    test('fetchNotes from a remote without notes changes nothing', () async {
       final sha = await head();
-      final clone = '${dir.path}/clone';
-      await g(['clone', '-q', '-b', 'main', remote, clone], at: dir.path);
-      await g(['config', 'user.email', 'o@example.com'], at: clone);
-      await g(['config', 'user.name', 'Other'], at: clone);
-      await g(['notes', 'add', '-m', 'theirs', sha], at: clone);
-      await g(['push', '-q', 'origin', 'refs/notes/commits'], at: clone);
+      await writer().setNote(sha, 'mine');
+      final before = await g(['rev-parse', 'refs/notes/commits']);
+
+      expect(await writer().fetchNotes('origin'), isFalse);
+      expect(await g(['rev-parse', 'refs/notes/commits']), before);
+    });
+
+    test('fetchNotes follows a remote whose notes were rewritten', () async {
+      final sha = await head();
+      await theirNote(sha, 'first');
+      await writer().fetchNotes('origin');
+      // They start their notes over: the remote ref no longer descends from
+      // the copy fetched before.
+      await g(['update-ref', '-d', 'refs/notes/commits'], at: clone);
+      await g(['notes', 'add', '-m', 'fresh', sha], at: clone);
+      await g(['push', '-q', '-f', 'origin', 'refs/notes/commits'], at: clone);
+
+      expect(await writer().fetchNotes('origin'), isTrue);
+      expect(
+        await g(['rev-parse', 'refs/mergelio/notes/origin/commits']),
+        await g(['rev-parse', 'refs/notes/commits'], at: remote),
+      );
+    });
+
+    test('fetchNotes merges notes both sides added', () async {
+      final sha = await head();
+      final first = await g(['rev-parse', 'HEAD~1']);
+      await theirNote(first, 'theirs');
       await writer().setNote(sha, 'mine');
 
-      await expectLater(
-        writer().pushNotes('origin'),
-        throwsA(
-          isA<GitException>().having(
-            (e) => e.result?.err,
-            'stderr',
-            contains('rejected'),
-          ),
-        ),
+      await writer().fetchNotes('origin');
+      expect(await reader().note(sha), 'mine');
+      expect(await reader().note(first), 'theirs');
+    });
+
+    test(
+      'a note both sides wrote on one commit keeps both, in order',
+      () async {
+        final sha = await head();
+        await theirNote(sha, 'their line one\ntheir line two');
+        await writer().setNote(sha, 'my line');
+
+        await writer().fetchNotes('origin');
+        expect(
+          await reader().note(sha),
+          'my line\n\ntheir line one\ntheir line two',
+        );
+      },
+    );
+
+    test('pushNotes merges in notes pushed first, then pushes', () async {
+      final sha = await head();
+      final first = await g(['rev-parse', 'HEAD~1']);
+      await theirNote(first, 'theirs');
+      await writer().setNote(sha, 'mine');
+
+      expect(await writer().pushNotes('origin'), isTrue);
+      await g([
+        'fetch',
+        '-q',
+        'origin',
+        '+refs/notes/*:refs/notes/*',
+      ], at: clone);
+      final notes = await g(['notes', 'list'], at: clone);
+      expect(notes, allOf(contains(sha), contains(first)));
+    });
+
+    test('the merge is authored by the identity given', () async {
+      final sha = await head();
+      await theirNote(sha, 'theirs');
+      await writer().setNote(sha, 'mine');
+
+      await writer().fetchNotes(
+        'origin',
+        authorName: 'Maria K',
+        authorEmail: 'maria@work.com',
       );
+      expect(
+        await g(['log', '-1', '--format=%an <%ae>', 'refs/notes/commits']),
+        'Maria K <maria@work.com>',
+      );
+    });
+
+    test('merges the remote ref core.notesRef names into ours', () async {
+      final sha = await head();
+      await g(['notes', '--ref=review', 'add', '-m', 'theirs', sha], at: clone);
+      await g(['push', '-q', 'origin', 'refs/notes/review'], at: clone);
+      await theirNote(sha, 'not this one');
+      await g(['config', 'core.notesRef', 'refs/notes/review']);
+
+      await writer().fetchNotes('origin');
+      expect(await reader().note(sha), 'theirs');
+      expect(
+        (await svc.run([
+          'rev-parse',
+          '--verify',
+          'refs/notes/commits',
+        ], repoPath: repo)).ok,
+        isFalse,
+      );
+    });
+  });
+
+  group('history', () {
+    test('notes commits and fetched notes stay out of the graph', () async {
+      final sha = await head();
+      await writer().setNote(sha, 'mine');
+      final clone = '${dir.path}/clone';
+      await g(['clone', '-q', '-b', 'main', remote, clone], at: dir.path);
+      await g(['notes', 'add', '-m', 'theirs', sha], at: clone);
+      await g(['push', '-q', 'origin', 'refs/notes/commits'], at: clone);
+      await writer().fetchNotes('origin');
+
+      final page = await reader().commitPage();
+      expect([for (final c in page.commits) c.message], ['two', 'one']);
     });
   });
 }

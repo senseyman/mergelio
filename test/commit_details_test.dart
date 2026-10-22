@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/core/tokens.dart';
@@ -557,6 +558,35 @@ void main() {
       expect(find.byTooltip('Remove note'), findsOneWidget);
       // Keyed by the blob, so an edited note is a different read.
       expect(reads, ['${_commit.sha}@blob1']);
+    });
+
+    testWidgets('the note can be copied', (tester) async {
+      String? copied;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            copied = (call.arguments as Map)['text'] as String?;
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+      await tester.pumpWidget(
+        _harness(
+          sigStatus: 'N',
+          noteIndex: {_commit.sha: 'blob1'},
+          noteText: 'copy me',
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Copy note'));
+      expect(copied, 'copy me');
     });
 
     testWidgets('a commit without a note reads none and shows none', (

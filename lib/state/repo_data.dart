@@ -6,6 +6,7 @@ import '../domain/git/git_providers.dart';
 import '../domain/git/git_reader.dart';
 import '../domain/git/lane_layout.dart';
 import '../domain/git/models.dart';
+import '../domain/git/notes.dart';
 import '../domain/git/signature.dart';
 import 'squash_link_cache.dart';
 
@@ -27,6 +28,9 @@ abstract class RepoData with _$RepoData {
     // The walk filled the page it asked for, so older commits exist beyond
     // [commits]. Raise [commitLimitProvider] to bring them in.
     @Default(false) bool hasMoreCommits,
+    // The notes refs and where they point, so notes are re-listed only when
+    // a note changed. Empty when the repository has no notes.
+    @Default('') String notesSignature,
   }) = _RepoData;
 }
 
@@ -166,6 +170,7 @@ final repoDataProvider = FutureProvider.family<RepoData, String>(
       remoteBranches: results[5] as List<RemoteBranch>,
       submodules: results[6] as List<Submodule>,
       hasMoreCommits: hasMore,
+      notesSignature: notesRefsSignature(results[7] as String),
     );
   }, scope: path),
 );

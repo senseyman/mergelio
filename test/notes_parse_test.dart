@@ -43,4 +43,23 @@ void main() {
       expect(normalizeNote(' \n\t\n'), '');
     });
   });
+
+  group('notesRefsSignature', () {
+    test('keeps only the notes refs of a ref listing', () {
+      expect(
+        notesRefsSignature(
+          'aaa refs/heads/main\n'
+          'bbb refs/notes/commits\n'
+          'ccc refs/tags/v1\n'
+          'ddd refs/notes/review\n'
+          '\nHEAD aaa',
+        ),
+        'bbb refs/notes/commits\nddd refs/notes/review',
+      );
+    });
+
+    test('a repository without notes has an empty signature', () {
+      expect(notesRefsSignature('aaa refs/heads/main\n\nHEAD aaa'), '');
+    });
+  });
 }

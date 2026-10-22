@@ -5607,6 +5607,9 @@ class AppLocalizationsUk extends AppLocalizations {
   String get cdNoteUnreadable => 'Не вдалося прочитати нотатку';
 
   @override
+  String get cdCopyNote => 'Копіювати нотатку';
+
+  @override
   String get noteAddTitle => 'Додати нотатку';
 
   @override
@@ -5644,4 +5647,9 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get actNoNotesToPush => 'Немає нотаток для відправлення';
+
+  @override
+  String actRemoteHasNoNotes(String remote) {
+    return 'У $remote немає нотаток';
+  }
 }

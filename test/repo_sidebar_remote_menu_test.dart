@@ -104,6 +104,18 @@ void main() {
 
     await tester.tap(find.text('Push notes'));
     await tester.pumpAndSettle();
+    // Theirs are merged in first, so the push is a fast-forward.
+    expect(
+      git.calls,
+      contains(
+        equals([
+          'fetch',
+          '--prune',
+          'origin',
+          '+refs/notes/*:refs/mergelio/notes/origin/*',
+        ]),
+      ),
+    );
     expect(
       git.calls,
       contains(equals(['push', 'origin', 'refs/notes/commits'])),
@@ -113,11 +125,6 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Fetch notes'));
     await tester.pumpAndSettle();
-    expect(
-      git.calls,
-      contains(
-        equals(['fetch', 'origin', 'refs/notes/commits:refs/notes/commits']),
-      ),
-    );
+    expect(git.calls.where((c) => c.first == 'fetch'), hasLength(2));
   });
 }

@@ -526,6 +526,14 @@ class _GraphListState extends ConsumerState<GraphList> {
       );
     });
 
+    // Kept listed while the graph is up, so a row's menu can say at once
+    // whether its commit has a note. Listened to, not watched: a new list
+    // does not redraw the graph.
+    final notesRepo = ref.watch(
+      workspaceProvider.select((w) => w.activeTab?.path),
+    );
+    if (notesRepo != null) ref.listen(noteIndexProvider(notesRepo), (_, _) {});
+
     final derived = _deriveFor(d);
     final maxLane = derived.maxLane;
     final labels = derived.labels;
@@ -1629,15 +1637,12 @@ class _CommitContextMenu extends ConsumerWidget {
     final picked = picks.contains(sha)
         ? picks.oldestFirst([for (final c in commits) c.sha]).length
         : 0;
-    // Normally already listed (the details panel watches it). A read that
-    // fails or stalls offers Add, and the note dialog still opens on the
-    // note git has.
-    final notes = await ref
-        .read(noteIndexProvider(path).future)
-        .timeout(const Duration(seconds: 2))
-        .catchError((Object _) => const <String, String>{});
-    final hasNote = notes.containsKey(sha);
-    if (!context.mounted) return;
+    // Labelled from what is already listed: a right-click does not wait on
+    // git. Before the list is in, or when it failed, the item offers Add, and
+    // the dialog still opens on the note git has.
+    final hasNote =
+        ref.read(noteIndexProvider(path)).valueOrNull?.containsKey(sha) ??
+        false;
 
     PopupMenuItem<void> item(
       String label,
@@ -1781,7 +1786,8 @@ class _CommitContextMenu extends ConsumerWidget {
           hasNote ? l.menuEditNote : l.menuAddNote,
           () => editCommitNote(context, ref, repoPath: path, sha: sha),
         ),
-        if (hasNote) item(l.menuRemoveNote, () => actions.removeNote(sha)),
+        if (hasNote)
+          item(l.menuRemoveNote, () => actions.removeNote(sha), danger: true),
         // One menu covers the whole row, gutter included, so a right-click
         // anywhere on it reaches both the commit's actions and the names of
         // the branches sitting on it — each named, since a row can carry
