@@ -13,6 +13,8 @@ import 'package:mergelio/state/settings_controller.dart';
 import 'package:mergelio/state/stash_contents.dart';
 import 'package:mergelio/ui/workspace/stash_panel.dart';
 
+import 'support/change_file_rows.dart';
+
 const _stash = Stash(
   ref: 'stash@{1}',
   sha: 'stashsha',
@@ -147,5 +149,20 @@ void main() {
     addTearDown(tester.view.reset);
     await _pump(tester);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the file whose diff is open is highlighted, tracked or not', (
+    tester,
+  ) async {
+    await _pump(tester);
+    expect(selectedRows(tester), isEmpty);
+
+    await tester.tap(find.text('lib/a.dart'));
+    await tester.pumpAndSettle();
+    expect(selectedRows(tester), ['lib/a.dart']);
+
+    await tester.tap(find.text('notes.txt'));
+    await tester.pumpAndSettle();
+    expect(selectedRows(tester), ['notes.txt']);
   });
 }

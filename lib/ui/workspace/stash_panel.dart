@@ -191,62 +191,70 @@ class StashPanel extends ConsumerWidget {
                       style: TextStyle(color: t.textMuted, fontSize: 12),
                     ),
                   ],
-                  data: (c) => [
-                    if (c.files.isEmpty && c.untracked.isEmpty) ...[
-                      const SizedBox(height: 14),
-                      Text(
-                        l.stNoChanges,
-                        style: TextStyle(color: t.textFaint, fontSize: 12),
-                      ),
-                    ],
-                    if (c.files.isNotEmpty) ...[
-                      sectionLabel(l.cdChangedFiles),
-                      for (final f in c.files)
-                        ChangeFileRow(
-                          file: f,
-                          repoPath: repoPath,
-                          extraMenu: (_) => applyItem(c, f),
-                          onTap: () =>
-                              ref
-                                  .read(diffTargetProvider.notifier)
-                                  .state = DiffTarget(
-                                repoPath: repoPath,
-                                path: f.path,
-                                origPath: f.origPath,
-                                commitSha: stash.sha,
-                                baseRev: c.baseSha,
-                                fromStash: true,
-                              ),
+                  data: (c) {
+                    DiffTarget trackedDiff(CommitFileChange f) => DiffTarget(
+                      repoPath: repoPath,
+                      path: f.path,
+                      origPath: f.origPath,
+                      commitSha: stash.sha,
+                      baseRev: c.baseSha,
+                      fromStash: true,
+                    );
+                    // The untracked snapshot is a root commit, so its own
+                    // diff shows each file as wholly new.
+                    DiffTarget untrackedDiff(String p) => DiffTarget(
+                      repoPath: repoPath,
+                      path: p,
+                      commitSha: c.untrackedSha,
+                    );
+                    final open = ref.watch(diffTargetProvider);
+                    return [
+                      if (c.files.isEmpty && c.untracked.isEmpty) ...[
+                        const SizedBox(height: 14),
+                        Text(
+                          l.stNoChanges,
+                          style: TextStyle(color: t.textFaint, fontSize: 12),
                         ),
-                    ],
-                    if (c.untracked.isNotEmpty) ...[
-                      sectionLabel(l.stUntrackedFiles),
-                      for (final p in c.untracked)
-                        ChangeFileRow(
-                          // Applying it creates the file, so it reads as added.
-                          file: CommitFileChange(
-                            path: p,
-                            change: GitChange.added,
+                      ],
+                      if (c.files.isNotEmpty) ...[
+                        sectionLabel(l.cdChangedFiles),
+                        for (final f in c.files)
+                          ChangeFileRow(
+                            file: f,
+                            repoPath: repoPath,
+                            extraMenu: (_) => applyItem(c, f),
+                            selected: trackedDiff(f).showsSameFile(open),
+                            onTap: () =>
+                                ref.read(diffTargetProvider.notifier).state =
+                                    trackedDiff(f),
                           ),
-                          repoPath: repoPath,
-                          extraMenu: (_) => applyItem(
-                            c,
-                            CommitFileChange(path: p, change: GitChange.added),
-                            untracked: true,
-                          ),
-                          // The untracked snapshot is a root commit, so its
-                          // own diff shows each file as wholly new.
-                          onTap: () =>
-                              ref
-                                  .read(diffTargetProvider.notifier)
-                                  .state = DiffTarget(
-                                repoPath: repoPath,
+                      ],
+                      if (c.untracked.isNotEmpty) ...[
+                        sectionLabel(l.stUntrackedFiles),
+                        for (final p in c.untracked)
+                          ChangeFileRow(
+                            // Applying it creates the file, so it reads as added.
+                            file: CommitFileChange(
+                              path: p,
+                              change: GitChange.added,
+                            ),
+                            repoPath: repoPath,
+                            extraMenu: (_) => applyItem(
+                              c,
+                              CommitFileChange(
                                 path: p,
-                                commitSha: c.untrackedSha,
+                                change: GitChange.added,
                               ),
-                        ),
-                    ],
-                  ],
+                              untracked: true,
+                            ),
+                            selected: untrackedDiff(p).showsSameFile(open),
+                            onTap: () =>
+                                ref.read(diffTargetProvider.notifier).state =
+                                    untrackedDiff(p),
+                          ),
+                      ],
+                    ];
+                  },
                 ),
               ],
             ),

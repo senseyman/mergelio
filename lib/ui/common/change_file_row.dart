@@ -20,6 +20,9 @@ class ChangeFileRow extends StatelessWidget {
   final bool inTree;
   final bool lfs;
 
+  /// Whether this row's file is the one open in the diff sheet.
+  final bool selected;
+
   /// The server lock on this file, shown only on LFS rows.
   final LfsLock? lock;
   final bool lockIsOurs;
@@ -34,6 +37,7 @@ class ChangeFileRow extends StatelessWidget {
     this.indent = 0,
     this.inTree = false,
     this.lfs = false,
+    this.selected = false,
     this.lock,
     this.lockIsOurs = false,
     this.extraMenu,
@@ -88,42 +92,50 @@ class ChangeFileRow extends StatelessWidget {
     };
     return GestureDetector(
       onSecondaryTapUp: (d) => _menu(context, d.globalPosition),
-      child: InkWell(
-        onTap: onTap,
-        hoverColor: t.hover,
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(indent, 3, 0, 3),
-          child: Row(
-            children: [
-              Container(
-                width: 16,
-                height: 16,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  letter,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.w700,
+      // Filled the way the working tree marks its open file, so a long list
+      // still shows which file the diff below belongs to.
+      child: Semantics(
+        selected: selected,
+        child: Material(
+          color: selected ? t.active : Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            hoverColor: t.hover,
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(indent, 3, 0, 3),
+              child: Row(
+                children: [
+                  Container(
+                    width: 16,
+                    height: 16,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      letter,
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _label,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: t.textMuted, fontSize: 12),
+                    ),
+                  ),
+                  if (lfs) const LfsChip(),
+                  if (lfs && lock != null)
+                    LfsLockChip(lock: lock!, ours: lockIsOurs),
+                ],
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  _label,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: t.textMuted, fontSize: 12),
-                ),
-              ),
-              if (lfs) const LfsChip(),
-              if (lfs && lock != null)
-                LfsLockChip(lock: lock!, ours: lockIsOurs),
-            ],
+            ),
           ),
         ),
       ),

@@ -156,10 +156,12 @@ class CompareDetails extends ConsumerWidget {
                             .watch(lfsLocksProvider(target.repoPath))
                             .valueOrNull ??
                         LfsLockState.none;
+                    final open = ref.watch(diffTargetProvider);
                     return FileTreeView(
                       paths: [for (final f in list) f.path],
                       tree: tree,
                       fileRow: (path, depth) => ChangeFileRow(
+                        selected: target.fileTarget(path).showsSameFile(open),
                         file:
                             byPath[path] ??
                             CommitFileChange(

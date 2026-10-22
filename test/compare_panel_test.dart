@@ -13,6 +13,8 @@ import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
 import 'package:mergelio/ui/workspace/compare_details.dart';
 
+import 'support/change_file_rows.dart';
+
 const _files = [
   CommitFileChange(path: 'lib/a.dart', change: GitChange.added),
   CommitFileChange(path: 'lib/b.dart', change: GitChange.modified),
@@ -166,5 +168,18 @@ void main() {
       ),
     );
     expect(c.read(compareTargetProvider), isNull);
+  });
+
+  testWidgets('the file whose diff is open is highlighted', (tester) async {
+    final c = await _pump(tester);
+    expect(selectedRows(tester), isEmpty);
+
+    await tester.tap(find.text('lib/b.dart'));
+    await tester.pumpAndSettle();
+    expect(selectedRows(tester), ['lib/b.dart']);
+
+    c.read(diffTargetProvider.notifier).state = null;
+    await tester.pumpAndSettle();
+    expect(selectedRows(tester), isEmpty);
   });
 }
