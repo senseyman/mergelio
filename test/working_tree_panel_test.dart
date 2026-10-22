@@ -15,6 +15,8 @@ import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
 import 'package:mergelio/ui/workspace/working_tree_panel.dart';
 
+import 'support/refresh_counter.dart';
+
 class _FakeGit implements GitService {
   final calls = <List<String>>[];
   @override
@@ -53,24 +55,28 @@ const _partial = WorkingFile(
   worktree: GitChange.modified,
 );
 
-Widget _harness(_FakeGit git, RepoData data) => ProviderScope(
-  overrides: [
-    lfsLocksProvider.overrideWith((ref, repo) async => LfsLockState.none),
-    gitServiceProvider.overrideWithValue(git),
-    settingsProvider.overrideWith(
-      (ref) =>
-          SettingsController(InMemorySettingsRepository(), const AppSettings()),
-    ),
-  ],
-  child: MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-    theme: ThemeData(extensions: [AppTokens.dark()]),
-    home: Scaffold(
-      body: WorkingTreePanel(repoPath: '/r', data: data),
-    ),
-  ),
-);
+Widget _harness(_FakeGit git, RepoData data, {Map<String, int>? refreshes}) =>
+    ProviderScope(
+      overrides: [
+        if (refreshes != null) countRefreshes(refreshes),
+        lfsLocksProvider.overrideWith((ref, repo) async => LfsLockState.none),
+        gitServiceProvider.overrideWithValue(git),
+        settingsProvider.overrideWith(
+          (ref) => SettingsController(
+            InMemorySettingsRepository(),
+            const AppSettings(),
+          ),
+        ),
+      ],
+      child: MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        theme: ThemeData(extensions: [AppTokens.dark()]),
+        home: Scaffold(
+          body: WorkingTreePanel(repoPath: '/r', data: data),
+        ),
+      ),
+    );
 
 void main() {
   testWidgets('clean tree shows the empty state, no composer', (tester) async {
@@ -180,5 +186,39 @@ void main() {
     await tester.tap(find.text('unstaged.txt'));
     await tester.pump();
     expect(container.read(diffTargetProvider)?.staged, isFalse);
+  });
+
+  group('the refresh button', () {
+    testWidgets('is there on a clean tree, where it matters most', (
+      tester,
+    ) async {
+      final refreshes = <String, int>{};
+      await tester.pumpWidget(
+        _harness(_FakeGit(), const RepoData(), refreshes: refreshes),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Refresh (⌘R)'));
+      await tester.pumpAndSettle();
+
+      expect(refreshes, {'/r': 1});
+    });
+
+    testWidgets('is there beside the changes too', (tester) async {
+      final refreshes = <String, int>{};
+      await tester.pumpWidget(
+        _harness(
+          _FakeGit(),
+          const RepoData(working: [_unstaged]),
+          refreshes: refreshes,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Refresh (⌘R)'));
+      await tester.pumpAndSettle();
+
+      expect(refreshes, {'/r': 1});
+    });
   });
 }

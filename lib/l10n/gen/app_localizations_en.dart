@@ -1383,6 +1383,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get wtpDiscardAll => 'Discard all changes';
 
   @override
+  String get repoRefresh => 'Refresh';
+
+  @override
+  String get repoRefreshTooltip => 'Refresh (⌘R)';
+
+  @override
   String get wtpUnstaged => 'UNSTAGED';
 
   @override
@@ -2065,6 +2071,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pfScCreateBranch => 'Create branch';
+
+  @override
+  String get pfScRefresh => 'Refresh the repository';
 
   @override
   String get pfScCollapsePanel => 'Collapse left panel';

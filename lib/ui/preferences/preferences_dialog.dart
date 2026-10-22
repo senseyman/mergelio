@@ -248,6 +248,7 @@ class _ShortcutsTab extends StatelessWidget {
     ('⌥↑ / ⌥↓', l.pfScPrevNextConflict),
     ('⌘⏎', l.pfScCommit),
     ('⌘B', l.pfScCreateBranch),
+    ('⌘R', l.pfScRefresh),
     ('⌘\\', l.pfScCollapsePanel),
     ('⌘`', l.pfScToggleTerminal),
     ('⌘ + / −', l.pfScZoom),

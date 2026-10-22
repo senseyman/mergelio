@@ -1392,6 +1392,12 @@ class AppLocalizationsUk extends AppLocalizations {
   String get wtpDiscardAll => 'Відкинути всі зміни';
 
   @override
+  String get repoRefresh => 'Оновити';
+
+  @override
+  String get repoRefreshTooltip => 'Оновити (⌘R)';
+
+  @override
   String get wtpUnstaged => 'НЕПРОІНДЕКСОВАНІ';
 
   @override
@@ -2076,6 +2082,9 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get pfScCreateBranch => 'Створити гілку';
+
+  @override
+  String get pfScRefresh => 'Оновити репозиторій';
 
   @override
   String get pfScCollapsePanel => 'Згорнути ліву панель';

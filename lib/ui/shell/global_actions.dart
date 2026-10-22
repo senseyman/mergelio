@@ -9,6 +9,7 @@ import '../../state/lfs.dart';
 import '../../state/release_notes.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
+import '../../state/repo_watcher.dart';
 import '../../state/review.dart';
 import '../../state/settings.dart';
 import '../../state/settings_controller.dart';
@@ -88,6 +89,11 @@ void openGlobalPalette(BuildContext context, WidgetRef ref) {
           .valueOrNull ??
       false;
   final cmds = <PaletteCommand>[
+    PaletteCommand(
+      l.repoRefresh,
+      Icons.refresh,
+      () async => ref.read(repoWatcherProvider).refresh(path),
+    ),
     PaletteCommand('Fetch', Icons.download_outlined, () => actions.fetch()),
     PaletteCommand('Pull', Icons.south_west, () {
       final pull = pullDefaults(ref.read(settingsProvider));

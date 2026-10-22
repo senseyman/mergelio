@@ -1056,6 +1056,11 @@
   "shellPrevOpUnfinished": "A previous operation may not have finished",
   "wtpChanges": "CHANGES",
   "wtpDiscardAll": "Discard all changes",
+  "repoRefresh": "Refresh",
+  "@repoRefresh": {
+    "description": "Re-reads the repository: status, history and branches."
+  },
+  "repoRefreshTooltip": "Refresh (⌘R)",
   "wtpUnstaged": "UNSTAGED",
   "wtpStageAll": "Stage all",
   "wtpStaged": "STAGED",
@@ -1498,6 +1503,7 @@
   "pfScPrevNextConflict": "Previous / next conflict (merge tool)",
   "pfScCommit": "Commit (in composer)",
   "pfScCreateBranch": "Create branch",
+  "pfScRefresh": "Refresh the repository",
   "pfScCollapsePanel": "Collapse left panel",
   "pfScToggleTerminal": "Toggle terminal",
   "pfScZoom": "Zoom in / out",

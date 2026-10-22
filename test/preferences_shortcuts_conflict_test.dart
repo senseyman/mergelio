@@ -61,4 +61,55 @@ void main() {
     expect(row, findsOneWidget);
     expect(find.text('⌥↑ / ⌥↓'), findsOneWidget);
   });
+
+  testWidgets('Shortcuts lists refreshing the repository', (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          settingsProvider.overrideWith(
+            (ref) => SettingsController(
+              InMemorySettingsRepository(),
+              const AppSettings(),
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          theme: ThemeData(extensions: [AppTokens.dark()]),
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () => showPreferencesDialog(context),
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    // The tab bar scrolls; bring Shortcuts into view before tapping it.
+    await tester.dragUntilVisible(
+      find.text('Shortcuts'),
+      find.byType(TabBar),
+      const Offset(-200, 0),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Shortcuts'));
+    await tester.pumpAndSettle();
+
+    final row = find.text('Refresh the repository');
+    await tester.dragUntilVisible(
+      row,
+      find.byType(ListView).last,
+      const Offset(0, -80),
+    );
+    expect(row, findsOneWidget);
+    expect(find.text('⌘R'), findsOneWidget);
+  });
 }

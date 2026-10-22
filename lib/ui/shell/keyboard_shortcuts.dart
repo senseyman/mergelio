@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../state/feedback.dart';
 import '../../state/repo_actions.dart';
+import '../../state/repo_watcher.dart';
 import '../../state/settings_controller.dart';
 import '../../state/workspace.dart';
 import '../preferences/preferences_dialog.dart';
@@ -26,6 +27,11 @@ class KeyboardShortcuts extends ConsumerWidget {
     RepoActions? activeActions() {
       final path = ref.read(workspaceProvider).shownTab?.path;
       return path == null ? null : ref.read(repoActionsProvider(path));
+    }
+
+    void refresh() {
+      final path = ref.read(workspaceProvider).shownTab?.path;
+      if (path != null) ref.read(repoWatcherProvider).refresh(path);
     }
 
     void undo() => activeActions()?.undo();
@@ -94,6 +100,9 @@ class KeyboardShortcuts extends ConsumerWidget {
           () => showPreferencesDialog(context),
         ),
         ...chord(LogicalKeyboardKey.backquote, toggleTerminal),
+        // A focused terminal keeps Ctrl+R for the shell's history search: it
+        // answers the key itself, so it never reaches these bindings.
+        ...chord(LogicalKeyboardKey.keyR, refresh),
         // Zoom: ⌘/Ctrl with = (also + on many layouts), - and 0 to reset.
         ...chord(LogicalKeyboardKey.equal, settings.zoomIn),
         ...chord(LogicalKeyboardKey.add, settings.zoomIn),

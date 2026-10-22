@@ -9,7 +9,9 @@ import '../core/logging.dart';
 import '../domain/project_watch.dart';
 import 'open_files.dart';
 import 'project_files.dart';
+import 'repo_actions.dart';
 import 'repo_data.dart';
+import 'window_focus.dart';
 import 'workspace.dart';
 import 'worktrees.dart';
 
@@ -37,11 +39,21 @@ class RepoWatcher {
   final _dirtyDirs = <String>{};
 
   RepoWatcher(this._ref) {
-    _ref.listen(
-      workspaceProvider.select((w) => w.activeTab?.path),
-      (_, path) => _rewatch(path),
-      fireImmediately: true,
-    );
+    var starting = true;
+    _ref.listen(workspaceProvider.select((w) => w.activeTab?.path), (_, path) {
+      _rewatch(path);
+      // Only the active tab is watched, so a repository coming back from the
+      // background has missed everything done to it meanwhile. One shown for
+      // the first time — at startup or newly opened — is being read already.
+      if (!starting && path != null && _ref.exists(repoDataProvider(path))) {
+        refresh(path);
+      }
+    }, fireImmediately: true);
+    starting = false;
+    // Back from another app, which may well have been changing the files.
+    _ref.listen(windowFocusedProvider, (_, focused) {
+      if (focused) refreshNow();
+    });
     _ref.onDispose(_cancel);
   }
 
@@ -184,13 +196,19 @@ class RepoWatcher {
     _dirtyDirs.clear();
   }
 
-  /// Force an immediate refresh of the active repo (e.g. on window focus).
+  /// Re-reads the active repository.
   void refreshNow() {
     final path = _path;
-    if (path != null) {
-      _ref.invalidate(repoDataProvider(path));
-      _ref.invalidate(worktreesProvider);
-    }
+    if (path != null) refresh(path);
+  }
+
+  /// Re-reads [path] — on returning to it, or when asked to. Goes through the
+  /// repository's own coalesced reload rather than straight to the provider,
+  /// so it waits for an operation that is still running git and folds into a
+  /// reload already on its way.
+  void refresh(String path) {
+    _ref.read(repoActionsProvider(path)).refresh();
+    _ref.invalidate(worktreesProvider);
   }
 }
 
