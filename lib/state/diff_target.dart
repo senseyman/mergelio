@@ -59,6 +59,19 @@ class DiffTarget {
     fromStash: fromStash,
   );
 
+  /// Whether [other] shows the same file at the same revision and side,
+  /// however it is being viewed. Whole-file mode is only a way of looking at
+  /// it, and [origPath] follows from the path and revision — not every opener
+  /// spells it out.
+  bool showsSameFile(DiffTarget? other) =>
+      other != null &&
+      other.repoPath == repoPath &&
+      other.path == path &&
+      other.commitSha == commitSha &&
+      other.baseRev == baseRev &&
+      other.staged == staged &&
+      other.fromStash == fromStash;
+
   @override
   bool operator ==(Object other) =>
       other is DiffTarget &&

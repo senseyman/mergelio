@@ -259,4 +259,23 @@ void main() {
       expect(actions.saved, isEmpty);
     });
   });
+
+  testWidgets('a discard closes the sheet showing the file in another view', (
+    tester,
+  ) async {
+    final c = await pump(tester);
+    await draftInA(tester, c);
+    // The text was typed in whole-file view; the sheet now shows the usual one.
+    final whole = _inA.withWholeFile(true);
+    final draft = c.read(diffDraftsProvider)[_inA]!;
+    c.read(diffDraftsProvider.notifier)
+      ..drop(_inA)
+      ..put(whole, draft);
+    await tester.pump();
+
+    expect(await answer(tester, c, 'Discard'), isTrue);
+    expect(c.read(diffDraftsProvider), isEmpty);
+    expect(c.read(diffTargetProvider), isNull);
+    expect(c.read(diffEditorDirtyProvider), isFalse);
+  });
 }
