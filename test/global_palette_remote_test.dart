@@ -31,6 +31,7 @@ class _FakeGit implements GitService {
     calls.add(args);
     final out = switch (args.first) {
       'remote' when args.length == 1 => 'origin\n',
+      'notes' when args.contains('get-ref') => 'refs/notes/commits\n',
       'rev-parse' => 'deadbeef\n',
       _ => '',
     };
@@ -203,4 +204,83 @@ void main() {
       );
     },
   );
+
+  testWidgets('the command palette shares notes with each remote', (
+    tester,
+  ) async {
+    final git = _FakeGit();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gitServiceProvider.overrideWithValue(git),
+          repoDataProvider('/r').overrideWith(
+            (ref) async => const RepoData(remotes: ['origin', 'mirror']),
+          ),
+          settingsProvider.overrideWith(
+            (ref) => SettingsController(
+              InMemorySettingsRepository(),
+              const AppSettings(),
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          theme: ThemeData(extensions: [AppTokens.dark()]),
+          home: Consumer(
+            builder: (ctx, ref, _) => Scaffold(
+              body: Center(
+                child: ElevatedButton(
+                  onPressed: () => openGlobalPalette(ctx, ref),
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(Consumer)),
+    );
+    container.read(workspaceProvider.notifier).openRepo('/r');
+    await tester.pumpAndSettle();
+    // The graph keeps this loaded in the app; the palette reads what is there.
+    await tester.runAsync(() => container.read(repoDataProvider('/r').future));
+
+    Future<void> run(String label) async {
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      // Typed rather than scrolled to: filtering is how the palette is used.
+      await tester.enterText(find.byType(TextField).last, label);
+      await tester.pumpAndSettle();
+      // The query in the field matches too; the row is the one that is not
+      // editable.
+      final row = find.widgetWithText(InkWell, label);
+      expect(row, findsOneWidget);
+      await tester.tap(row);
+      await tester.pumpAndSettle();
+    }
+
+    await run('Push notes to mirror');
+    expect(
+      git.calls,
+      contains(equals(['push', 'mirror', 'refs/notes/commits'])),
+    );
+    git.calls.clear();
+    await run('Fetch notes from origin');
+    // Pushing fetches first too; a fetch must stop there.
+    expect(git.calls.where((c) => c.first == 'push'), isEmpty);
+    expect(
+      git.calls,
+      contains(
+        equals([
+          'fetch',
+          '--prune',
+          'origin',
+          '+refs/notes/*:refs/mergelio/notes/origin/*',
+        ]),
+      ),
+    );
+  });
 }

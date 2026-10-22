@@ -2240,6 +2240,12 @@ abstract class AppLocalizations {
   /// **'Also push all tags'**
   String get ropPushTags;
 
+  /// No description provided for @ropPushNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Also push notes'**
+  String get ropPushNotes;
+
   /// No description provided for @ropPushForce.
   ///
   /// In en, this message translates to:

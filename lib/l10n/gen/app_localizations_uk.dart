@@ -1292,6 +1292,9 @@ class AppLocalizationsUk extends AppLocalizations {
   String get ropPushTags => 'Також відправити всі теги';
 
   @override
+  String get ropPushNotes => 'Також відправити нотатки';
+
+  @override
   String get ropPushForce => 'Примусово (with lease)';
 
   @override

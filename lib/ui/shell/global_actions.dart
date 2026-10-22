@@ -118,6 +118,19 @@ void openGlobalPalette(BuildContext context, WidgetRef ref) {
       if (!context.mounted) return;
       await showPushDialog(context, ref, path);
     }),
+    // No default refspec carries notes, so each remote gets its own pair.
+    for (final r in data?.remotes ?? const <String>[]) ...[
+      PaletteCommand(
+        l.actPushNotes(r),
+        Icons.sticky_note_2_outlined,
+        () => actions.pushNotes(r),
+      ),
+      PaletteCommand(
+        l.actFetchNotes(r),
+        Icons.sticky_note_2_outlined,
+        () => actions.fetchNotes(r),
+      ),
+    ],
     PaletteCommand(l.apcPaletteOpen, Icons.healing_outlined, () async {
       if (!context.mounted) return;
       await showApplyPatchFlow(context, ref, path);

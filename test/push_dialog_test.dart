@@ -17,6 +17,7 @@ const _repoPath = '/home/u/repo';
 /// argument building has something realistic to work from.
 class _FakeGit implements GitService {
   final List<List<String>> calls = [];
+  bool failPush = false;
 
   @override
   Future<GitResult> run(
@@ -31,6 +32,12 @@ class _FakeGit implements GitService {
     if (args.first == 'rev-parse' && args.last == 'HEAD') {
       return const GitResult(0, 'main\n', '');
     }
+    if (args.first == 'notes' && args.contains('get-ref')) {
+      return const GitResult(0, 'refs/notes/commits\n', '');
+    }
+    if (args.first == 'push' && failPush) {
+      return const GitResult(1, '', 'rejected');
+    }
     return const GitResult(0, '', '');
   }
 
@@ -43,8 +50,12 @@ class _FakeGit implements GitService {
 List<List<String>> _pushCalls(_FakeGit git) =>
     git.calls.where((c) => c.first == 'push').toList();
 
-Future<_FakeGit> _openDialog(WidgetTester tester, List<String> remotes) async {
-  final git = _FakeGit();
+Future<_FakeGit> _openDialog(
+  WidgetTester tester,
+  List<String> remotes, {
+  bool failPush = false,
+}) async {
+  final git = _FakeGit()..failPush = failPush;
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
@@ -118,5 +129,48 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(_pushCalls(git), isEmpty);
+  });
+
+  testWidgets('notes are left alone unless asked for', (tester) async {
+    final git = await _openDialog(tester, const ['origin']);
+
+    expect(find.text('Also push notes'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Push'));
+    await tester.pumpAndSettle();
+
+    expect(_pushCalls(git), hasLength(1));
+    expect(git.calls.where((c) => c.first == 'notes'), isEmpty);
+  });
+
+  testWidgets('push notes follows the branch to the same remote', (
+    tester,
+  ) async {
+    final git = await _openDialog(tester, const ['origin', 'mirror']);
+
+    await tester.tap(find.byType(DropdownButtonFormField<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('mirror').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Also push notes'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Push'));
+    await tester.pumpAndSettle();
+
+    expect(_pushCalls(git), [
+      ['push', 'mirror', 'main'],
+      ['push', 'mirror', 'refs/notes/commits'],
+    ]);
+  });
+
+  testWidgets('a branch push that fails sends no notes', (tester) async {
+    final git = await _openDialog(tester, const ['origin'], failPush: true);
+
+    await tester.tap(find.text('Also push notes'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Push'));
+    await tester.pumpAndSettle();
+
+    expect(_pushCalls(git), hasLength(1));
+    expect(git.calls.where((c) => c.first == 'notes'), isEmpty);
   });
 }

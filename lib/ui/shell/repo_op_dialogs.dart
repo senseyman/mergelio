@@ -292,8 +292,8 @@ Future<void> showStashDialog(
   body: _StashBody(repoPath: repoPath, only: only),
 );
 
-/// Push dialog: choose the remote to push to, optionally publish tags along
-/// with the branch, optionally force.
+/// Push dialog: choose the remote to push to, optionally publish tags and
+/// notes along with the branch, optionally force.
 Future<void> showPushDialog(
   BuildContext context,
   WidgetRef ref,
@@ -333,6 +333,7 @@ class _PushBodyState extends ConsumerState<_PushBody> {
       ? 'origin'
       : widget.remotes.firstOrNull;
   bool _tags = false;
+  bool _notes = false;
   bool _force = false;
 
   Future<void> _push() async {
@@ -343,6 +344,7 @@ class _PushBodyState extends ConsumerState<_PushBody> {
     final navigator = Navigator.of(context);
     final remote = _remote;
     final tags = _tags;
+    final notes = _notes;
     final force = _force;
 
     if (force) {
@@ -361,7 +363,10 @@ class _PushBodyState extends ConsumerState<_PushBody> {
     // The confirm can outlive this route, and popping a disposed navigator
     // throws. The push itself no longer depends on the widget being alive.
     if (mounted) navigator.pop();
-    await actions.push(force: force, remote: remote, tags: tags);
+    final pushed = await actions.push(force: force, remote: remote, tags: tags);
+    // Notes follow the branch, not stand in for it: a rejected branch push
+    // leaves them unsent. They are merged with the remote's, never forced.
+    if (notes && pushed && remote != null) await actions.pushNotes(remote);
   }
 
   @override
@@ -423,6 +428,17 @@ class _PushBodyState extends ConsumerState<_PushBody> {
             ),
             value: _tags,
             onChanged: (v) => setState(() => _tags = v ?? false),
+          ),
+          CheckboxListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: ListTileControlAffinity.leading,
+            title: Text(
+              l.ropPushNotes,
+              style: TextStyle(color: t.textPrimary, fontSize: 13),
+            ),
+            value: _notes,
+            onChanged: (v) => setState(() => _notes = v ?? false),
           ),
           CheckboxListTile(
             dense: true,

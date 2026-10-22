@@ -144,7 +144,9 @@ change never needs a second window.*
 - **Notes**: add, edit or remove a commit's git note from the graph's context
   menu; commit details show it with edit and remove at hand, and both changes
   undo. Notes follow `core.notesRef`. No ordinary push or fetch carries them,
-  so a remote's menu has **Push notes** and **Fetch notes**. Both merge the
+  so they are shared on purpose: **Push notes** / **Fetch notes** in a
+  remote's menu or the command palette, or **Also push notes** in the Push
+  dialog (sent only once the branch push succeeded). All of them merge the
   remote's notes with yours (`git notes merge -s union`), so two people can
   share notes; where both noted the same commit, both texts are kept.
 - **File history** and per-line **blame** for any changed file. Blame's options

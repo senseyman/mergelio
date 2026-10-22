@@ -655,7 +655,9 @@ class RepoActions {
     _ref.read(selectedCommitProvider.notifier).state = sha;
   }
 
-  Future<void> push({bool force = false, String? remote, bool tags = false}) =>
+  /// Pushes the current branch; false when the push failed, so a step that
+  /// should follow only a pushed branch can tell.
+  Future<bool> push({bool force = false, String? remote, bool tags = false}) =>
       _network(
         force ? _l.actForcePush : _l.actPush,
         (cancel) => _writer.push(

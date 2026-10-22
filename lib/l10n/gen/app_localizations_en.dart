@@ -1283,6 +1283,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get ropPushTags => 'Also push all tags';
 
   @override
+  String get ropPushNotes => 'Also push notes';
+
+  @override
   String get ropPushForce => 'Force (with lease)';
 
   @override

@@ -1005,6 +1005,7 @@
   "ropPushTitle": "Push",
   "ropPushRemote": "Remote",
   "ropPushTags": "Also push all tags",
+  "ropPushNotes": "Also push notes",
   "ropPushForce": "Force (with lease)",
   "ropPushNoRemotes": "This repository has no remotes. Add one before pushing.",
   "ropStashChangesTitle": "Stash changes",
