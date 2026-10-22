@@ -286,12 +286,20 @@ class CommitDetails extends ConsumerWidget {
                     final locks =
                         ref.watch(lfsLocksProvider(repoPath)).valueOrNull ??
                         LfsLockState.none;
+                    DiffTarget diffOf(String path) => DiffTarget(
+                      repoPath: repoPath,
+                      path: path,
+                      commitSha: c.sha,
+                      origPath: byPath[path]!.origPath,
+                    );
+                    final open = ref.watch(diffTargetProvider);
                     return FileTreeView(
                       paths: [for (final f in list) f.path],
                       tree: tree,
                       fileRow: (path, depth) => ChangeFileRow(
                         file: byPath[path]!,
                         repoPath: repoPath,
+                        selected: open == diffOf(path),
                         indent: FileTreeView.indent(depth),
                         inTree: tree,
                         lfs: lfs.contains(path),
@@ -302,12 +310,7 @@ class CommitDetails extends ConsumerWidget {
                             context: ctx,
                             actions: ref.read(repoActionsProvider(repoPath)),
                             path: path,
-                            diff: DiffTarget(
-                              repoPath: repoPath,
-                              path: path,
-                              commitSha: c.sha,
-                              origPath: byPath[path]!.origPath,
-                            ),
+                            diff: diffOf(path),
                           ),
                           ...lfsLockMenuItems(
                             context: ctx,
@@ -318,14 +321,8 @@ class CommitDetails extends ConsumerWidget {
                           ),
                         ],
                         onTap: () =>
-                            ref
-                                .read(diffTargetProvider.notifier)
-                                .state = DiffTarget(
-                              repoPath: repoPath,
-                              path: path,
-                              commitSha: c.sha,
-                              origPath: byPath[path]!.origPath,
-                            ),
+                            ref.read(diffTargetProvider.notifier).state =
+                                diffOf(path),
                       ),
                     );
                   },

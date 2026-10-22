@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mergelio/ui/common/change_file_row.dart';
 import 'package:mergelio/core/tokens.dart';
 import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/domain/git/models.dart';
@@ -57,6 +58,12 @@ Future<ProviderContainer> _pump(
   await tester.pumpAndSettle();
   return container;
 }
+
+/// Paths of the changed-file rows marked as the one whose diff is open.
+List<String> _selectedRows(WidgetTester tester) => [
+  for (final r in tester.widgetList<ChangeFileRow>(find.byType(ChangeFileRow)))
+    if (r.selected) r.file.path,
+];
 
 void main() {
   testWidgets('names both sides and lists the files that differ', (
@@ -166,5 +173,18 @@ void main() {
       ),
     );
     expect(c.read(compareTargetProvider), isNull);
+  });
+
+  testWidgets('the file whose diff is open is highlighted', (tester) async {
+    final c = await _pump(tester);
+    expect(_selectedRows(tester), isEmpty);
+
+    await tester.tap(find.text('lib/b.dart'));
+    await tester.pumpAndSettle();
+    expect(_selectedRows(tester), ['lib/b.dart']);
+
+    c.read(diffTargetProvider.notifier).state = null;
+    await tester.pumpAndSettle();
+    expect(_selectedRows(tester), isEmpty);
   });
 }
