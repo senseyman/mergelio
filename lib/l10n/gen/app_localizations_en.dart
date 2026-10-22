@@ -103,6 +103,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get prefsAutoFetch => 'Auto-fetch';
 
   @override
+  String get prefsFetchNotesWithFetch => 'Fetch notes with every fetch';
+
+  @override
   String get prefsAutoFetchInterval => 'Auto-fetch interval';
 
   @override

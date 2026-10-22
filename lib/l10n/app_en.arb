@@ -31,6 +31,7 @@
   "prefsTabShortcuts": "Shortcuts",
   "prefsTabCredentials": "Credentials",
   "prefsAutoFetch": "Auto-fetch",
+  "prefsFetchNotesWithFetch": "Fetch notes with every fetch",
   "prefsAutoFetchInterval": "Auto-fetch interval",
   "prefsConfirmDestructive": "Confirm destructive actions",
   "prefsRestoreTabs": "Restore tabs on launch",

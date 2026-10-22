@@ -31,6 +31,7 @@
   "prefsTabShortcuts": "Комбінації клавіш",
   "prefsTabCredentials": "Облікові дані",
   "prefsAutoFetch": "Автоотримання",
+  "prefsFetchNotesWithFetch": "Отримувати нотатки з кожним отриманням",
   "prefsAutoFetchInterval": "Інтервал автоотримання",
   "prefsConfirmDestructive": "Підтверджувати руйнівні дії",
   "prefsRestoreTabs": "Відновлювати вкладки при запуску",

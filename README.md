@@ -146,7 +146,10 @@ change never needs a second window.*
   undo. Notes follow `core.notesRef`. No ordinary push or fetch carries them,
   so they are shared on purpose: **Push notes** / **Fetch notes** in a
   remote's menu or the command palette, or **Also push notes** in the Push
-  dialog (sent only once the branch push succeeded). All of them merge the
+  dialog (sent only once the branch push succeeded). The Fetch button's menu
+  fetches notes per remote, and **Fetch notes with every fetch** (there or in
+  Preferences, off by default) makes every fetch you start bring them too —
+  auto-fetch never does. All of them merge the
   remote's notes with yours (`git notes merge -s union`), so two people can
   share notes; where both noted the same commit, both texts are kept.
 - **File history** and per-line **blame** for any changed file. Blame's options

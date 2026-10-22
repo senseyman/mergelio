@@ -22,6 +22,9 @@ class SettingsController extends StateNotifier<AppSettings> {
 
   void setAutoFetch(bool v) => _update(state.copyWith(autoFetch: v));
 
+  void setFetchNotesWithFetch(bool v) =>
+      _update(state.copyWith(fetchNotesWithFetch: v));
+
   /// Auto-fetch poll interval, floored at [kMinAutoFetchIntervalSeconds] so it
   /// cannot hammer the network.
   void setAutoFetchInterval(int seconds) => _update(

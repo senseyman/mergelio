@@ -284,6 +284,12 @@ abstract class AppLocalizations {
   /// **'Auto-fetch'**
   String get prefsAutoFetch;
 
+  /// No description provided for @prefsFetchNotesWithFetch.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetch notes with every fetch'**
+  String get prefsFetchNotesWithFetch;
+
   /// No description provided for @prefsAutoFetchInterval.
   ///
   /// In en, this message translates to:

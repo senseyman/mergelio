@@ -227,22 +227,63 @@ class RepoActions {
     }
   }
 
-  Future<bool> fetch({String? remote, bool silent = false}) => _network(
-    _l.actFetch,
-    (cancel) => _writer.fetch(remote: remote, cancel: cancel),
-    silent: silent,
-    writesWorkingTree: false,
-    lane: _Lane.fetch,
-    // Only a fetch the user asked for earns a forge refresh. Auto-fetch's
-    // silent background polling ticks every few minutes and must not spend
-    // the same rate-limit budget again each time it runs.
-    onSuccess: silent
-        ? null
-        : () {
-            _ref.read(forgeRefreshProvider).refreshAfterGitOp(path);
-            _bumpLfs();
-          },
-  );
+  Future<bool> fetch({String? remote, bool silent = false}) async {
+    var fetched = false;
+    final ok = await _network(
+      _l.actFetch,
+      (cancel) => _writer.fetch(remote: remote, cancel: cancel),
+      silent: silent,
+      writesWorkingTree: false,
+      lane: _Lane.fetch,
+      // Only a fetch the user asked for earns a forge refresh. Auto-fetch's
+      // silent background polling ticks every few minutes and must not spend
+      // the same rate-limit budget again each time it runs.
+      onSuccess: silent
+          ? null
+          : () {
+              fetched = true;
+              _ref.read(forgeRefreshProvider).refreshAfterGitOp(path);
+              _bumpLfs();
+            },
+    );
+    if (fetched && _ref.read(settingsProvider).fetchNotesWithFetch) {
+      await _fetchNotesAlong(remote);
+    }
+    return ok;
+  }
+
+  /// Merges the notes of [remote] (or of every remote) after a fetch the
+  /// preference asked to carry them. Quiet about remotes without notes, and
+  /// about a repository another operation holds: those notes wait for the
+  /// next fetch rather than turn a finished fetch into a warning.
+  Future<void> _fetchNotesAlong(String? remote) async {
+    if (_ref.read(busyProvider) != null) return;
+    final List<String> remotes;
+    try {
+      remotes = remote != null
+          ? [remote]
+          : await GitReader(_git, path).remotes();
+    } on GitException {
+      return;
+    }
+    if (remotes.isEmpty) return;
+    final id = _identity;
+    await _network(
+      _l.actFetchNotes(remotes.join(', ')),
+      (cancel) async {
+        for (final r in remotes) {
+          await _writer.fetchNotes(
+            r,
+            authorName: id.name,
+            authorEmail: id.email,
+            cancel: cancel,
+          );
+        }
+      },
+      writesWorkingTree: false,
+      toastSuccess: false,
+    );
+  }
 
   /// Downloads the history a shallow clone left out, and the branches a
   /// single-branch one did. On the fetch lane: like a fetch it writes objects

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/data/kv_store.dart';
+import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/state/feedback.dart';
@@ -10,6 +11,8 @@ import 'package:mergelio/state/notes.dart';
 import 'package:mergelio/state/profiles.dart';
 import 'package:mergelio/state/repo_actions.dart';
 import 'package:mergelio/state/repo_data.dart';
+import 'package:mergelio/state/settings.dart';
+import 'package:mergelio/state/settings_controller.dart';
 
 import 'support/hermetic_git.dart';
 
@@ -86,6 +89,12 @@ void main() {
     c = ProviderContainer(
       overrides: [
         gitServiceProvider.overrideWithValue(git),
+        settingsProvider.overrideWith(
+          (ref) => SettingsController(
+            InMemorySettingsRepository(),
+            const AppSettings(),
+          ),
+        ),
         profilesProvider.overrideWith(
           (ref) => ProfilesController(
             InMemoryKeyValueStore(),
@@ -273,6 +282,65 @@ void main() {
       expect(
         await g(['log', '-1', '--format=%an <%ae>', 'refs/notes/commits']),
         'Maria K <maria@work.com>',
+      );
+    });
+  });
+
+  group('fetch with notes', () {
+    late String clone;
+    setUp(() async {
+      await g(['push', '-q', 'origin', 'main']);
+      clone = '${dir.path}/clone';
+      await g(['clone', '-q', '-b', 'main', remote, clone], at: dir.path);
+      await g(['config', 'user.email', 'o@example.com'], at: clone);
+      await g(['config', 'user.name', 'Other'], at: clone);
+      await g(['notes', 'add', '-m', 'theirs', sha], at: clone);
+      await g(['push', '-q', 'origin', 'refs/notes/commits'], at: clone);
+    });
+
+    void enable(bool on) =>
+        c.read(settingsProvider.notifier).setFetchNotesWithFetch(on);
+
+    test('a fetch brings notes when the preference is on', () async {
+      enable(true);
+      await actions().fetch(remote: 'origin');
+      expect(await note(), 'theirs');
+    });
+
+    test('a fetch of every remote brings each one\'s notes', () async {
+      enable(true);
+      await actions().fetch();
+      expect(await note(), 'theirs');
+    });
+
+    test('a fetch leaves notes alone when the preference is off', () async {
+      await actions().fetch(remote: 'origin');
+      expect(await note(), isNull);
+    });
+
+    test('auto-fetch never merges notes in the background', () async {
+      enable(true);
+      await actions().fetch(silent: true);
+      expect(await note(), isNull);
+    });
+
+    test('a remote without notes adds no toast to the fetch', () async {
+      enable(true);
+      final empty = '${dir.path}/empty.git';
+      await g(['init', '-q', '--bare', empty], at: dir.path);
+      await g(['remote', 'add', 'empty', empty]);
+      await actions().fetch(remote: 'empty');
+      expect(c.read(toastProvider).map((t) => t.title), ['Fetch complete']);
+    });
+
+    test('notes wait when another operation holds the repository', () async {
+      enable(true);
+      c.read(busyProvider.notifier).state = BusyState('Merge');
+      await actions().fetch(remote: 'origin');
+      expect(await note(), isNull);
+      expect(
+        c.read(toastProvider).where((t) => t.kind == ToastKind.warning),
+        isEmpty,
       );
     });
   });

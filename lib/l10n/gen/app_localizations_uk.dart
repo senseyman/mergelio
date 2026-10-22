@@ -103,6 +103,10 @@ class AppLocalizationsUk extends AppLocalizations {
   String get prefsAutoFetch => 'Автоотримання';
 
   @override
+  String get prefsFetchNotesWithFetch =>
+      'Отримувати нотатки з кожним отриманням';
+
+  @override
   String get prefsAutoFetchInterval => 'Інтервал автоотримання';
 
   @override
