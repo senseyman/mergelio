@@ -9,6 +9,7 @@ import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
+import 'package:mergelio/state/feedback.dart';
 import 'package:mergelio/ui/shell/repo_op_dialogs.dart';
 
 const _repoPath = '/home/u/repo';
@@ -172,5 +173,26 @@ void main() {
 
     expect(_pushCalls(git), hasLength(1));
     expect(git.calls.where((c) => c.first == 'notes'), isEmpty);
+  });
+
+  testWidgets('a branch push that never ran sends no notes either', (
+    tester,
+  ) async {
+    final git = await _openDialog(tester, const ['origin']);
+    final c = ProviderScope.containerOf(tester.element(find.text('open')));
+    // Another operation holds the repository: the branch push is turned away.
+    c.read(busyProvider.notifier).state = BusyState('Merge');
+
+    await tester.tap(find.text('Also push notes'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Push'));
+    await tester.pumpAndSettle();
+
+    expect(_pushCalls(git), isEmpty);
+    // One warning for the push, not a second one for the notes.
+    expect(
+      c.read(toastProvider).where((t) => t.kind == ToastKind.warning),
+      hasLength(1),
+    );
   });
 }

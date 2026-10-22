@@ -1034,27 +1034,37 @@ class GitWriter {
   static String remoteNotesNamespace(String remote) =>
       'refs/mergelio/notes/$remote';
 
-  /// Fetches [remote]'s notes aside, then merges its counterpart of [ref]
-  /// into [ref]. A notes ref is a history of its own: two people's notes
-  /// never fast-forward onto each other, so they are merged rather than one
-  /// overwriting the other. A note both sides wrote on the same commit keeps
-  /// both texts, ours first (`union`). Reports whether the remote had notes.
-  Future<bool> _mergeRemoteNotes(
-    String remote,
-    String ref,
+  /// Downloads [remote]'s notes refs aside, forced and pruned so the copy
+  /// mirrors the remote whatever it did. Touches no ref of this repository's
+  /// own, so it can run beside a note edit; [mergeFetchedNotes] then brings
+  /// them in.
+  Future<void> fetchNotesAside(String remote, {GitCancel? cancel}) => _net(
+    [
+      'fetch',
+      '--prune',
+      remote,
+      '+refs/notes/*:${remoteNotesNamespace(remote)}/*',
+    ],
+    'git fetch notes',
+    cancel: cancel,
+  );
+
+  /// Merges the copy of [remote]'s notes [fetchNotesAside] left into the
+  /// notes ref in use. False when the remote has no notes under that name.
+  Future<bool> mergeFetchedNotes(
+    String remote, {
     String? authorName,
     String? authorEmail,
     GitCancel? cancel,
-  ) async {
-    final aside = remoteNotesNamespace(remote);
-    // Forced and pruned: the aside copy mirrors the remote, whatever it did.
-    await _net(
-      ['fetch', '--prune', remote, '+refs/notes/*:$aside/*'],
-      'git fetch notes',
-      cancel: cancel,
-    );
-    final theirs = '$aside/${ref.substring('refs/notes/'.length)}';
+  }) async {
+    final ref = await _notesRef();
+    final theirs =
+        '${remoteNotesNamespace(remote)}/${ref.substring('refs/notes/'.length)}';
     if (!await _refExists(theirs)) return false;
+    // A notes ref is a history of its own: two people's notes never
+    // fast-forward onto each other, so they are merged rather than one
+    // overwriting the other. A note both sides wrote on one commit keeps both
+    // texts, ours first (`union`).
     await _ok(
       [
         ..._identity(authorName, authorEmail),
@@ -1069,6 +1079,24 @@ class GitWriter {
       cancel: cancel,
     );
     return true;
+  }
+
+  /// Fetches [remote]'s notes aside, then merges them into [ref]. Reports
+  /// whether the remote had notes.
+  Future<bool> _mergeRemoteNotes(
+    String remote,
+    String ref,
+    String? authorName,
+    String? authorEmail,
+    GitCancel? cancel,
+  ) async {
+    await fetchNotesAside(remote, cancel: cancel);
+    return mergeFetchedNotes(
+      remote,
+      authorName: authorName,
+      authorEmail: authorEmail,
+      cancel: cancel,
+    );
   }
 
   Future<bool> _refExists(String ref) async =>

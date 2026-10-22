@@ -229,9 +229,22 @@ class RepoActions {
 
   Future<bool> fetch({String? remote, bool silent = false}) async {
     var fetched = false;
+    var remotes = <String>[];
     final ok = await _network(
       _l.actFetch,
-      (cancel) => _writer.fetch(remote: remote, cancel: cancel),
+      (cancel) async {
+        await _writer.fetch(remote: remote, cancel: cancel);
+        if (!_ref.read(settingsProvider).fetchNotesWithFetch) return;
+        // The download is the slow part and touches only the aside copies,
+        // so it rides on the fetch lane; only the merge below needs the
+        // repository lane, which every open repository shares.
+        remotes = remote != null
+            ? [remote]
+            : await GitReader(_git, path).remotes();
+        for (final r in remotes) {
+          await _writer.fetchNotesAside(r, cancel: cancel);
+        }
+      },
       silent: silent,
       writesWorkingTree: false,
       lane: _Lane.fetch,
@@ -245,35 +258,30 @@ class RepoActions {
         _bumpLfs();
       },
     );
-    if (fetched && _ref.read(settingsProvider).fetchNotesWithFetch) {
-      await _fetchNotesAlong(remote, silent: silent);
+    if (fetched && remotes.isNotEmpty) {
+      await _mergeFetchedNotes(remotes, silent: silent);
     }
     return ok;
   }
 
-  /// Merges the notes of [remote] (or of every remote) after a fetch the
-  /// preference asked to carry them. Quiet about remotes without notes, and
-  /// about a repository another operation holds: those notes wait for the
-  /// next fetch rather than turn a finished fetch into a warning. Behind an
-  /// auto-fetch ([silent]) a failure is not toasted either, as the fetch's
+  /// Merges the notes a fetch downloaded for [remotes], when the preference
+  /// asked fetches to carry them. A local step, held on the repository lane
+  /// only as long as the merge takes. Quiet about remotes without notes, and
+  /// about a repository another operation holds: those notes are merged on
+  /// the next fetch rather than turn a finished fetch into a warning. Behind
+  /// an auto-fetch ([silent]) a failure is not toasted either, as the fetch's
   /// own is not.
-  Future<void> _fetchNotesAlong(String? remote, {bool silent = false}) async {
+  Future<void> _mergeFetchedNotes(
+    List<String> remotes, {
+    bool silent = false,
+  }) async {
     if (_ref.read(busyProvider) != null) return;
-    final List<String> remotes;
-    try {
-      remotes = remote != null
-          ? [remote]
-          : await GitReader(_git, path).remotes();
-    } on GitException {
-      return;
-    }
-    if (remotes.isEmpty) return;
     final id = _identity;
     await _network(
       _l.actFetchNotes(remotes.join(', ')),
       (cancel) async {
         for (final r in remotes) {
-          await _writer.fetchNotes(
+          await _writer.mergeFetchedNotes(
             r,
             authorName: id.name,
             authorEmail: id.email,
@@ -698,21 +706,31 @@ class RepoActions {
     _ref.read(selectedCommitProvider.notifier).state = sha;
   }
 
-  /// Pushes the current branch; false when the push failed, so a step that
-  /// should follow only a pushed branch can tell.
-  Future<bool> push({bool force = false, String? remote, bool tags = false}) =>
-      _network(
-        force ? _l.actForcePush : _l.actPush,
-        (cancel) => _writer.push(
-          force: force,
-          remote: remote,
-          tags: tags,
-          cancel: cancel,
-        ),
-        writesWorkingTree: false,
-        onSuccess: () =>
-            _ref.read(forgeRefreshProvider).refreshAfterGitOp(path),
-      );
+  /// Pushes the current branch. True only when the push went through — not
+  /// when it failed, was cancelled, or was turned away by a busy lane — so a
+  /// step that should follow only a pushed branch can tell.
+  Future<bool> push({
+    bool force = false,
+    String? remote,
+    bool tags = false,
+  }) async {
+    var pushed = false;
+    await _network(
+      force ? _l.actForcePush : _l.actPush,
+      (cancel) => _writer.push(
+        force: force,
+        remote: remote,
+        tags: tags,
+        cancel: cancel,
+      ),
+      writesWorkingTree: false,
+      onSuccess: () {
+        pushed = true;
+        _ref.read(forgeRefreshProvider).refreshAfterGitOp(path);
+      },
+    );
+    return pushed;
+  }
 
   /// True (and toasts) when a fetch-lane operation is running, so a second
   /// one must not start beside it.

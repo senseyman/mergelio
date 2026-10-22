@@ -20,6 +20,9 @@ import 'support/hermetic_git.dart';
 class _LoggingGit implements GitService {
   final log = <List<String>>[];
   void Function(List<String> args)? onRun;
+
+  /// Answers matching commands with a failure instead of running them.
+  bool Function(List<String> args)? failWhen;
   static const _inner = HermeticGit();
 
   @override
@@ -33,6 +36,9 @@ class _LoggingGit implements GitService {
   }) {
     log.add(args);
     onRun?.call(args);
+    if (failWhen?.call(args) ?? false) {
+      return Future.value(const GitResult(128, '', 'fatal: unreachable'));
+    }
     return _inner.run(
       args,
       repoPath: repoPath,
@@ -338,6 +344,47 @@ void main() {
       await g(['update-ref', 'refs/notes/commits', blob]);
       await actions().fetch(silent: true);
       expect(c.read(toastProvider), isEmpty);
+    });
+
+    test('the notes download holds only the fetch lane', () async {
+      // The repository lane is shared by every open repository: holding it
+      // for a network round-trip on each auto-fetch tick would turn user
+      // actions away all over the app.
+      enable(true);
+      BusyState? repoLaneOnline;
+      BusyState? fetchLaneOnline;
+      BusyState? repoLaneMerging;
+      git.onRun = (args) {
+        if (args.first == 'fetch' && args.any((a) => a.contains('notes'))) {
+          repoLaneOnline = c.read(busyProvider);
+          fetchLaneOnline = c.read(fetchBusyProvider);
+        }
+        if (args.contains('merge') && args.contains('notes')) {
+          repoLaneMerging = c.read(busyProvider);
+        }
+      };
+      await actions().fetch(silent: true);
+      expect(await note(), 'theirs');
+      expect(repoLaneOnline, isNull);
+      expect(fetchLaneOnline, isNotNull);
+      // The merge writes the notes ref a note edit writes, so it does hold it.
+      expect(repoLaneMerging, isNotNull);
+      expect(c.read(busyProvider), isNull);
+    });
+
+    test('a notes download that fails merges none of them', () async {
+      enable(true);
+      // Two remotes, walked in name order: mirror's notes are downloaded,
+      // then origin's cannot be reached. The fetch failed, so not even the
+      // notes that did arrive are merged.
+      await g(['remote', 'add', 'mirror', remote]);
+      git.failWhen = (a) =>
+          a.first == 'fetch' &&
+          a.contains('origin') &&
+          a.any((x) => x.contains('notes'));
+      await actions().fetch();
+      expect(await note(), isNull);
+      expect(c.read(toastProvider).last.kind, ToastKind.error);
     });
 
     test('a remote without notes adds no toast to the fetch', () async {

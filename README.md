@@ -148,8 +148,9 @@ change never needs a second window.*
   remote's menu or the command palette, or **Also push notes** in the Push
   dialog (sent only once the branch push succeeded). The Fetch button's menu
   fetches notes per remote, and **Fetch notes with every fetch** (there or in
-  Preferences, off by default) makes every fetch bring them too, auto-fetch
-  included. All of them merge the
+  Preferences, off by default) makes every Fetch in a repository bring them
+  too, auto-fetch included (not Pull, nor the dashboard's Fetch all). All of
+  them merge the
   remote's notes with yours (`git notes merge -s union`), so two people can
   share notes; where both noted the same commit, both texts are kept.
 - **File history** and per-line **blame** for any changed file. Blame's options
