@@ -19,8 +19,9 @@ import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
 import 'package:mergelio/state/signatures.dart';
-import 'package:mergelio/ui/common/change_file_row.dart';
 import 'package:mergelio/ui/workspace/commit_details.dart';
+
+import 'support/change_file_rows.dart';
 
 final _commit = Commit(
   sha: 'abcdef1234567890',
@@ -138,12 +139,6 @@ class _ToolGit implements GitService {
   @override
   Future<bool> isRepository(String path) async => true;
 }
-
-/// Paths of the changed-file rows marked as the one whose diff is open.
-List<String> _selectedRows(WidgetTester tester) => [
-  for (final r in tester.widgetList<ChangeFileRow>(find.byType(ChangeFileRow)))
-    if (r.selected) r.file.path,
-];
 
 void main() {
   testWidgets('a changed file opens in the diff tool against its parent', (
@@ -640,12 +635,22 @@ void main() {
     testWidgets('is highlighted once tapped, and only it', (tester) async {
       await tester.pumpWidget(_harness(files: files));
       await tester.pumpAndSettle();
-      expect(_selectedRows(tester), isEmpty);
+      expect(selectedRows(tester), isEmpty);
 
       await tester.tap(find.text('lib/b.dart'));
       await tester.pumpAndSettle();
 
-      expect(_selectedRows(tester), ['lib/b.dart']);
+      expect(selectedRows(tester), ['lib/b.dart']);
+    });
+
+    testWidgets('is drawn filled, not just flagged', (tester) async {
+      await tester.pumpWidget(_harness(files: files));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('lib/b.dart'));
+      await tester.pumpAndSettle();
+
+      expect(filledRows(tester, AppTokens.dark().active), ['lib/b.dart']);
     });
 
     testWidgets('moves with the next file tapped', (tester) async {
@@ -657,7 +662,7 @@ void main() {
       await tester.tap(find.text('lib/a.dart'));
       await tester.pumpAndSettle();
 
-      expect(_selectedRows(tester), ['lib/a.dart']);
+      expect(selectedRows(tester), ['lib/a.dart']);
     });
 
     testWidgets('loses its highlight when the diff closes', (tester) async {
@@ -669,7 +674,7 @@ void main() {
       containerOf(tester).read(diffTargetProvider.notifier).state = null;
       await tester.pumpAndSettle();
 
-      expect(_selectedRows(tester), isEmpty);
+      expect(selectedRows(tester), isEmpty);
     });
 
     testWidgets('is not this commit\'s file when the diff is another\'s', (
@@ -687,7 +692,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(_selectedRows(tester), isEmpty);
+      expect(selectedRows(tester), isEmpty);
     });
 
     testWidgets('stays highlighted when the diff shows the whole file', (
@@ -704,7 +709,7 @@ void main() {
           .withWholeFile(true);
       await tester.pumpAndSettle();
 
-      expect(_selectedRows(tester), ['lib/b.dart']);
+      expect(selectedRows(tester), ['lib/b.dart']);
     });
 
     testWidgets('a renamed file opened from its history is highlighted', (
@@ -731,7 +736,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(_selectedRows(tester), ['lib/new.dart']);
+      expect(selectedRows(tester), ['lib/new.dart']);
     });
 
     testWidgets('is highlighted in the tree view too', (tester) async {
@@ -741,7 +746,7 @@ void main() {
       await tester.tap(find.text('b.dart'));
       await tester.pumpAndSettle();
 
-      expect(_selectedRows(tester), ['lib/b.dart']);
+      expect(selectedRows(tester), ['lib/b.dart']);
     });
   });
 }

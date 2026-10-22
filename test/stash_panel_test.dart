@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mergelio/ui/common/change_file_row.dart';
 import 'package:mergelio/core/tokens.dart';
 import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/domain/git/models.dart';
@@ -13,6 +12,8 @@ import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
 import 'package:mergelio/state/stash_contents.dart';
 import 'package:mergelio/ui/workspace/stash_panel.dart';
+
+import 'support/change_file_rows.dart';
 
 const _stash = Stash(
   ref: 'stash@{1}',
@@ -66,12 +67,6 @@ Future<ProviderContainer> _pump(
   await tester.pumpAndSettle();
   return container;
 }
-
-/// Paths of the changed-file rows marked as the one whose diff is open.
-List<String> _selectedRows(WidgetTester tester) => [
-  for (final r in tester.widgetList<ChangeFileRow>(find.byType(ChangeFileRow)))
-    if (r.selected) r.file.path,
-];
 
 void main() {
   testWidgets('shows the stash, its base, and both kinds of files', (
@@ -160,14 +155,14 @@ void main() {
     tester,
   ) async {
     await _pump(tester);
-    expect(_selectedRows(tester), isEmpty);
+    expect(selectedRows(tester), isEmpty);
 
     await tester.tap(find.text('lib/a.dart'));
     await tester.pumpAndSettle();
-    expect(_selectedRows(tester), ['lib/a.dart']);
+    expect(selectedRows(tester), ['lib/a.dart']);
 
     await tester.tap(find.text('notes.txt'));
     await tester.pumpAndSettle();
-    expect(_selectedRows(tester), ['notes.txt']);
+    expect(selectedRows(tester), ['notes.txt']);
   });
 }
