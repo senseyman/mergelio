@@ -14,6 +14,8 @@ void main() {
     WidgetTester tester,
     EditableFile file, {
     Future<bool> Function(String path, String text)? onSave,
+    EditorDraft? draft,
+    ValueChanged<EditorDraft?>? onDraftChanged,
   }) async {
     final dirty = <bool>[];
     await tester.pumpWidget(
@@ -33,6 +35,8 @@ void main() {
               relPath: 'lib/main.dart',
               onDirtyChanged: dirty.add,
               onSave: onSave,
+              draft: draft,
+              onDraftChanged: onDraftChanged,
             ),
           ),
         ),
@@ -134,5 +138,98 @@ void main() {
 
     expect(dirty.last, isTrue);
     expect(find.text('abcd'), findsOneWidget);
+  });
+
+  group('drafts', () {
+    testWidgets('typing reports the unsaved text with its baseline', (
+      tester,
+    ) async {
+      final drafts = <EditorDraft?>[];
+      await pump(
+        tester,
+        const EditableFile(text: 'abc'),
+        onDraftChanged: drafts.add,
+      );
+
+      await tester.enterText(find.byType(TextField), 'abcd');
+      await tester.pump();
+
+      expect(drafts.last?.text, 'abcd');
+      expect(drafts.last?.baseline.text, 'abc');
+    });
+
+    testWidgets('reverting to what is on disk reports no draft', (
+      tester,
+    ) async {
+      final drafts = <EditorDraft?>[];
+      await pump(
+        tester,
+        const EditableFile(text: 'abc'),
+        onDraftChanged: drafts.add,
+      );
+
+      await tester.enterText(find.byType(TextField), 'abcd');
+      await tester.pump();
+      await tester.enterText(find.byType(TextField), 'abc');
+      await tester.pump();
+
+      expect(drafts.last, isNull);
+    });
+
+    testWidgets('a saved editor reports no draft', (tester) async {
+      final drafts = <EditorDraft?>[];
+      await pump(
+        tester,
+        const EditableFile(text: 'abc'),
+        onSave: (path, text) async => true,
+        onDraftChanged: drafts.add,
+      );
+
+      await tester.enterText(find.byType(TextField), 'abcd');
+      await tester.pump();
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.control);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyS);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.control);
+      await tester.pumpAndSettle();
+
+      expect(drafts.last, isNull);
+    });
+
+    testWidgets('a draft is seeded in place of the file and reads dirty', (
+      tester,
+    ) async {
+      final dirty = await pump(
+        tester,
+        const EditableFile(text: 'on disk now'),
+        draft: const EditorDraft(
+          text: 'typed earlier',
+          baseline: EditableFile(text: 'abc'),
+        ),
+      );
+
+      expect(find.text('typed earlier'), findsOneWidget);
+      expect(dirty, [true]);
+    });
+
+    testWidgets('dirtiness is measured against the draft\'s baseline', (
+      tester,
+    ) async {
+      final drafts = <EditorDraft?>[];
+      final dirty = await pump(
+        tester,
+        const EditableFile(text: 'on disk now'),
+        draft: const EditorDraft(
+          text: 'typed earlier',
+          baseline: EditableFile(text: 'abc'),
+        ),
+        onDraftChanged: drafts.add,
+      );
+
+      await tester.enterText(find.byType(TextField), 'abc');
+      await tester.pump();
+
+      expect(dirty.last, isFalse);
+      expect(drafts.last, isNull);
+    });
   });
 }

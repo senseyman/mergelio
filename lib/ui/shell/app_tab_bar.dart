@@ -24,6 +24,22 @@ Future<void> _closeTab(
   ctl.closeTab(tab.id);
 }
 
+/// Closes every tab but [keep], asking each repository about its unsaved work
+/// first, the same as closing them one by one. A single refusal keeps them all
+/// open.
+Future<void> closeOtherTabs(
+  UnsavedGuards guards,
+  WorkspaceController ctl,
+  List<RepoTab> tabs,
+  RepoTab keep,
+) async {
+  for (final t in tabs) {
+    if (t.id == keep.id) continue;
+    if (!await guards.confirm(t.path)) return;
+  }
+  ctl.closeOthers(keep.id);
+}
+
 Future<void> _createGroup(BuildContext context, WidgetRef ref) async {
   final l = AppLocalizations.of(context);
   final name = await showInputDialog(
@@ -642,7 +658,12 @@ class _Tab extends ConsumerWidget {
               case 'close':
                 await _closeTab(ref, ctl, tab);
               case 'others':
-                ctl.closeOthers(tab.id);
+                await closeOtherTabs(
+                  ref.read(unsavedGuardsProvider),
+                  ctl,
+                  ref.read(workspaceProvider).tabs,
+                  tab,
+                );
               default:
                 if (action.startsWith('group:')) {
                   final gid = int.parse(action.substring(6));

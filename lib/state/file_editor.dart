@@ -28,6 +28,15 @@ class EditableFile {
   bool get canEdit => blocker == null;
 }
 
+/// One editor's text that is not on disk, with the file as it was read when
+/// the typing started — what saving checks for outside changes, and what the
+/// text reads clean against.
+class EditorDraft {
+  final String text;
+  final EditableFile baseline;
+  const EditorDraft({required this.text, required this.baseline});
+}
+
 /// Identifies one working-tree file. Value equality is what lets the family
 /// cache per file rather than per call.
 class FileRef {

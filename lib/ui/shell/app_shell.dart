@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/logging.dart';
 import '../../state/auto_fetch.dart';
+import '../../state/diff_tab_switch.dart';
 import '../../state/feedback.dart';
 import '../../state/forge_refresh.dart';
 import '../../state/open_files_sync.dart';
@@ -17,6 +18,7 @@ import '../../state/update_controller.dart';
 import '../../state/window_focus.dart';
 import '../../state/workspace.dart';
 import '../terminal/terminal_panel.dart';
+import '../diff/diff_draft_guard.dart';
 import '../common/progress_top_bar.dart';
 import '../common/toast_overlay.dart';
 import '../profiles/first_profile_screen.dart';
@@ -49,6 +51,7 @@ class AppShell extends ConsumerWidget {
     ref.watch(profileWorkspaceSyncProvider);
     ref.watch(repoWatcherProvider);
     ref.watch(openFilesSyncProvider);
+    ref.watch(diffTabSwitchProvider);
 
     // No profile yet → block on the mandatory first-profile screen. Everything
     // (groups, repos) belongs to a profile, so one must exist first.
@@ -64,64 +67,66 @@ class AppShell extends ConsumerWidget {
 
     return Scaffold(
       body: QuitGuard(
-        child: KeyboardShortcuts(
-          child: Stack(
-            children: [
-              Column(
-                children: [
-                  const AppToolbar(),
-                  const AppTabBar(),
-                  Expanded(
-                    // The notes tab belongs to no repository, so it shows
-                    // even when none is open.
-                    child: notes
-                        ? const ReleaseNotesView()
-                        : dashboard || hasRepo
-                        ? Row(
-                            children: [
-                              // 'rail' group-switcher style docks a vertical
-                              // group rail at the far left of the workspace.
-                              if (ref.watch(
-                                    settingsProvider.select(
-                                      (s) => s.groupStyle,
+        child: DiffDraftGuard(
+          child: KeyboardShortcuts(
+            child: Stack(
+              children: [
+                Column(
+                  children: [
+                    const AppToolbar(),
+                    const AppTabBar(),
+                    Expanded(
+                      // The notes tab belongs to no repository, so it shows
+                      // even when none is open.
+                      child: notes
+                          ? const ReleaseNotesView()
+                          : dashboard || hasRepo
+                          ? Row(
+                              children: [
+                                // 'rail' group-switcher style docks a vertical
+                                // group rail at the far left of the workspace.
+                                if (ref.watch(
+                                      settingsProvider.select(
+                                        (s) => s.groupStyle,
+                                      ),
+                                    ) ==
+                                    'rail')
+                                  const GroupRail(),
+                                // The terminal and the bottom bar belong to one
+                                // repository — its working directory, its push
+                                // and pull — so they step aside with it while
+                                // the dashboard shows; an open terminal returns
+                                // with the repository.
+                                if (dashboard)
+                                  const Expanded(child: DashboardView())
+                                else
+                                  Expanded(
+                                    child: Column(
+                                      children: [
+                                        const Expanded(child: WorkspaceView()),
+                                        if (ref.watch(
+                                          settingsProvider.select(
+                                            (st) => st.terminalOpen,
+                                          ),
+                                        ))
+                                          const TerminalPanel(),
+                                        const AppBottomBar(),
+                                      ],
                                     ),
-                                  ) ==
-                                  'rail')
-                                const GroupRail(),
-                              // The terminal and the bottom bar belong to one
-                              // repository — its working directory, its push
-                              // and pull — so they step aside with it while
-                              // the dashboard shows; an open terminal returns
-                              // with the repository.
-                              if (dashboard)
-                                const Expanded(child: DashboardView())
-                              else
-                                Expanded(
-                                  child: Column(
-                                    children: [
-                                      const Expanded(child: WorkspaceView()),
-                                      if (ref.watch(
-                                        settingsProvider.select(
-                                          (st) => st.terminalOpen,
-                                        ),
-                                      ))
-                                        const TerminalPanel(),
-                                      const AppBottomBar(),
-                                    ],
                                   ),
-                                ),
-                            ],
-                          )
-                        : const WelcomeScreen(),
-                  ),
-                  const UpdateBanner(),
-                  const AppStatusBar(),
-                ],
-              ),
-              const ProgressTopBar(),
-              const ToastOverlay(),
-              const _StartupNotices(),
-            ],
+                              ],
+                            )
+                          : const WelcomeScreen(),
+                    ),
+                    const UpdateBanner(),
+                    const AppStatusBar(),
+                  ],
+                ),
+                const ProgressTopBar(),
+                const ToastOverlay(),
+                const _StartupNotices(),
+              ],
+            ),
           ),
         ),
       ),

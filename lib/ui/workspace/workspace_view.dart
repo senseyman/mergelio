@@ -76,34 +76,55 @@ class _CenterWithDiff extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final open = ref.watch(diffTargetProvider) != null;
+    final open = diffSheetShown(
+      ref.watch(diffTargetProvider),
+      ref.watch(workspaceProvider.select((w) => w.activeTab?.path)),
+    );
     return LayoutBuilder(
       builder: (context, box) => Stack(
         children: [
           Positioned.fill(
             child: GestureDetector(
-              onTap: open
-                  ? () => ref.read(diffTargetProvider.notifier).state = null
-                  : null,
+              onTap: open ? () => closeDiffSheet(ref, context) : null,
               child: const _CenterContent(),
             ),
           ),
-          // The sheet slides up from the bottom edge (~240ms ease-out) and
-          // stays mounted during the exit slide.
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: AnimatedSlide(
-              offset: open ? Offset.zero : const Offset(0, 1),
-              duration: const Duration(milliseconds: 240),
-              curve: Curves.easeOutCubic,
-              child: open
-                  ? DiffSheet(availableHeight: box.maxHeight)
-                  : const SizedBox.shrink(),
-            ),
-          ),
+          DiffSheetSlot(availableHeight: box.maxHeight),
         ],
+      ),
+    );
+  }
+}
+
+/// Whether the diff sheet shows over the active repository: only a diff of
+/// that repository does.
+bool diffSheetShown(DiffTarget? target, String? activePath) =>
+    target != null && target.repoPath == activePath;
+
+/// The diff sheet's place along the bottom edge of the centre column.
+class DiffSheetSlot extends ConsumerWidget {
+  final double availableHeight;
+  const DiffSheetSlot({super.key, required this.availableHeight});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final open = diffSheetShown(
+      ref.watch(diffTargetProvider),
+      ref.watch(workspaceProvider.select((w) => w.activeTab?.path)),
+    );
+    // The sheet slides up from the bottom edge (~240ms ease-out). Closing
+    // takes it down at once: there is no diff left to show on the way out.
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: 0,
+      child: AnimatedSlide(
+        offset: open ? Offset.zero : const Offset(0, 1),
+        duration: const Duration(milliseconds: 240),
+        curve: Curves.easeOutCubic,
+        child: open
+            ? DiffSheet(availableHeight: availableHeight)
+            : const SizedBox.shrink(),
       ),
     );
   }

@@ -212,7 +212,8 @@ change never needs a second window.*
   never the two sides interleaved. Right-click anywhere for **Select all**.
 - Edit uncommitted files in place from the diff sheet, syntax-highlighted like
   the diff. Saving writes the working tree, leaves the change unstaged, and is
-  undoable.
+  undoable. Unsaved text is kept while you look at other files, switch
+  repositories or go to Files mode, and comes back with its file.
 - Commit, amend, sign (`-S`) and sign off (`--signoff`).
 - **Commit composer.** An empty message starts from the repository's
   template — one saved in Mergelio, else git's `commit.template`, else a
@@ -252,7 +253,8 @@ change never needs a second window.*
   replace with a match count and a case toggle. Open files are restored on the
   next launch; unsaved text never is.
 - Unsaved editors are asked about once — when leaving Files mode, closing the
-  repository tab, or quitting.
+  repository tab (or closing the others), or quitting. Unsaved edits from the
+  diff sheet are asked about when their repository closes or the app quits.
 - Right-click a row for new file, new folder, rename, delete, stage, unstage,
   discard, file history, and reveal in the system file manager. Every path is
   checked against the opened repository before disk is touched.

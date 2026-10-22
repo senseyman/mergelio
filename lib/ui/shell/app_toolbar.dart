@@ -89,7 +89,7 @@ class AppToolbar extends ConsumerWidget {
                         if (files &&
                             !await ref
                                 .read(unsavedGuardsProvider)
-                                .confirm(tab.path)) {
+                                .confirm(tab.path, viewSwitch: true)) {
                           return;
                         }
                         ref
