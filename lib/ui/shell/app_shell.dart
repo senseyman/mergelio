@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/logging.dart';
 import '../../state/auto_fetch.dart';
+import '../../state/diff_tab_switch.dart';
 import '../../state/feedback.dart';
 import '../../state/forge_refresh.dart';
 import '../../state/open_files_sync.dart';
@@ -49,6 +50,7 @@ class AppShell extends ConsumerWidget {
     ref.watch(profileWorkspaceSyncProvider);
     ref.watch(repoWatcherProvider);
     ref.watch(openFilesSyncProvider);
+    ref.watch(diffTabSwitchProvider);
 
     // No profile yet → block on the mandatory first-profile screen. Everything
     // (groups, repos) belongs to a profile, so one must exist first.

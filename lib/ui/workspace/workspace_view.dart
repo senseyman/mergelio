@@ -76,7 +76,10 @@ class _CenterWithDiff extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final open = ref.watch(diffTargetProvider) != null;
+    final open = diffSheetShown(
+      ref.watch(diffTargetProvider),
+      ref.watch(workspaceProvider.select((w) => w.activeTab?.path)),
+    );
     return LayoutBuilder(
       builder: (context, box) => Stack(
         children: [
@@ -88,22 +91,48 @@ class _CenterWithDiff extends ConsumerWidget {
               child: const _CenterContent(),
             ),
           ),
-          // The sheet slides up from the bottom edge (~240ms ease-out) and
-          // stays mounted during the exit slide.
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: AnimatedSlide(
-              offset: open ? Offset.zero : const Offset(0, 1),
-              duration: const Duration(milliseconds: 240),
-              curve: Curves.easeOutCubic,
-              child: open
-                  ? DiffSheet(availableHeight: box.maxHeight)
-                  : const SizedBox.shrink(),
-            ),
-          ),
+          DiffSheetSlot(availableHeight: box.maxHeight),
         ],
+      ),
+    );
+  }
+}
+
+/// Whether the diff sheet shows over the active repository: only a diff of
+/// that repository does. One kept for unsaved edits elsewhere waits out of
+/// sight.
+bool diffSheetShown(DiffTarget? target, String? activePath) =>
+    target != null && target.repoPath == activePath;
+
+/// The diff sheet's place along the bottom edge of the centre column.
+class DiffSheetSlot extends ConsumerWidget {
+  final double availableHeight;
+  const DiffSheetSlot({super.key, required this.availableHeight});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final target = ref.watch(diffTargetProvider);
+    final path = ref.watch(workspaceProvider.select((w) => w.activeTab?.path));
+    final open = diffSheetShown(target, path);
+    // The sheet slides up from the bottom edge (~240ms ease-out) and stays
+    // mounted during the exit slide. A sheet kept for another repository's
+    // unsaved edits stays mounted too, out of sight, so the typed text is
+    // still there when its tab comes back.
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: 0,
+      child: Visibility(
+        visible: target == null || open,
+        maintainState: true,
+        child: AnimatedSlide(
+          offset: open ? Offset.zero : const Offset(0, 1),
+          duration: const Duration(milliseconds: 240),
+          curve: Curves.easeOutCubic,
+          child: target != null
+              ? DiffSheet(availableHeight: availableHeight)
+              : const SizedBox.shrink(),
+        ),
       ),
     );
   }
