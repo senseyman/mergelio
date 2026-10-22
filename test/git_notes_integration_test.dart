@@ -285,6 +285,10 @@ void main() {
       await writer().setNote(sha, 'mine');
       final clone = '${dir.path}/clone';
       await g(['clone', '-q', '-b', 'main', remote, clone], at: dir.path);
+      // Global config is switched off, so a machine with no account name
+      // (a CI runner) has no identity to fall back on.
+      await g(['config', 'user.email', 'o@example.com'], at: clone);
+      await g(['config', 'user.name', 'Other'], at: clone);
       await g(['notes', 'add', '-m', 'theirs', sha], at: clone);
       await g(['push', '-q', 'origin', 'refs/notes/commits'], at: clone);
       await writer().fetchNotes('origin');
