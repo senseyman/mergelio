@@ -16,6 +16,7 @@ import '../../domain/git/stash.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/binary_diff.dart';
 import '../../state/diff_document.dart';
+import '../../state/diff_drafts.dart';
 import '../../state/compare_target.dart';
 import '../../state/diff_target.dart';
 import '../../state/diff_view_options.dart';
@@ -66,6 +67,7 @@ class DiffSheet extends ConsumerWidget {
         );
         if (!ok) return;
       }
+      ref.read(diffDraftsProvider.notifier).drop(target.repoPath);
       ref.read(diffEditorDirtyProvider.notifier).state = false;
       ref.read(diffEditingProvider.notifier).state = null;
       ref.read(diffTargetProvider.notifier).state = null;

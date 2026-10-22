@@ -8,6 +8,7 @@ import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/domain/git/diff.dart';
 import 'package:mergelio/domain/git/git_writer.dart';
+import 'package:mergelio/state/diff_drafts.dart';
 import 'package:mergelio/state/diff_target.dart';
 import 'package:mergelio/state/file_editor.dart';
 import 'package:mergelio/state/repo_actions.dart';
@@ -282,5 +283,66 @@ void main() {
 
     expect(find.byType(TextField), findsNothing);
     expect(find.textContaining('Binary file'), findsOneWidget);
+  });
+
+  group('the unsaved text kept for later', () {
+    ProviderContainer containerOf(WidgetTester tester) =>
+        ProviderScope.containerOf(tester.element(find.byType(DiffSheet)));
+
+    testWidgets('typing keeps it', (tester) async {
+      await open(tester);
+      await enterEditMode(tester);
+
+      await tester.enterText(find.byType(TextField), 'typed\n');
+      await settle(tester);
+
+      expect(
+        containerOf(tester).read(diffDraftsProvider)['/r']?.editor.text,
+        'typed\n',
+      );
+    });
+
+    testWidgets('Cancel and Discard throw it away', (tester) async {
+      await open(tester);
+      await enterEditMode(tester);
+      await tester.enterText(find.byType(TextField), 'discard me\n');
+      await settle(tester);
+
+      await tester.tap(find.text('Cancel'));
+      await settle(tester);
+      await tester.tap(find.text('Discard'));
+      await settle(tester);
+
+      expect(containerOf(tester).read(diffDraftsProvider), isEmpty);
+    });
+
+    testWidgets('closing the sheet and discarding throws it away', (
+      tester,
+    ) async {
+      await open(tester);
+      final c = containerOf(tester);
+      await enterEditMode(tester);
+      await tester.enterText(find.byType(TextField), 'discard me\n');
+      await settle(tester);
+
+      await tester.tap(find.byIcon(Icons.close));
+      await settle(tester);
+      await tester.tap(find.text('Discard'));
+      await settle(tester);
+
+      expect(c.read(diffDraftsProvider), isEmpty);
+    });
+
+    testWidgets('a save leaves nothing behind', (tester) async {
+      await open(tester);
+      await enterEditMode(tester);
+      await tester.enterText(find.byType(TextField), 'saved\n');
+      await settle(tester);
+
+      await tester.tap(find.text('Save'));
+      await settle(tester);
+
+      expect(containerOf(tester).read(diffDraftsProvider), isEmpty);
+    });
   });
 }

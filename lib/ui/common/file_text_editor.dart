@@ -65,6 +65,14 @@ class FileTextEditor extends ConsumerStatefulWidget {
   /// Filled in with this editor's save while it is mounted and editable.
   final FileEditorHandle? handle;
 
+  /// Unsaved text from an earlier editor on this file, shown in place of the
+  /// file and measured against the baseline it was typed over.
+  final EditorDraft? draft;
+
+  /// Reports the unsaved text after each change, or null once the field
+  /// matches what is on disk.
+  final ValueChanged<EditorDraft?>? onDraftChanged;
+
   const FileTextEditor({
     super.key,
     required this.repoPath,
@@ -75,6 +83,8 @@ class FileTextEditor extends ConsumerStatefulWidget {
     this.onCancel,
     this.footerBuilder,
     this.handle,
+    this.draft,
+    this.onDraftChanged,
   });
 
   @override
@@ -123,6 +133,10 @@ class _FileTextEditorState extends ConsumerState<FileTextEditor> {
     final lines = _lineCount(text);
     if (lines != _lines) setState(() => _lines = lines);
     final dirty = text != (_file?.text ?? '');
+    final file = _file;
+    widget.onDraftChanged?.call(
+      dirty && file != null ? EditorDraft(text: text, baseline: file) : null,
+    );
     if (dirty == _dirty) return;
     _dirty = dirty;
     widget.onDirtyChanged?.call(dirty);
@@ -276,14 +290,23 @@ class _FileTextEditorState extends ConsumerState<FileTextEditor> {
           data: (file) {
             if (!file.canEdit) return _message(t, file.blocker!);
             // The first delivery seeds the field; later rebuilds must not
-            // clobber what has been typed since.
-            _file ??= file;
+            // clobber what has been typed since. A draft carried over from
+            // an earlier editor takes the file's place, baseline and all.
             if (_controller == null) {
-              _controller = SyntaxHighlightingController(
-                tokens: t,
-                text: file.text,
-              )..addListener(_onTextChanged);
-              _lines = _lineCount(file.text);
+              final draft = widget.draft;
+              _file ??= draft?.baseline ?? file;
+              final text = draft?.text ?? file.text;
+              _controller = SyntaxHighlightingController(tokens: t, text: text)
+                ..addListener(_onTextChanged);
+              _lines = _lineCount(text);
+              if (text != _file!.text) {
+                _dirty = true;
+                // Reported once this frame is built: the host is listening
+                // through state that must not change mid-build.
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted && _dirty) widget.onDirtyChanged?.call(true);
+                });
+              }
             }
             // The theme can be switched while the editor is open.
             _controller!.tokens = t;

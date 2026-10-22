@@ -201,4 +201,31 @@ void main() {
     expect(await guards.confirmAll(), isTrue);
     expect(asked, 3);
   });
+
+  test(
+    'a guard kept across views is skipped when only the view switches',
+    () async {
+      var asked = false;
+      guards.register('/r', () async {
+        asked = true;
+        return false;
+      }, survivesViewSwitch: true);
+
+      expect(await guards.confirm('/r', viewSwitch: true), isTrue);
+      expect(asked, isFalse);
+    },
+  );
+
+  test('a guard kept across views is still asked on close and quit', () async {
+    guards.register('/r', () async => false, survivesViewSwitch: true);
+
+    expect(await guards.confirm('/r'), isFalse);
+    expect(await guards.confirmAll(), isFalse);
+  });
+
+  test('an ordinary guard is asked on a view switch', () async {
+    guards.register('/r', () async => false);
+
+    expect(await guards.confirm('/r', viewSwitch: true), isFalse);
+  });
 }
