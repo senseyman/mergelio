@@ -221,4 +221,38 @@ void main() {
       expect(refreshes, {'/r': 1});
     });
   });
+
+  testWidgets('the header fits the narrowest right panel', (tester) async {
+    // A clean tree: nothing below the header to overflow on its own.
+    tester.view.physicalSize = const Size(300, 700);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(_harness(_FakeGit(), const RepoData()));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byTooltip('Refresh (⌘R)').hitTestable(), findsOneWidget);
+  });
+
+  testWidgets('the header keeps its buttons inside the narrowest panel', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(300, 700);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      _harness(_FakeGit(), const RepoData(working: [_unstaged])),
+    );
+    await tester.pumpAndSettle();
+    // The composer's option row overflows here in the test font, which draws
+    // every glyph a full em wide; that row is not what this test is about.
+    tester.takeException();
+
+    final refresh = tester.getRect(find.byTooltip('Refresh (⌘R)'));
+    final discard = tester.getRect(find.byTooltip('Discard all changes'));
+    final title = tester.getRect(find.text('CHANGES'));
+    expect(title.right, lessThan(refresh.left));
+    expect(refresh.right, lessThanOrEqualTo(discard.left));
+    expect(discard.right, lessThan(300));
+  });
 }
