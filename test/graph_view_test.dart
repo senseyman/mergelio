@@ -465,7 +465,7 @@ void main() {
           row: 2,
           lane: mine.lane,
           merge: false,
-          tip: true,
+          clear: true,
         )),
       );
     });
@@ -488,6 +488,35 @@ void main() {
       final ring = painterOf<WipRailPainter>(tester);
       expect(ring.lane, 0);
       expect(ring.strand, isFalse);
+      expect(links(tester).single.link.around, isTrue);
+      expect(
+        links(tester).single.railWidth,
+        const RailMetrics().railWidth(
+          data.commits.map((c) => c.lane).reduce((a, b) => a > b ? a : b),
+        ),
+      );
+    });
+
+    testWidgets('goes around another branch\'s node left on HEAD\'s lane', (
+      tester,
+    ) async {
+      // side1 takes lane 1 and joins main below it, freeing the lane; HEAD,
+      // newer than nothing else on that lane, reuses it. HEAD is a tip, but
+      // side1's node still sits on its lane above it.
+      final data = RepoData(
+        commits: assignLanes([
+          _c('t1', ['m']),
+          _c('side1', ['m']),
+          _c('h', ['m'], refs: const [head]),
+          _c('m', []),
+        ]),
+        working: dirty,
+      );
+      final side = data.commits.firstWhere((c) => c.sha == 'side1');
+      final h = data.commits.firstWhere((c) => c.sha == 'h');
+      expect(h.lane, side.lane); // the shape this test needs
+      await tester.pumpWidget(_harness(data));
+
       expect(links(tester).single.link.around, isTrue);
     });
 

@@ -4,9 +4,10 @@ import 'rail_metrics.dart';
 
 /// HEAD's commit as the graph draws it: its row among the commits (the
 /// uncommitted-changes row above them not counted), its lane, whether it is a
-/// merge, whose node is drawn larger, and whether it is a tip — nothing on its
-/// lane above it.
-typedef WipHead = ({int row, int lane, bool merge, bool tip});
+/// merge, whose node is drawn larger, and whether its lane is clear above it —
+/// no node and no strand on it in any row between the uncommitted-changes row
+/// and HEAD.
+typedef WipHead = ({int row, int lane, bool merge, bool clear});
 
 /// The connector from the uncommitted-changes ring to HEAD's node, in the
 /// graph's unscrolled coordinates with the uncommitted-changes row as row 0.
@@ -74,17 +75,17 @@ class WipRailPainter extends CustomPainter {
 /// Where the connector from the ring to HEAD's node runs; null when the
 /// ring's own strand is enough or there is nothing to reach.
 ///
-/// Straight down HEAD's lane when HEAD is a tip, since that stretch of lane is
-/// empty. Otherwise something sits on the lane above HEAD — a stash made on
-/// it, a commit on top of it — and a straight line would run through those
-/// nodes, reading as if the changes belonged to them; so the connector leaves
+/// Straight down HEAD's lane when that stretch of lane is clear. Otherwise
+/// something sits on the lane above HEAD — a stash made on it, a commit on top
+/// of it, another branch's commit on a lane HEAD reuses — and a straight line
+/// would run through it, reading as if the changes belonged to them; so the connector leaves
 /// the ring's side and enters HEAD's node from the side, bowing past them.
 WipLink? wipLinkEnds(RailMetrics m, WipHead? head) {
   if (head == null || wipRingStrand(head)) return null;
   final x = m.laneX(head.lane);
   final headY = (head.row + 1) * m.rowHeight + m.nodeY;
   final r = m.nodeRadius(merge: head.merge);
-  return head.tip
+  return head.clear
       ? (
           from: Offset(x, m.nodeY + wipRingRadius),
           to: Offset(x, headY - r),
@@ -118,18 +119,29 @@ class WipLinkPainter extends CustomPainter {
   /// branch gutter is drawn to the left of the rail.
   final double dx;
 
+  /// Width of the rail column. Rows clip lanes past it — a rail narrowed in
+  /// Columns — and so does the connector, rather than spill over the commit
+  /// messages. Null leaves it unclipped across.
+  final double? railWidth;
+
   WipLinkPainter({
     required this.link,
     required this.color,
     required this.scroll,
     this.dx = 0,
+    this.railWidth,
   }) : super(repaint: scroll);
 
   @override
   void paint(Canvas canvas, Size size) {
     final offset = scroll.hasClients ? scroll.offset : 0.0;
     canvas.save();
-    canvas.clipRect(Offset.zero & size);
+    final rail = railWidth;
+    canvas.clipRect(
+      rail == null
+          ? Offset.zero & size
+          : Rect.fromLTWH(dx, 0, rail, size.height),
+    );
     canvas.translate(dx, -offset);
     final stroke = Paint()
       ..style = PaintingStyle.stroke
@@ -148,5 +160,8 @@ class WipLinkPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(WipLinkPainter old) =>
-      old.link != link || old.color != color || old.dx != dx;
+      old.link != link ||
+      old.color != color ||
+      old.dx != dx ||
+      old.railWidth != railWidth;
 }

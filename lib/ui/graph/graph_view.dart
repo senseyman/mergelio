@@ -830,6 +830,7 @@ class _GraphListState extends ConsumerState<GraphList> {
                           child: CustomPaint(
                             painter: WipLinkPainter(
                               link: wipLink,
+                              railWidth: metrics.railWidth(maxLane),
                               color: context.tokens.warning,
                               scroll: _scroll,
                               dx: (cols['branch'] ?? true)

@@ -40,7 +40,19 @@ GraphDerived computeGraphDerived(RepoData d) {
     rowIndex[c.sha] = j;
     laneOf[c.sha] = (lane: c.lane, ci: c.ci);
     if (head == null && c.refs.any((r) => r.kind == RefKind.head)) {
-      head = (row: j, lane: c.lane, merge: c.merge, tip: c.tip);
+      head = (row: j, lane: c.lane, merge: c.merge, clear: true);
+    }
+  }
+  // A lane is reused once its branch ends, so HEAD being a tip does not mean
+  // its lane is empty above it: look at every row up to it.
+  final h = head;
+  if (h != null) {
+    for (var j = 0; j < h.row; j++) {
+      final c = d.commits[j];
+      if (c.lane == h.lane || c.through.contains(h.lane)) {
+        head = (row: h.row, lane: h.lane, merge: h.merge, clear: false);
+        break;
+      }
     }
   }
   return GraphDerived(

@@ -10,7 +10,6 @@ Commit _c(
   List<int> through = const [],
   List<GitRef> refs = const [],
   List<String> parents = const [],
-  bool tip = false,
 }) => Commit(
   sha: sha,
   message: 'm',
@@ -22,7 +21,6 @@ Commit _c(
   through: through,
   refs: refs,
   parents: parents,
-  tip: tip,
 );
 
 const _head = GitRef(kind: RefKind.head, name: 'HEAD');
@@ -62,8 +60,8 @@ void main() {
       final d = RepoData(
         commits: [
           _c('tip', lane: 0),
-          _c('mid', lane: 0, through: [1]),
-          _c('h', lane: 1, refs: const [_head], tip: true),
+          _c('mid', lane: 0),
+          _c('h', lane: 1, refs: const [_head]),
           _c('base', lane: 0),
         ],
       );
@@ -72,8 +70,41 @@ void main() {
         row: 2,
         lane: 1,
         merge: false,
-        tip: true,
+        clear: true,
       ));
+    });
+
+    test('knows HEAD\'s lane is not clear when a node sits on it above', () {
+      final d = RepoData(
+        commits: [
+          _c('other', lane: 1),
+          _c('h', lane: 1, refs: const [_head]),
+        ],
+      );
+
+      expect(computeGraphDerived(d).head?.clear, isFalse);
+    });
+
+    test('knows HEAD\'s lane is not clear when a strand runs down it', () {
+      final d = RepoData(
+        commits: [
+          _c('top', lane: 0, through: [1]),
+          _c('h', lane: 1, refs: const [_head]),
+        ],
+      );
+
+      expect(computeGraphDerived(d).head?.clear, isFalse);
+    });
+
+    test('a clear row alongside HEAD\'s lane keeps it clear', () {
+      final d = RepoData(
+        commits: [
+          _c('top', lane: 0, through: [0, 2]),
+          _c('h', lane: 1, refs: const [_head]),
+        ],
+      );
+
+      expect(computeGraphDerived(d).head?.clear, isTrue);
     });
 
     test('knows when HEAD is a merge, whose node is drawn larger', () {

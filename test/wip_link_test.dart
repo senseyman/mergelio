@@ -9,7 +9,7 @@ void main() {
   const m = RailMetrics();
 
   test('runs straight down HEAD\'s lane when nothing sits on it above', () {
-    final link = wipLinkEnds(m, (row: 2, lane: 1, merge: false, tip: true))!;
+    final link = wipLinkEnds(m, (row: 2, lane: 1, merge: false, clear: true))!;
 
     final x = m.laneX(1);
     expect(link.around, isFalse);
@@ -24,7 +24,7 @@ void main() {
   test('goes around what sits on HEAD\'s lane above it', () {
     // A stash made on HEAD, or a commit on top of it, takes HEAD's lane
     // above; a straight line would run through its node.
-    final link = wipLinkEnds(m, (row: 1, lane: 0, merge: false, tip: false))!;
+    final link = wipLinkEnds(m, (row: 1, lane: 0, merge: false, clear: false))!;
 
     final x = m.laneX(0);
     expect(link.around, isTrue);
@@ -36,7 +36,7 @@ void main() {
   });
 
   test('stops at the larger edge of a merge node', () {
-    final ends = wipLinkEnds(m, (row: 1, lane: 0, merge: true, tip: true))!;
+    final ends = wipLinkEnds(m, (row: 1, lane: 0, merge: true, clear: true))!;
 
     expect(ends.to.dy, 2 * m.rowHeight + m.nodeY - m.nodeRadius(merge: true));
   });
@@ -47,7 +47,7 @@ void main() {
       row: 1,
       lane: 0,
       merge: false,
-      tip: true,
+      clear: true,
     ))!;
 
     expect(
@@ -58,7 +58,10 @@ void main() {
 
   test('is not needed when HEAD is the commit right below', () {
     // The ring's own short strand reaches it.
-    expect(wipLinkEnds(m, (row: 0, lane: 0, merge: false, tip: true)), isNull);
+    expect(
+      wipLinkEnds(m, (row: 0, lane: 0, merge: false, clear: true)),
+      isNull,
+    );
   });
 
   test('has nothing to reach when HEAD is not loaded', () {
@@ -67,7 +70,7 @@ void main() {
 
   group('the ring', () {
     test('sits on HEAD\'s lane', () {
-      expect(wipRingLane((row: 4, lane: 2, merge: false, tip: true)), 2);
+      expect(wipRingLane((row: 4, lane: 2, merge: false, clear: true)), 2);
     });
 
     test('falls back to the first lane when HEAD is not loaded', () {
@@ -75,10 +78,13 @@ void main() {
     });
 
     test('draws its own strand down only when nothing else connects it', () {
-      expect(wipRingStrand((row: 0, lane: 0, merge: false, tip: true)), isTrue);
+      expect(
+        wipRingStrand((row: 0, lane: 0, merge: false, clear: true)),
+        isTrue,
+      );
       expect(wipRingStrand(null), isTrue);
       expect(
-        wipRingStrand((row: 3, lane: 1, merge: false, tip: true)),
+        wipRingStrand((row: 3, lane: 1, merge: false, clear: true)),
         isFalse,
       );
     });
@@ -102,7 +108,12 @@ void main() {
     });
 
     test('the connector is dashed all the way from the ring to the node', () {
-      final link = wipLinkEnds(m, (row: 2, lane: 1, merge: false, tip: true))!;
+      final link = wipLinkEnds(m, (
+        row: 2,
+        lane: 1,
+        merge: false,
+        clear: true,
+      ))!;
       final scroll = ScrollController();
       addTearDown(scroll.dispose);
 
@@ -117,7 +128,12 @@ void main() {
     });
 
     test('a connector going around keeps clear of nodes on HEAD\'s lane', () {
-      final link = wipLinkEnds(m, (row: 3, lane: 0, merge: false, tip: false))!;
+      final link = wipLinkEnds(m, (
+        row: 3,
+        lane: 0,
+        merge: false,
+        clear: false,
+      ))!;
       final metric = wipLinkPath(link).computeMetrics().single;
       final x = m.laneX(0);
 
@@ -139,6 +155,31 @@ void main() {
       }
       expect(metric.getTangentForOffset(0)!.position, link.from);
       expect(metric.getTangentForOffset(metric.length)!.position, link.to);
+    });
+    test('the connector stays inside the rail, as the rows do', () {
+      // A rail narrowed in Columns clips lanes past its width; a connector on
+      // one of those lanes must not spill over the commit messages.
+      final link = wipLinkEnds(m, (
+        row: 3,
+        lane: 5,
+        merge: false,
+        clear: true,
+      ))!;
+      final scroll = ScrollController();
+      addTearDown(scroll.dispose);
+
+      expect(
+        drawn(
+          WipLinkPainter(
+            link: link,
+            color: color,
+            scroll: scroll,
+            dx: 116,
+            railWidth: 60,
+          ),
+        ),
+        paints..clipRect(rect: const Rect.fromLTWH(116, 0, 60, 52 * 4)),
+      );
     });
   });
 }
