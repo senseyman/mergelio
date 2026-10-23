@@ -182,13 +182,14 @@ class GitReader {
   }
 
   /// [commits], plus whether the walk stopped because it filled [maxCount]
-  /// rather than because it ran out of history. A pager needs the distinction
+  /// rather than because it ran out of history, and the stash snapshots that
+  /// were left out — still named as parents by their stash, so the lane layout
+  /// has to be told to skip them. A pager needs the distinction
   /// and cannot recover it from the list length: the stash bookkeeping nodes
   /// below are dropped after the walk, so a truncated page can come back
   /// shorter than [maxCount].
-  Future<({List<Commit> commits, bool truncated})> commitPage({
-    int? maxCount,
-  }) async {
+  Future<({List<Commit> commits, bool truncated, Set<String> hidden})>
+  commitPage({int? maxCount}) async {
     final (:stashShas, :auxShas) = await stashWalk();
 
     final r = await _run([
@@ -209,7 +210,11 @@ class GitReader {
       if (e.contains('does not have any commits') ||
           e.contains('bad default revision') ||
           e.contains('bad revision')) {
-        return (commits: const <Commit>[], truncated: false);
+        return (
+          commits: const <Commit>[],
+          truncated: false,
+          hidden: const <String>{},
+        );
       }
       throw GitException('git log failed', r);
     }
@@ -225,7 +230,11 @@ class GitReader {
       if (auxShas.contains(f[0])) continue; // drop stash index/untracked nodes
       out.add(_fullCommit(f));
     }
-    return (commits: out, truncated: maxCount != null && records >= maxCount);
+    return (
+      commits: out,
+      truncated: maxCount != null && records >= maxCount,
+      hidden: auxShas,
+    );
   }
 
   /// Local branches with tracking info, in git's default (alphabetical) order.

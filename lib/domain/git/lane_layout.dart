@@ -14,7 +14,17 @@ import 'models.dart';
 /// recorded as [mergeFrom]. A lane is drawn straight through a row only when it
 /// is occupied both entering and leaving that row — that intersection is
 /// [through].
-List<Commit> assignLanes(List<Commit> commits) {
+///
+/// Parents named in [hidden] are commits the graph does not show — a stash's
+/// index and untracked snapshots. They take no lane: one would wait for a
+/// commit that never arrives and run to the bottom of the graph. They stay in
+/// [Commit.parents], which describes the commit rather than the drawing. A
+/// parent that is simply not loaded yet is different: history continues past
+/// the page, so its lane is kept.
+List<Commit> assignLanes(
+  List<Commit> commits, {
+  Set<String> hidden = const {},
+}) {
   final lanes = <String?>[]; // sha each lane expects next (null = free)
   final laneCi = <int>[]; // colour index per lane
   var nextCi = 0;
@@ -64,10 +74,16 @@ List<Commit> assignLanes(List<Commit> commits) {
     var branchStart = false;
     int? branchInto;
     int? mergeFrom;
-    if (c.parents.isEmpty) {
+    final parents = hidden.isEmpty
+        ? c.parents
+        : [
+            for (final p in c.parents)
+              if (!hidden.contains(p)) p,
+          ];
+    if (parents.isEmpty) {
       lanes[lane] = null; // root commit: lane ends here
     } else {
-      final p0 = c.parents.first;
+      final p0 = parents.first;
       var existing = -1;
       for (var i = 0; i < lanes.length; i++) {
         if (i != lane && lanes[i] == p0) {
@@ -82,8 +98,8 @@ List<Commit> assignLanes(List<Commit> commits) {
       } else {
         lanes[lane] = p0;
       }
-      for (var k = 1; k < c.parents.length; k++) {
-        final pk = c.parents[k];
+      for (var k = 1; k < parents.length; k++) {
+        final pk = parents[k];
         var slot = -1;
         for (var i = 0; i < lanes.length; i++) {
           if (lanes[i] == pk) {
