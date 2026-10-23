@@ -179,7 +179,7 @@ change never needs a second window.*
   together from the selection bar, a selected row's checkbox, or its
   right-click menu. Discarding a selection is one undo step.
 - Changes made outside the app — another editor, a terminal — show up on
-  their own. Switching back to a repository's tab, or back to the app,
+  their own, including in a working-tree diff left open. Switching back to a repository's tab, or back to the app,
   re-reads it; `⌘R` or the refresh button in the Changes panel does so on
   demand.
 - In tree view a folder row has its own checkbox and right-click entry that

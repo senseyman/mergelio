@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/concurrency.dart';
 import '../core/logging.dart';
 import '../domain/project_watch.dart';
+import 'diff_document.dart';
 import 'open_files.dart';
 import 'project_files.dart';
 import 'repo_actions.dart';
@@ -143,6 +144,7 @@ class RepoWatcher {
       // loop is diagnosed from these lines.
       appLog.info('refresh of $path triggered by $_trigger', scope: 'watch');
       _ref.invalidate(repoDataProvider(path));
+      reloadOpenWorkingTreeDiff(_ref, path);
       // The family, not this path's entry: a worktree added or removed from a
       // terminal changes the list every open tab shows, and a sibling tab that
       // kept its cached copy would go on showing an entry that is gone.
