@@ -1,5 +1,7 @@
 import '../../state/repo_data.dart';
+import '../../domain/git/models.dart';
 import 'commit_columns.dart';
+import 'wip_link.dart';
 
 /// The O(n) graph derivations that depend only on the commit list, not on
 /// transient UI state (selection, hover, search, settings). Computing these
@@ -11,11 +13,16 @@ class GraphDerived {
   final Map<String, int> rowIndex;
   final Map<String, ({int lane, int ci})> laneOf;
 
+  /// Where HEAD's commit is drawn — the commit the uncommitted-changes row
+  /// hangs from — or null when it is not among the loaded commits.
+  final WipHead? head;
+
   const GraphDerived({
     required this.maxLane,
     required this.labels,
     required this.rowIndex,
     required this.laneOf,
+    this.head,
   });
 }
 
@@ -23,6 +30,7 @@ GraphDerived computeGraphDerived(RepoData d) {
   var maxLane = 0;
   final rowIndex = <String, int>{};
   final laneOf = <String, ({int lane, int ci})>{};
+  WipHead? head;
   for (var j = 0; j < d.commits.length; j++) {
     final c = d.commits[j];
     if (c.lane > maxLane) maxLane = c.lane;
@@ -31,11 +39,15 @@ GraphDerived computeGraphDerived(RepoData d) {
     }
     rowIndex[c.sha] = j;
     laneOf[c.sha] = (lane: c.lane, ci: c.ci);
+    if (head == null && c.refs.any((r) => r.kind == RefKind.head)) {
+      head = (row: j, lane: c.lane, merge: c.merge, tip: c.tip);
+    }
   }
   return GraphDerived(
     maxLane: maxLane,
     labels: deriveBranchLabels(d.commits),
     rowIndex: rowIndex,
     laneOf: laneOf,
+    head: head,
   );
 }

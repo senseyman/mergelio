@@ -40,6 +40,7 @@ import 'commit_row.dart';
 import 'pick_bar.dart';
 import 'rail_metrics.dart';
 import 'squash_overlay.dart';
+import 'wip_link.dart';
 
 /// Centre panel: the commit graph for the active repo. Loads [RepoData] and
 /// hands it to [GraphList]; shows nothing when no repo tab is active.
@@ -539,6 +540,7 @@ class _GraphListState extends ConsumerState<GraphList> {
     final labels = derived.labels;
     final segments = _segmentsOf(derived, widget.squashLinks);
     final stashBySha = {for (final s in d.stashes) s.sha: s.ref};
+    final wipLink = _hasWip ? wipLinkEnds(metrics, derived.head) : null;
 
     final wipRows = _hasWip ? 1 : 0;
     final moreRows = d.hasMoreCommits ? 1 : 0;
@@ -683,6 +685,7 @@ class _GraphListState extends ConsumerState<GraphList> {
                       if (_hasWip && i == 0) {
                         return _WipRow(
                           metrics: metrics,
+                          head: derived.head,
                           maxLane: maxLane,
                           branchColumn: cols['branch'] ?? true,
                           fileCount: d.working.length,
@@ -818,6 +821,25 @@ class _GraphListState extends ConsumerState<GraphList> {
                       );
                     },
                   ),
+                  // The uncommitted-changes row hangs from HEAD, which can sit
+                  // well below it on another lane; this joins the two.
+                  if (wipLink != null)
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: RepaintBoundary(
+                          child: CustomPaint(
+                            painter: WipLinkPainter(
+                              link: wipLink,
+                              color: context.tokens.warning,
+                              scroll: _scroll,
+                              dx: (cols['branch'] ?? true)
+                                  ? metrics.branchWidth
+                                  : 0,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   if (segments.isNotEmpty)
                     Positioned.fill(
                       child: IgnorePointer(
@@ -1481,7 +1503,10 @@ class _WipRow extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
+  /// HEAD's commit, which the ring sits above; null when it is not loaded.
+  final WipHead? head;
   const _WipRow({
+    required this.head,
     required this.metrics,
     required this.maxLane,
     required this.branchColumn,
@@ -1509,7 +1534,12 @@ class _WipRow extends StatelessWidget {
                 width: metrics.railWidth(maxLane),
                 child: CustomPaint(
                   size: Size(metrics.railWidth(maxLane), metrics.rowHeight),
-                  painter: _WipRailPainter(m: metrics, color: t.warning),
+                  painter: WipRailPainter(
+                    m: metrics,
+                    color: t.warning,
+                    lane: wipRingLane(head),
+                    strand: wipRingStrand(head),
+                  ),
                 ),
               ),
             ),
@@ -1541,40 +1571,6 @@ class _WipRow extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Dashed ring at lane 0 with a strand continuing down to the commit below.
-class _WipRailPainter extends CustomPainter {
-  final RailMetrics m;
-  final Color color;
-  const _WipRailPainter({required this.m, required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final x = m.laneX(0);
-    final y = m.nodeY;
-    final stroke = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
-      ..color = color;
-
-    canvas.drawLine(Offset(x, y), Offset(x, size.height), stroke);
-
-    const dash = 4.0, gap = 3.0;
-    final ring = Path()
-      ..addOval(Rect.fromCircle(center: Offset(x, y), radius: 7));
-    for (final metric in ring.computeMetrics()) {
-      var d = 0.0;
-      while (d < metric.length) {
-        canvas.drawPath(metric.extractPath(d, d + dash), stroke);
-        d += dash + gap;
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(_WipRailPainter old) =>
-      old.color != color || old.m.compact != m.compact;
 }
 
 /// Right-click scaffold; every mutation lands in a later stage, Copy SHA works

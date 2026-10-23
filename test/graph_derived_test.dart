@@ -8,6 +8,9 @@ Commit _c(
   int lane = 0,
   int ci = 0,
   List<int> through = const [],
+  List<GitRef> refs = const [],
+  List<String> parents = const [],
+  bool tip = false,
 }) => Commit(
   sha: sha,
   message: 'm',
@@ -17,7 +20,12 @@ Commit _c(
   lane: lane,
   ci: ci,
   through: through,
+  refs: refs,
+  parents: parents,
+  tip: tip,
 );
+
+const _head = GitRef(kind: RefKind.head, name: 'HEAD');
 
 void main() {
   test('computes maxLane from lanes and pass-through lanes', () {
@@ -46,5 +54,42 @@ void main() {
     final g = computeGraphDerived(const RepoData());
     expect(g.maxLane, 0);
     expect(g.rowIndex, isEmpty);
+  });
+
+  group('head', () {
+    test('is the row and lane of the commit HEAD points at', () {
+      // The issue's shape: a newer branch tip on top, HEAD lower on a side lane.
+      final d = RepoData(
+        commits: [
+          _c('tip', lane: 0),
+          _c('mid', lane: 0, through: [1]),
+          _c('h', lane: 1, refs: const [_head], tip: true),
+          _c('base', lane: 0),
+        ],
+      );
+
+      expect(computeGraphDerived(d).head, (
+        row: 2,
+        lane: 1,
+        merge: false,
+        tip: true,
+      ));
+    });
+
+    test('knows when HEAD is a merge, whose node is drawn larger', () {
+      final d = RepoData(
+        commits: [
+          _c('h', refs: const [_head], parents: const ['a', 'b']),
+        ],
+      );
+
+      expect(computeGraphDerived(d).head?.merge, isTrue);
+    });
+
+    test('is null when HEAD is not among the loaded commits', () {
+      final d = RepoData(commits: [_c('a'), _c('b')]);
+
+      expect(computeGraphDerived(d).head, isNull);
+    });
   });
 }
