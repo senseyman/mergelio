@@ -7,9 +7,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/concurrency.dart';
 import '../core/logging.dart';
 import '../domain/project_watch.dart';
+import 'diff_document.dart';
 import 'open_files.dart';
 import 'project_files.dart';
+import 'repo_actions.dart';
 import 'repo_data.dart';
+import 'window_focus.dart';
 import 'workspace.dart';
 import 'worktrees.dart';
 
@@ -23,6 +26,11 @@ import 'worktrees.dart';
 /// fetch) triggers a single refresh once it settles. Best-effort: platforms or
 /// repos where a recursive watch can't be established simply don't auto-refresh
 /// (the app still works, and the app's own operations still refresh).
+///
+/// Only the active repository is watched, so it is also re-read whenever it
+/// becomes active again, when the app window regains focus, and on demand
+/// ([refresh], [refreshNow]) — the shortcut, the palette and the Changes
+/// panel's button.
 class RepoWatcher {
   final Ref _ref;
   StreamSubscription<FileSystemEvent>? _sub;
@@ -37,11 +45,26 @@ class RepoWatcher {
   final _dirtyDirs = <String>{};
 
   RepoWatcher(this._ref) {
-    _ref.listen(
-      workspaceProvider.select((w) => w.activeTab?.path),
-      (_, path) => _rewatch(path),
-      fireImmediately: true,
-    );
+    // The first call is the one registering makes, for the tab shown at
+    // startup. Told apart by being first rather than by a null `previous`:
+    // closing the active tab passes through no tab at all before the next
+    // one is picked, and that next one needs its refresh.
+    var first = true;
+    _ref.listen(workspaceProvider.select((w) => w.activeTab?.path), (_, path) {
+      _rewatch(path);
+      final startup = first;
+      first = false;
+      // Only the active tab is watched, so a repository coming back from the
+      // background has missed everything done to it meanwhile. One shown for
+      // the first time — at startup or newly opened — is being read already.
+      if (!startup && path != null && _ref.exists(repoDataProvider(path))) {
+        refresh(path);
+      }
+    }, fireImmediately: true);
+    // Back from another app, which may well have been changing the files.
+    _ref.listen(windowFocusedProvider, (_, focused) {
+      if (focused) refreshNow();
+    });
     _ref.onDispose(_cancel);
   }
 
@@ -121,6 +144,7 @@ class RepoWatcher {
       // loop is diagnosed from these lines.
       appLog.info('refresh of $path triggered by $_trigger', scope: 'watch');
       _ref.invalidate(repoDataProvider(path));
+      reloadOpenWorkingTreeDiff(_ref, path);
       // The family, not this path's entry: a worktree added or removed from a
       // terminal changes the list every open tab shows, and a sibling tab that
       // kept its cached copy would go on showing an entry that is gone.
@@ -184,13 +208,19 @@ class RepoWatcher {
     _dirtyDirs.clear();
   }
 
-  /// Force an immediate refresh of the active repo (e.g. on window focus).
+  /// Re-reads the active repository.
   void refreshNow() {
     final path = _path;
-    if (path != null) {
-      _ref.invalidate(repoDataProvider(path));
-      _ref.invalidate(worktreesProvider);
-    }
+    if (path != null) refresh(path);
+  }
+
+  /// Re-reads [path] — on returning to it, or when asked to. Goes through the
+  /// repository's own coalesced reload rather than straight to the provider,
+  /// so it waits for an operation that is still running git and folds into a
+  /// reload already on its way.
+  void refresh(String path) {
+    _ref.read(repoActionsProvider(path)).refresh();
+    _ref.invalidate(worktreesProvider);
   }
 }
 

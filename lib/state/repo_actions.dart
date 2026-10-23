@@ -28,6 +28,7 @@ import '../domain/git/rebase_plan.dart';
 import '../domain/git/stash.dart';
 import '../l10n/gen/app_localizations.dart';
 import 'bisect.dart';
+import 'diff_document.dart';
 import 'diff_target.dart';
 import 'external_tools.dart';
 import 'feedback.dart';
@@ -81,7 +82,10 @@ class RepoActions {
       // An action between two of its commands is not done: the reload its
       // first step asked for would only be read again after its last.
       held: () => (_tracked?.inFlight ?? 0) > 0,
-      onRefresh: () => _ref.invalidate(repoDataProvider(path)),
+      onRefresh: () {
+        _ref.invalidate(repoDataProvider(path));
+        reloadOpenWorkingTreeDiff(_ref, path);
+      },
     );
   }
 

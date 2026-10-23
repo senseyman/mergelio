@@ -627,6 +627,16 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
       ref.read(lineSelectionProvider.notifier).state = null;
       if (_lfsText && mounted) setState(() => _lfsText = false);
     });
+    // The diff is re-read when its file changes on disk. Picked lines are
+    // held by position, so once the lines under them change they would point
+    // at others — staging them would stage the wrong lines.
+    ref.listen(diffDocumentProvider(target), (previous, next) {
+      final before = previous?.valueOrNull, after = next.valueOrNull;
+      if (before == null || after == null) return;
+      if (!diffShowsSameLines(before, after)) {
+        ref.read(lineSelectionProvider.notifier).state = null;
+      }
+    });
     return ref
         .watch(diffDocumentProvider(target))
         .when(

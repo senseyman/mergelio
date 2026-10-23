@@ -2420,6 +2420,18 @@ abstract class AppLocalizations {
   /// **'Discard all changes'**
   String get wtpDiscardAll;
 
+  /// Re-reads the repository: status, history and branches.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get repoRefresh;
+
+  /// No description provided for @repoRefreshTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh (⌘R)'**
+  String get repoRefreshTooltip;
+
   /// No description provided for @wtpUnstaged.
   ///
   /// In en, this message translates to:
@@ -3607,6 +3619,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Create branch'**
   String get pfScCreateBranch;
+
+  /// No description provided for @pfScRefresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh the repository'**
+  String get pfScRefresh;
 
   /// No description provided for @pfScCollapsePanel.
   ///

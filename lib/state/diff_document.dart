@@ -43,6 +43,45 @@ bool _hasChange(List<FileDiff> files) => files.any(
   (f) => f.hunks.isNotEmpty || f.binary || f.status == GitChange.renamed,
 );
 
+/// Whether [a] and [b] show the same lines in the same places — what a run of
+/// lines picked out by hunk and position needs to still mean the same lines.
+bool diffShowsSameLines(DiffDoc a, DiffDoc b) {
+  if (a.files.length != b.files.length) return false;
+  for (var f = 0; f < a.files.length; f++) {
+    final fa = a.files[f], fb = b.files[f];
+    if (fa.path != fb.path || fa.hunks.length != fb.hunks.length) return false;
+    for (var h = 0; h < fa.hunks.length; h++) {
+      final ha = fa.hunks[h], hb = fb.hunks[h];
+      // Each line carries its own numbers, so a hunk that moved shows up
+      // there; its start needs no separate check.
+      if (ha.lines.length != hb.lines.length) return false;
+      for (var l = 0; l < ha.lines.length; l++) {
+        final la = ha.lines[l], lb = hb.lines[l];
+        if (la.type != lb.type ||
+            la.text != lb.text ||
+            la.oldNo != lb.oldNo ||
+            la.newNo != lb.newNo) {
+          return false;
+        }
+      }
+    }
+  }
+  return true;
+}
+
+/// Re-reads the open diff if it shows [repoPath]'s working tree or index —
+/// called alongside every reload of the repository, since both change under
+/// an open sheet: an edit in another editor, a `git add` in a terminal, an
+/// operation run here. A commit's diff cannot change, so it is left alone, and
+/// only the open diff is touched: re-reading one nobody shows would load it
+/// for nothing.
+void reloadOpenWorkingTreeDiff(Ref ref, String repoPath) {
+  final target = ref.read(diffTargetProvider);
+  if (target == null || !target.isWorkingTree) return;
+  if (target.repoPath != repoPath) return;
+  ref.invalidate(diffDocumentProvider(target));
+}
+
 /// Loads and parses the diff for [target]. For the working tree it shows the
 /// side selected by [DiffTarget.staged]; a commit diff is read-only.
 final diffDocumentProvider = FutureProvider.family

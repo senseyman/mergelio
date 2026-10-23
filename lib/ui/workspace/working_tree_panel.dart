@@ -26,6 +26,7 @@ import '../../state/merge_session.dart';
 import '../../state/profiles.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
+import '../../state/repo_watcher.dart';
 import '../../state/settings_controller.dart';
 import '../../state/working_selection.dart';
 import '../common/confirm.dart';
@@ -115,28 +116,38 @@ class WorkingTreePanel extends ConsumerWidget {
           children: [
             _Header(
               title: l.wtpChanges,
-              trailing: clean
-                  ? null
-                  : Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          iconSize: 15,
-                          visualDensity: VisualDensity.compact,
-                          tooltip: l.wtpDiscardAll,
-                          icon: const Icon(Icons.backspace_outlined),
-                          onPressed: () => _confirmDiscardAll(
-                            ref,
-                            context,
-                            repoPath,
-                            untracked: data.working
-                                .where((f) => f.isUntracked)
-                                .length,
-                          ),
-                        ),
-                        const FileViewToggle(),
-                      ],
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Most wanted on a clean tree that should not be clean:
+                  // changes made while this repository was in the background.
+                  IconButton(
+                    iconSize: 15,
+                    visualDensity: VisualDensity.compact,
+                    tooltip: l.repoRefreshTooltip,
+                    icon: const Icon(Icons.refresh),
+                    onPressed: () =>
+                        ref.read(repoWatcherProvider).refresh(repoPath),
+                  ),
+                  if (!clean) ...[
+                    IconButton(
+                      iconSize: 15,
+                      visualDensity: VisualDensity.compact,
+                      tooltip: l.wtpDiscardAll,
+                      icon: const Icon(Icons.backspace_outlined),
+                      onPressed: () => _confirmDiscardAll(
+                        ref,
+                        context,
+                        repoPath,
+                        untracked: data.working
+                            .where((f) => f.isUntracked)
+                            .length,
+                      ),
                     ),
+                    const FileViewToggle(),
+                  ],
+                ],
+              ),
             ),
             LfsBanner(repoPath: repoPath, working: data.working),
             LfsPointerStrip(repoPath: repoPath, working: data.working),
