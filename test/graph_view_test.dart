@@ -20,7 +20,9 @@ import 'package:mergelio/state/settings_controller.dart';
 import 'package:mergelio/state/workspace.dart';
 import 'package:mergelio/ui/graph/commit_row.dart';
 import 'package:mergelio/ui/graph/graph_view.dart';
+import 'package:mergelio/ui/graph/rail_metrics.dart';
 import 'package:mergelio/ui/graph/squash_overlay.dart';
+import 'package:mergelio/ui/graph/wip_link.dart';
 
 Commit _c(String sha, List<String> parents, {List<GitRef> refs = const []}) =>
     Commit(
@@ -410,5 +412,183 @@ void main() {
       find.descendant(of: mainRow, matching: find.text('feat/stage-3')),
       findsNothing,
     );
+  });
+
+  group('the uncommitted-changes row', () {
+    const dirty = [WorkingFile(path: 'a.txt', worktree: GitChange.modified)];
+    const head = GitRef(kind: RefKind.head, name: 'HEAD');
+
+    T painterOf<T extends CustomPainter>(WidgetTester tester) => tester
+        .widgetList<CustomPaint>(find.byType(CustomPaint))
+        .map((p) => p.painter)
+        .whereType<T>()
+        .single;
+
+    Iterable<WipLinkPainter> links(WidgetTester tester) => tester
+        .widgetList<CustomPaint>(find.byType(CustomPaint))
+        .map((p) => p.painter)
+        .whereType<WipLinkPainter>();
+
+    testWidgets('hangs straight from HEAD when HEAD is the top commit', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_harness(_data(working: dirty)));
+
+      final ring = painterOf<WipRailPainter>(tester);
+      expect(ring.lane, 0);
+      expect(ring.strand, isTrue);
+      expect(links(tester), isEmpty);
+    });
+
+    testWidgets('sits on HEAD\'s lane and reaches down to it', (tester) async {
+      // The issue's shape: another branch's newer commits on top, HEAD lower
+      // down on a side lane.
+      final data = RepoData(
+        commits: assignLanes([
+          _c('other2', ['other1']),
+          _c('other1', ['base']),
+          _c('mine', ['base'], refs: const [head]),
+          _c('base', []),
+        ]),
+        working: dirty,
+      );
+      final mine = data.commits.firstWhere((c) => c.sha == 'mine');
+      expect(mine.lane, isNot(0)); // the shape this test needs
+      await tester.pumpWidget(_harness(data));
+
+      final ring = painterOf<WipRailPainter>(tester);
+      expect(ring.lane, mine.lane);
+      expect(ring.strand, isFalse);
+      expect(
+        links(tester).single.link,
+        wipLinkEnds(const RailMetrics(), (
+          row: 2,
+          lane: mine.lane,
+          merge: false,
+          clear: true,
+        )),
+      );
+    });
+
+    testWidgets('goes around a stash made on HEAD', (tester) async {
+      final data = RepoData(
+        commits: assignLanes(
+          [
+            _c('stash', ['h', 'idx']),
+            _c('h', ['base'], refs: const [head]),
+            _c('base', []),
+          ],
+          hidden: {'idx'},
+        ),
+        working: dirty,
+        stashes: const [Stash(ref: 'stash@{0}', sha: 'stash', message: 'wip')],
+      );
+      await tester.pumpWidget(_harness(data));
+
+      final ring = painterOf<WipRailPainter>(tester);
+      expect(ring.lane, 0);
+      expect(ring.strand, isFalse);
+      expect(links(tester).single.link.around, isTrue);
+      expect(
+        links(tester).single.railWidth,
+        const RailMetrics().railWidth(
+          data.commits.map((c) => c.lane).reduce((a, b) => a > b ? a : b),
+        ),
+      );
+    });
+
+    testWidgets('goes around another branch\'s node left on HEAD\'s lane', (
+      tester,
+    ) async {
+      // side1 takes lane 1 and joins main below it, freeing the lane; HEAD,
+      // newer than nothing else on that lane, reuses it. HEAD is a tip, but
+      // side1's node still sits on its lane above it.
+      final data = RepoData(
+        commits: assignLanes([
+          _c('t1', ['m']),
+          _c('side1', ['m']),
+          _c('h', ['m'], refs: const [head]),
+          _c('m', []),
+        ]),
+        working: dirty,
+      );
+      final side = data.commits.firstWhere((c) => c.sha == 'side1');
+      final h = data.commits.firstWhere((c) => c.sha == 'h');
+      expect(h.lane, side.lane); // the shape this test needs
+      await tester.pumpWidget(_harness(data));
+
+      expect(links(tester).single.link.around, isTrue);
+    });
+
+    testWidgets('keeps its short strand on the first lane when HEAD is not '
+        'loaded', (tester) async {
+      final data = RepoData(
+        commits: assignLanes([
+          _c('b', ['a']),
+          _c('a', []),
+        ]),
+        working: dirty,
+      );
+      await tester.pumpWidget(_harness(data));
+
+      final ring = painterOf<WipRailPainter>(tester);
+      expect(ring.lane, 0);
+      expect(ring.strand, isTrue);
+      expect(links(tester), isEmpty);
+    });
+
+    testWidgets('a clean tree draws no connector', (tester) async {
+      final data = RepoData(
+        commits: assignLanes([
+          _c('other', ['base']),
+          _c('mine', ['base'], refs: const [head]),
+          _c('base', []),
+        ]),
+      );
+      await tester.pumpWidget(_harness(data));
+
+      expect(links(tester), isEmpty);
+    });
+  });
+
+  testWidgets('the connector and its row fit every graph width', (
+    tester,
+  ) async {
+    const head = GitRef(kind: RefKind.head, name: 'HEAD');
+    final data = RepoData(
+      commits: assignLanes(
+        [
+          _c('stash', ['h', 'idx']),
+          _c('h', ['base'], refs: const [head]),
+          _c('side', ['base']),
+          _c('base', []),
+        ],
+        hidden: {'idx'},
+      ),
+      working: const [WorkingFile(path: 'a.txt', worktree: GitChange.modified)],
+      stashes: const [Stash(ref: 'stash@{0}', sha: 'stash', message: 'wip')],
+    );
+    addTearDown(tester.view.reset);
+    for (final width in [336.0, 500.0, 800.0, 1400.0]) {
+      tester.view.physicalSize = Size(width, 500);
+      tester.view.devicePixelRatio = 1.0;
+      await tester.pumpWidget(_harness(data));
+      await tester.pumpAndSettle();
+      final error = tester.takeException();
+      if (width < 500) {
+        // At the narrowest the commit rows overflow in the test font, which
+        // draws every glyph a full em wide — main's graph does the same. Only
+        // that is let through; the row checked below is this change's.
+        if (error != null) expect('$error', contains('overflowed'));
+      } else {
+        expect(error, isNull, reason: 'at $width px');
+      }
+      final wip = tester.getRect(find.text('WIP'));
+      expect(wip.right, lessThanOrEqualTo(width), reason: 'at $width px');
+      expect(
+        tester.getRect(find.byType(GraphList)).width,
+        lessThanOrEqualTo(width),
+      );
+    }
   });
 }

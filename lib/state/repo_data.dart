@@ -145,7 +145,7 @@ final repoDataProvider = FutureProvider.family<RepoData, String>(
     } else {
       walked = true;
       final page = await reader.commitPage(maxCount: limit);
-      commits = assignLanes(page.commits);
+      commits = assignLanes(page.commits, hidden: page.hidden);
       hasMore = page.truncated;
       _cacheCommits(path, (sig: commitSig, commits: commits, more: hasMore));
     }

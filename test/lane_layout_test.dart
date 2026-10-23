@@ -82,4 +82,37 @@ void main() {
       expect(chain.every((c) => c.mergeFrom == null), isTrue);
     });
   });
+
+  group('hidden parents', () {
+    // A stash on main: stash -> [m1 (base), idx (index snapshot, not shown)].
+    final laned = assignLanes(
+      [
+        _c('stash', ['m1', 'idx']),
+        _c('m1', ['m0']),
+        _c('m0', []),
+      ],
+      hidden: {'idx'},
+    );
+    Commit at(String sha) => laned.firstWhere((c) => c.sha == sha);
+
+    test('take no lane and draw no merge', () {
+      expect(at('stash').mergeFrom, isNull);
+      for (final c in laned) {
+        expect(c.through, everyElement(0), reason: c.sha);
+      }
+    });
+
+    test('stay in the commit itself', () {
+      expect(at('stash').parents, ['m1', 'idx']);
+    });
+
+    test('a parent merely not loaded yet still keeps its lane', () {
+      // Past the end of a page, history goes on: that lane is real.
+      final paged = assignLanes([
+        _c('merge', ['m1', 'f1']),
+        _c('m1', ['m0']),
+      ]);
+      expect(paged.last.through, contains(1));
+    });
+  });
 }

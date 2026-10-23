@@ -240,6 +240,59 @@ void main() {
     },
   );
 
+  group('a stash in the graph', () {
+    /// Lanes still running below the last row: a stash whose snapshot parents
+    /// are laid out keeps one open for each, to the bottom.
+    Set<int> openAtBottom(List<Commit> laned) {
+      final last = laned.last;
+      return {...last.through}..remove(last.lane);
+    }
+
+    Future<List<Commit>> laidOut() async {
+      final page = await reader().commitPage();
+      return assignLanes(page.commits, hidden: page.hidden);
+    }
+
+    test('keeps its real parents: replaying it needs them', () async {
+      await write('a.txt', 'changed\n');
+      await write('extra.txt', 'untracked\n');
+      await g(['stash', 'push', '-q', '-u', '-m', 'with-untracked']);
+
+      final stash = (await reader().stashes()).first;
+      final page = await reader().commitPage();
+      final node = page.commits.firstWhere((c) => c.sha == stash.sha);
+
+      // Base, index snapshot, untracked snapshot — git treats it as a merge,
+      // so a cherry-pick or revert of it has to name a mainline.
+      expect(node.parents, hasLength(3));
+      expect(page.hidden, containsAll(node.parents.skip(1)));
+    });
+
+    test('leaves no lane running past the history', () async {
+      await write('a.txt', 'changed\n');
+      await g(['stash', 'push', '-q', '-m', 'plain']);
+      await write('a.txt', 'changed again\n');
+      await write('extra.txt', 'untracked\n');
+      await g(['stash', 'push', '-q', '-u', '-m', 'with-untracked']);
+
+      final laned = await laidOut();
+
+      expect(openAtBottom(laned), isEmpty);
+      expect(laned.map((c) => c.lane).reduce((a, b) => a > b ? a : b), 1);
+    });
+
+    test('draws no merge line into its snapshots', () async {
+      await write('a.txt', 'changed\n');
+      await write('extra.txt', 'untracked\n');
+      await g(['stash', 'push', '-q', '-u', '-m', 'with-untracked']);
+
+      final stash = (await reader().stashes()).first;
+      final node = (await laidOut()).firstWhere((c) => c.sha == stash.sha);
+
+      expect(node.mergeFrom, isNull);
+    });
+  });
+
   group('squashLinks', () {
     late Directory sdir;
 
