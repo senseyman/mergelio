@@ -25,6 +25,11 @@ import 'worktrees.dart';
 /// fetch) triggers a single refresh once it settles. Best-effort: platforms or
 /// repos where a recursive watch can't be established simply don't auto-refresh
 /// (the app still works, and the app's own operations still refresh).
+///
+/// Only the active repository is watched, so it is also re-read whenever it
+/// becomes active again, when the app window regains focus, and on demand
+/// ([refresh], [refreshNow]) — the shortcut, the palette and the Changes
+/// panel's button.
 class RepoWatcher {
   final Ref _ref;
   StreamSubscription<FileSystemEvent>? _sub;
@@ -39,17 +44,22 @@ class RepoWatcher {
   final _dirtyDirs = <String>{};
 
   RepoWatcher(this._ref) {
-    var starting = true;
+    // The first call is the one registering makes, for the tab shown at
+    // startup. Told apart by being first rather than by a null `previous`:
+    // closing the active tab passes through no tab at all before the next
+    // one is picked, and that next one needs its refresh.
+    var first = true;
     _ref.listen(workspaceProvider.select((w) => w.activeTab?.path), (_, path) {
       _rewatch(path);
+      final startup = first;
+      first = false;
       // Only the active tab is watched, so a repository coming back from the
       // background has missed everything done to it meanwhile. One shown for
       // the first time — at startup or newly opened — is being read already.
-      if (!starting && path != null && _ref.exists(repoDataProvider(path))) {
+      if (!startup && path != null && _ref.exists(repoDataProvider(path))) {
         refresh(path);
       }
     }, fireImmediately: true);
-    starting = false;
     // Back from another app, which may well have been changing the files.
     _ref.listen(windowFocusedProvider, (_, focused) {
       if (focused) refreshNow();

@@ -13,6 +13,7 @@ import 'package:mergelio/state/lfs.dart';
 import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
+import 'package:mergelio/ui/common/file_tree_view.dart';
 import 'package:mergelio/ui/workspace/working_tree_panel.dart';
 
 import 'support/refresh_counter.dart';
@@ -245,14 +246,25 @@ void main() {
     );
     await tester.pumpAndSettle();
     // The composer's option row overflows here in the test font, which draws
-    // every glyph a full em wide; that row is not what this test is about.
-    tester.takeException();
+    // every glyph a full em wide. Only a layout overflow is let through; the
+    // header's own fit is checked below, by where its buttons landed — a row
+    // that overflows pushes its last child out past its edge.
+    final error = tester.takeException();
+    if (error != null) {
+      expect(error, isA<FlutterError>());
+      expect('$error', contains('overflowed'));
+    }
 
+    final header = tester.getRect(
+      find.ancestor(of: find.text('CHANGES'), matching: find.byType(Row)).first,
+    );
     final refresh = tester.getRect(find.byTooltip('Refresh (⌘R)'));
     final discard = tester.getRect(find.byTooltip('Discard all changes'));
+    final toggle = tester.getRect(find.byType(FileViewToggle));
     final title = tester.getRect(find.text('CHANGES'));
     expect(title.right, lessThan(refresh.left));
     expect(refresh.right, lessThanOrEqualTo(discard.left));
-    expect(discard.right, lessThan(300));
+    expect(discard.right, lessThanOrEqualTo(toggle.left));
+    expect(toggle.right, lessThanOrEqualTo(header.right));
   });
 }

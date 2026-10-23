@@ -5,6 +5,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
+import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/state/repo_watcher.dart';
 import 'package:mergelio/state/window_focus.dart';
@@ -98,4 +99,61 @@ void main() {
 
     expect(refreshes, isEmpty);
   });
+
+  group('end to end, through the real repository reload', () {
+    test(
+      'switching back to a remote-less repository reads its status again',
+      () async {
+        final git = _StatusCountingGit();
+        final ws = WorkspaceController()
+          ..openRepo('/nowhere/a')
+          ..openRepo('/nowhere/b')
+          ..setActive(1);
+        final c = ProviderContainer(
+          overrides: [
+            gitServiceProvider.overrideWithValue(git),
+            workspaceProvider.overrideWith((ref) => ws),
+          ],
+        );
+        addTearDown(c.dispose);
+        c.listen(repoDataProvider('/nowhere/a'), (_, _) {});
+        c.listen(repoDataProvider('/nowhere/b'), (_, _) {});
+        c.read(repoWatcherProvider);
+        await c.read(repoDataProvider('/nowhere/a').future);
+        await c.read(repoDataProvider('/nowhere/b').future);
+        final before = git.statusReads['/nowhere/b'];
+
+        ws.setActive(2);
+        // Past the reload's settle window.
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+        await c.read(repoDataProvider('/nowhere/b').future);
+
+        expect(git.remoteReads, greaterThan(0));
+        expect(git.statusReads['/nowhere/b'], before! + 1);
+      },
+    );
+  });
+}
+
+/// Answers every git call with empty output — a repository with no remote —
+/// and counts the status reads per repository.
+class _StatusCountingGit extends SilentGit {
+  final statusReads = <String, int>{};
+  var remoteReads = 0;
+
+  @override
+  Future<GitResult> run(
+    List<String> args, {
+    String? repoPath,
+    Duration? timeout,
+    Map<String, String>? environment,
+    GitCancel? cancel,
+    String? stdin,
+  }) async {
+    if (args.contains('status') && !args.contains('submodule')) {
+      statusReads[repoPath!] = (statusReads[repoPath] ?? 0) + 1;
+    }
+    if (args.contains('remote')) remoteReads++;
+    return const GitResult(0, '', '');
+  }
 }
