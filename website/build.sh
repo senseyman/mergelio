@@ -65,10 +65,15 @@ sed \
   -e "s|{{SUMS_URL}}|${sums_url}|g" \
   "$SRC_DIR/index.html" > "$OUT_DIR/index.html"
 
-if grep -q '{{' "$OUT_DIR/index.html"; then
-  echo "error: unfilled placeholder left in index.html:" >&2
-  grep -o '{{[A-Z_]*}}' "$OUT_DIR/index.html" | sort -u >&2
-  exit 1
-fi
+# The page only changes meaningfully with a release, so that date is lastmod.
+sed -e "s|{{DATE_ISO}}|${date}|g" "$SRC_DIR/sitemap.xml" > "$OUT_DIR/sitemap.xml"
+
+for page in index.html sitemap.xml; do
+  if grep -q '{{' "$OUT_DIR/$page"; then
+    echo "error: unfilled placeholder left in ${page}:" >&2
+    grep -o '{{[A-Z_]*}}' "$OUT_DIR/$page" | sort -u >&2
+    exit 1
+  fi
+done
 
 echo "Built ${OUT_DIR} for ${tag}"
