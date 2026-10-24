@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mergelio — a free, open-source visual Git client</title>
+  <meta name="description" content="Mergelio is a free, open-source visual Git client for macOS, Windows and Linux: commit graph, line-level staging, a three-way merge tool, interactive rebase and undo for everything.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0b0d12" media="(prefers-color-scheme: dark)">
+  <link rel="canonical" href="https://mergelio.com/">
+  <link rel="icon" type="image/png" href="img/favicon.png">
+  <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://mergelio.com/">
+  <meta property="og:title" content="Mergelio — a free, open-source visual Git client">
+  <meta property="og:description" content="Commit graph, line-level staging, a three-way merge tool, interactive rebase and undo for everything. macOS, Windows and Linux.">
+  <meta property="og:image" content="https://mergelio.com/img/og.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="stylesheet" href="style.css">
+  <script src="main.js" defer></script>
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <linearGradient id="node" x1="0.15" y1="0.1" x2="0.85" y2="0.95">
+        <stop offset="0" stop-color="#57a8ff"/>
+        <stop offset="1" stop-color="#1e6bf0"/>
+      </linearGradient>
+      <symbol id="mark" viewBox="0 0 100 100">
+        <g stroke="currentColor" stroke-width="9" stroke-linecap="round" fill="none">
+          <path d="M50 45 33 33M50 45 67 33M45 52 41 76M55 52 59 76M33 33 21 28M33 33 27 44M67 33 79 28M67 33 73 44"/>
+        </g>
+        <g fill="currentColor">
+          <circle cx="33" cy="33" r="6.5"/><circle cx="67" cy="33" r="6.5"/>
+          <circle cx="21" cy="28" r="4"/><circle cx="27" cy="44" r="4"/>
+          <circle cx="79" cy="28" r="4"/><circle cx="73" cy="44" r="4"/>
+        </g>
+        <circle cx="50" cy="46" r="11" fill="url(#node)"/>
+        <circle cx="46.5" cy="42.5" r="3.4" fill="#fff" fill-opacity=".55"/>
+      </symbol>
+    </defs>
+  </svg>
+
+  <header class="nav">
+    <div class="wrap nav-row">
+      <a class="brand" href="#top" aria-label="Mergelio home">
+        <svg class="brand-mark" aria-hidden="true"><use href="#mark"/></svg>
+        <span>Mergelio</span>
+      </a>
+      <nav class="nav-links" aria-label="Main">
+        <a href="#features">Features</a>
+        <a href="#download">Download</a>
+        <a class="gh" href="https://github.com/senseyman/mergelio">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8"/></svg>
+          GitHub
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero wrap">
+      <img class="hero-icon" src="img/icon.png" width="96" height="96" alt="">
+      <h1>A visual Git client that<br>keeps your history safe.</h1>
+      <p class="lead">Mergelio is free and open source, for macOS, Windows and Linux. You get a commit graph, line-by-line staging, a three-way merge tool, interactive rebase and undo for almost everything. No account, nothing sent home.</p>
+      <div class="cta">
+        <a class="btn primary" id="primary-download" href="#download">
+          <span id="primary-label">Download</span>
+          <small>v{{VERSION}}</small>
+        </a>
+        <a class="btn ghost" href="https://github.com/senseyman/mergelio">View on GitHub</a>
+      </div>
+      <p class="cta-note" id="cta-note"><a href="#download">All platforms</a> · BSD-3-Clause · Requires <a href="https://git-scm.com/downloads">Git</a></p>
+    </section>
+
+    <section class="shot wrap" aria-label="Screenshot">
+      <picture>
+        <source srcset="img/graph-dark.webp" media="(prefers-color-scheme: dark)">
+        <img src="img/graph-light.webp" width="1920" height="1200" alt="Mergelio window: branch list on the left, commit graph in the middle and the Changes panel with staged and unstaged files on the right.">
+      </picture>
+    </section>
+
+    <section id="features" class="features wrap">
+      <h2>Everything you do in Git, in one window</h2>
+      <div class="grid">
+        <article>
+          <h3>Commit graph</h3>
+          <p>History drawn in lanes, with ref pills, keyboard navigation, author and date filters, and search by message or by the code a commit changed.</p>
+        </article>
+        <article>
+          <h3>Stage exactly what you mean</h3>
+          <p>Stage or discard by file, hunk or a run of lines. Side-by-side or inline diffs with word-level highlights, syntax colours and image diffs.</p>
+        </article>
+        <article>
+          <h3>Three-way merge tool</h3>
+          <p>Ours, result and theirs side by side. Resolving only stages the file: you review it and commit or continue yourself.</p>
+        </article>
+        <article>
+          <h3>Interactive rebase</h3>
+          <p>Reorder, reword, squash, fixup and drop commits. Autosquash, exec and break steps, and stacked branches move along.</p>
+        </article>
+        <article>
+          <h3>Undo for almost everything</h3>
+          <p>Reflog-backed undo and redo for commits, merges and rebases. <code>reset --hard</code> stashes your work first, and an operation journal survives crashes.</p>
+        </article>
+        <article>
+          <h3>GitHub &amp; GitLab</h3>
+          <p>Pull and merge requests with CI status, plus issues, next to your branches. Read-only: tokens go through your <code>git credential</code> helper.</p>
+        </article>
+        <article>
+          <h3>Files, editor &amp; terminal</h3>
+          <p>Browse the project, edit files in tabs with find and replace, and keep a real system-shell terminal docked under the repository.</p>
+        </article>
+        <article>
+          <h3>Private by default</h3>
+          <p>No account, no telemetry unless you turn it on, and update checks only if you say yes. Settings stay in a local database.</p>
+        </article>
+      </div>
+      <p class="more">Also: commit and tag signature checks, blame and line history, worktrees, git notes, stashes with undo, profiles with their own SSH keys, a multi-repo dashboard, a command palette, themes, and English and Ukrainian UI. <a href="https://github.com/senseyman/mergelio#features">Full feature list →</a></p>
+    </section>
+
+    <section class="shot wrap" aria-label="Diff screenshot">
+      <img src="img/diff-dark.webp" width="1920" height="1200" loading="lazy" alt="Mergelio diff sheet showing an inline diff of a TypeScript file with Stage hunk and Discard hunk buttons.">
+    </section>
+
+    <section id="download" class="download wrap">
+      <h2>Download Mergelio {{VERSION}}</h2>
+      <p class="sub">Released {{DATE}} · <a href="{{RELEASE_URL}}">Release notes</a> · <a href="https://github.com/senseyman/mergelio/releases">All releases</a></p>
+      <div class="dl-list">
+        <div class="dl" data-os="mac">
+          <div class="dl-head">
+            <h3>macOS</h3>
+            <span class="tag">Apple Silicon · macOS 12+</span>
+          </div>
+          <p>Signed and notarized disk image. Open it and drag Mergelio to Applications.</p>
+          <a class="btn primary" href="{{MAC_URL}}">Download .dmg</a>
+        </div>
+        <div class="dl" data-os="win">
+          <div class="dl-head">
+            <h3>Windows</h3>
+            <span class="tag">x64</span>
+          </div>
+          <p>Run the installer. It isn't code-signed yet, so SmartScreen asks first: choose <b>More info → Run anyway</b>.</p>
+          <a class="btn primary" href="{{WIN_URL}}">Download setup.exe</a>
+        </div>
+        <div class="dl" data-os="linux">
+          <div class="dl-head">
+            <h3>Debian / Ubuntu</h3>
+            <span class="tag">x64</span>
+          </div>
+          <div class="cmd"><code>sudo apt install ./{{DEB_FILE}}</code><button type="button" class="copy" aria-label="Copy command">Copy</button></div>
+          <a class="btn primary" href="{{DEB_URL}}">Download .deb</a>
+        </div>
+        <div class="dl" data-os="linux">
+          <div class="dl-head">
+            <h3>Fedora</h3>
+            <span class="tag">x64</span>
+          </div>
+          <div class="cmd"><code>sudo dnf install ./{{RPM_FILE}}</code><button type="button" class="copy" aria-label="Copy command">Copy</button></div>
+          <a class="btn primary" href="{{RPM_URL}}">Download .rpm</a>
+        </div>
+      </div>
+      <p class="fine">Mergelio runs the <code>git</code> on your <code>PATH</code>. If you don't have it, <a href="https://git-scm.com/downloads">install Git</a> first. Each release ships a signed <a href="{{SUMS_URL}}">SHA256SUMS.txt</a>; see <a href="https://github.com/senseyman/mergelio#verifying-a-download">how to verify a download</a>.</p>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap foot-row">
+      <span class="brand small"><svg class="brand-mark" aria-hidden="true"><use href="#mark"/></svg>Mergelio</span>
+      <nav aria-label="Project">
+        <a href="https://github.com/senseyman/mergelio">GitHub</a>
+        <a href="https://github.com/senseyman/mergelio/releases">Releases</a>
+        <a href="https://github.com/senseyman/mergelio/issues">Issues</a>
+        <a href="https://github.com/senseyman/mergelio/blob/main/CONTRIBUTING.md">Contributing</a>
+        <a href="https://github.com/senseyman/mergelio/blob/main/LICENSE">License</a>
+      </nav>
+      <span class="copy-note">BSD-3-Clause © 2026 Neo</span>
+    </div>
+  </footer>
+</body>
+</html>
