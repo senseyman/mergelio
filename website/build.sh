@@ -49,7 +49,7 @@ pretty_date=$(date -u -d "$date" '+%B %-d, %Y' 2>/dev/null || date -u -j -f '%Y-
 
 rm -rf "$OUT_DIR"
 mkdir -p "$OUT_DIR"
-cp -R "$SRC_DIR/img" "$SRC_DIR/style.css" "$SRC_DIR/main.js" "$SRC_DIR/CNAME" "$OUT_DIR/"
+cp -R "$SRC_DIR/img" "$SRC_DIR/style.css" "$SRC_DIR/main.js" "$SRC_DIR/CNAME" "$SRC_DIR/robots.txt" "$OUT_DIR/"
 
 # URLs never contain '|', so it is a safe sed delimiter.
 sed \
@@ -65,10 +65,15 @@ sed \
   -e "s|{{SUMS_URL}}|${sums_url}|g" \
   "$SRC_DIR/index.html" > "$OUT_DIR/index.html"
 
-if grep -q '{{' "$OUT_DIR/index.html"; then
-  echo "error: unfilled placeholder left in index.html:" >&2
-  grep -o '{{[A-Z_]*}}' "$OUT_DIR/index.html" | sort -u >&2
-  exit 1
-fi
+# The page only changes meaningfully with a release, so that date is lastmod.
+sed -e "s|{{DATE_ISO}}|${date}|g" "$SRC_DIR/sitemap.xml" > "$OUT_DIR/sitemap.xml"
+
+for page in index.html sitemap.xml; do
+  if grep -q '{{' "$OUT_DIR/$page"; then
+    echo "error: unfilled placeholder left in ${page}:" >&2
+    grep -o '{{[A-Z_]*}}' "$OUT_DIR/$page" | sort -u >&2
+    exit 1
+  fi
+done
 
 echo "Built ${OUT_DIR} for ${tag}"
