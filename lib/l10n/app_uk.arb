@@ -1813,5 +1813,9 @@
   "actPushNotes": "Відправлення нотаток до {remote}",
   "actFetchNotes": "Отримання нотаток з {remote}",
   "actNoNotesToPush": "Немає нотаток для відправлення",
-  "actRemoteHasNoNotes": "У {remote} немає нотаток"
+  "actRemoteHasNoNotes": "У {remote} немає нотаток",
+  "mdViewSource": "Код",
+  "mdViewRendered": "Перегляд",
+  "mdRemoteImageBlocked": "Зображення з мережі не завантажуються",
+  "mdSideAbsent": "З цього боку файлу немає"
 }

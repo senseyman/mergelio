@@ -9079,6 +9079,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{remote} has no notes'**
   String actRemoteHasNoNotes(String remote);
+
+  /// No description provided for @mdViewSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Source'**
+  String get mdViewSource;
+
+  /// No description provided for @mdViewRendered.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview'**
+  String get mdViewRendered;
+
+  /// No description provided for @mdRemoteImageBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote images are not loaded'**
+  String get mdRemoteImageBlocked;
+
+  /// No description provided for @mdSideAbsent.
+  ///
+  /// In en, this message translates to:
+  /// **'The file does not exist on this side'**
+  String get mdSideAbsent;
 }
 
 class _AppLocalizationsDelegate

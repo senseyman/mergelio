@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
+import '../../domain/markdown_links.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/open_files.dart';
 import '../../state/unsaved_guard.dart';
 import '../common/dialogs.dart';
 import '../common/file_text_editor.dart';
+import '../common/markdown_view.dart';
 import '../workspace/panel_placeholder.dart';
 
 /// Right side of Files mode: a strip of open files over the editor for
@@ -81,6 +83,7 @@ class FileEditorPaneState extends ConsumerState<FileEditorPane> {
             open: open,
             onSelect: _files.activate,
             onClose: (path) => closeTab(path),
+            onRendered: _files.setRendered,
           ),
           Expanded(
             child: Stack(
@@ -88,7 +91,12 @@ class FileEditorPaneState extends ConsumerState<FileEditorPane> {
                 for (final path in open.paths)
                   Offstage(
                     offstage: path != open.active,
-                    child: _editor(t, path, gone: open.isGone(path)),
+                    child: _editor(
+                      t,
+                      path,
+                      gone: open.isGone(path),
+                      rendered: open.isRendered(path),
+                    ),
                   ),
               ],
             ),
@@ -98,7 +106,12 @@ class FileEditorPaneState extends ConsumerState<FileEditorPane> {
     );
   }
 
-  Widget _editor(AppTokens t, String path, {required bool gone}) => Column(
+  Widget _editor(
+    AppTokens t,
+    String path, {
+    required bool gone,
+    required bool rendered,
+  }) => Column(
     children: [
       if (gone) _GoneBanner(t: t),
       Expanded(
@@ -111,6 +124,14 @@ class FileEditorPaneState extends ConsumerState<FileEditorPane> {
           // left open on it.
           onSave: gone ? (_, _) async => false : null,
           onDirtyChanged: (dirty) => _files.setDirty(path, dirty),
+          renderedBuilder: rendered
+              ? (context, text) => MarkdownView(
+                  text: text,
+                  path: path,
+                  imageRoot: repoPath,
+                  onOpenFile: _files.open,
+                )
+              : null,
         ),
       ),
     ],
@@ -181,37 +202,51 @@ class _TabStrip extends StatelessWidget {
   final OpenFiles open;
   final ValueChanged<String> onSelect;
   final ValueChanged<String> onClose;
+  final void Function(String path, bool rendered) onRendered;
   const _TabStrip({
     required this.open,
     required this.onSelect,
     required this.onClose,
+    required this.onRendered,
   });
 
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
+    final active = open.active;
     return Container(
       height: 34,
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: t.border)),
       ),
-      // Many open files scroll sideways rather than shrinking to unreadable
-      // slivers, matching the repo tab bar above it.
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            for (final path in open.paths)
-              _Tab(
-                path: path,
-                active: path == open.active,
-                dirty: open.isDirty(path),
-                gone: open.isGone(path),
-                onSelect: () => onSelect(path),
-                onClose: () => onClose(path),
+      child: Row(
+        children: [
+          Expanded(
+            // Many open files scroll sideways rather than shrinking to
+            // unreadable slivers, matching the repo tab bar above it.
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (final path in open.paths)
+                    _Tab(
+                      path: path,
+                      active: path == active,
+                      dirty: open.isDirty(path),
+                      gone: open.isGone(path),
+                      onSelect: () => onSelect(path),
+                      onClose: () => onClose(path),
+                    ),
+                ],
               ),
-          ],
-        ),
+            ),
+          ),
+          if (active != null && isMarkdownPath(active))
+            MarkdownViewToggle(
+              rendered: open.isRendered(active),
+              onChanged: (rendered) => onRendered(active, rendered),
+            ),
+        ],
       ),
     );
   }

@@ -13,6 +13,7 @@ import '../../domain/git/line_history.dart';
 import '../../domain/git/models.dart';
 import '../../domain/git/stage_patch.dart';
 import '../../domain/git/stash.dart';
+import '../../domain/markdown_links.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/binary_diff.dart';
 import '../../state/diff_document.dart';
@@ -27,6 +28,7 @@ import '../../state/repo_data.dart';
 import '../../state/settings_controller.dart';
 import '../common/confirm.dart';
 import '../common/fit_or_collapse.dart';
+import '../common/markdown_view.dart';
 import '../insight/line_history_dialog.dart';
 import 'diff_editor.dart';
 import 'diff_metrics.dart';
@@ -35,6 +37,7 @@ import 'image_diff.dart';
 import 'lfs_card.dart';
 import 'line_selection.dart';
 import 'linked_scroll.dart';
+import 'markdown_diff.dart';
 import 'syntax_style.dart';
 
 /// Closes the diff sheet — the X, Escape, and a tap on the graph above it all
@@ -274,6 +277,19 @@ class _DiffHeader extends ConsumerWidget {
     // whitespace change is never silently missing from what the user reads.
     final optionsActive = target.wholeFile || !options.isDefault;
 
+    // A Markdown file can also be read rendered. Not while editing, which
+    // shows the text being typed, nor for an LFS file, which shows its card.
+    final canRender = isMarkdownPath(target.path) && !editing && !isLfs;
+    final fileRef = FileRef(target.repoPath, target.path);
+    final rendered =
+        canRender && ref.watch(diffRenderedFilesProvider).contains(fileRef);
+    void setRendered(bool on) {
+      final files = ref.read(diffRenderedFilesProvider.notifier);
+      files.state = on
+          ? {...files.state, fileRef}
+          : ({...files.state}..remove(fileRef));
+    }
+
     // Handing the file to another program. The editor always gets the
     // working-tree copy, so only the unstaged side's line numbers are the
     // file's own; any other side opens at the top.
@@ -322,6 +338,8 @@ class _DiffHeader extends ConsumerWidget {
             onPressed: toggleFileStaged,
             child: Text(stageLabel),
           ),
+        if (canRender)
+          MarkdownViewToggle(rendered: rendered, onChanged: setRendered),
         _SegToggle(
           split: split,
           onInline: () => ctl.setDiffSplit(false),
@@ -369,6 +387,19 @@ class _DiffHeader extends ConsumerWidget {
         if (canEdit) PopupMenuItem(value: startEditing, child: Text(l.edit)),
         if (canStage)
           PopupMenuItem(value: toggleFileStaged, child: Text(stageLabel)),
+        if (canRender) ...[
+          CheckedPopupMenuItem(
+            value: () => setRendered(false),
+            checked: !rendered,
+            child: Text(l.mdViewSource),
+          ),
+          CheckedPopupMenuItem(
+            value: () => setRendered(true),
+            checked: rendered,
+            child: Text(l.mdViewRendered),
+          ),
+          const PopupMenuDivider(),
+        ],
         CheckedPopupMenuItem(
           value: () => ctl.setDiffSplit(false),
           checked: !split,
@@ -677,6 +708,21 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
                 // A reloaded diff is a new document; the index and disk
                 // sides are read again with it.
                 version: doc,
+              );
+            }
+            if (!doc.isEmpty &&
+                isMarkdownPath(target.path) &&
+                ref
+                    .watch(diffRenderedFilesProvider)
+                    .contains(FileRef(target.repoPath, target.path))) {
+              final file = doc.files.first;
+              return MarkdownCompare(
+                repoPath: target.repoPath,
+                sides: binarySidesFor(target, file, staged: doc.staged),
+                version: doc,
+                split: split,
+                beforePath: file.oldPath ?? file.path,
+                afterPath: file.path,
               );
             }
             if (doc.isEmpty) {
