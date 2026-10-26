@@ -100,6 +100,18 @@ void main() {
       expect(resolveMarkdownHref('/../x.md', from: 'a.md'), isNull);
     });
 
+    test('a backslash path leads nowhere', () {
+      // Windows reads a backslash as a separator, so `..\\` would climb out
+      // of the repository unseen by the checks above.
+      for (final href in [r'..\..\secret.md', r'img\..\..\x.png', r'a\b.md']) {
+        expect(
+          resolveMarkdownHref(href, from: 'docs/a.md'),
+          isNull,
+          reason: href,
+        );
+      }
+    });
+
     test('a link to a folder leads nowhere', () {
       expect(resolveMarkdownHref('docs/', from: 'a.md'), isNull);
       expect(resolveMarkdownHref('.', from: 'a.md'), isNull);

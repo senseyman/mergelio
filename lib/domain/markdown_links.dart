@@ -48,6 +48,9 @@ MarkdownTarget? resolveMarkdownHref(String? href, {required String from}) {
     return null;
   }
   if (raw.isEmpty || raw.endsWith('/')) return null;
+  // Windows takes a backslash as a separator, so `..\` would climb out of
+  // the repository past the checks below.
+  if (raw.contains(r'\')) return null;
 
   // A leading slash means the repository root, the way forges read it.
   final parts = raw.startsWith('/')
