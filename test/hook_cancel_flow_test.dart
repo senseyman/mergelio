@@ -2,16 +2,18 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mergelio/domain/git/git_service.dart';
+import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/state/feedback.dart';
 import 'package:mergelio/state/repo_actions.dart';
+
+import 'support/hermetic_git.dart';
 
 /// A slow hook must not be killed by the ordinary timeout, so the only way out
 /// of one is the busy bar's Cancel. These run real git against a hook that
 /// sleeps far longer than the test is willing to wait.
 void main() {
   late Directory dir;
-  const svc = SystemGitService();
+  const svc = HermeticGit();
 
   Future<void> g(List<String> args) async {
     final r = await svc.run(args, repoPath: dir.path);
@@ -61,7 +63,9 @@ void main() {
     await write('f.txt', 'base');
     await g(['add', '.']);
     await g(['commit', '-q', '-m', 'base']);
-    c = ProviderContainer();
+    c = ProviderContainer(
+      overrides: [gitServiceProvider.overrideWithValue(svc)],
+    );
     actions = c.read(repoActionsProvider(dir.path));
     seen = [];
     c.listen(busyProvider, (_, next) => seen.add(next));

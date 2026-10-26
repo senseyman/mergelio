@@ -2,16 +2,18 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_reader.dart';
-import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/state/merge_session.dart';
 import 'package:mergelio/state/repo_actions.dart';
 import 'package:mergelio/state/undo_stack.dart';
 
+import 'support/hermetic_git.dart';
+
 /// Exercises the real-git inverse-command undo against a temp repo.
 void main() {
   late Directory dir;
-  const svc = SystemGitService();
+  const svc = HermeticGit();
 
   Future<void> g(List<String> args) async {
     final r = await svc.run(args, repoPath: dir.path);
@@ -34,7 +36,9 @@ void main() {
   });
 
   ProviderContainer container() {
-    final c = ProviderContainer();
+    final c = ProviderContainer(
+      overrides: [gitServiceProvider.overrideWithValue(svc)],
+    );
     addTearDown(c.dispose);
     return c;
   }
