@@ -6,6 +6,8 @@
 
 **A free, cross-platform visual Git client for the desktop.**
 
+[mergelio.com](https://mergelio.com/) · [Download](https://github.com/senseyman/mergelio/releases/latest)
+
 
 [![License: BSD-3-Clause](https://img.shields.io/badge/license-BSD--3--Clause-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey.svg)](#installation)
@@ -405,7 +407,8 @@ The full list lives in **Preferences → Shortcuts**.
 ### Downloads
 
 Builds for every platform are attached to each entry on the
-[Releases page](https://github.com/senseyman/mergelio/releases). There is no
+[Releases page](https://github.com/senseyman/mergelio/releases), and the latest
+ones are linked from [mergelio.com](https://mergelio.com/). There is no
 updater — Mergelio never phones home, so a new version arrives only when you
 download it.
 
