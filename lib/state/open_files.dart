@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../domain/markdown_links.dart';
+
 /// The editor tabs of one repository: what is open, what is on top, what has
 /// unsaved text, and what has disappeared from disk since it was opened.
 class OpenFiles {
@@ -15,15 +17,21 @@ class OpenFiles {
   /// would recreate a file the user removed, so it is refused instead.
   final Set<String> gone;
 
+  /// Tabs showing their file rendered rather than as source. Every tab opens
+  /// on its source; the choice lasts as long as the tab does.
+  final Set<String> rendered;
+
   const OpenFiles({
     this.paths = const [],
     this.active,
     this.dirty = const {},
     this.gone = const {},
+    this.rendered = const {},
   });
 
   bool isDirty(String path) => dirty.contains(path);
   bool isGone(String path) => gone.contains(path);
+  bool isRendered(String path) => rendered.contains(path);
 
   OpenFiles _with({
     List<String>? paths,
@@ -31,11 +39,13 @@ class OpenFiles {
     bool clearActive = false,
     Set<String>? dirty,
     Set<String>? gone,
+    Set<String>? rendered,
   }) => OpenFiles(
     paths: paths ?? this.paths,
     active: clearActive ? null : (active ?? this.active),
     dirty: dirty ?? this.dirty,
     gone: gone ?? this.gone,
+    rendered: rendered ?? this.rendered,
   );
 }
 
@@ -69,6 +79,7 @@ class OpenFilesNotifier extends StateNotifier<OpenFiles> {
       active: active,
       dirty: {...state.dirty}..remove(path),
       gone: {...state.gone}..remove(path),
+      rendered: {...state.rendered}..remove(path),
     );
   }
 
@@ -104,7 +115,22 @@ class OpenFilesNotifier extends StateNotifier<OpenFiles> {
       active: state.active == from ? to : state.active,
       dirty: _moved(state.dirty, from, to),
       gone: _moved(state.gone, from, to)..remove(to),
+      // Only Markdown has a rendered view to keep.
+      rendered: isMarkdownPath(to)
+          ? _moved(state.rendered, from, to)
+          : ({...state.rendered}..remove(from)),
     );
+  }
+
+  void setRendered(String path, bool rendered) {
+    if (!state.paths.contains(path) ||
+        !isMarkdownPath(path) ||
+        state.isRendered(path) == rendered) {
+      return;
+    }
+    final next = {...state.rendered};
+    rendered ? next.add(path) : next.remove(path);
+    state = state._with(rendered: next);
   }
 
   void markGone(String path) {

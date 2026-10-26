@@ -3036,5 +3036,10 @@
   "@actFetchNotes": {"placeholders": {"remote": {"type": "String"}}},
   "actNoNotesToPush": "No notes to push",
   "actRemoteHasNoNotes": "{remote} has no notes",
-  "@actRemoteHasNoNotes": {"placeholders": {"remote": {"type": "String"}}}
+  "@actRemoteHasNoNotes": {"placeholders": {"remote": {"type": "String"}}},
+  "mdViewSource": "Source",
+  "mdViewRendered": "Preview",
+  "mdRemoteImageBlocked": "Remote images are not loaded",
+  "mdSideAbsent": "The file does not exist on this side",
+  "mdCouldNotOpenLink": "Could not open the link in your browser"
 }

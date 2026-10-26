@@ -232,4 +232,55 @@ void main() {
       expect(drafts.last, isNull);
     });
   });
+
+  testWidgets('save still works while the file is shown rendered', (
+    tester,
+  ) async {
+    final rendered = ValueNotifier(false);
+    addTearDown(rendered.dispose);
+    final saved = <String>[];
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          editableFileForPathProvider.overrideWith(
+            (ref, FileRef _) async => const EditableFile(text: 'abc'),
+          ),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          theme: ThemeData(extensions: [AppTokens.dark()]),
+          home: Scaffold(
+            body: ValueListenableBuilder(
+              valueListenable: rendered,
+              builder: (context, on, _) => FileTextEditor(
+                repoPath: '/r',
+                relPath: 'README.md',
+                onSave: (path, text) async {
+                  saved.add(text);
+                  return true;
+                },
+                renderedBuilder: on ? (context, text) => Text('R:$text') : null,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(TextField));
+    await tester.enterText(find.byType(TextField), 'abcd');
+    await tester.pump();
+
+    rendered.value = true;
+    await tester.pumpAndSettle();
+    expect(find.text('R:abcd'), findsOneWidget);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.control);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyS);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.control);
+    await tester.pumpAndSettle();
+
+    expect(saved, ['abcd']);
+  });
 }

@@ -174,4 +174,87 @@ void main() {
     expect(state().paths, ['a.txt']);
     expect(c.read(openFilesProvider('/other')).paths, ['z.txt']);
   });
+
+  group('rendered view', () {
+    test('a tab opens on its source', () {
+      notifier().open('README.md');
+
+      expect(state().isRendered('README.md'), isFalse);
+    });
+
+    test('each tab remembers its own view', () {
+      notifier()
+        ..open('a.md')
+        ..open('b.md')
+        ..setRendered('a.md', true);
+
+      expect(state().isRendered('a.md'), isTrue);
+      expect(state().isRendered('b.md'), isFalse);
+
+      notifier().setRendered('a.md', false);
+      expect(state().isRendered('a.md'), isFalse);
+    });
+
+    test('a file that is not open cannot be shown rendered', () {
+      notifier().setRendered('a.md', true);
+
+      expect(state().rendered, isEmpty);
+    });
+
+    test('closing a tab forgets its view, so reopening shows source', () {
+      notifier()
+        ..open('a.md')
+        ..setRendered('a.md', true)
+        ..close('a.md')
+        ..open('a.md');
+
+      expect(state().isRendered('a.md'), isFalse);
+    });
+
+    test('closing every tab forgets every view', () {
+      notifier()
+        ..open('a.md')
+        ..setRendered('a.md', true)
+        ..closeAll();
+
+      expect(state().rendered, isEmpty);
+    });
+
+    test('a renamed file keeps its view', () {
+      notifier()
+        ..open('a.md')
+        ..setRendered('a.md', true)
+        ..rename('a.md', 'docs/a.md');
+
+      expect(state().rendered, {'docs/a.md'});
+    });
+
+    test('a file that is not Markdown cannot be shown rendered', () {
+      notifier()
+        ..open('main.dart')
+        ..setRendered('main.dart', true);
+
+      expect(state().rendered, isEmpty);
+    });
+
+    test('renaming away from Markdown drops the rendered view', () {
+      notifier()
+        ..open('a.md')
+        ..setRendered('a.md', true)
+        ..rename('a.md', 'a.txt');
+
+      expect(state().rendered, isEmpty);
+    });
+
+    test('other changes leave the view alone', () {
+      notifier()
+        ..open('a.md')
+        ..setRendered('a.md', true)
+        ..open('b.md')
+        ..setDirty('a.md', true)
+        ..markGone('a.md');
+
+      expect(state().isRendered('a.md'), isTrue);
+    });
+  });
 }

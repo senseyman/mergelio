@@ -73,6 +73,11 @@ class FileTextEditor extends ConsumerStatefulWidget {
   /// matches what is on disk.
   final ValueChanged<EditorDraft?>? onDraftChanged;
 
+  /// Shown in place of the field while non-null, given the text the field
+  /// holds — saved or not. The field stays mounted underneath, so its text,
+  /// caret and undo history are all there on the way back.
+  final Widget Function(BuildContext, String text)? renderedBuilder;
+
   const FileTextEditor({
     super.key,
     required this.repoPath,
@@ -85,6 +90,7 @@ class FileTextEditor extends ConsumerStatefulWidget {
     this.handle,
     this.draft,
     this.onDraftChanged,
+    this.renderedBuilder,
   });
 
   @override
@@ -117,6 +123,34 @@ class _FileTextEditorState extends ConsumerState<FileTextEditor> {
   /// reach the app-level binding and undo the last git operation instead.
   final _undo = UndoHistoryController();
 
+  final _fieldFocus = FocusNode();
+
+  /// Held by the rendered view so save and the other keys still reach this
+  /// editor while the field is hidden.
+  final _renderedFocus = FocusNode();
+
+  @override
+  void didUpdateWidget(FileTextEditor old) {
+    super.didUpdateWidget(old);
+    // Find picks matches out in the field, which the rendered view hides;
+    // left open, it would come back with a stale query.
+    if (old.renderedBuilder == null && widget.renderedBuilder != null) {
+      _finding = false;
+      _query.clear();
+      // Taken outright: hiding the field hands focus back up the tree, to the
+      // navigator in Files mode, and autofocus never claims it from there.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _renderedFocus.requestFocus();
+      });
+    }
+    // Back from the rendered view, typing carries on where it left off.
+    if (old.renderedBuilder != null && widget.renderedBuilder == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _fieldFocus.requestFocus();
+      });
+    }
+  }
+
   @override
   void dispose() {
     if (widget.handle?._save == _save) widget.handle?._save = null;
@@ -125,6 +159,8 @@ class _FileTextEditorState extends ConsumerState<FileTextEditor> {
     _replacement.dispose();
     _scroll.dispose();
     _undo.dispose();
+    _fieldFocus.dispose();
+    _renderedFocus.dispose();
     super.dispose();
   }
 
@@ -150,7 +186,20 @@ class _FileTextEditorState extends ConsumerState<FileTextEditor> {
     caseSensitive: _caseSensitive,
   );
 
+  // Still bound while the rendered view is up, so the keys never reach the
+  // app-level undo of the last git operation, but they do nothing there:
+  // undoing would rewrite text nobody can see, and a save would write it.
+  void _undoEdit() {
+    if (widget.renderedBuilder == null) _undo.undo();
+  }
+
+  void _redoEdit() {
+    if (widget.renderedBuilder == null) _undo.redo();
+  }
+
   void _openFind() {
+    // Matches are picked out in the field, which a rendered view hides.
+    if (widget.renderedBuilder != null) return;
     setState(() => _finding = true);
     _goToMatch(0);
   }
@@ -321,6 +370,7 @@ class _FileTextEditorState extends ConsumerState<FileTextEditor> {
       context,
       FileEditorControls(saving: _saving, save: _save),
     );
+    final rendered = widget.renderedBuilder;
     final escape = _finding ? _closeFind : widget.onCancel;
     return CallbackShortcuts(
       bindings: {
@@ -330,46 +380,42 @@ class _FileTextEditorState extends ConsumerState<FileTextEditor> {
         const SingleActivator(LogicalKeyboardKey.keyF, control: true):
             _openFind,
         const SingleActivator(LogicalKeyboardKey.escape): ?escape,
-        const SingleActivator(LogicalKeyboardKey.keyZ, meta: true): _undo.undo,
+        const SingleActivator(LogicalKeyboardKey.keyZ, meta: true): _undoEdit,
         const SingleActivator(LogicalKeyboardKey.keyZ, control: true):
-            _undo.undo,
+            _undoEdit,
         const SingleActivator(LogicalKeyboardKey.keyZ, meta: true, shift: true):
-            _undo.redo,
+            _redoEdit,
         const SingleActivator(
           LogicalKeyboardKey.keyZ,
           control: true,
           shift: true,
-        ): _undo.redo,
+        ): _redoEdit,
       },
       child: Column(
         children: [
           if (_finding) _findBar(t),
           Expanded(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+            child: Stack(
+              fit: StackFit.expand,
               children: [
-                _gutter(t),
-                Expanded(
-                  child: TextField(
-                    key: const ValueKey('editor:body'),
-                    controller: _controller,
-                    scrollController: _scroll,
-                    undoController: _undo,
-                    maxLines: null,
-                    expands: true,
-                    autofocus: true,
-                    textAlignVertical: TextAlignVertical.top,
-                    cursorColor: t.accent,
-                    style: _codeStyle(t.textPrimary),
-                    decoration: const InputDecoration(
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                    ),
+                Offstage(
+                  offstage: rendered != null,
+                  child: ExcludeFocus(
+                    // Keys typed while the field is hidden must not land in
+                    // it.
+                    excluding: rendered != null,
+                    child: _field(t),
                   ),
                 ),
+                if (rendered != null)
+                  Positioned.fill(
+                    // Holds focus so save and the other shortcuts still work.
+                    child: Focus(
+                      focusNode: _renderedFocus,
+                      autofocus: true,
+                      child: rendered(context, _controller?.text ?? ''),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -378,6 +424,32 @@ class _FileTextEditorState extends ConsumerState<FileTextEditor> {
       ),
     );
   }
+
+  Widget _field(AppTokens t) => Row(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      _gutter(t),
+      Expanded(
+        child: TextField(
+          key: const ValueKey('editor:body'),
+          controller: _controller,
+          focusNode: _fieldFocus,
+          scrollController: _scroll,
+          undoController: _undo,
+          maxLines: null,
+          expands: true,
+          autofocus: true,
+          textAlignVertical: TextAlignVertical.top,
+          cursorColor: t.accent,
+          style: _codeStyle(t.textPrimary),
+          decoration: const InputDecoration(
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          ),
+        ),
+      ),
+    ],
+  );
 
   static TextStyle _codeStyle(Color color) =>
       AppFonts.mns(size: 12.5, color: color, height: 1.35);

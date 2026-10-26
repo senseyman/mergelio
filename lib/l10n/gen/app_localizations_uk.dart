@@ -5668,4 +5668,19 @@ class AppLocalizationsUk extends AppLocalizations {
   String actRemoteHasNoNotes(String remote) {
     return 'У $remote немає нотаток';
   }
+
+  @override
+  String get mdViewSource => 'Код';
+
+  @override
+  String get mdViewRendered => 'Перегляд';
+
+  @override
+  String get mdRemoteImageBlocked => 'Зображення з мережі не завантажуються';
+
+  @override
+  String get mdSideAbsent => 'З цього боку файлу немає';
+
+  @override
+  String get mdCouldNotOpenLink => 'Не вдалося відкрити посилання в браузері';
 }

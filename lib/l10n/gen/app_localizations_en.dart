@@ -5568,4 +5568,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String actRemoteHasNoNotes(String remote) {
     return '$remote has no notes';
   }
+
+  @override
+  String get mdViewSource => 'Source';
+
+  @override
+  String get mdViewRendered => 'Preview';
+
+  @override
+  String get mdRemoteImageBlocked => 'Remote images are not loaded';
+
+  @override
+  String get mdSideAbsent => 'The file does not exist on this side';
+
+  @override
+  String get mdCouldNotOpenLink => 'Could not open the link in your browser';
 }
