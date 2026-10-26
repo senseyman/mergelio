@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/core/tokens.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
+import 'package:mergelio/state/feedback.dart';
 import 'package:mergelio/ui/common/markdown_view.dart';
 
 Future<List<Uri>> _pump(
@@ -14,6 +15,7 @@ Future<List<Uri>> _pump(
   String path = 'docs/a.md',
   String? imageRoot,
   ValueChanged<String>? onOpenFile,
+  Future<bool> Function(Uri)? launch,
 }) async {
   final launched = <Uri>[];
   await tester.pumpWidget(
@@ -21,7 +23,7 @@ Future<List<Uri>> _pump(
       overrides: [
         markdownLaunchUrlProvider.overrideWithValue((uri) async {
           launched.add(uri);
-          return true;
+          return launch == null ? true : launch(uri);
         }),
       ],
       child: MaterialApp(
@@ -118,4 +120,23 @@ void main() {
     expect(find.byType(Image), findsNothing);
     expect(find.text('shot'), findsOneWidget);
   });
+
+  for (final (name, launch) in <(String, Future<bool> Function(Uri))>[
+    ('refuses', (_) async => false),
+    ('throws', (_) async => throw Exception('no browser')),
+  ]) {
+    testWidgets('a browser that $name is reported', (tester) async {
+      await _pump(tester, '[site](https://example.com/x)', launch: launch);
+
+      await tester.tap(find.textContaining('site', findRichText: true));
+      await tester.pumpAndSettle();
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(MarkdownView)),
+      );
+      expect(container.read(toastProvider).map((t) => t.title), [
+        'Could not open the link in your browser',
+      ]);
+    });
+  }
 }

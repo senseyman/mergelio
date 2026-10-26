@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../domain/markdown_links.dart';
+
 /// The editor tabs of one repository: what is open, what is on top, what has
 /// unsaved text, and what has disappeared from disk since it was opened.
 class OpenFiles {
@@ -113,12 +115,17 @@ class OpenFilesNotifier extends StateNotifier<OpenFiles> {
       active: state.active == from ? to : state.active,
       dirty: _moved(state.dirty, from, to),
       gone: _moved(state.gone, from, to)..remove(to),
-      rendered: _moved(state.rendered, from, to),
+      // Only Markdown has a rendered view to keep.
+      rendered: isMarkdownPath(to)
+          ? _moved(state.rendered, from, to)
+          : ({...state.rendered}..remove(from)),
     );
   }
 
   void setRendered(String path, bool rendered) {
-    if (!state.paths.contains(path) || state.isRendered(path) == rendered) {
+    if (!state.paths.contains(path) ||
+        !isMarkdownPath(path) ||
+        state.isRendered(path) == rendered) {
       return;
     }
     final next = {...state.rendered};

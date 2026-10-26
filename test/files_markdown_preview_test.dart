@@ -108,6 +108,10 @@ void main() {
     expect(_field.hitTestable(), findsNothing);
     // Keys must not reach a field nobody can see.
     expect(tester.widget<TextField>(_anyField).focusNode!.hasFocus, isFalse);
+    // But they must still reach the editor, for save and its other keys,
+    // rather than falling back to the navigator.
+    final focused = FocusManager.instance.primaryFocus!.context!;
+    expect(focused.findAncestorWidgetOfExactType<FileTextEditor>(), isNotNull);
 
     await tester.tap(_source);
     await tester.pumpAndSettle();
@@ -209,22 +213,94 @@ void main() {
     expect(open.active, 'docs/guide.md');
   });
 
-  testWidgets('undo cannot change the text behind the rendered view', (
+  testWidgets('undo and redo cannot change the text behind the rendered view', (
     tester,
   ) async {
     await _pump(tester, ['README.md']);
     await tester.tap(_field);
-    await tester.enterText(_field, '# Typed\n');
-    await tester.pump();
+    // Undo history ignores a field that has only just taken focus.
+    await tester.pump(const Duration(milliseconds: 600));
+    // Typed through the input channel so the edit lands in undo history, and
+    // on the same number of lines so nothing else forces a rebuild.
+    const typed = '# Hello!\n\nSee [the guide](docs/guide.md).\n';
+    tester.testTextInput.updateEditingValue(
+      const TextEditingValue(
+        text: typed,
+        selection: TextSelection.collapsed(offset: 8),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 600));
+    await tester.pumpAndSettle();
+
+    String text() => tester.widget<TextField>(_anyField).controller!.text;
+    Future<void> press({bool shift = false}) async {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.control);
+      if (shift) await tester.sendKeyDownEvent(LogicalKeyboardKey.shift);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+      if (shift) await tester.sendKeyUpEvent(LogicalKeyboardKey.shift);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.control);
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> view(Finder toggle) async {
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+    }
+
+    // Undo is held off while previewing, so what is shown is what is held.
+    await view(_rendered);
+    await press();
+    expect(text(), typed);
+    expect(find.textContaining('Hello!', findRichText: true), findsOneWidget);
+
+    // On the source it works as before.
+    await view(_source);
+    await press();
+    expect(text(), _files['README.md']);
+
+    // Redo is held off the same way.
+    await view(_rendered);
+    await press(shift: true);
+    expect(text(), _files['README.md']);
+
+    await view(_source);
+    await press(shift: true);
+    expect(text(), typed);
+  });
+
+  testWidgets('find open on the source is closed by switching to Preview', (
+    tester,
+  ) async {
+    await _pump(tester, ['README.md']);
+    await tester.tap(_field);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.control);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyF);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.control);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('find:query')), findsOneWidget);
 
     await tester.tap(_rendered);
     await tester.pumpAndSettle();
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.control);
-    await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.control);
+    await tester.tap(_source);
     await tester.pumpAndSettle();
 
-    expect(tester.widget<TextField>(_anyField).controller!.text, '# Typed\n');
+    expect(find.byKey(const ValueKey('find:query')), findsNothing);
+  });
+
+  testWidgets('a tab renamed away from Markdown shows its source', (
+    tester,
+  ) async {
+    final container = await _pump(tester, ['README.md']);
+    await tester.tap(_rendered);
+    await tester.pumpAndSettle();
+
+    container
+        .read(openFilesProvider('/r').notifier)
+        .rename('README.md', 'main.dart');
+    await tester.pumpAndSettle();
+
+    expect(find.byType(MarkdownView), findsNothing);
+    expect(_field.hitTestable(), findsOneWidget);
   });
 
   testWidgets('find stays closed while the file is rendered', (tester) async {

@@ -229,6 +229,23 @@ void main() {
       expect(state().rendered, {'docs/a.md'});
     });
 
+    test('a file that is not Markdown cannot be shown rendered', () {
+      notifier()
+        ..open('main.dart')
+        ..setRendered('main.dart', true);
+
+      expect(state().rendered, isEmpty);
+    });
+
+    test('renaming away from Markdown drops the rendered view', () {
+      notifier()
+        ..open('a.md')
+        ..setRendered('a.md', true)
+        ..rename('a.md', 'a.txt');
+
+      expect(state().rendered, isEmpty);
+    });
+
     test('other changes leave the view alone', () {
       notifier()
         ..open('a.md')

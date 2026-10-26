@@ -3040,5 +3040,6 @@
   "mdViewSource": "Source",
   "mdViewRendered": "Preview",
   "mdRemoteImageBlocked": "Remote images are not loaded",
-  "mdSideAbsent": "The file does not exist on this side"
+  "mdSideAbsent": "The file does not exist on this side",
+  "mdCouldNotOpenLink": "Could not open the link in your browser"
 }

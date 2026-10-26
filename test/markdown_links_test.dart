@@ -112,6 +112,20 @@ void main() {
       }
     });
 
+    test('an encoded climb or backslash leads nowhere', () {
+      for (final href in [
+        '..%2f..%2fsecret.md',
+        '%2e%2e/%2e%2e/secret.md',
+        'docs%5c..%5c..%5csecret.md',
+      ]) {
+        expect(
+          resolveMarkdownHref(href, from: 'docs/a.md'),
+          isNull,
+          reason: href,
+        );
+      }
+    });
+
     test('a link to a folder leads nowhere', () {
       expect(resolveMarkdownHref('docs/', from: 'a.md'), isNull);
       expect(resolveMarkdownHref('.', from: 'a.md'), isNull);

@@ -9,6 +9,7 @@ import '../../core/theme.dart';
 import '../../core/tokens.dart';
 import '../../domain/markdown_links.dart';
 import '../../l10n/gen/app_localizations.dart';
+import '../../state/feedback.dart';
 
 /// How a web link in a rendered Markdown file opens. Overridable so a test
 /// can watch what would have been opened without a real launch reaching a
@@ -66,7 +67,7 @@ class MarkdownView extends ConsumerWidget {
             onTapLink: (_, href, _) {
               switch (resolveMarkdownHref(href, from: path)) {
                 case WebTarget(:final uri):
-                  ref.read(markdownLaunchUrlProvider)(uri);
+                  _launch(context, ref, uri);
                 case RepoFileTarget(path: final target):
                   onOpenFile?.call(target);
                 case null:
@@ -78,6 +79,18 @@ class MarkdownView extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _launch(BuildContext context, WidgetRef ref, Uri uri) async {
+    final failed = AppLocalizations.of(context).mdCouldNotOpenLink;
+    final toasts = ref.read(toastProvider.notifier);
+    bool opened;
+    try {
+      opened = await ref.read(markdownLaunchUrlProvider)(uri);
+    } on Object {
+      opened = false;
+    }
+    if (!opened) toasts.show(failed, kind: ToastKind.error);
   }
 
   Widget _image(BuildContext context, Uri uri, String? alt) {

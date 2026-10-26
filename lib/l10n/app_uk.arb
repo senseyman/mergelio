@@ -1817,5 +1817,6 @@
   "mdViewSource": "Код",
   "mdViewRendered": "Перегляд",
   "mdRemoteImageBlocked": "Зображення з мережі не завантажуються",
-  "mdSideAbsent": "З цього боку файлу немає"
+  "mdSideAbsent": "З цього боку файлу немає",
+  "mdCouldNotOpenLink": "Не вдалося відкрити посилання в браузері"
 }

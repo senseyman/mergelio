@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
+import '../../domain/file_edit.dart';
 import '../../domain/git/blob.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/binary_diff.dart';
@@ -118,7 +119,11 @@ class _MarkdownSide extends ConsumerWidget {
           data: (load) {
             if (load == null) return note(l.mdSideAbsent);
             final bytes = load.bytes;
-            if (bytes == null) return note(l.bdTooLarge);
+            // The parser runs on the UI thread on every rebuild; past what the
+            // editor would open, a version is not rendered either.
+            if (bytes == null || bytes.length > maxEditableBytes) {
+              return note(l.bdTooLarge);
+            }
             return MarkdownView(
               text: utf8.decode(bytes, allowMalformed: true),
               path: path,

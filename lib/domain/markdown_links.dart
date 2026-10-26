@@ -21,8 +21,10 @@ class RepoFileTarget extends MarkdownTarget {
 
 /// Resolves [href] as written in the Markdown file at the repo-relative
 /// [from]. Null when it leads nowhere the app will follow: an in-page anchor,
-/// a folder, a scheme other than http(s), or a path climbing out of the
-/// repository.
+/// a path that names a folder by its form (a trailing `/`, `.` or `..`), a
+/// scheme other than http(s), or a path climbing out of the repository. A
+/// folder named without a slash cannot be told from a file here; opening it
+/// fails like any other unreadable file.
 MarkdownTarget? resolveMarkdownHref(String? href, {required String from}) {
   if (href == null || href.isEmpty || href.startsWith('#')) return null;
   final Uri uri;

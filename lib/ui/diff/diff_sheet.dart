@@ -13,11 +13,11 @@ import '../../domain/git/line_history.dart';
 import '../../domain/git/models.dart';
 import '../../domain/git/stage_patch.dart';
 import '../../domain/git/stash.dart';
-import '../../domain/markdown_links.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/binary_diff.dart';
 import '../../state/diff_document.dart';
 import '../../state/diff_drafts.dart';
+import '../../state/diff_rendered.dart';
 import '../../state/compare_target.dart';
 import '../../state/diff_target.dart';
 import '../../state/diff_view_options.dart';
@@ -277,18 +277,15 @@ class _DiffHeader extends ConsumerWidget {
     // whitespace change is never silently missing from what the user reads.
     final optionsActive = target.wholeFile || !options.isDefault;
 
-    // A Markdown file can also be read rendered. Not while editing, which
-    // shows the text being typed, nor for an LFS file, which shows its card.
-    final canRender = isMarkdownPath(target.path) && !editing && !isLfs;
+    // A Markdown file can also be read rendered, but not while editing,
+    // which shows the text being typed.
+    final canRender =
+        !editing && doc != null && canRenderMarkdownDiff(target.path, doc);
     final fileRef = FileRef(target.repoPath, target.path);
     final rendered =
         canRender && ref.watch(diffRenderedFilesProvider).contains(fileRef);
-    void setRendered(bool on) {
-      final files = ref.read(diffRenderedFilesProvider.notifier);
-      files.state = on
-          ? {...files.state, fileRef}
-          : ({...files.state}..remove(fileRef));
-    }
+    void setRendered(bool on) =>
+        ref.read(diffRenderedFilesProvider.notifier).set(fileRef, on);
 
     // Handing the file to another program. The editor always gets the
     // working-tree copy, so only the unstaged side's line numbers are the
@@ -710,8 +707,7 @@ class _DiffBodyState extends ConsumerState<_DiffBody> {
                 version: doc,
               );
             }
-            if (!doc.isEmpty &&
-                isMarkdownPath(target.path) &&
+            if (canRenderMarkdownDiff(target.path, doc) &&
                 ref
                     .watch(diffRenderedFilesProvider)
                     .contains(FileRef(target.repoPath, target.path))) {

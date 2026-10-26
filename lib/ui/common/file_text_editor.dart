@@ -125,9 +125,24 @@ class _FileTextEditorState extends ConsumerState<FileTextEditor> {
 
   final _fieldFocus = FocusNode();
 
+  /// Held by the rendered view so save and the other keys still reach this
+  /// editor while the field is hidden.
+  final _renderedFocus = FocusNode();
+
   @override
   void didUpdateWidget(FileTextEditor old) {
     super.didUpdateWidget(old);
+    // Find picks matches out in the field, which the rendered view hides;
+    // left open, it would come back with a stale query.
+    if (old.renderedBuilder == null && widget.renderedBuilder != null) {
+      _finding = false;
+      _query.clear();
+      // Taken outright: hiding the field hands focus back up the tree, to the
+      // navigator in Files mode, and autofocus never claims it from there.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _renderedFocus.requestFocus();
+      });
+    }
     // Back from the rendered view, typing carries on where it left off.
     if (old.renderedBuilder != null && widget.renderedBuilder == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -145,6 +160,7 @@ class _FileTextEditorState extends ConsumerState<FileTextEditor> {
     _scroll.dispose();
     _undo.dispose();
     _fieldFocus.dispose();
+    _renderedFocus.dispose();
     super.dispose();
   }
 
@@ -169,6 +185,17 @@ class _FileTextEditorState extends ConsumerState<FileTextEditor> {
     _query.text,
     caseSensitive: _caseSensitive,
   );
+
+  // Still bound while the rendered view is up, so the keys never reach the
+  // app-level undo of the last git operation, but they do nothing there:
+  // undoing would rewrite text nobody can see, and a save would write it.
+  void _undoEdit() {
+    if (widget.renderedBuilder == null) _undo.undo();
+  }
+
+  void _redoEdit() {
+    if (widget.renderedBuilder == null) _undo.redo();
+  }
 
   void _openFind() {
     // Matches are picked out in the field, which a rendered view hides.
@@ -344,8 +371,7 @@ class _FileTextEditorState extends ConsumerState<FileTextEditor> {
       FileEditorControls(saving: _saving, save: _save),
     );
     final rendered = widget.renderedBuilder;
-    final finding = _finding && rendered == null;
-    final escape = finding ? _closeFind : widget.onCancel;
+    final escape = _finding ? _closeFind : widget.onCancel;
     return CallbackShortcuts(
       bindings: {
         const SingleActivator(LogicalKeyboardKey.keyS, meta: true): _save,
@@ -354,20 +380,20 @@ class _FileTextEditorState extends ConsumerState<FileTextEditor> {
         const SingleActivator(LogicalKeyboardKey.keyF, control: true):
             _openFind,
         const SingleActivator(LogicalKeyboardKey.escape): ?escape,
-        const SingleActivator(LogicalKeyboardKey.keyZ, meta: true): _undo.undo,
+        const SingleActivator(LogicalKeyboardKey.keyZ, meta: true): _undoEdit,
         const SingleActivator(LogicalKeyboardKey.keyZ, control: true):
-            _undo.undo,
+            _undoEdit,
         const SingleActivator(LogicalKeyboardKey.keyZ, meta: true, shift: true):
-            _undo.redo,
+            _redoEdit,
         const SingleActivator(
           LogicalKeyboardKey.keyZ,
           control: true,
           shift: true,
-        ): _undo.redo,
+        ): _redoEdit,
       },
       child: Column(
         children: [
-          if (finding) _findBar(t),
+          if (_finding) _findBar(t),
           Expanded(
             child: Stack(
               fit: StackFit.expand,
@@ -385,6 +411,7 @@ class _FileTextEditorState extends ConsumerState<FileTextEditor> {
                   Positioned.fill(
                     // Holds focus so save and the other shortcuts still work.
                     child: Focus(
+                      focusNode: _renderedFocus,
                       autofocus: true,
                       child: rendered(context, _controller?.text ?? ''),
                     ),

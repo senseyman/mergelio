@@ -5680,4 +5680,7 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get mdSideAbsent => 'З цього боку файлу немає';
+
+  @override
+  String get mdCouldNotOpenLink => 'Не вдалося відкрити посилання в браузері';
 }

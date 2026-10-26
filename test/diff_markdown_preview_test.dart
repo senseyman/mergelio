@@ -10,13 +10,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/core/tokens.dart';
 import 'package:mergelio/data/settings_repository.dart';
+import 'package:mergelio/domain/file_edit.dart';
 import 'package:mergelio/domain/git/blob.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/state/binary_diff.dart';
 import 'package:mergelio/state/diff_target.dart';
-import 'package:mergelio/state/diff_view_options.dart';
+import 'package:mergelio/state/diff_rendered.dart';
 import 'package:mergelio/state/file_editor.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
@@ -42,6 +43,21 @@ new file mode 100644
 +# Fresh title
 ''';
 
+const _deleted = '''
+diff --git a/gone.md b/gone.md
+deleted file mode 100644
+--- a/gone.md
++++ /dev/null
+@@ -1 +0,0 @@
+-# Gone title
+''';
+
+const _binary = '''
+diff --git a/bin.md b/bin.md
+index 1111111..2222222 100644
+Binary files a/bin.md and b/bin.md differ
+''';
+
 /// Serves a canned working-tree diff for whichever path is asked for.
 class _FakeGit implements GitService {
   @override
@@ -54,10 +70,18 @@ class _FakeGit implements GitService {
     String? stdin,
   }) async {
     if (args.first == 'diff' && !args.contains('--cached')) {
-      for (final path in ['README.md', 'notes.md', 'pic.md', 'a.txt']) {
+      for (final path in [
+        'README.md',
+        'notes.md',
+        'pic.md',
+        'huge.md',
+        'a.txt',
+      ]) {
         if (args.contains(path)) return GitResult(0, _modified(path), '');
       }
       if (args.contains('fresh.md')) return const GitResult(0, _added, '');
+      if (args.contains('gone.md')) return const GitResult(0, _deleted, '');
+      if (args.contains('bin.md')) return const GitResult(0, _binary, '');
     }
     return const GitResult(0, '', '');
   }
@@ -79,6 +103,9 @@ final _blobs = <BlobRef, BlobLoad>{
     WorktreeBlob(path): _text('# New title\n'),
   },
   const WorktreeBlob('fresh.md'): _text('# Fresh title\n'),
+  const IndexBlob('gone.md'): _text('# Gone title\n'),
+  const IndexBlob('huge.md'): _text('# Old title\n'),
+  WorktreeBlob('huge.md'): _text('#' * (maxEditableBytes + 1)),
   const IndexBlob('pic.md'): _text('![old shot](shot.png)\n'),
   const WorktreeBlob('pic.md'): _text('![new shot](shot.png)\n'),
 };
@@ -212,6 +239,54 @@ void main() {
     expect((image.image as FileImage).file.path, '/r/shot.png');
     expect(find.text('old shot'), findsOneWidget);
   });
+
+  testWidgets('inline shows the old version of a deleted file', (tester) async {
+    await _open(tester, 'gone.md', split: false);
+
+    await tester.tap(_rendered);
+    await tester.pumpAndSettle();
+
+    expect(_rich('Gone title'), findsOneWidget);
+  });
+
+  testWidgets('split shows a deleted file only on its old side', (
+    tester,
+  ) async {
+    await _open(tester, 'gone.md');
+
+    await tester.tap(_rendered);
+    await tester.pumpAndSettle();
+
+    expect(_rich('Gone title'), findsOneWidget);
+    expect(find.text('The file does not exist on this side'), findsOneWidget);
+  });
+
+  testWidgets('a Markdown file git reads as binary offers no rendered view', (
+    tester,
+  ) async {
+    await _open(tester, 'bin.md');
+
+    expect(_rendered, findsNothing);
+  });
+
+  testWidgets('a Markdown file with nothing to show offers no rendered view', (
+    tester,
+  ) async {
+    await _open(tester, 'empty.md');
+
+    expect(_rendered, findsNothing);
+  });
+
+  testWidgets('a version too large to render says so', (tester) async {
+    await _open(tester, 'huge.md');
+
+    await tester.tap(_rendered);
+    await tester.pumpAndSettle();
+
+    expect(_rich('Old title'), findsOneWidget);
+    expect(find.text('Too large to preview'), findsOneWidget);
+    // Without the cap the parser grinds for minutes; fail rather than hang.
+  }, timeout: const Timeout(Duration(seconds: 30)));
 
   testWidgets('each file keeps its own view', (tester) async {
     final container = await _open(tester, 'README.md');

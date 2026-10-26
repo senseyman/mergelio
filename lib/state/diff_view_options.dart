@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/git/git_reader.dart';
-import 'file_editor.dart';
 import 'settings.dart';
 
 /// Context widths offered in the diff sheet, besides the whole-file view.
@@ -63,7 +62,3 @@ class DiffViewOptions {
 final diffViewOptionsProvider = StateProvider<DiffViewOptions>(
   (_) => const DiffViewOptions(),
 );
-
-/// Markdown files the diff sheet shows rendered rather than as a diff. Each
-/// file opens on its diff and keeps the choice for the rest of the session.
-final diffRenderedFilesProvider = StateProvider<Set<FileRef>>((_) => const {});

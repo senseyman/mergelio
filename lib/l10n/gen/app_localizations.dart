@@ -9103,6 +9103,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The file does not exist on this side'**
   String get mdSideAbsent;
+
+  /// No description provided for @mdCouldNotOpenLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the link in your browser'**
+  String get mdCouldNotOpenLink;
 }
 
 class _AppLocalizationsDelegate

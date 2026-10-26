@@ -5580,4 +5580,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mdSideAbsent => 'The file does not exist on this side';
+
+  @override
+  String get mdCouldNotOpenLink => 'Could not open the link in your browser';
 }
