@@ -131,6 +131,8 @@ class _ToolGit implements GitService {
   }) async {
     calls.add(a);
     stdins.add(stdin);
+    // The working copy differs from every version asked about.
+    if (a.contains('--no-textconv')) return const GitResult(1, '', '');
     if (a.contains('ls-tree')) {
       return GitResult(0, '100644 blob 0123abc\t${a.last}\x00', '');
     }

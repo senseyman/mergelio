@@ -4793,6 +4793,11 @@ class AppLocalizationsUk extends AppLocalizations {
   }
 
   @override
+  String actRestoreAlreadyMatches(String path, String sha) {
+    return '$path уже збігається з $sha';
+  }
+
+  @override
   String get actDiscardAll => 'Відкидання всіх змін';
 
   @override

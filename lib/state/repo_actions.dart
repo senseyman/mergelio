@@ -981,6 +981,28 @@ class RepoActions {
             );
         return;
       }
+      // Restoring the copy already there would change nothing, and with no
+      // visible change the action looks like it never ran.
+      final same = await _git.run([
+        '--literal-pathspecs',
+        'diff',
+        '--no-ext-diff',
+        '--no-textconv',
+        '--quiet',
+        rev,
+        '--',
+        filePath,
+      ], repoPath: path);
+      if (same.exitCode == 0) {
+        _ref
+            .read(toastProvider.notifier)
+            .show(
+              _l.actRestoreAlreadyMatches(filePath, _short(rev)),
+              kind: ToastKind.info,
+            );
+        return;
+      }
+      if (same.exitCode != 1) throw GitException('git diff failed', same);
       // Either side may be a symlink, which file reads and writes would
       // follow out of the repository; it is kept and put back as a link.
       final wasLink = await FileSystemEntity.isLink(abs);
@@ -995,7 +1017,7 @@ class RepoActions {
 
     Future<void> restore() => _writer.restoreFromRev(rev, filePath);
 
-    await _undoable(
+    final done = await _undoable(
       label,
       restore,
       undo: () async {
@@ -1014,6 +1036,13 @@ class RepoActions {
       },
       redo: restore,
     );
+    // Restores usually start from a commit or history view where the working
+    // tree is out of sight, so the result is said out loud.
+    if (done) {
+      _ref
+          .read(toastProvider.notifier)
+          .show(_l.actComplete(label), kind: ToastKind.success);
+    }
   }
 
   /// Sets [file]'s permission bits to [mode]. Windows keeps none to set.

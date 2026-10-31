@@ -7766,6 +7766,12 @@ abstract class AppLocalizations {
   /// **'{path} does not exist in {sha}'**
   String actRestoreMissing(String path, String sha);
 
+  /// No description provided for @actRestoreAlreadyMatches.
+  ///
+  /// In en, this message translates to:
+  /// **'{path} already matches {sha}'**
+  String actRestoreAlreadyMatches(String path, String sha);
+
   /// No description provided for @actDiscardAll.
   ///
   /// In en, this message translates to:

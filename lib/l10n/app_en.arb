@@ -2751,6 +2751,8 @@
   "@actRestoreNotAFile": {"placeholders": {"path": {"type": "String"}, "sha": {"type": "String"}}},
   "actRestoreMissing": "{path} does not exist in {sha}",
   "@actRestoreMissing": {"placeholders": {"path": {"type": "String"}, "sha": {"type": "String"}}},
+  "actRestoreAlreadyMatches": "{path} already matches {sha}",
+  "@actRestoreAlreadyMatches": {"placeholders": {"path": {"type": "String"}, "sha": {"type": "String"}}},
   "actDiscardAll": "Discard all changes",
   "actDiscardFiles": "{count, plural, =1{Discard {count} file} other{Discard {count} files}}",
   "@actDiscardFiles": {"placeholders": {"count": {"type": "int"}}},

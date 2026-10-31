@@ -85,6 +85,29 @@ void main() {
     expect(await file('a.txt').readAsString(), 'v1\n');
   });
 
+  test('says so when the working copy already matches the version', () async {
+    final c = container();
+    final head = await g(['rev-parse', 'HEAD']);
+
+    await c
+        .read(repoActionsProvider(dir.path))
+        .restoreFileVersion(head, 'a.txt');
+
+    expect(c.read(toastProvider).last.kind, ToastKind.info);
+    expect(c.read(toastProvider).last.title, contains('already matches'));
+    expect(c.read(undoProvider(dir.path)).canUndo, isFalse);
+    expect(await file('a.txt').readAsString(), 'v2\n');
+  });
+
+  test('a restore that changed the file says it is done', () async {
+    final c = container();
+
+    await c.read(repoActionsProvider(dir.path)).restoreFileVersion(v1, 'a.txt');
+
+    expect(c.read(toastProvider).last.kind, ToastKind.success);
+    expect(c.read(undoProvider(dir.path)).canUndo, isTrue);
+  });
+
   test('undo removes a file the restore brought back', () async {
     await g(['rm', '-q', 'a.txt']);
     await g(['commit', '-q', '-m', 'gone']);

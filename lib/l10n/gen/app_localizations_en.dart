@@ -4713,6 +4713,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String actRestoreAlreadyMatches(String path, String sha) {
+    return '$path already matches $sha';
+  }
+
+  @override
   String get actDiscardAll => 'Discard all changes';
 
   @override
