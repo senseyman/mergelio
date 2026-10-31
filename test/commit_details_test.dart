@@ -221,6 +221,7 @@ void main() {
       await tester.pump();
     }
     final restore = git.calls.indexWhere((c) => c.contains('restore'));
+    expect(restore, isNot(-1), reason: 'git restore never ran');
     expect(git.calls[restore], contains('--source=1111111aaaa'));
     expect(git.stdins[restore], 'lib/old.dart\x00');
   });
