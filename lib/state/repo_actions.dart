@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
@@ -939,58 +940,90 @@ class RepoActions {
   }
 
   /// Puts [filePath] as it was at [rev] into the working tree, leaving the
-  /// index alone so the user reviews and commits it. Undoable: undo writes
-  /// back the bytes it replaced, or removes a file it brought back.
+  /// index alone so the user reviews and commits it. Undoable: undo puts back
+  /// the bytes and mode it replaced, or removes a file it brought back.
   ///
   /// Refuses when [rev] holds no file at [filePath]: git would delete the
   /// working-tree copy, which a history row from before a rename would
   /// otherwise do.
   Future<void> restoreFileVersion(String rev, String filePath) async {
     if (_blockedByRepoOp) return;
-    final type = await _git.run([
-      'cat-file',
-      '-t',
-      '$rev:$filePath',
-    ], repoPath: path);
-    if (!type.ok || type.out != 'blob') {
-      _ref
-          .read(toastProvider.notifier)
-          .show(
-            _l.actRestoreNotAFile(filePath, _short(rev)),
-            kind: ToastKind.warning,
-          );
-      return;
-    }
-    // Either side may be a symlink, which file reads and writes would follow
-    // out of the repository; it is kept and put back as a link instead.
+    final label = _l.actRestoreFileVersion(filePath, _short(rev));
     final abs = '$path/$filePath';
     final link = Link(abs);
-    final wasLink = await FileSystemEntity.isLink(abs);
-    final linkTarget = wasLink ? await link.target() : null;
     final file = File(abs);
-    final before = !wasLink && await file.exists()
-        ? await file.readAsBytes()
-        : null;
+    final String? linkTarget;
+    final Uint8List? before;
+    final int? mode;
+    try {
+      // ls-tree names the entry's type without reading the object, and lists
+      // nothing for a path the revision lacks — telling that apart from a
+      // revision git cannot read at all.
+      final r = await _git.run([
+        '--literal-pathspecs',
+        'ls-tree',
+        '--full-tree',
+        '-z',
+        rev,
+        '--',
+        filePath,
+      ], repoPath: path);
+      if (!r.ok) throw GitException('git ls-tree failed', r);
+      final type = r.stdout.isEmpty ? null : r.stdout.split(' ')[1];
+      if (type != 'blob') {
+        _ref
+            .read(toastProvider.notifier)
+            .show(
+              type == null
+                  ? _l.actRestoreMissing(filePath, _short(rev))
+                  : _l.actRestoreNotAFile(filePath, _short(rev)),
+              kind: ToastKind.warning,
+            );
+        return;
+      }
+      // Either side may be a symlink, which file reads and writes would
+      // follow out of the repository; it is kept and put back as a link.
+      final wasLink = await FileSystemEntity.isLink(abs);
+      linkTarget = wasLink ? await link.target() : null;
+      final isFile = !wasLink && await file.exists();
+      before = isFile ? await file.readAsBytes() : null;
+      mode = isFile ? (await file.stat()).mode & 0xfff : null;
+    } on Object catch (e) {
+      _toastErr(label, e);
+      return;
+    }
 
     Future<void> restore() => _writer.restoreFromRev(rev, filePath);
 
     await _undoable(
-      _l.actRestoreFileVersion(filePath, _short(rev)),
+      label,
       restore,
       undo: () async {
-        if (await FileSystemEntity.isLink(abs)) {
-          await link.delete();
+        if (await FileSystemEntity.isLink(abs)) await link.delete();
+        if (linkTarget case final target?) {
+          if (await file.exists()) await file.delete();
+          await link.create(target);
+        } else if (before case final bytes?) {
+          // Written over in place where a file stands, so the file keeps its
+          // identity; git may have recreated it with another mode, though.
+          await file.writeAsBytes(bytes);
+          await _setPosixMode(abs, mode!);
         } else if (await file.exists()) {
           await file.delete();
-        }
-        if (linkTarget != null) {
-          await link.create(linkTarget);
-        } else if (before != null) {
-          await file.writeAsBytes(before);
         }
       },
       redo: restore,
     );
+  }
+
+  /// Sets [file]'s permission bits to [mode]. Windows keeps none to set.
+  static Future<void> _setPosixMode(String file, int mode) async {
+    if (Platform.isWindows) return;
+    if ((await File(file).stat()).mode & 0xfff == mode) return;
+    final r = await Process.run('chmod', [mode.toRadixString(8), file]);
+    if (r.exitCode != 0) {
+      throw FileSystemException('chmod failed: ${r.stderr}', file);
+    }
   }
 
   /// Discards every uncommitted change at once: tracked files revert to HEAD,

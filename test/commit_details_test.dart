@@ -118,6 +118,7 @@ Widget _harness({
 /// Answers the tool config read with a diff tool and records what ran.
 class _ToolGit implements GitService {
   final calls = <List<String>>[];
+  final stdins = <String?>[];
 
   @override
   Future<GitResult> run(
@@ -129,6 +130,10 @@ class _ToolGit implements GitService {
     String? stdin,
   }) async {
     calls.add(a);
+    stdins.add(stdin);
+    if (a.contains('ls-tree')) {
+      return GitResult(0, '100644 blob 0123abc\t${a.last}\x00', '');
+    }
     if (a.first == 'config') return const GitResult(0, 'diff.tool\nx\x00', '');
     if (a.first == 'rev-parse') return const GitResult(0, '1111111aaaa\n', '');
     return const GitResult(0, '', '');
@@ -203,11 +208,21 @@ void main() {
     expect(find.text('Restore this version'), findsOneWidget);
     await tester.tap(find.text('Restore version before this commit'));
     await tester.pumpAndSettle();
-    expect(git.calls.where((c) => c.first == 'cat-file').single, [
-      'cat-file',
-      '-t',
-      '1111111aaaa:lib/old.dart',
-    ]);
+    // The action snapshots the working-tree file, real I/O that fake time
+    // never completes.
+    for (
+      var i = 0;
+      i < 50 && !git.calls.any((c) => c.contains('restore'));
+      i++
+    ) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
+      await tester.pump();
+    }
+    final restore = git.calls.indexWhere((c) => c.contains('restore'));
+    expect(git.calls[restore], contains('--source=1111111aaaa'));
+    expect(git.stdins[restore], 'lib/old.dart\x00');
   });
 
   testWidgets('shows metadata, signature and changed files', (tester) async {

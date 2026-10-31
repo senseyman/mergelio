@@ -4708,6 +4708,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String actRestoreMissing(String path, String sha) {
+    return '$path does not exist in $sha';
+  }
+
+  @override
   String get actDiscardAll => 'Discard all changes';
 
   @override

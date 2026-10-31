@@ -7760,6 +7760,12 @@ abstract class AppLocalizations {
   /// **'{path} is not a file in {sha}'**
   String actRestoreNotAFile(String path, String sha);
 
+  /// No description provided for @actRestoreMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'{path} does not exist in {sha}'**
+  String actRestoreMissing(String path, String sha);
+
   /// No description provided for @actDiscardAll.
   ///
   /// In en, this message translates to:

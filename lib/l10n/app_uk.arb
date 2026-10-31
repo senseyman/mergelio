@@ -1594,6 +1594,7 @@
   "actDiscardFile": "Відкидання {path}",
   "actRestoreFileVersion": "Відновлення {path} з {sha}",
   "actRestoreNotAFile": "{path} не є файлом у {sha}",
+  "actRestoreMissing": "{path} не існує в {sha}",
   "actDiscardAll": "Відкидання всіх змін",
   "actDiscardFiles": "{count, plural, one{Відкидання {count} файлу} few{Відкидання {count} файлів} many{Відкидання {count} файлів} other{Відкидання {count} файлу}}",
   "actDiscardHunk": "Відкидання блоку змін",

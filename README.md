@@ -162,6 +162,11 @@ change never needs a second window.*
   a toggle to see them again. A missing file, or one git would reject (an
   abbreviated sha, say), is left out and named in the menu rather than breaking
   blame.
+- **Restore a file from any commit**: a commit's file list offers the file as
+  that commit left it or as it was just before; File history offers any row's
+  version. Only the working tree changes — nothing is staged — and one undo puts
+  back the previous content. A commit where the path is not a file is refused
+  rather than deleting your copy.
 - **Line history** (`git log -L`): pick a line or a run of lines — in blame, or
   in any diff — and see every commit that changed just those lines, each with
   what it did to them. Follows the lines back through renames.

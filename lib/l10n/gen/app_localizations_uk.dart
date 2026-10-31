@@ -4788,6 +4788,11 @@ class AppLocalizationsUk extends AppLocalizations {
   }
 
   @override
+  String actRestoreMissing(String path, String sha) {
+    return '$path не існує в $sha';
+  }
+
+  @override
   String get actDiscardAll => 'Відкидання всіх змін';
 
   @override
