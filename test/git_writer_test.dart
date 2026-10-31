@@ -282,5 +282,38 @@ void main() {
       expect((await status())['a.txt'].isStaged, isFalse);
       expect(await File('${dir.path}/a.txt').readAsString(), 'changed\n');
     });
+
+    test(
+      'restoreFromRev writes the old content and leaves the index',
+      () async {
+        await write('*.txt', 'star v1\n');
+        await g(['add', '.']);
+        await g(['commit', '-q', '-m', 'star']);
+        final old = (await svc.run([
+          'rev-parse',
+          'HEAD',
+        ], repoPath: dir.path)).out;
+        await write('a.txt', 'committed later\n');
+        await write('*.txt', 'star v2\n');
+        await g(['add', '.']);
+        await g(['commit', '-q', '-m', 'later']);
+        await write('a.txt', 'staged\n');
+        await g(['add', 'a.txt']);
+
+        // A file named `*.txt` is one file, not a glob over a.txt too.
+        await writer().restoreFromRev(old, '*.txt');
+        expect(await File('${dir.path}/*.txt').readAsString(), 'star v1\n');
+        expect(await File('${dir.path}/a.txt').readAsString(), 'staged\n');
+
+        await writer().restoreFromRev(old, 'a.txt');
+        expect(await File('${dir.path}/a.txt').readAsString(), 'l1\nl2\nl3\n');
+        // The staged edit is still what the index holds.
+        final staged = (await svc.run([
+          'show',
+          ':a.txt',
+        ], repoPath: dir.path)).stdout;
+        expect(staged, 'staged\n');
+      },
+    );
   });
 }

@@ -178,6 +178,38 @@ void main() {
     ]);
   });
 
+  testWidgets('a renamed file restores its old name from the parent', (
+    tester,
+  ) async {
+    final git = _ToolGit();
+    await tester.pumpWidget(
+      _harness(
+        git: git,
+        files: const [
+          CommitFileChange(
+            path: 'lib/new.dart',
+            change: GitChange.renamed,
+            origPath: 'lib/old.dart',
+          ),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.text('lib/old.dart → lib/new.dart'),
+      buttons: kSecondaryButton,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Restore this version'), findsOneWidget);
+    await tester.tap(find.text('Restore version before this commit'));
+    await tester.pumpAndSettle();
+    expect(git.calls.where((c) => c.first == 'cat-file').single, [
+      'cat-file',
+      '-t',
+      '1111111aaaa:lib/old.dart',
+    ]);
+  });
+
   testWidgets('shows metadata, signature and changed files', (tester) async {
     await tester.pumpWidget(
       _harness(

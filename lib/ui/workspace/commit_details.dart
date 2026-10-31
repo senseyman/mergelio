@@ -20,6 +20,7 @@ import '../../state/signatures.dart';
 import '../common/change_file_row.dart';
 import '../common/external_tool_items.dart';
 import '../common/file_tree_view.dart';
+import '../common/restore_version_items.dart';
 import '../common/signature_badge.dart';
 import '../graph/commit_columns.dart';
 import '../graph/ref_pill.dart';
@@ -311,6 +312,13 @@ class CommitDetails extends ConsumerWidget {
                             actions: ref.read(repoActionsProvider(repoPath)),
                             path: path,
                             diff: diffOf(path),
+                          ),
+                          ...restoreVersionMenuItems(
+                            context: ctx,
+                            actions: ref.read(repoActionsProvider(repoPath)),
+                            sha: c.sha,
+                            parents: c.parents,
+                            f: byPath[path]!,
                           ),
                           ...lfsLockMenuItems(
                             context: ctx,

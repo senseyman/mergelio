@@ -938,6 +938,48 @@ class RepoActions {
     );
   }
 
+  /// Puts [filePath] as it was at [rev] into the working tree, leaving the
+  /// index alone so the user reviews and commits it. Undoable: undo writes
+  /// back the bytes it replaced, or removes a file it brought back.
+  ///
+  /// Refuses when [rev] holds no file at [filePath]: git would delete the
+  /// working-tree copy, which a history row from before a rename would
+  /// otherwise do.
+  Future<void> restoreFileVersion(String rev, String filePath) async {
+    if (_blockedByRepoOp) return;
+    final type = await _git.run([
+      'cat-file',
+      '-t',
+      '$rev:$filePath',
+    ], repoPath: path);
+    if (!type.ok || type.out != 'blob') {
+      _ref
+          .read(toastProvider.notifier)
+          .show(
+            _l.actRestoreNotAFile(filePath, _short(rev)),
+            kind: ToastKind.warning,
+          );
+      return;
+    }
+    final file = File('$path/$filePath');
+    final before = await file.exists() ? await file.readAsBytes() : null;
+
+    Future<void> restore() => _writer.restoreFromRev(rev, filePath);
+
+    await _undoable(
+      _l.actRestoreFileVersion(filePath, _short(rev)),
+      restore,
+      undo: () async {
+        if (before == null) {
+          if (await file.exists()) await file.delete();
+        } else {
+          await file.writeAsBytes(before);
+        }
+      },
+      redo: restore,
+    );
+  }
+
   /// Discards every uncommitted change at once: tracked files revert to HEAD,
   /// staged and unstaged alike, and untracked files are deleted when
   /// [includeUntracked] is set. Recorded as one undo entry that puts the

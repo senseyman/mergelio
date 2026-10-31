@@ -1473,6 +1473,12 @@ class AppLocalizationsUk extends AppLocalizations {
   String get wtpBlame => 'Авторство';
 
   @override
+  String get rfvRestoreThisVersion => 'Відновити цю версію';
+
+  @override
+  String get rfvRestoreParentVersion => 'Відновити версію до цього коміту';
+
+  @override
   String get wtpDiscardChanges => 'Відкинути зміни';
 
   @override
@@ -4769,6 +4775,16 @@ class AppLocalizationsUk extends AppLocalizations {
   @override
   String actDiscardFile(String path) {
     return 'Відкидання $path';
+  }
+
+  @override
+  String actRestoreFileVersion(String path, String sha) {
+    return 'Відновлення $path з $sha';
+  }
+
+  @override
+  String actRestoreNotAFile(String path, String sha) {
+    return '$path не є файлом у $sha';
   }
 
   @override
