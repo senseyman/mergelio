@@ -961,8 +961,16 @@ class RepoActions {
           );
       return;
     }
-    final file = File('$path/$filePath');
-    final before = await file.exists() ? await file.readAsBytes() : null;
+    // Either side may be a symlink, which file reads and writes would follow
+    // out of the repository; it is kept and put back as a link instead.
+    final abs = '$path/$filePath';
+    final link = Link(abs);
+    final wasLink = await FileSystemEntity.isLink(abs);
+    final linkTarget = wasLink ? await link.target() : null;
+    final file = File(abs);
+    final before = !wasLink && await file.exists()
+        ? await file.readAsBytes()
+        : null;
 
     Future<void> restore() => _writer.restoreFromRev(rev, filePath);
 
@@ -970,9 +978,14 @@ class RepoActions {
       _l.actRestoreFileVersion(filePath, _short(rev)),
       restore,
       undo: () async {
-        if (before == null) {
-          if (await file.exists()) await file.delete();
-        } else {
+        if (await FileSystemEntity.isLink(abs)) {
+          await link.delete();
+        } else if (await file.exists()) {
+          await file.delete();
+        }
+        if (linkTarget != null) {
+          await link.create(linkTarget);
+        } else if (before != null) {
           await file.writeAsBytes(before);
         }
       },

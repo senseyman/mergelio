@@ -75,6 +75,42 @@ void main() {
     expect(await file('a.txt').exists(), isFalse);
   });
 
+  test('undo never writes through a symlink the restore brought', () async {
+    final elsewhere = await Directory.systemTemp.createTemp('mergelio_out_');
+    addTearDown(() => elsewhere.delete(recursive: true));
+    final outside = File('${elsewhere.path}/outside.txt');
+    await outside.writeAsString('outside\n');
+    await file('a.txt').delete();
+    await Link('${dir.path}/a.txt').create(outside.path);
+    await g(['add', '.']);
+    await g(['commit', '-q', '-m', 'link']);
+    final linked = await g(['rev-parse', 'HEAD']);
+    await Link('${dir.path}/a.txt').delete();
+    await file('a.txt').writeAsString('regular\n');
+    await g(['add', '.']);
+    await g(['commit', '-q', '-m', 'regular']);
+    await file('a.txt').writeAsString('working\n');
+    final c = container();
+    final actions = c.read(repoActionsProvider(dir.path));
+
+    await actions.restoreFileVersion(linked, 'a.txt');
+    expect(FileSystemEntity.isLinkSync('${dir.path}/a.txt'), isTrue);
+
+    await actions.undo();
+    expect(FileSystemEntity.isLinkSync('${dir.path}/a.txt'), isFalse);
+    expect(await file('a.txt').readAsString(), 'working\n');
+    expect(await outside.readAsString(), 'outside\n');
+
+    // And back the other way: undo of a restore over the link recreates it.
+    await g(['checkout', '-q', '--', 'a.txt']);
+    await g(['checkout', '-q', linked, '--', 'a.txt']);
+    await actions.restoreFileVersion(v1, 'a.txt');
+    expect(FileSystemEntity.isLinkSync('${dir.path}/a.txt'), isFalse);
+    await actions.undo();
+    expect(await Link('${dir.path}/a.txt').target(), outside.path);
+    expect(await outside.readAsString(), 'outside\n');
+  });
+
   test('a path the commit lacks changes nothing and warns', () async {
     await file('b.txt').writeAsString('mine\n');
     await Directory('${dir.path}/sub').create();
