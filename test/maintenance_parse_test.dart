@@ -234,4 +234,25 @@ void main() {
     expect(back.blobs.last.commit, isNull);
     expect(back.blobs.last.blob.size, 5);
   });
+
+  test('mergedPickable takes merged branches no worktree holds', () {
+    final at = DateTime.utc(2026);
+    HygieneBranch b(String name, {bool merged = true, String? heldBy}) =>
+        HygieneBranch(
+          name: name,
+          lastCommit: at,
+          merged: merged,
+          gone: false,
+          heldBy: heldBy,
+        );
+    expect(
+      mergedPickable([
+        b('done'),
+        b('old-work', merged: false),
+        b('held', heldBy: '/wt/held'),
+        b('also-done'),
+      ]),
+      ['done', 'also-done'],
+    );
+  });
 }

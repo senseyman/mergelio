@@ -67,7 +67,7 @@ class _MaintenancePanelState extends ConsumerState<MaintenancePanel> {
         ),
         _Section(
           title: l.mntBranches,
-          child: _Branches(repoPath: path),
+          child: BranchCleanup(repoPath: path),
         ),
         _Section(
           title: l.mntWorktrees,
@@ -356,15 +356,29 @@ class _BlobRow extends ConsumerWidget {
   }
 }
 
-class _Branches extends ConsumerStatefulWidget {
+/// Opens the branch clean-up list on its own, for when tidying branches is
+/// the whole errand.
+Future<void> showBranchCleanup(BuildContext context, String repoPath) =>
+    showAppModal<void>(
+      context: context,
+      title: AppLocalizations.of(context).bcTitle,
+      icon: Icons.cleaning_services_outlined,
+      width: 640,
+      body: BranchCleanup(repoPath: repoPath),
+    );
+
+/// Local branches merged into the trunk, or stale, offered for deletion as
+/// one undoable step. The trunk and current branch are never listed, and a
+/// branch a worktree holds is shown but cannot be picked.
+class BranchCleanup extends ConsumerStatefulWidget {
   final String repoPath;
-  const _Branches({required this.repoPath});
+  const BranchCleanup({super.key, required this.repoPath});
 
   @override
-  ConsumerState<_Branches> createState() => _BranchesState();
+  ConsumerState<BranchCleanup> createState() => _BranchCleanupState();
 }
 
-class _BranchesState extends ConsumerState<_Branches> {
+class _BranchCleanupState extends ConsumerState<BranchCleanup> {
   final _selected = <String>{};
 
   Future<void> _delete(List<HygieneBranch> picked, String? trunk) async {
@@ -424,6 +438,7 @@ class _BranchesState extends ConsumerState<_Branches> {
               for (final b in h.branches)
                 if (b.selectable) b,
             ];
+            final merged = mergedPickable(h.branches);
             // A branch deleted elsewhere since it was ticked is no longer
             // on offer, and must not be deleted on the strength of that tick.
             final picked = [
@@ -470,6 +485,12 @@ class _BranchesState extends ConsumerState<_Branches> {
                               ]),
                             ),
                       child: Text(l.mntSelectAll),
+                    ),
+                    TextButton(
+                      onPressed: merged.isEmpty
+                          ? null
+                          : () => setState(() => _selected.addAll(merged)),
+                      child: Text(l.mntSelectMerged),
                     ),
                     FilledButton(
                       style: FilledButton.styleFrom(backgroundColor: t.danger),

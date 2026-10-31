@@ -3264,6 +3264,15 @@ class AppLocalizationsUk extends AppLocalizations {
   String get mntPaletteOpen => 'Обслуговування репозиторію…';
 
   @override
+  String get bcTitle => 'Прибирання гілок';
+
+  @override
+  String get bcMenuOpen => 'Прибрати гілки…';
+
+  @override
+  String get bcPaletteOpen => 'Прибрати гілки…';
+
+  @override
   String get mntStorage => 'Сховище';
 
   @override
@@ -3381,6 +3390,9 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get mntSelectAll => 'Вибрати всі';
+
+  @override
+  String get mntSelectMerged => 'Вибрати злиті';
 
   @override
   String mntDeleteSelected(int count) {

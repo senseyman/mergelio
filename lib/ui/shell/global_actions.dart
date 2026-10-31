@@ -147,6 +147,11 @@ void openGlobalPalette(BuildContext context, WidgetRef ref) {
       () => showMaintenancePanel(context, path),
     ),
     PaletteCommand(
+      l.bcPaletteOpen,
+      Icons.cleaning_services_outlined,
+      () => showBranchCleanup(context, path),
+    ),
+    PaletteCommand(
       l.hkPaletteOpen,
       Icons.webhook_outlined,
       () => showHooksPanel(context, path),

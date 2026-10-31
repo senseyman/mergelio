@@ -83,6 +83,19 @@ Future<ProviderContainer> _pump(
 }
 
 void main() {
+  testWidgets('the Branches menu opens branch clean-up', (tester) async {
+    await _pump(tester, _FakeGit());
+
+    await tester.tap(find.byKey(const ValueKey('sb-branches-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Clean up branches…'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Clean up branches'), findsOneWidget);
+    // This repo's only other branch is neither merged nor stale.
+    expect(find.text('No merged or stale branches.'), findsOneWidget);
+  });
+
   testWidgets('double-clicking a branch checks it out', (tester) async {
     final git = _FakeGit();
     await _pump(tester, git);

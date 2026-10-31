@@ -26,6 +26,7 @@ import 'branch_switch.dart';
 import 'branch_tree.dart';
 import 'forge_issue_section.dart';
 import 'forge_section.dart';
+import 'maintenance_panel.dart';
 import 'reflog_section.dart';
 import 'remote_dialog.dart';
 import 'shallow_badge.dart';
@@ -183,6 +184,24 @@ class _Sections extends ConsumerWidget {
           emptyLabel: l.sbNoBranches,
           open: isOpen('branches'),
           onToggle: () => ctl.toggleSection('branches'),
+          trailing: path == null
+              ? null
+              : PopupMenuButton<void>(
+                  key: const ValueKey('sb-branches-menu'),
+                  icon: Icon(
+                    Icons.more_horiz,
+                    size: 14,
+                    color: context.tokens.textFaint,
+                  ),
+                  padding: EdgeInsets.zero,
+                  itemBuilder: (_) => [
+                    PopupMenuItem(
+                      height: 34,
+                      onTap: () => showBranchCleanup(context, path),
+                      child: Text(l.bcMenuOpen),
+                    ),
+                  ],
+                ),
           children: [
             for (final row in buildBranchTree(data.branches, collapsed))
               if (row is BranchFolderRow)
