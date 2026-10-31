@@ -6,11 +6,13 @@ import 'package:path/path.dart' as p;
 import '../../core/theme.dart';
 import '../../core/tokens.dart';
 import '../../domain/git/blame.dart';
+import '../../domain/git/models.dart';
 import '../../domain/text_tabs.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/compare_target.dart';
 import '../../state/diff_target.dart';
 import '../../state/file_insight.dart';
+import '../../state/repo_actions.dart';
 import '../../state/settings_controller.dart';
 import '../common/dialogs.dart';
 import '../graph/commit_columns.dart';
@@ -96,6 +98,26 @@ class _HistoryTab extends ConsumerWidget {
   final String? rev;
   const _HistoryTab({required this.repoPath, required this.path, this.rev});
 
+  void _menu(BuildContext context, WidgetRef ref, Offset at, Commit c) {
+    final l = AppLocalizations.of(context);
+    showContextMenu<void>(
+      context: context,
+      position: at,
+      items: [
+        PopupMenuItem(
+          height: 34,
+          onTap: () => ref
+              .read(repoActionsProvider(repoPath))
+              .restoreFileVersion(c.sha, path),
+          child: Text(
+            l.rfvRestoreThisVersion,
+            style: const TextStyle(fontSize: 13),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context);
@@ -112,6 +134,8 @@ class _HistoryTab extends ConsumerWidget {
             children: [
               for (final c in commits)
                 InkWell(
+                  onSecondaryTapUp: (d) =>
+                      _menu(context, ref, d.globalPosition, c),
                   onTap: () {
                     ref.read(diffTargetProvider.notifier).state = DiffTarget(
                       repoPath: repoPath,

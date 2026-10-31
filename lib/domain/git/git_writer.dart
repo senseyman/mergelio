@@ -1376,6 +1376,15 @@ class GitWriter {
     'git restore',
   );
 
+  /// Writes [path] as it was at [rev] into the working tree only, so staged
+  /// changes to it stay staged. A [rev] without [path] deletes the file —
+  /// callers check the path exists there first.
+  Future<void> restoreFromRev(String rev, String path) => _onPaths(
+    ['restore', '--worktree', '--source=$rev'],
+    [path],
+    'git restore',
+  );
+
   /// Runs [command] over [paths] taken literally, so a file named `*.md` is
   /// that one file. The list goes through stdin rather than argv: a large
   /// selection would overflow a command line, Windows' first of all.

@@ -118,6 +118,7 @@ Widget _harness({
 /// Answers the tool config read with a diff tool and records what ran.
 class _ToolGit implements GitService {
   final calls = <List<String>>[];
+  final stdins = <String?>[];
 
   @override
   Future<GitResult> run(
@@ -129,6 +130,12 @@ class _ToolGit implements GitService {
     String? stdin,
   }) async {
     calls.add(a);
+    stdins.add(stdin);
+    // The working copy differs from every version asked about.
+    if (a.contains('--no-textconv')) return const GitResult(1, '', '');
+    if (a.contains('ls-tree')) {
+      return GitResult(0, '100644 blob 0123abc\t${a.last}\x00', '');
+    }
     if (a.first == 'config') return const GitResult(0, 'diff.tool\nx\x00', '');
     if (a.first == 'rev-parse') return const GitResult(0, '1111111aaaa\n', '');
     return const GitResult(0, '', '');
@@ -176,6 +183,49 @@ void main() {
       'lib/old.dart',
       'lib/new.dart',
     ]);
+  });
+
+  testWidgets('a renamed file restores its old name from the parent', (
+    tester,
+  ) async {
+    final git = _ToolGit();
+    await tester.pumpWidget(
+      _harness(
+        git: git,
+        files: const [
+          CommitFileChange(
+            path: 'lib/new.dart',
+            change: GitChange.renamed,
+            origPath: 'lib/old.dart',
+          ),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.text('lib/old.dart → lib/new.dart'),
+      buttons: kSecondaryButton,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Restore this version'), findsOneWidget);
+    await tester.tap(find.text('Restore version before this commit'));
+    await tester.pumpAndSettle();
+    // The action snapshots the working-tree file, real I/O that fake time
+    // never completes.
+    for (
+      var i = 0;
+      i < 50 && !git.calls.any((c) => c.contains('restore'));
+      i++
+    ) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
+      await tester.pump();
+    }
+    final restore = git.calls.indexWhere((c) => c.contains('restore'));
+    expect(restore, isNot(-1), reason: 'git restore never ran');
+    expect(git.calls[restore], contains('--source=1111111aaaa'));
+    expect(git.stdins[restore], 'lib/old.dart\x00');
   });
 
   testWidgets('shows metadata, signature and changed files', (tester) async {

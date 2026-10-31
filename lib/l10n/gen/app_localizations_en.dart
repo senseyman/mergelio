@@ -1464,6 +1464,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get wtpBlame => 'Blame';
 
   @override
+  String get rfvRestoreThisVersion => 'Restore this version';
+
+  @override
+  String get rfvRestoreParentVersion => 'Restore version before this commit';
+
+  @override
   String get wtpDiscardChanges => 'Discard changes';
 
   @override
@@ -4689,6 +4695,26 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String actDiscardFile(String path) {
     return 'Discard $path';
+  }
+
+  @override
+  String actRestoreFileVersion(String path, String sha) {
+    return 'Restore $path from $sha';
+  }
+
+  @override
+  String actRestoreNotAFile(String path, String sha) {
+    return '$path is not a file in $sha';
+  }
+
+  @override
+  String actRestoreMissing(String path, String sha) {
+    return '$path does not exist in $sha';
+  }
+
+  @override
+  String actRestoreAlreadyMatches(String path, String sha) {
+    return '$path already matches $sha';
   }
 
   @override

@@ -2552,6 +2552,18 @@ abstract class AppLocalizations {
   /// **'Blame'**
   String get wtpBlame;
 
+  /// No description provided for @rfvRestoreThisVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore this version'**
+  String get rfvRestoreThisVersion;
+
+  /// No description provided for @rfvRestoreParentVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore version before this commit'**
+  String get rfvRestoreParentVersion;
+
   /// No description provided for @wtpDiscardChanges.
   ///
   /// In en, this message translates to:
@@ -7735,6 +7747,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Discard {path}'**
   String actDiscardFile(String path);
+
+  /// No description provided for @actRestoreFileVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore {path} from {sha}'**
+  String actRestoreFileVersion(String path, String sha);
+
+  /// No description provided for @actRestoreNotAFile.
+  ///
+  /// In en, this message translates to:
+  /// **'{path} is not a file in {sha}'**
+  String actRestoreNotAFile(String path, String sha);
+
+  /// No description provided for @actRestoreMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'{path} does not exist in {sha}'**
+  String actRestoreMissing(String path, String sha);
+
+  /// No description provided for @actRestoreAlreadyMatches.
+  ///
+  /// In en, this message translates to:
+  /// **'{path} already matches {sha}'**
+  String actRestoreAlreadyMatches(String path, String sha);
 
   /// No description provided for @actDiscardAll.
   ///
