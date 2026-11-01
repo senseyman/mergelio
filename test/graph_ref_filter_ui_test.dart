@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -44,8 +46,9 @@ const _data = RepoData(
   remoteBranches: [RemoteBranch(remote: 'origin', branch: 'feat')],
 );
 
-Widget _app(Widget home) => ProviderScope(
+Widget _app(Widget home, {List<Override> extra = const []}) => ProviderScope(
   overrides: [
+    ...extra,
     gitServiceProvider.overrideWithValue(_FakeGit()),
     settingsProvider.overrideWith(
       (ref) =>
@@ -165,6 +168,73 @@ void main() {
     );
   });
 
+  testWidgets(
+    'a hidden branch that is checked out is neither dimmed nor marked',
+    (tester) async {
+      final c = await _pumpSidebar(tester);
+      await c
+          .read(graphRefFilterProvider('/r').notifier)
+          .toggleHidden('refs/heads/main');
+      await tester.pumpAndSettle();
+
+      // HEAD keeps it in the graph, so the row must not claim otherwise.
+      expect(find.byTooltip('Hidden in the graph'), findsNothing);
+      expect(
+        tester.widget<Text>(_local('main')).style!.color,
+        isNot(AppTokens.dark().textFaint),
+      );
+    },
+  );
+
+  testWidgets('a hidden remote branch is dimmed as well as marked', (
+    tester,
+  ) async {
+    await _pumpSidebar(tester);
+    await _pick(tester, _remote('feat'), 'Hide in graph');
+
+    expect(find.byTooltip('Hidden in the graph'), findsOneWidget);
+    expect(
+      tester.widget<Text>(_remote('feat')).style!.color,
+      AppTokens.dark().textFaint,
+    );
+  });
+
+  testWidgets('graph items wait for the saved filter before offering', (
+    tester,
+  ) async {
+    final load = Completer<GraphRefFilter>();
+    tester.view.physicalSize = const Size(400, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      _app(
+        RepoSidebar(onCollapse: () {}),
+        extra: [
+          graphRefFilterProvider.overrideWith(() => _SlowFilter(load.future)),
+        ],
+      ),
+    );
+    final c = ProviderScope.containerOf(
+      tester.element(find.byType(RepoSidebar)),
+    );
+    c.read(workspaceProvider.notifier).openRepo('/r');
+    await tester.pumpAndSettle();
+
+    await _rightClick(tester, _local('feat'));
+    // Saved as hidden, not read yet: "Hide" would promise the opposite.
+    for (final label in ['Hide in graph', 'Solo in graph']) {
+      expect(
+        tester
+            .widget<PopupMenuItem<void>>(
+              find.widgetWithText(PopupMenuItem<void>, label),
+            )
+            .enabled,
+        isFalse,
+      );
+    }
+    load.complete(const GraphRefFilter(hidden: {'refs/heads/feat'}));
+  });
+
   group('GraphRefFilterBar', () {
     Future<ProviderContainer> pumpBar(
       WidgetTester tester,
@@ -204,6 +274,17 @@ void main() {
         ),
       );
       expect(find.text('Graph shows only feat, origin/feat'), findsOneWidget);
+    });
+
+    testWidgets('does not count a hidden branch that is checked out', (
+      tester,
+    ) async {
+      // In _data, main is the checked-out branch.
+      await pumpBar(
+        tester,
+        const GraphRefFilter(hidden: {'refs/heads/main', 'refs/heads/feat'}),
+      );
+      expect(find.text('1 branch hidden from the graph'), findsOneWidget);
     });
 
     testWidgets('says nothing of branches that are gone', (tester) async {
@@ -257,4 +338,14 @@ void main() {
     expect(shortRefName('refs/remotes/origin/main'), 'origin/main');
     expect(shortRefName('HEAD'), 'HEAD');
   });
+}
+
+/// Holds the saved filter back until [_value] completes, as a slow first read
+/// of the key-value store would.
+class _SlowFilter extends GraphRefFilterController {
+  final Future<GraphRefFilter> _value;
+  _SlowFilter(this._value);
+
+  @override
+  Future<GraphRefFilter> build(String path) => _value;
 }

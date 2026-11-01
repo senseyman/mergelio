@@ -90,4 +90,17 @@ void main() {
     final shas = await walk(GraphRefFilter.none.toggleSolo('refs/heads/feat'));
     expect(shas, containsAll([sha['on-main'], sha['on-other'], sha['stash']]));
   });
+
+  test('a remote-tracking branch hides and solos like a local one', () async {
+    await g(['update-ref', 'refs/remotes/origin/feat', sha['on-feat']!]);
+    await g(['branch', '-D', 'feat']);
+    final hidden = await walk(
+      GraphRefFilter.none.toggleHidden('refs/remotes/origin/feat'),
+    );
+    expect(hidden, isNot(contains(sha['on-feat'])));
+    final soloed = await walk(
+      GraphRefFilter.none.toggleSolo('refs/remotes/origin/feat'),
+    );
+    expect(soloed, {sha['base'], sha['on-feat']});
+  });
 }

@@ -277,7 +277,8 @@ change never needs a second window.*
 - Branches: create, checkout, rename, delete, set upstream — organised into
   folders from `/`-separated names.
 - **Hide or solo branches in the graph** from a branch's context menu, local
-  or remote: a hidden branch's own commits drop out of the graph, and soloed
+  or remote: a hidden branch's own commits drop out of the graph unless it is
+  checked out, and soloed
   branches show only themselves and their ancestry. The choice is kept per
   repository across restarts, and a bar above the graph says what is narrowed
   with **Show all** to undo it.

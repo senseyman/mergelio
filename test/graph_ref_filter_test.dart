@@ -104,4 +104,37 @@ void main() {
       expect(f, const GraphRefFilter(solo: {b}));
     });
   });
+
+  group('rowMark', () {
+    test('marks a hidden ref, a soloed ref, and leaves the rest', () {
+      const f = GraphRefFilter(hidden: {a}, solo: {b});
+      expect(f.rowMark(a), GraphRowMark.hidden);
+      expect(f.rowMark(b), GraphRowMark.solo);
+      expect(f.rowMark('refs/heads/other'), GraphRowMark.none);
+    });
+
+    test('a hidden checked-out branch is not marked: HEAD keeps it', () {
+      const f = GraphRefFilter(hidden: {a});
+      expect(f.rowMark(a, current: true), GraphRowMark.none);
+    });
+
+    test('a ref in both sets reads as soloed, as the walk treats it', () {
+      const f = GraphRefFilter(hidden: {a}, solo: {a});
+      expect(f.rowMark(a), GraphRowMark.solo);
+    });
+  });
+
+  test('fromJson keeps a ref in one set, solo winning as in the walk', () {
+    final f = GraphRefFilter.fromJson(
+      '{"hidden": ["$a", "$b"], "solo": ["$a"]}',
+    );
+    expect(f, const GraphRefFilter(hidden: {b}, solo: {a}));
+  });
+
+  test('fromJson skips non-string entries of a valid list', () {
+    final f = GraphRefFilter.fromJson(
+      '{"hidden": ["$a", 3, null], "solo": []}',
+    );
+    expect(f, const GraphRefFilter(hidden: {a}));
+  });
 }

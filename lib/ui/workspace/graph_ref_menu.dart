@@ -17,9 +17,10 @@ List<PopupMenuEntry<void>> graphRefMenuItems({
   bool current = false,
 }) {
   final l = AppLocalizations.of(context);
-  final f =
-      ref.read(graphRefFilterProvider(repoPath)).valueOrNull ??
-      GraphRefFilter.none;
+  // Until the saved filter is read, a label could promise the opposite of
+  // what a tap would do, so both items wait for it.
+  final loaded = ref.read(graphRefFilterProvider(repoPath)).valueOrNull;
+  final f = loaded ?? GraphRefFilter.none;
   final ctl = ref.read(graphRefFilterProvider(repoPath).notifier);
   const style = TextStyle(fontSize: 13);
   return [
@@ -29,7 +30,7 @@ List<PopupMenuEntry<void>> graphRefMenuItems({
     // out stays possible.
     PopupMenuItem(
       height: 34,
-      enabled: !current || f.hidden.contains(refName),
+      enabled: loaded != null && (!current || f.hidden.contains(refName)),
       onTap: () => ctl.toggleHidden(refName),
       child: Text(
         f.hidden.contains(refName) ? l.grfShow : l.grfHide,
@@ -38,6 +39,7 @@ List<PopupMenuEntry<void>> graphRefMenuItems({
     ),
     PopupMenuItem(
       height: 34,
+      enabled: loaded != null,
       onTap: () => ctl.toggleSolo(refName),
       child: Text(
         f.solo.contains(refName) ? l.grfUnsolo : l.grfSolo,
@@ -52,10 +54,15 @@ List<PopupMenuEntry<void>> graphRefMenuItems({
 class GraphRefMark extends ConsumerWidget {
   final String repoPath;
   final String refName;
+
+  /// The row is the checked-out branch, which hiding cannot take out of the
+  /// graph.
+  final bool current;
   const GraphRefMark({
     super.key,
     required this.repoPath,
     required this.refName,
+    this.current = false,
   });
 
   @override
@@ -64,11 +71,11 @@ class GraphRefMark extends ConsumerWidget {
     if (f == null) return const SizedBox.shrink();
     final l = AppLocalizations.of(context);
     final t = context.tokens;
-    final (icon, tip) = f.hidden.contains(refName)
-        ? (Icons.visibility_off, l.grfHiddenMark)
-        : f.solo.contains(refName)
-        ? (Icons.filter_center_focus, l.grfSoloMark)
-        : (null, '');
+    final (icon, tip) = switch (f.rowMark(refName, current: current)) {
+      GraphRowMark.hidden => (Icons.visibility_off, l.grfHiddenMark),
+      GraphRowMark.solo => (Icons.filter_center_focus, l.grfSoloMark),
+      GraphRowMark.none => (null, ''),
+    };
     if (icon == null) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(left: 6),

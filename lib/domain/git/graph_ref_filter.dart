@@ -1,5 +1,8 @@
 import 'dart:convert';
 
+/// How a sidebar branch row shows its part in the graph filter.
+enum GraphRowMark { none, hidden, solo }
+
 /// Which refs the commit graph starts its walk from, beyond the default of
 /// every ref. Refs are full names (`refs/heads/x`, `refs/remotes/o/x`).
 ///
@@ -43,6 +46,16 @@ class GraphRefFilter {
     );
   }
 
+  /// How [ref]'s sidebar row should read. A soloed ref reads as soloed even
+  /// if also stored as hidden, as the walk treats it. A hidden checked-out
+  /// branch ([current]) reads as neither: the walk takes in HEAD whatever is
+  /// excluded, so the graph still shows it.
+  GraphRowMark rowMark(String ref, {bool current = false}) {
+    if (solo.contains(ref)) return GraphRowMark.solo;
+    if (hidden.contains(ref) && !current) return GraphRowMark.hidden;
+    return GraphRowMark.none;
+  }
+
   /// The walk's starting points for `git log`. [liveSolo] is the part of
   /// [solo] that still exists: a soloed branch deleted since would make git
   /// fail the whole walk. With none left, the walk falls back to every ref
@@ -83,7 +96,13 @@ class GraphRefFilter {
             }
           : {};
       if (m['hidden'] is! List? || m['solo'] is! List?) return none;
-      return GraphRefFilter(hidden: names(m['hidden']), solo: names(m['solo']));
+      final solo = names(m['solo']);
+      // Stored by this class, a ref is never in both; a hand-edited value
+      // might be. Solo wins, matching the walk.
+      return GraphRefFilter(
+        hidden: names(m['hidden']).difference(solo),
+        solo: solo,
+      );
     } on FormatException {
       return none;
     }

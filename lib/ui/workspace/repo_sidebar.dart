@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
+import '../../domain/git/graph_ref_filter.dart';
 import '../../domain/git/models.dart';
 import '../../domain/path_key.dart';
 import '../../l10n/gen/app_localizations.dart';
@@ -724,12 +725,14 @@ class _BranchRow extends ConsumerWidget {
     final heldElsewhere = heldBy != null && !samePath(heldBy.path, path!);
     final hiddenInGraph =
         path != null &&
-        (ref
+        ref
                 .watch(graphRefFilterProvider(path))
                 .valueOrNull
-                ?.hidden
-                .contains('refs/heads/${branch.name}') ??
-            false);
+                ?.rowMark(
+                  'refs/heads/${branch.name}',
+                  current: branch.current,
+                ) ==
+            GraphRowMark.hidden;
     final row = GestureDetector(
       // Double-click a branch to go to its state: check it out, or — for the
       // current branch that tracks a remote — reset it to that remote (with a
@@ -819,6 +822,7 @@ class _BranchRow extends ConsumerWidget {
                       GraphRefMark(
                         repoPath: path,
                         refName: 'refs/heads/${branch.name}',
+                        current: branch.current,
                       ),
                   ],
                 ),
@@ -923,6 +927,14 @@ class _RemoteBranchRow extends ConsumerWidget {
     final t = context.tokens;
     final selected =
         rb.tip.isNotEmpty && ref.watch(selectedCommitProvider) == rb.tip;
+    final repoPath = ref.watch(workspaceProvider).activeTab?.path;
+    final hiddenInGraph =
+        repoPath != null &&
+        ref
+                .watch(graphRefFilterProvider(repoPath))
+                .valueOrNull
+                ?.rowMark('refs/remotes/${rb.remote}/${rb.branch}') ==
+            GraphRowMark.hidden;
     final row = GestureDetector(
       onSecondaryTapUp: onMenu == null
           ? null
@@ -949,13 +961,15 @@ class _RemoteBranchRow extends ConsumerWidget {
                   child: Text(
                     rb.branch,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: t.textMuted, fontSize: 12.5),
+                    style: TextStyle(
+                      color: hiddenInGraph ? t.textFaint : t.textMuted,
+                      fontSize: 12.5,
+                    ),
                   ),
                 ),
-                if (ref.watch(workspaceProvider).activeTab?.path
-                    case final path?)
+                if (repoPath != null)
                   GraphRefMark(
-                    repoPath: path,
+                    repoPath: repoPath,
                     refName: 'refs/remotes/${rb.remote}/${rb.branch}',
                   ),
                 if (rb.hasLocal)

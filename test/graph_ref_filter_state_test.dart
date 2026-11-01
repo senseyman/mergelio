@@ -34,6 +34,13 @@ class _FakeGit implements GitService {
   Future<bool> isRepository(String path) async => true;
 }
 
+/// A store whose writes all fail, as a full disk or locked database would.
+class _FailingStore extends InMemoryKeyValueStore {
+  @override
+  Future<void> put(String key, String value) async =>
+      throw StateError('disk full');
+}
+
 void main() {
   const repo = '/r';
 
@@ -106,4 +113,36 @@ void main() {
     expect(lastLog(), contains('refs/heads/feat'));
     expect(lastLog(), isNot(contains('--all')));
   });
+
+  test('updates issued together all apply, in order', () async {
+    final kv = InMemoryKeyValueStore();
+    final c = container(kv);
+    final ctl = c.read(graphRefFilterProvider(repo).notifier);
+    // Not awaited one by one, as menu taps are not.
+    await Future.wait([
+      ctl.toggleHidden('refs/heads/a'),
+      ctl.toggleHidden('refs/heads/b'),
+      ctl.toggleSolo('refs/heads/c'),
+    ]);
+    const want = GraphRefFilter(
+      hidden: {'refs/heads/a', 'refs/heads/b'},
+      solo: {'refs/heads/c'},
+    );
+    expect(await c.read(graphRefFilterProvider(repo).future), want);
+    // What is stored matches what is shown.
+    expect(await container(kv).read(graphRefFilterProvider(repo).future), want);
+  });
+
+  test(
+    'a store that cannot save neither throws nor loses the change',
+    () async {
+      final c = container(_FailingStore());
+      final ctl = c.read(graphRefFilterProvider(repo).notifier);
+      await ctl.toggleHidden('refs/heads/a');
+      expect(
+        await c.read(graphRefFilterProvider(repo).future),
+        const GraphRefFilter(hidden: {'refs/heads/a'}),
+      );
+    },
+  );
 }
