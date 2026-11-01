@@ -174,6 +174,7 @@ class _Sections extends ConsumerWidget {
     bool isOpen(String id) => sectionOpenIn(collapsed, id);
     final path = ref.watch(workspaceProvider).activeTab?.path;
     final actions = path == null ? null : ref.read(repoActionsProvider(path));
+    final searching = path != null && ref.watch(branchFilterOpenProvider(path));
     final query = path == null ? '' : ref.watch(branchFilterProvider(path));
     final filtering = query.trim().isNotEmpty;
     final shownBranches = filterBranches(data.branches, query);
@@ -189,37 +190,66 @@ class _Sections extends ConsumerWidget {
           emptyLabel: l.sbNoBranches,
           open: isOpen('branches'),
           onToggle: () => ctl.toggleSection('branches'),
+          search: searching ? BranchFilterField(repoPath: path) : null,
           trailing: path == null
               ? null
-              : PopupMenuButton<void>(
-                  key: const ValueKey('sb-branches-menu'),
-                  icon: Icon(
-                    Icons.more_horiz,
-                    size: 14,
-                    color: context.tokens.textFaint,
-                  ),
-                  padding: EdgeInsets.zero,
-                  // An icon button's default 40–48px would double the header
-                  // next to the other sections'.
-                  // Sized through style: the button's own constraints field
-                  // sizes the menu, not the button.
-                  style: IconButton.styleFrom(
-                    fixedSize: const Size(20, 16),
-                    minimumSize: Size.zero,
-                    padding: EdgeInsets.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  itemBuilder: (_) => [
-                    PopupMenuItem(
-                      height: 34,
-                      onTap: () => showBranchCleanup(context, path),
-                      child: Text(l.bcOpen),
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (!searching)
+                      IconButton(
+                        tooltip: l.sbBranchFilter,
+                        icon: Icon(
+                          Icons.search,
+                          size: 14,
+                          color: context.tokens.textFaint,
+                        ),
+                        style: IconButton.styleFrom(
+                          fixedSize: const Size(20, 16),
+                          minimumSize: Size.zero,
+                          padding: EdgeInsets.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        onPressed: () {
+                          // A filter over a closed section would show nothing.
+                          if (!isOpen('branches')) {
+                            ctl.toggleSection('branches');
+                          }
+                          ref
+                                  .read(branchFilterOpenProvider(path).notifier)
+                                  .state =
+                              true;
+                        },
+                      ),
+                    PopupMenuButton<void>(
+                      key: const ValueKey('sb-branches-menu'),
+                      icon: Icon(
+                        Icons.more_horiz,
+                        size: 14,
+                        color: context.tokens.textFaint,
+                      ),
+                      padding: EdgeInsets.zero,
+                      // An icon button's default 40–48px would double the header
+                      // next to the other sections'.
+                      // Sized through style: the button's own constraints field
+                      // sizes the menu, not the button.
+                      style: IconButton.styleFrom(
+                        fixedSize: const Size(20, 16),
+                        minimumSize: Size.zero,
+                        padding: EdgeInsets.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      itemBuilder: (_) => [
+                        PopupMenuItem(
+                          height: 34,
+                          onTap: () => showBranchCleanup(context, path),
+                          child: Text(l.bcOpen),
+                        ),
+                      ],
                     ),
                   ],
                 ),
           children: [
-            if (path != null && data.branches.isNotEmpty)
-              BranchFilterField(repoPath: path),
             // Distinct from the section's empty state: that would claim the
             // repo has no branches when only the query matches none.
             if (filtering && shownBranches.isEmpty)

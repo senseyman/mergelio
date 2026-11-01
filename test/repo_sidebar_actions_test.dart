@@ -95,6 +95,54 @@ void main() {
       ],
     );
     Finder field() => find.byKey(const ValueKey('sb-branch-filter'));
+    Size header(WidgetTester tester, Finder inside) => tester.getSize(
+      find.ancestor(of: inside, matching: find.byType(Padding)).at(0),
+    );
+
+    Future<void> openFilter(WidgetTester tester) async {
+      await tester.tap(find.byTooltip('Filter branches'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('the box opens from the header icon, in the header row', (
+      tester,
+    ) async {
+      await _pump(tester, _FakeGit(), data: data);
+      expect(field(), findsNothing);
+
+      await openFilter(tester);
+
+      expect(field(), findsOneWidget);
+      // It takes the label's place rather than adding a row.
+      expect(find.text('BRANCHES'), findsNothing);
+      expect(
+        tester.getRect(field()).center.dy,
+        lessThan(tester.getRect(find.text('feat')).top),
+      );
+      // Focused, so typing goes straight in.
+      final editable = tester.widget<EditableText>(
+        find.descendant(of: field(), matching: find.byType(EditableText)),
+      );
+      expect(editable.focusNode.hasFocus, isTrue);
+      // No taller than another section's header.
+      expect(
+        header(tester, field()).height,
+        header(tester, find.text('REMOTES')).height,
+      );
+    });
+
+    testWidgets('opening it on a collapsed section opens the section', (
+      tester,
+    ) async {
+      final c = await _pump(tester, _FakeGit(), data: data);
+      c.read(settingsProvider.notifier).toggleSection('branches');
+      await tester.pumpAndSettle();
+      expect(find.text('signup'), findsNothing);
+
+      await openFilter(tester);
+
+      expect(find.text('signup'), findsOneWidget);
+    });
 
     testWidgets('narrows the list, even inside a collapsed folder', (
       tester,
@@ -104,6 +152,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('login-form'), findsNothing);
 
+      await openFilter(tester);
       await tester.enterText(field(), 'login');
       await tester.pumpAndSettle();
 
@@ -113,10 +162,11 @@ void main() {
       expect(find.text('main'), findsNothing);
     });
 
-    testWidgets('says when nothing matches, and Esc clears the query', (
+    testWidgets('says when nothing matches; Esc clears and closes the box', (
       tester,
     ) async {
       await _pump(tester, _FakeGit(), data: data);
+      await openFilter(tester);
 
       await tester.enterText(field(), 'nope');
       await tester.pumpAndSettle();
@@ -124,13 +174,21 @@ void main() {
 
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await tester.pumpAndSettle();
+      expect(field(), findsNothing);
+      expect(find.text('BRANCHES'), findsOneWidget);
       expect(find.text('No matching branches'), findsNothing);
       expect(find.text('signup'), findsOneWidget);
+
+      // Reopened, it starts empty.
+      await openFilter(tester);
       expect(tester.widget<TextField>(field()).controller!.text, isEmpty);
     });
 
-    testWidgets('the clear button empties the query', (tester) async {
+    testWidgets('the clear button empties the query and keeps the box', (
+      tester,
+    ) async {
       await _pump(tester, _FakeGit(), data: data);
+      await openFilter(tester);
       await tester.enterText(field(), 'signup');
       await tester.pumpAndSettle();
       expect(find.text('crash'), findsNothing);
@@ -138,6 +196,17 @@ void main() {
       await tester.tap(find.byTooltip('Clear filter'));
       await tester.pumpAndSettle();
       expect(find.text('crash'), findsOneWidget);
+      expect(field(), findsOneWidget);
+    });
+
+    testWidgets('an empty box closes when focus leaves it', (tester) async {
+      await _pump(tester, _FakeGit(), data: data);
+      await openFilter(tester);
+
+      FocusManager.instance.primaryFocus!.unfocus();
+      await tester.pumpAndSettle();
+
+      expect(field(), findsNothing);
     });
   });
 

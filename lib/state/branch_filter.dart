@@ -5,3 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 final branchFilterProvider = StateProvider.family<String, String>(
   (ref, path) => '',
 );
+
+/// Whether the Branches filter box is showing in the section header, per
+/// repository. Closing it clears [branchFilterProvider] as well.
+final branchFilterOpenProvider = StateProvider.family<bool, String>(
+  (ref, path) => false,
+);
