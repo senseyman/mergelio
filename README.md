@@ -276,6 +276,11 @@ change never needs a second window.*
 
 - Branches: create, checkout, rename, delete, set upstream — organised into
   folders from `/`-separated names.
+- **Hide or solo branches in the graph** from a branch's context menu, local
+  or remote: a hidden branch's own commits drop out of the graph, and soloed
+  branches show only themselves and their ancestry. The choice is kept per
+  repository across restarts, and a bar above the graph says what is narrowed
+  with **Show all** to undo it.
 - **Filter branches** from the search icon in the Branches header: the box
   opens in the header itself, every word you type must appear in the name,
   case ignored, and folders holding a match open while you filter. Esc clears

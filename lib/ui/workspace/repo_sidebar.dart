@@ -10,6 +10,7 @@ import '../../state/compare_target.dart';
 import '../../state/review.dart';
 import '../../state/graph_selection.dart';
 import '../../state/branch_filter.dart';
+import '../../state/graph_ref_filter.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
 import '../../state/settings.dart';
@@ -28,6 +29,7 @@ import 'branch_switch.dart';
 import 'branch_tree.dart';
 import 'forge_issue_section.dart';
 import 'forge_section.dart';
+import 'graph_ref_menu.dart';
 import 'branch_cleanup.dart';
 import 'reflog_section.dart';
 import 'remote_dialog.dart';
@@ -619,6 +621,12 @@ class _BranchRow extends ConsumerWidget {
             head: branch.name,
           );
         }, enabled: !branch.current && currentBranch != null),
+        ...graphRefMenuItems(
+          context: context,
+          ref: ref,
+          repoPath: path,
+          refName: 'refs/heads/${branch.name}',
+        ),
         const PopupMenuDivider(),
         item(l.sbSetUpstreamItem, () async {
           final up = await showInputDialog(
@@ -713,6 +721,14 @@ class _BranchRow extends ConsumerWidget {
         ? null
         : ref.watch(worktreeByBranchProvider(path))[branch.name];
     final heldElsewhere = heldBy != null && !samePath(heldBy.path, path!);
+    final hiddenInGraph =
+        path != null &&
+        (ref
+                .watch(graphRefFilterProvider(path))
+                .valueOrNull
+                ?.hidden
+                .contains('refs/heads/${branch.name}') ??
+            false);
     final row = GestureDetector(
       // Double-click a branch to go to its state: check it out, or — for the
       // current branch that tracks a remote — reset it to that remote (with a
@@ -774,7 +790,11 @@ class _BranchRow extends ConsumerWidget {
                         leaf,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: branch.current ? t.textPrimary : t.textMuted,
+                          color: hiddenInGraph
+                              ? t.textFaint
+                              : branch.current
+                              ? t.textPrimary
+                              : t.textMuted,
                           fontSize: 13,
                           fontWeight: branch.current
                               ? FontWeight.w600
@@ -794,6 +814,11 @@ class _BranchRow extends ConsumerWidget {
                         ),
                       ),
                     ],
+                    if (path != null)
+                      GraphRefMark(
+                        repoPath: path,
+                        refName: 'refs/heads/${branch.name}',
+                      ),
                   ],
                 ),
               ),
@@ -926,6 +951,12 @@ class _RemoteBranchRow extends ConsumerWidget {
                     style: TextStyle(color: t.textMuted, fontSize: 12.5),
                   ),
                 ),
+                if (ref.watch(workspaceProvider).activeTab?.path
+                    case final path?)
+                  GraphRefMark(
+                    repoPath: path,
+                    refName: 'refs/remotes/${rb.remote}/${rb.branch}',
+                  ),
                 if (rb.hasLocal)
                   Tooltip(
                     message: l.sbHasLocalBranch,
@@ -1058,6 +1089,13 @@ Future<void> _remoteBranchMenu(
           style: TextStyle(fontSize: 13, color: context.tokens.danger),
         ),
       ),
+      if (ref.read(workspaceProvider).activeTab?.path case final path?)
+        ...graphRefMenuItems(
+          context: context,
+          ref: ref,
+          repoPath: path,
+          refName: 'refs/remotes/${rb.remote}/${rb.branch}',
+        ),
     ],
   );
 }

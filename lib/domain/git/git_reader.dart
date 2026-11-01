@@ -7,6 +7,7 @@ import 'blame.dart';
 import 'commit_fields.dart';
 import 'dashboard.dart';
 import 'git_service.dart';
+import 'graph_ref_filter.dart';
 import 'line_history.dart';
 import 'models.dart';
 import 'reflog.dart';
@@ -189,14 +190,25 @@ class GitReader {
   /// below are dropped after the walk, so a truncated page can come back
   /// shorter than [maxCount].
   Future<({List<Commit> commits, bool truncated, Set<String> hidden})>
-  commitPage({int? maxCount}) async {
-    final (:stashShas, :auxShas) = await stashWalk();
+  commitPage({
+    int? maxCount,
+    GraphRefFilter filter = GraphRefFilter.none,
+  }) async {
+    final start = filter.walkStart(
+      liveSolo: filter.solo.isEmpty
+          ? const <String>{}
+          : await _existingRefs(filter.solo),
+    );
+    final (:stashShas, :auxShas) = start.stashes
+        ? await stashWalk()
+        : (stashShas: const <String>[], auxShas: const <String>{});
 
     final r = await _run([
       'log',
-      // Must come before `--all`, which they narrow.
-      ...notesWalkExcludes,
-      '--all',
+      // Must come before `--all`, which they narrow. A soloed walk names its
+      // refs instead, so has nothing to narrow.
+      if (start.stashes) ...notesWalkExcludes,
+      ...start.args,
       '--topo-order',
       '--decorate=full',
       '-z',
@@ -235,6 +247,15 @@ class GitReader {
       truncated: maxCount != null && records >= maxCount,
       hidden: auxShas,
     );
+  }
+
+  /// The refs matching [refs] (full names), in one listing for them all. A
+  /// pattern also matches refs beneath it, so this can name refs not asked
+  /// for; [GraphRefFilter.walkStart] keeps only the ones it was given.
+  Future<Set<String>> _existingRefs(Set<String> refs) async {
+    final r = await _run(['for-each-ref', '--format=%(refname)', ...refs]);
+    if (!r.ok) throw GitException('git for-each-ref failed', r);
+    return const LineSplitter().convert(r.stdout).toSet();
   }
 
   /// Local branches with tracking info, in git's default (alphabetical) order.
