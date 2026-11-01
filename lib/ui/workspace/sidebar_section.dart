@@ -20,6 +20,10 @@ class SidebarSection extends StatelessWidget {
   /// Optional action shown at the right of the header, e.g. an add button.
   final Widget? trailing;
 
+  /// Takes the label's and count's place in the header, e.g. a filter box.
+  /// The chevron and icon still open and close the section.
+  final Widget? search;
+
   const SidebarSection({
     super.key,
     required this.id,
@@ -31,50 +35,77 @@ class SidebarSection extends StatelessWidget {
     required this.onToggle,
     required this.children,
     this.trailing,
+    this.search,
   });
 
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
+    final lead = [
+      Icon(
+        open ? Icons.expand_more : Icons.chevron_right,
+        size: 16,
+        color: t.textFaint,
+      ),
+      const SizedBox(width: 2),
+      Icon(icon, size: 14, color: t.textMuted),
+    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        InkWell(
-          onTap: onToggle,
-          hoverColor: t.hover,
-          child: Padding(
+        if (search != null)
+          // Not one InkWell over the whole row: a click in the box must not
+          // collapse the section.
+          Padding(
             padding: const EdgeInsets.fromLTRB(10, 10, 12, 4),
             child: Row(
               children: [
-                Icon(
-                  open ? Icons.expand_more : Icons.chevron_right,
-                  size: 16,
-                  color: t.textFaint,
+                InkWell(
+                  onTap: onToggle,
+                  hoverColor: t.hover,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [...lead],
+                  ),
                 ),
-                const SizedBox(width: 2),
-                Icon(icon, size: 14, color: t.textMuted),
                 const SizedBox(width: 8),
-                Text(
-                  label.toUpperCase(),
-                  style: TextStyle(
-                    color: t.textFaint,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                if (count != null) ...[
-                  const SizedBox(width: 6),
-                  Text(
-                    '$count',
-                    style: TextStyle(color: t.textFaint, fontSize: 11),
-                  ),
-                ],
-                if (trailing != null) ...[const Spacer(), trailing!],
+                // As tall as the chevron, so the header keeps its height.
+                Expanded(child: SizedBox(height: 16, child: search)),
+                if (trailing != null) ...[const SizedBox(width: 6), trailing!],
               ],
             ),
+          )
+        else
+          InkWell(
+            onTap: onToggle,
+            hoverColor: t.hover,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(10, 10, 12, 4),
+              child: Row(
+                children: [
+                  ...lead,
+                  const SizedBox(width: 8),
+                  Text(
+                    label.toUpperCase(),
+                    style: TextStyle(
+                      color: t.textFaint,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  if (count != null) ...[
+                    const SizedBox(width: 6),
+                    Text(
+                      '$count',
+                      style: TextStyle(color: t.textFaint, fontSize: 11),
+                    ),
+                  ],
+                  if (trailing != null) ...[const Spacer(), trailing!],
+                ],
+              ),
+            ),
           ),
-        ),
         if (open && children.isEmpty)
           Padding(
             padding: const EdgeInsets.fromLTRB(34, 2, 12, 4),

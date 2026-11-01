@@ -20,6 +20,46 @@ Branch _b(String name, {bool current = false}) =>
     Branch(name: name, current: current);
 
 void main() {
+  group('filterBranches', () {
+    final all = [
+      _b('main'),
+      _b('feat/login-form'),
+      _b('feat/signup'),
+      _b('fix/LOGIN-crash'),
+    ];
+    List<String> names(String q) => [
+      for (final b in filterBranches(all, q)) b.name,
+    ];
+
+    test('an empty or blank query keeps every branch', () {
+      expect(names(''), hasLength(4));
+      expect(names('   '), hasLength(4));
+    });
+
+    test('matches case-insensitively anywhere in the full name', () {
+      expect(names('login'), ['feat/login-form', 'fix/LOGIN-crash']);
+      expect(names('FIX/'), ['fix/LOGIN-crash']);
+    });
+
+    test('every word of the query must occur', () {
+      expect(names('feat form'), ['feat/login-form']);
+      expect(names('form crash'), isEmpty);
+    });
+  });
+
+  group('buildBranchTree while filtering', () {
+    test('opens collapsed folders that hold a match', () {
+      final rows = buildBranchTree(
+        [_b('feat/login-form')],
+        const {'branchdir:feat': true},
+        forceOpen: true,
+      );
+      expect(rows, hasLength(2));
+      expect((rows[0] as BranchFolderRow).open, isTrue);
+      expect((rows[1] as BranchLeafRow).branch.name, 'feat/login-form');
+    });
+  });
+
   group('buildBranchTree', () {
     test('flat branches become sorted leaf rows at depth 0', () {
       final rows = buildBranchTree([_b('main'), _b('dev')], const {});

@@ -1268,6 +1268,24 @@ abstract class AppLocalizations {
   /// **'No matching entries'**
   String get sbReflogNoMatches;
 
+  /// No description provided for @sbBranchFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter branches'**
+  String get sbBranchFilter;
+
+  /// No description provided for @sbBranchNoMatches.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching branches'**
+  String get sbBranchNoMatches;
+
+  /// No description provided for @sbClearFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear filter'**
+  String get sbClearFilter;
+
   /// No description provided for @sbSubmodules.
   ///
   /// In en, this message translates to:

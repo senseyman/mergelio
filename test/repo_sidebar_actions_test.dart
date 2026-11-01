@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
@@ -9,6 +10,7 @@ import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/domain/git/models.dart';
 import 'package:mergelio/domain/git/worktree.dart';
+import 'package:mergelio/state/branch_filter.dart';
 import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
@@ -84,6 +86,170 @@ Future<ProviderContainer> _pump(
 }
 
 void main() {
+  group('branch filter', () {
+    const data = RepoData(
+      branches: [
+        Branch(name: 'main', current: true),
+        Branch(name: 'feat/login-form'),
+        Branch(name: 'feat/signup'),
+        Branch(name: 'fix/crash'),
+      ],
+    );
+    Finder field() => find.byKey(const ValueKey('sb-branch-filter'));
+    Size header(WidgetTester tester, Finder inside) => tester.getSize(
+      find.ancestor(of: inside, matching: find.byType(Padding)).at(0),
+    );
+
+    Future<void> openFilter(WidgetTester tester) async {
+      await tester.tap(find.byTooltip('Filter branches'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('the box opens from the header icon, in the header row', (
+      tester,
+    ) async {
+      await _pump(tester, _FakeGit(), data: data);
+      expect(field(), findsNothing);
+
+      await openFilter(tester);
+
+      expect(field(), findsOneWidget);
+      // It takes the label's place rather than adding a row.
+      expect(find.text('BRANCHES'), findsNothing);
+      expect(
+        tester.getRect(field()).center.dy,
+        lessThan(tester.getRect(find.text('feat')).top),
+      );
+      // Focused, so typing goes straight in.
+      final editable = tester.widget<EditableText>(
+        find.descendant(of: field(), matching: find.byType(EditableText)),
+      );
+      expect(editable.focusNode.hasFocus, isTrue);
+      // No taller than another section's header.
+      expect(
+        header(tester, field()).height,
+        header(tester, find.text('REMOTES')).height,
+      );
+    });
+
+    testWidgets('opening it on a collapsed section opens the section', (
+      tester,
+    ) async {
+      final c = await _pump(tester, _FakeGit(), data: data);
+      c.read(settingsProvider.notifier).toggleSection('branches');
+      await tester.pumpAndSettle();
+      expect(find.text('signup'), findsNothing);
+
+      await openFilter(tester);
+
+      expect(find.text('signup'), findsOneWidget);
+    });
+
+    testWidgets('narrows the list, even inside a collapsed folder', (
+      tester,
+    ) async {
+      final c = await _pump(tester, _FakeGit(), data: data);
+      c.read(settingsProvider.notifier).toggleSection('branchdir:feat');
+      await tester.pumpAndSettle();
+      expect(find.text('login-form'), findsNothing);
+
+      await openFilter(tester);
+      await tester.enterText(field(), 'login');
+      await tester.pumpAndSettle();
+
+      expect(find.text('login-form'), findsOneWidget);
+      expect(find.text('signup'), findsNothing);
+      expect(find.text('crash'), findsNothing);
+      expect(find.text('main'), findsNothing);
+    });
+
+    testWidgets('says when nothing matches; Esc clears and closes the box', (
+      tester,
+    ) async {
+      await _pump(tester, _FakeGit(), data: data);
+      await openFilter(tester);
+
+      await tester.enterText(field(), 'nope');
+      await tester.pumpAndSettle();
+      expect(find.text('No matching branches'), findsOneWidget);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(field(), findsNothing);
+      expect(find.text('BRANCHES'), findsOneWidget);
+      expect(find.text('No matching branches'), findsNothing);
+      expect(find.text('signup'), findsOneWidget);
+
+      // Reopened, it starts empty.
+      await openFilter(tester);
+      expect(tester.widget<TextField>(field()).controller!.text, isEmpty);
+    });
+
+    testWidgets('the clear button empties the query and keeps the box', (
+      tester,
+    ) async {
+      await _pump(tester, _FakeGit(), data: data);
+      await openFilter(tester);
+      await tester.enterText(field(), 'signup');
+      await tester.pumpAndSettle();
+      expect(find.text('crash'), findsNothing);
+
+      await tester.tap(find.byTooltip('Clear filter'));
+      await tester.pumpAndSettle();
+      expect(find.text('crash'), findsOneWidget);
+      expect(field(), findsOneWidget);
+    });
+
+    testWidgets('a repo without branches offers no filter', (tester) async {
+      await _pump(tester, _FakeGit(), data: const RepoData());
+      expect(find.byTooltip('Filter branches'), findsNothing);
+    });
+
+    testWidgets('removing the open box from the tree reports nothing', (
+      tester,
+    ) async {
+      await _pump(tester, _FakeGit(), data: data);
+      await openFilter(tester);
+
+      // The sidebar going away (collapsed, or the window's layout changing)
+      // takes the focused box with it.
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('switching repos leaves each repo its own filter', (
+      tester,
+    ) async {
+      final c = await _pump(tester, _FakeGit(), data: data);
+      await openFilter(tester);
+      await tester.enterText(field(), 'signup');
+      await tester.pumpAndSettle();
+
+      c.read(workspaceProvider.notifier).openRepo('/other');
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(field(), findsNothing);
+      expect(c.read(branchFilterProvider('/r')), 'signup');
+
+      c.read(workspaceProvider.notifier).openRepo('/r');
+      await tester.pumpAndSettle();
+      expect(tester.widget<TextField>(field()).controller!.text, 'signup');
+      expect(find.text('crash'), findsNothing);
+    });
+
+    testWidgets('an empty box closes when focus leaves it', (tester) async {
+      await _pump(tester, _FakeGit(), data: data);
+      await openFilter(tester);
+
+      FocusManager.instance.primaryFocus!.unfocus();
+      await tester.pumpAndSettle();
+
+      expect(field(), findsNothing);
+    });
+  });
+
   testWidgets('the Branches menu keeps its header as tall as the others', (
     tester,
   ) async {

@@ -32,10 +32,15 @@ class BranchLeafRow extends BranchTreeRow {
 /// first to ordered rows. At each level folders come before branches, both
 /// sorted by name. A folder whose id is truthy in [collapsed] is emitted but
 /// its descendants are omitted.
+///
+/// [forceOpen] shows every folder open whatever [collapsed] says, for a
+/// filtered list where a match must not hide inside a closed folder; the
+/// saved state itself is left alone.
 List<BranchTreeRow> buildBranchTree(
   List<Branch> branches,
-  Map<String, bool> collapsed,
-) {
+  Map<String, bool> collapsed, {
+  bool forceOpen = false,
+}) {
   final root = _Node();
   for (final b in branches) {
     var node = root;
@@ -49,7 +54,7 @@ List<BranchTreeRow> buildBranchTree(
     }
   }
   final rows = <BranchTreeRow>[];
-  _emit(root, '', 0, rows, collapsed);
+  _emit(root, '', 0, rows, forceOpen ? const {} : collapsed);
   return rows;
 }
 
@@ -77,4 +82,16 @@ void _emit(
 class _Node {
   final Map<String, _Node> dirs = {};
   final List<Branch> branches = [];
+}
+
+/// The [branches] whose full name holds every whitespace-separated word of
+/// [query], ignoring case. A blank query keeps them all.
+List<Branch> filterBranches(List<Branch> branches, String query) {
+  final words = query.toLowerCase().split(RegExp(r'\s+'))
+    ..removeWhere((w) => w.isEmpty);
+  if (words.isEmpty) return branches;
+  return [
+    for (final b in branches)
+      if (words.every(b.name.toLowerCase().contains)) b,
+  ];
 }
