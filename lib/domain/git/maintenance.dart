@@ -334,8 +334,9 @@ class HygieneBranch {
   bool get needsForce => !merged;
 }
 
-/// The safe pick among [branches]: merged ones no worktree holds, which go
-/// without a force-delete.
+/// The safe pick among [branches]: merged ones no worktree holds, so the
+/// confirm has no unmerged work to warn about. Each is checked against the
+/// trunk again when the delete runs.
 List<String> mergedPickable(List<HygieneBranch> branches) => [
   for (final b in branches)
     if (b.merged && b.selectable) b.name,

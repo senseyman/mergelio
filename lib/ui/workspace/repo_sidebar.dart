@@ -26,7 +26,7 @@ import 'branch_switch.dart';
 import 'branch_tree.dart';
 import 'forge_issue_section.dart';
 import 'forge_section.dart';
-import 'maintenance_panel.dart';
+import 'branch_cleanup.dart';
 import 'reflog_section.dart';
 import 'remote_dialog.dart';
 import 'shallow_badge.dart';
@@ -194,11 +194,21 @@ class _Sections extends ConsumerWidget {
                     color: context.tokens.textFaint,
                   ),
                   padding: EdgeInsets.zero,
+                  // An icon button's default 40–48px would double the header
+                  // next to the other sections'.
+                  // Sized through style: the button's own constraints field
+                  // sizes the menu, not the button.
+                  style: IconButton.styleFrom(
+                    fixedSize: const Size(20, 16),
+                    minimumSize: Size.zero,
+                    padding: EdgeInsets.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
                   itemBuilder: (_) => [
                     PopupMenuItem(
                       height: 34,
                       onTap: () => showBranchCleanup(context, path),
-                      child: Text(l.bcMenuOpen),
+                      child: Text(l.bcOpen),
                     ),
                   ],
                 ),

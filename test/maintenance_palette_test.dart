@@ -12,6 +12,7 @@ import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
 import 'package:mergelio/state/workspace.dart';
 import 'package:mergelio/ui/shell/global_actions.dart';
+import 'package:mergelio/ui/workspace/branch_cleanup.dart';
 import 'package:mergelio/ui/workspace/maintenance_panel.dart';
 
 class _FakeGit implements GitService {

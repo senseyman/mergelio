@@ -279,7 +279,7 @@ change never needs a second window.*
 - **Clean up branches** from the Branches section's `⋯` menu or the palette:
   local branches merged into the trunk, untouched for 90 days, or whose
   upstream is gone, ticked and deleted in one undoable step. **Select merged**
-  picks only the ones that need no force-delete; a branch checked out in a
+  picks only the merged ones, so nothing unmerged goes; a branch checked out in a
   worktree is listed but cannot be picked.
 - Delete a branch on the remote from its remote-tracking row, or take a
   tracking branch away here and on the remote in one confirmed step.

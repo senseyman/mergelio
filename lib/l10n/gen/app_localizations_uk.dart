@@ -3267,10 +3267,7 @@ class AppLocalizationsUk extends AppLocalizations {
   String get bcTitle => 'Прибирання гілок';
 
   @override
-  String get bcMenuOpen => 'Прибрати гілки…';
-
-  @override
-  String get bcPaletteOpen => 'Прибрати гілки…';
+  String get bcOpen => 'Прибрати гілки…';
 
   @override
   String get mntStorage => 'Сховище';

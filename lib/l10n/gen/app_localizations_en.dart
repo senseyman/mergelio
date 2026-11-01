@@ -3227,10 +3227,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bcTitle => 'Clean up branches';
 
   @override
-  String get bcMenuOpen => 'Clean up branches…';
-
-  @override
-  String get bcPaletteOpen => 'Clean up branches…';
+  String get bcOpen => 'Clean up branches…';
 
   @override
   String get mntStorage => 'Storage';

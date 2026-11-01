@@ -12,7 +12,7 @@ import 'package:mergelio/state/maintenance.dart';
 import 'package:mergelio/state/operation_journal.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
-import 'package:mergelio/ui/workspace/maintenance_panel.dart';
+import 'package:mergelio/ui/workspace/branch_cleanup.dart';
 
 final _now = DateTime.utc(2026, 9, 30, 12);
 int _secsAgo(int days) =>

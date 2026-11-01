@@ -5510,17 +5510,11 @@ abstract class AppLocalizations {
   /// **'Clean up branches'**
   String get bcTitle;
 
-  /// No description provided for @bcMenuOpen.
+  /// No description provided for @bcOpen.
   ///
   /// In en, this message translates to:
   /// **'Clean up branches…'**
-  String get bcMenuOpen;
-
-  /// No description provided for @bcPaletteOpen.
-  ///
-  /// In en, this message translates to:
-  /// **'Clean up branches…'**
-  String get bcPaletteOpen;
+  String get bcOpen;
 
   /// No description provided for @mntStorage.
   ///
