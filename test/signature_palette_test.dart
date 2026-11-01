@@ -99,7 +99,11 @@ void main() {
 
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Check signatures…'));
+    // Typed rather than found by position: the list outgrows the view. The
+    // query in the field matches too; the row is the InkWell.
+    await tester.enterText(find.byType(TextField).last, 'Check signatures…');
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(InkWell, 'Check signatures…'));
     await tester.pumpAndSettle();
 
     final panel = tester.widget<SignatureAuditPanel>(

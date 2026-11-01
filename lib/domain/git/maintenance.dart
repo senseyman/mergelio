@@ -334,6 +334,14 @@ class HygieneBranch {
   bool get needsForce => !merged;
 }
 
+/// The safe pick among [branches]: merged ones no worktree holds, so the
+/// confirm has no unmerged work to warn about. Each is checked against the
+/// trunk again when the delete runs.
+List<String> mergedPickable(List<HygieneBranch> branches) => [
+  for (final b in branches)
+    if (b.merged && b.selectable) b.name,
+];
+
 /// Merged branches first, then stale ones (old, or tracking an upstream that
 /// is gone), each group by name. The trunk and the current branch are never
 /// offered.

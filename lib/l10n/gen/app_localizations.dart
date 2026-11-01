@@ -5504,6 +5504,18 @@ abstract class AppLocalizations {
   /// **'Repository maintenance…'**
   String get mntPaletteOpen;
 
+  /// No description provided for @bcTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Clean up branches'**
+  String get bcTitle;
+
+  /// No description provided for @bcOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Clean up branches…'**
+  String get bcOpen;
+
   /// No description provided for @mntStorage.
   ///
   /// In en, this message translates to:
@@ -5677,6 +5689,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Select all'**
   String get mntSelectAll;
+
+  /// No description provided for @mntSelectMerged.
+  ///
+  /// In en, this message translates to:
+  /// **'Select merged'**
+  String get mntSelectMerged;
 
   /// No description provided for @mntDeleteSelected.
   ///

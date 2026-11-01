@@ -14,6 +14,7 @@ import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
 import 'package:mergelio/state/workspace.dart';
 import 'package:mergelio/state/worktrees.dart';
+import 'package:mergelio/ui/workspace/branch_cleanup.dart';
 import 'package:mergelio/ui/workspace/repo_sidebar.dart';
 
 class _FakeGit implements GitService {
@@ -83,6 +84,40 @@ Future<ProviderContainer> _pump(
 }
 
 void main() {
+  testWidgets('the Branches menu keeps its header as tall as the others', (
+    tester,
+  ) async {
+    await _pump(tester, _FakeGit());
+    Size header(String label) => tester.getSize(
+      find.ancestor(of: find.text(label), matching: find.byType(InkWell)).first,
+    );
+    expect(header('BRANCHES').height, header('REMOTES').height);
+  });
+
+  testWidgets('the Branches menu opens branch clean-up', (tester) async {
+    await _pump(tester, _FakeGit());
+
+    await tester.tap(find.byKey(const ValueKey('sb-branches-menu')));
+    await tester.pumpAndSettle();
+    // Sizing the button must not size the menu along with it.
+    expect(
+      tester
+          .getSize(
+            find.widgetWithText(PopupMenuItem<void>, 'Clean up branches…'),
+          )
+          .width,
+      greaterThan(100),
+    );
+    await tester.tap(find.text('Clean up branches…'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Clean up branches'), findsOneWidget);
+    final list = tester.widget<BranchCleanup>(find.byType(BranchCleanup));
+    expect(list.repoPath, '/r');
+    // This repo's only other branch is neither merged nor stale.
+    expect(find.text('No merged or stale branches.'), findsOneWidget);
+  });
+
   testWidgets('double-clicking a branch checks it out', (tester) async {
     final git = _FakeGit();
     await _pump(tester, git);

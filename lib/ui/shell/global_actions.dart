@@ -20,6 +20,7 @@ import '../review/review_picker.dart';
 import '../workspace/apply_patch_dialog.dart';
 import '../workspace/branch_switch.dart';
 import '../workspace/hooks_panel.dart';
+import '../workspace/branch_cleanup.dart';
 import '../workspace/maintenance_panel.dart';
 import '../workspace/remote_dialog.dart';
 import '../workspace/signature_audit_panel.dart';
@@ -145,6 +146,11 @@ void openGlobalPalette(BuildContext context, WidgetRef ref) {
       l.mntPaletteOpen,
       Icons.cleaning_services_outlined,
       () => showMaintenancePanel(context, path),
+    ),
+    PaletteCommand(
+      l.bcOpen,
+      Icons.cleaning_services_outlined,
+      () => showBranchCleanup(context, path),
     ),
     PaletteCommand(
       l.hkPaletteOpen,

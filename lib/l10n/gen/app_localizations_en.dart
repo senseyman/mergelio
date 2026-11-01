@@ -3224,6 +3224,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mntPaletteOpen => 'Repository maintenance…';
 
   @override
+  String get bcTitle => 'Clean up branches';
+
+  @override
+  String get bcOpen => 'Clean up branches…';
+
+  @override
   String get mntStorage => 'Storage';
 
   @override
@@ -3339,6 +3345,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mntSelectAll => 'Select all';
+
+  @override
+  String get mntSelectMerged => 'Select merged';
 
   @override
   String mntDeleteSelected(int count) {
