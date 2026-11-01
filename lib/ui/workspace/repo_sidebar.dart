@@ -9,6 +9,7 @@ import '../../l10n/gen/app_localizations.dart';
 import '../../state/compare_target.dart';
 import '../../state/review.dart';
 import '../../state/graph_selection.dart';
+import '../../state/branch_filter.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
 import '../../state/settings.dart';
@@ -22,6 +23,7 @@ import '../shell/branch_drop.dart';
 import '../shell/lfs_push_guard.dart';
 import '../shell/remote_merge_confirm.dart';
 import 'add_submodule_dialog.dart';
+import 'branch_filter_field.dart';
 import 'branch_switch.dart';
 import 'branch_tree.dart';
 import 'forge_issue_section.dart';
@@ -172,6 +174,9 @@ class _Sections extends ConsumerWidget {
     bool isOpen(String id) => sectionOpenIn(collapsed, id);
     final path = ref.watch(workspaceProvider).activeTab?.path;
     final actions = path == null ? null : ref.read(repoActionsProvider(path));
+    final query = path == null ? '' : ref.watch(branchFilterProvider(path));
+    final filtering = query.trim().isNotEmpty;
+    final shownBranches = filterBranches(data.branches, query);
 
     return ListView(
       padding: const EdgeInsets.only(bottom: 12),
@@ -180,7 +185,7 @@ class _Sections extends ConsumerWidget {
           id: 'branches',
           icon: Icons.call_split,
           label: l.sbBranches,
-          count: data.branches.length,
+          count: shownBranches.length,
           emptyLabel: l.sbNoBranches,
           open: isOpen('branches'),
           onToggle: () => ctl.toggleSection('branches'),
@@ -213,7 +218,26 @@ class _Sections extends ConsumerWidget {
                   ],
                 ),
           children: [
-            for (final row in buildBranchTree(data.branches, collapsed))
+            if (path != null && data.branches.isNotEmpty)
+              BranchFilterField(repoPath: path),
+            // Distinct from the section's empty state: that would claim the
+            // repo has no branches when only the query matches none.
+            if (filtering && shownBranches.isEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(34, 2, 12, 4),
+                child: Text(
+                  l.sbBranchNoMatches,
+                  style: TextStyle(
+                    color: context.tokens.textFaint,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            for (final row in buildBranchTree(
+              shownBranches,
+              collapsed,
+              forceOpen: filtering,
+            ))
               if (row is BranchFolderRow)
                 _FolderRow(
                   label: row.name,

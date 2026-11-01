@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
@@ -84,6 +85,62 @@ Future<ProviderContainer> _pump(
 }
 
 void main() {
+  group('branch filter', () {
+    const data = RepoData(
+      branches: [
+        Branch(name: 'main', current: true),
+        Branch(name: 'feat/login-form'),
+        Branch(name: 'feat/signup'),
+        Branch(name: 'fix/crash'),
+      ],
+    );
+    Finder field() => find.byKey(const ValueKey('sb-branch-filter'));
+
+    testWidgets('narrows the list, even inside a collapsed folder', (
+      tester,
+    ) async {
+      final c = await _pump(tester, _FakeGit(), data: data);
+      c.read(settingsProvider.notifier).toggleSection('branchdir:feat');
+      await tester.pumpAndSettle();
+      expect(find.text('login-form'), findsNothing);
+
+      await tester.enterText(field(), 'login');
+      await tester.pumpAndSettle();
+
+      expect(find.text('login-form'), findsOneWidget);
+      expect(find.text('signup'), findsNothing);
+      expect(find.text('crash'), findsNothing);
+      expect(find.text('main'), findsNothing);
+    });
+
+    testWidgets('says when nothing matches, and Esc clears the query', (
+      tester,
+    ) async {
+      await _pump(tester, _FakeGit(), data: data);
+
+      await tester.enterText(field(), 'nope');
+      await tester.pumpAndSettle();
+      expect(find.text('No matching branches'), findsOneWidget);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(find.text('No matching branches'), findsNothing);
+      expect(find.text('signup'), findsOneWidget);
+      expect(tester.widget<TextField>(field()).controller!.text, isEmpty);
+    });
+
+    testWidgets('the clear button empties the query', (tester) async {
+      await _pump(tester, _FakeGit(), data: data);
+      await tester.enterText(field(), 'signup');
+      await tester.pumpAndSettle();
+      expect(find.text('crash'), findsNothing);
+
+      await tester.tap(find.byTooltip('Clear filter'));
+      await tester.pumpAndSettle();
+      expect(find.text('crash'), findsOneWidget);
+    });
+  });
+
   testWidgets('the Branches menu keeps its header as tall as the others', (
     tester,
   ) async {

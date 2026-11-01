@@ -650,6 +650,15 @@ class AppLocalizationsUk extends AppLocalizations {
   String get sbReflogNoMatches => 'Немає відповідних записів';
 
   @override
+  String get sbBranchFilter => 'Фільтрувати гілки';
+
+  @override
+  String get sbBranchNoMatches => 'Немає відповідних гілок';
+
+  @override
+  String get sbClearFilter => 'Очистити фільтр';
+
+  @override
   String get sbSubmodules => 'Підмодулі';
 
   @override

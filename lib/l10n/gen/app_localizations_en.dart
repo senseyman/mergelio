@@ -648,6 +648,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sbReflogNoMatches => 'No matching entries';
 
   @override
+  String get sbBranchFilter => 'Filter branches';
+
+  @override
+  String get sbBranchNoMatches => 'No matching branches';
+
+  @override
+  String get sbClearFilter => 'Clear filter';
+
+  @override
   String get sbSubmodules => 'Submodules';
 
   @override

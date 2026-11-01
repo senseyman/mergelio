@@ -276,6 +276,9 @@ change never needs a second window.*
 
 - Branches: create, checkout, rename, delete, set upstream — organised into
   folders from `/`-separated names.
+- **Filter branches** from the box at the top of the Branches section: every
+  word you type must appear in the name, case ignored, and folders holding a
+  match open while you filter. Esc clears it.
 - **Clean up branches** from the Branches section's `⋯` menu or the palette:
   local branches merged into the trunk, untouched for 90 days, or whose
   upstream is gone, ticked and deleted in one undoable step. **Select merged**
