@@ -37,6 +37,7 @@ import 'bisect_bar.dart';
 import 'commit_columns.dart';
 import 'graph_derived.dart';
 import 'commit_row.dart';
+import 'graph_ref_filter_bar.dart';
 import 'pick_bar.dart';
 import 'rail_metrics.dart';
 import 'squash_overlay.dart';
@@ -634,6 +635,7 @@ class _GraphListState extends ConsumerState<GraphList> {
             },
           ),
         if (repo != null) PickBar(repoPath: repo, commits: d.commits),
+        if (repo != null) GraphRefFilterBar(repoPath: repo, data: d),
         if (query != null)
           _SearchBar(
             query: query,

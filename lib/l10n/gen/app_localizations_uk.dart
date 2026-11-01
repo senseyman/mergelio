@@ -659,6 +659,45 @@ class AppLocalizationsUk extends AppLocalizations {
   String get sbClearFilter => 'Очистити фільтр';
 
   @override
+  String get grfHide => 'Сховати в графі';
+
+  @override
+  String get grfShow => 'Показати в графі';
+
+  @override
+  String get grfSolo => 'Лише ця гілка в графі';
+
+  @override
+  String get grfUnsolo => 'Показати не лише цю';
+
+  @override
+  String get grfHiddenMark => 'Схована в графі';
+
+  @override
+  String get grfSoloMark => 'Показана окремо в графі';
+
+  @override
+  String grfBarSolo(String names) {
+    return 'Граф показує лише $names';
+  }
+
+  @override
+  String grfBarHidden(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count гілки сховано з графа',
+      many: '$count гілок сховано з графа',
+      few: '$count гілки сховано з графа',
+      one: '$count гілку сховано з графа',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get grfShowAll => 'Показати всі';
+
+  @override
   String get sbSubmodules => 'Підмодулі';
 
   @override

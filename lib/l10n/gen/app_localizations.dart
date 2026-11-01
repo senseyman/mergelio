@@ -1286,6 +1286,60 @@ abstract class AppLocalizations {
   /// **'Clear filter'**
   String get sbClearFilter;
 
+  /// No description provided for @grfHide.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide in graph'**
+  String get grfHide;
+
+  /// No description provided for @grfShow.
+  ///
+  /// In en, this message translates to:
+  /// **'Show in graph'**
+  String get grfShow;
+
+  /// No description provided for @grfSolo.
+  ///
+  /// In en, this message translates to:
+  /// **'Solo in graph'**
+  String get grfSolo;
+
+  /// No description provided for @grfUnsolo.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop soloing'**
+  String get grfUnsolo;
+
+  /// No description provided for @grfHiddenMark.
+  ///
+  /// In en, this message translates to:
+  /// **'Hidden in the graph'**
+  String get grfHiddenMark;
+
+  /// No description provided for @grfSoloMark.
+  ///
+  /// In en, this message translates to:
+  /// **'Soloed in the graph'**
+  String get grfSoloMark;
+
+  /// No description provided for @grfBarSolo.
+  ///
+  /// In en, this message translates to:
+  /// **'Graph shows only {names}'**
+  String grfBarSolo(String names);
+
+  /// No description provided for @grfBarHidden.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{1 branch hidden from the graph} other{{count} branches hidden from the graph}}'**
+  String grfBarHidden(int count);
+
+  /// No description provided for @grfShowAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Show all'**
+  String get grfShowAll;
+
   /// No description provided for @sbSubmodules.
   ///
   /// In en, this message translates to:

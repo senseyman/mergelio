@@ -657,6 +657,43 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sbClearFilter => 'Clear filter';
 
   @override
+  String get grfHide => 'Hide in graph';
+
+  @override
+  String get grfShow => 'Show in graph';
+
+  @override
+  String get grfSolo => 'Solo in graph';
+
+  @override
+  String get grfUnsolo => 'Stop soloing';
+
+  @override
+  String get grfHiddenMark => 'Hidden in the graph';
+
+  @override
+  String get grfSoloMark => 'Soloed in the graph';
+
+  @override
+  String grfBarSolo(String names) {
+    return 'Graph shows only $names';
+  }
+
+  @override
+  String grfBarHidden(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count branches hidden from the graph',
+      one: '1 branch hidden from the graph',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get grfShowAll => 'Show all';
+
+  @override
   String get sbSubmodules => 'Submodules';
 
   @override

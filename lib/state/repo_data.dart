@@ -8,6 +8,7 @@ import '../domain/git/lane_layout.dart';
 import '../domain/git/models.dart';
 import '../domain/git/notes.dart';
 import '../domain/git/signature.dart';
+import 'graph_ref_filter.dart';
 import 'squash_link_cache.dart';
 
 part 'repo_data.freezed.dart';
@@ -112,6 +113,7 @@ final repoDataProvider = FutureProvider.family<RepoData, String>(
   (ref, path) => appLog.timed('Load repo', () async {
     final reader = GitReader(ref.watch(gitServiceProvider), path);
     final limit = ref.watch(commitLimitProvider(path));
+    final refFilter = await ref.watch(graphRefFilterProvider(path).future);
     final started = DateTime.now();
     // Refs, index and working tree first: all cheap, and the ref signature
     // decides whether the expensive history walk below has to run at all.
@@ -128,11 +130,13 @@ final repoDataProvider = FutureProvider.family<RepoData, String>(
     final refsDone = DateTime.now();
     final stashes = results[3] as List<Stash>;
     // The walk starts from every ref plus the stash entries, and returns a
-    // different list when the page size changes, so both belong in the key.
+    // different list when the page size or the hidden and soloed branches
+    // change, so all of them belong in the key.
     final commitSig = [
       results[7] as String,
       for (final s in stashes) s.sha,
       'limit=$limit',
+      'refs=${refFilter.signature}',
     ].join('\n');
     final cachedCommits = _commitCache[path];
     final List<Commit> commits;
@@ -144,7 +148,7 @@ final repoDataProvider = FutureProvider.family<RepoData, String>(
       _cacheCommits(path, cachedCommits); // freshen: this repo is in use
     } else {
       walked = true;
-      final page = await reader.commitPage(maxCount: limit);
+      final page = await reader.commitPage(maxCount: limit, filter: refFilter);
       commits = assignLanes(page.commits, hidden: page.hidden);
       hasMore = page.truncated;
       _cacheCommits(path, (sig: commitSig, commits: commits, more: hasMore));
