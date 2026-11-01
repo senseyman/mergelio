@@ -41,6 +41,15 @@ class SidebarSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
+    final lead = [
+      Icon(
+        open ? Icons.expand_more : Icons.chevron_right,
+        size: 16,
+        color: t.textFaint,
+      ),
+      const SizedBox(width: 2),
+      Icon(icon, size: 14, color: t.textMuted),
+    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -56,15 +65,7 @@ class SidebarSection extends StatelessWidget {
                   hoverColor: t.hover,
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        open ? Icons.expand_more : Icons.chevron_right,
-                        size: 16,
-                        color: t.textFaint,
-                      ),
-                      const SizedBox(width: 2),
-                      Icon(icon, size: 14, color: t.textMuted),
-                    ],
+                    children: [...lead],
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -82,13 +83,7 @@ class SidebarSection extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(10, 10, 12, 4),
               child: Row(
                 children: [
-                  Icon(
-                    open ? Icons.expand_more : Icons.chevron_right,
-                    size: 16,
-                    color: t.textFaint,
-                  ),
-                  const SizedBox(width: 2),
-                  Icon(icon, size: 14, color: t.textMuted),
+                  ...lead,
                   const SizedBox(width: 8),
                   Text(
                     label.toUpperCase(),

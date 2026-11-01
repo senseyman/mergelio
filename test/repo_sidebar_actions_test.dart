@@ -10,6 +10,7 @@ import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/domain/git/models.dart';
 import 'package:mergelio/domain/git/worktree.dart';
+import 'package:mergelio/state/branch_filter.dart';
 import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
@@ -197,6 +198,45 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('crash'), findsOneWidget);
       expect(field(), findsOneWidget);
+    });
+
+    testWidgets('a repo without branches offers no filter', (tester) async {
+      await _pump(tester, _FakeGit(), data: const RepoData());
+      expect(find.byTooltip('Filter branches'), findsNothing);
+    });
+
+    testWidgets('removing the open box from the tree reports nothing', (
+      tester,
+    ) async {
+      await _pump(tester, _FakeGit(), data: data);
+      await openFilter(tester);
+
+      // The sidebar going away (collapsed, or the window's layout changing)
+      // takes the focused box with it.
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('switching repos leaves each repo its own filter', (
+      tester,
+    ) async {
+      final c = await _pump(tester, _FakeGit(), data: data);
+      await openFilter(tester);
+      await tester.enterText(field(), 'signup');
+      await tester.pumpAndSettle();
+
+      c.read(workspaceProvider.notifier).openRepo('/other');
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(field(), findsNothing);
+      expect(c.read(branchFilterProvider('/r')), 'signup');
+
+      c.read(workspaceProvider.notifier).openRepo('/r');
+      await tester.pumpAndSettle();
+      expect(tester.widget<TextField>(field()).controller!.text, 'signup');
+      expect(find.text('crash'), findsNothing);
     });
 
     testWidgets('an empty box closes when focus leaves it', (tester) async {

@@ -196,7 +196,7 @@ class _Sections extends ConsumerWidget {
               : Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (!searching)
+                    if (!searching && data.branches.isNotEmpty)
                       IconButton(
                         tooltip: l.sbBranchFilter,
                         icon: Icon(
