@@ -24,6 +24,25 @@ class GraphRefFilter {
       ? GraphRefFilter(hidden: hidden, solo: {...solo}..remove(ref))
       : GraphRefFilter(hidden: {...hidden}..remove(ref), solo: {...solo, ref});
 
+  /// The part of this filter the graph is really applying, for saying what
+  /// it shows. [live] is every full ref name that exists; [current] is the
+  /// checked-out branch's short name, or null when HEAD is detached.
+  ///
+  /// Gone refs drop out. A hidden current branch is not in effect: the walk
+  /// takes in HEAD whatever is excluded. While any soloed ref is live, hidden
+  /// refs play no part; with none live, the walk falls back as [walkStart]
+  /// does.
+  GraphRefFilter effective({required Set<String> live, String? current}) {
+    final liveSolo = solo.intersection(live);
+    if (liveSolo.isNotEmpty) return GraphRefFilter(solo: liveSolo);
+    return GraphRefFilter(
+      hidden: {
+        for (final r in hidden)
+          if (live.contains(r) && r != 'refs/heads/$current') r,
+      },
+    );
+  }
+
   /// The walk's starting points for `git log`. [liveSolo] is the part of
   /// [solo] that still exists: a soloed branch deleted since would make git
   /// fail the whole walk. With none left, the walk falls back to every ref

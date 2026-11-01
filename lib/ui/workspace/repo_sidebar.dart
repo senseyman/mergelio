@@ -626,6 +626,7 @@ class _BranchRow extends ConsumerWidget {
           ref: ref,
           repoPath: path,
           refName: 'refs/heads/${branch.name}',
+          current: branch.current,
         ),
         const PopupMenuDivider(),
         item(l.sbSetUpstreamItem, () async {

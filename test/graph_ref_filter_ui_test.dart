@@ -132,6 +132,39 @@ void main() {
     );
   });
 
+  testWidgets('the current branch cannot be hidden: HEAD would keep it', (
+    tester,
+  ) async {
+    await _pumpSidebar(tester);
+    await _rightClick(tester, _local('main'));
+    final hide = tester.widget<PopupMenuItem<void>>(
+      find.widgetWithText(PopupMenuItem<void>, 'Hide in graph'),
+    );
+    expect(hide.enabled, isFalse);
+    // Soloing it still works.
+    final solo = tester.widget<PopupMenuItem<void>>(
+      find.widgetWithText(PopupMenuItem<void>, 'Solo in graph'),
+    );
+    expect(solo.enabled, isTrue);
+  });
+
+  testWidgets('a branch hidden before it was checked out can be shown', (
+    tester,
+  ) async {
+    final c = await _pumpSidebar(tester);
+    await c
+        .read(graphRefFilterProvider('/r').notifier)
+        .toggleHidden('refs/heads/main');
+    await tester.pumpAndSettle();
+
+    await _pick(tester, _local('main'), 'Show in graph');
+
+    expect(
+      c.read(graphRefFilterProvider('/r')).valueOrNull,
+      GraphRefFilter.none,
+    );
+  });
+
   group('GraphRefFilterBar', () {
     Future<ProviderContainer> pumpBar(
       WidgetTester tester,
@@ -140,7 +173,9 @@ void main() {
       tester.view.physicalSize = const Size(900, 400);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
-      await tester.pumpWidget(_app(const GraphRefFilterBar(repoPath: '/r')));
+      await tester.pumpWidget(
+        _app(const GraphRefFilterBar(repoPath: '/r', data: _data)),
+      );
       final c = ProviderScope.containerOf(
         tester.element(find.byType(GraphRefFilterBar)),
       );
@@ -165,16 +200,44 @@ void main() {
       await pumpBar(
         tester,
         const GraphRefFilter(
-          solo: {'refs/heads/feat', 'refs/remotes/origin/main'},
+          solo: {'refs/heads/feat', 'refs/remotes/origin/feat'},
         ),
       );
-      expect(find.text('Graph shows only feat, origin/main'), findsOneWidget);
+      expect(find.text('Graph shows only feat, origin/feat'), findsOneWidget);
+    });
+
+    testWidgets('says nothing of branches that are gone', (tester) async {
+      // _data has main, feat and origin/feat; these refs no longer exist.
+      await pumpBar(
+        tester,
+        const GraphRefFilter(
+          hidden: {'refs/heads/old'},
+          solo: {'refs/heads/deleted'},
+        ),
+      );
+      expect(find.textContaining('Graph shows only'), findsNothing);
+      expect(find.textContaining('hidden'), findsNothing);
+    });
+
+    testWidgets('a deleted soloed branch leaves the live hidden count', (
+      tester,
+    ) async {
+      await pumpBar(
+        tester,
+        const GraphRefFilter(
+          hidden: {'refs/heads/feat'},
+          solo: {'refs/heads/deleted'},
+        ),
+      );
+      expect(find.text('1 branch hidden from the graph'), findsOneWidget);
     });
 
     testWidgets('counts hidden branches, and Show all clears', (tester) async {
       final c = await pumpBar(
         tester,
-        const GraphRefFilter(hidden: {'refs/heads/a', 'refs/heads/b'}),
+        const GraphRefFilter(
+          hidden: {'refs/heads/feat', 'refs/remotes/origin/feat'},
+        ),
       );
       expect(find.text('2 branches hidden from the graph'), findsOneWidget);
 

@@ -5,18 +5,40 @@ import '../../core/tokens.dart';
 import '../../domain/git/graph_ref_filter.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/graph_ref_filter.dart';
+import '../../state/repo_data.dart';
 
 /// Says the graph is narrowed — branches hidden or soloed — with a way to
 /// show everything again. Without it, missing commits would read as missing
 /// history. Renders nothing when no branch is hidden or soloed.
 class GraphRefFilterBar extends ConsumerWidget {
   final String repoPath;
-  const GraphRefFilterBar({super.key, required this.repoPath});
+
+  /// The graph's own data, for which refs exist and which branch is checked
+  /// out. Passed in rather than watched, so the bar starts no load of its own.
+  final RepoData data;
+  const GraphRefFilterBar({
+    super.key,
+    required this.repoPath,
+    required this.data,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final f = ref.watch(graphRefFilterProvider(repoPath)).valueOrNull;
-    if (f == null || f.isEmpty) return const SizedBox.shrink();
+    final saved = ref.watch(graphRefFilterProvider(repoPath)).valueOrNull;
+    if (saved == null || saved.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    // What the graph is applying, not what was saved: a branch deleted or
+    // checked out since must not be reported as narrowing the graph.
+    final f = saved.effective(
+      live: {
+        for (final b in data.branches) 'refs/heads/${b.name}',
+        for (final rb in data.remoteBranches)
+          'refs/remotes/${rb.remote}/${rb.branch}',
+      },
+      current: data.branches.where((b) => b.current).firstOrNull?.name,
+    );
+    if (f.isEmpty) return const SizedBox.shrink();
     final l = AppLocalizations.of(context);
     final t = context.tokens;
     final label = f.solo.isNotEmpty

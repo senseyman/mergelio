@@ -7,12 +7,14 @@ import '../../l10n/gen/app_localizations.dart';
 import '../../state/graph_ref_filter.dart';
 
 /// Context-menu entries hiding [refName] (a full ref name) from the graph of
-/// [repoPath], or soloing it, and undoing either.
+/// [repoPath], or soloing it, and undoing either. [current] marks the
+/// checked-out branch.
 List<PopupMenuEntry<void>> graphRefMenuItems({
   required BuildContext context,
   required WidgetRef ref,
   required String repoPath,
   required String refName,
+  bool current = false,
 }) {
   final l = AppLocalizations.of(context);
   final f =
@@ -22,8 +24,12 @@ List<PopupMenuEntry<void>> graphRefMenuItems({
   const style = TextStyle(fontSize: 13);
   return [
     const PopupMenuDivider(),
+    // The walk takes in HEAD whatever is excluded, so hiding the checked-out
+    // branch would change nothing. Showing one hidden before it was checked
+    // out stays possible.
     PopupMenuItem(
       height: 34,
+      enabled: !current || f.hidden.contains(refName),
       onTap: () => ctl.toggleHidden(refName),
       child: Text(
         f.hidden.contains(refName) ? l.grfShow : l.grfHide,

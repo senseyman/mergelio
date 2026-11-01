@@ -635,7 +635,7 @@ class _GraphListState extends ConsumerState<GraphList> {
             },
           ),
         if (repo != null) PickBar(repoPath: repo, commits: d.commits),
-        if (repo != null) GraphRefFilterBar(repoPath: repo),
+        if (repo != null) GraphRefFilterBar(repoPath: repo, data: d),
         if (query != null)
           _SearchBar(
             query: query,

@@ -65,4 +65,43 @@ void main() {
       expect(w.stashes, isTrue);
     });
   });
+
+  group('effective', () {
+    const live = {a, b, 'refs/heads/main'};
+
+    test('drops refs that no longer exist', () {
+      expect(
+        const GraphRefFilter(hidden: {a, 'refs/heads/gone'})
+            .effective(live: live, current: 'main'),
+        const GraphRefFilter(hidden: {a}),
+      );
+      expect(
+        const GraphRefFilter(solo: {b, 'refs/heads/also-gone'})
+            .effective(live: live, current: 'main'),
+        const GraphRefFilter(solo: {b}),
+      );
+    });
+
+    test('a hidden current branch is not in effect: HEAD keeps it', () {
+      final f = const GraphRefFilter(hidden: {a, 'refs/heads/main'})
+          .effective(live: live, current: 'main');
+      expect(f.hidden, {a});
+    });
+
+    test('with no live soloed ref, the walk is all but hidden', () {
+      final f = const GraphRefFilter(
+        hidden: {a},
+        solo: {'refs/heads/gone'},
+      ).effective(live: live, current: null);
+      expect(f, const GraphRefFilter(hidden: {a}));
+    });
+
+    test('while soloing, hidden refs play no part', () {
+      final f = const GraphRefFilter(
+        hidden: {a},
+        solo: {b},
+      ).effective(live: live, current: null);
+      expect(f, const GraphRefFilter(solo: {b}));
+    });
+  });
 }
