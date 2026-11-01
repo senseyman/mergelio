@@ -486,10 +486,16 @@ class _BranchCleanupState extends ConsumerState<BranchCleanup> {
                             ),
                       child: Text(l.mntSelectAll),
                     ),
+                    // Replaces the pick rather than adding to it: after
+                    // Select all, it must leave only what needs no -D.
                     TextButton(
                       onPressed: merged.isEmpty
                           ? null
-                          : () => setState(() => _selected.addAll(merged)),
+                          : () => setState(
+                              () => _selected
+                                ..clear()
+                                ..addAll(merged),
+                            ),
                       child: Text(l.mntSelectMerged),
                     ),
                     FilledButton(

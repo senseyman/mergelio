@@ -140,6 +140,27 @@ void main() {
     expect(git.calls.where((c) => c.contains('old-work')), isEmpty);
   });
 
+  testWidgets('Select merged narrows a wider pick to the safe set', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      _FakeGit(),
+      const SingleChildScrollView(child: BranchCleanup(repoPath: '/r')),
+    );
+
+    await tester.tap(find.text('Select all'));
+    await tester.pump();
+    expect(_ticked(tester, 'old-work'), isTrue);
+
+    await tester.tap(find.text('Select merged'));
+    await tester.pump();
+
+    expect(_ticked(tester, 'done'), isTrue);
+    expect(_ticked(tester, 'also-done'), isTrue);
+    expect(_ticked(tester, 'old-work'), isFalse);
+  });
+
   testWidgets('Select merged is off when nothing merged can go', (
     tester,
   ) async {
