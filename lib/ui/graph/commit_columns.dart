@@ -98,13 +98,38 @@ Map<String, List<String>> deriveBranchLabels(List<Commit> commits) {
     }
     display[c.sha] = labels;
     if (c.parents.isNotEmpty) {
-      // Only the primary (first) ref propagates; the nearest descendant claims
-      // the first parent and a later (older) path does not overwrite it.
-      segment.putIfAbsent(c.parents.first, () => labels.first);
+      // Only one ref propagates; the nearest descendant claims the first
+      // parent and a later (older) path does not overwrite it.
+      segment.putIfAbsent(c.parents.first, () => _primary(c, labels));
     }
   }
   return display;
 }
+
+/// The one label of [labels] (the branches naming [c]) that carries down
+/// [c]'s first-parent history: a local branch whose remote-tracking twin sits
+/// on the same commit, else the first.
+///
+/// git lists the checked-out branch first, so without this a branch just
+/// made at an existing branch's tip and switched to would take over that
+/// branch's history. The tracked one is the established branch.
+String _primary(Commit c, List<String> labels) {
+  final remotes = {
+    for (final r in c.refs)
+      if (r.kind == RefKind.remote) r.name,
+  };
+  for (final name in labels) {
+    if (remotes.any((r) => r.endsWith('/$name'))) return name;
+  }
+  return labels.first;
+}
+
+/// Whether a row labelled [row] names its branches in the left column, given
+/// the labels [prev] of the row above. A row only continuing a branch the row
+/// above already names stays bare, so a commit below a tip that several
+/// branches share does not look like one of them starts there.
+bool showsBranchLabel(List<String> row, List<String> prev) =>
+    row.isNotEmpty && !row.every(prev.contains);
 
 /// One chip in a row's left branch column: a branch name, or the HEAD marker.
 class BranchChip {

@@ -713,9 +713,10 @@ class _GraphListState extends ConsumerState<GraphList> {
                       final prevLabels = ci > 0
                           ? (labels[d.commits[ci - 1].sha] ?? const <String>[])
                           : const <String>[];
-                      final showBranchLabel =
-                          rowLabels.isNotEmpty &&
-                          !listEquals(rowLabels, prevLabels);
+                      final showBranchLabel = showsBranchLabel(
+                        rowLabels,
+                        prevLabels,
+                      );
                       // Labels and the rest of the row both ask the one rule in
                       // [resolveBranchDrop]; only the spot they report differs.
                       BranchDropTarget? dropTarget(
