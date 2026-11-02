@@ -57,7 +57,7 @@ GraphDerived computeGraphDerived(RepoData d) {
   }
   return GraphDerived(
     maxLane: maxLane,
-    labels: deriveBranchLabels(d.commits),
+    labels: deriveBranchLabels(d.commits, defaultBranch: d.defaultBranch),
     rowIndex: rowIndex,
     laneOf: laneOf,
     head: head,

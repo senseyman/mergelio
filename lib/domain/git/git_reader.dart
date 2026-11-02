@@ -9,6 +9,7 @@ import 'dashboard.dart';
 import 'git_service.dart';
 import 'graph_ref_filter.dart';
 import 'line_history.dart';
+import 'maintenance.dart';
 import 'models.dart';
 import 'reflog.dart';
 import 'repo_config.dart';
@@ -287,6 +288,23 @@ class GitReader {
       i++;
     }
     return out;
+  }
+
+  /// The repository's main line of work: `origin/HEAD`'s branch when it
+  /// exists locally, else `main`, else `master`. Null when none of those
+  /// exists — never the checked-out branch, which callers must be able to
+  /// tell apart from the default.
+  Future<String?> defaultBranch() async {
+    final results = await Future.wait([
+      _run(['symbolic-ref', '--quiet', '--short', 'refs/remotes/origin/HEAD']),
+      _run(['for-each-ref', '--format=%(refname:short)', 'refs/heads']),
+    ]);
+    final head = results[0];
+    return pickTrunk(
+      branches: const LineSplitter().convert(results[1].stdout).toSet(),
+      originHead: head.ok && head.out.isNotEmpty ? head.out : null,
+      current: null,
+    );
   }
 
   Future<List<String>> remotes() async {

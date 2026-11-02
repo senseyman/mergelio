@@ -282,6 +282,50 @@ void main() {
       expect(labels['base'], ['main']);
     });
 
+    test('the default branch claims the history even when the new branch is '
+        'pushed too', () {
+      // Both carry a remote twin, so tracking cannot tell them apart.
+      final labels = deriveBranchLabels([
+        _c(
+          'x',
+          parents: const ['base'],
+          refs: [
+            _head(),
+            _local('test'),
+            _remote('origin/test'),
+            _remote('origin/main'),
+            _local('main'),
+          ],
+        ),
+        _c('base'),
+      ], defaultBranch: 'main');
+      expect(labels['base'], ['main']);
+    });
+
+    test('the default branch wins with no remote at all', () {
+      final labels = deriveBranchLabels([
+        _c(
+          'x',
+          parents: const ['base'],
+          refs: [_head(), _local('test'), _local('main')],
+        ),
+        _c('base'),
+      ], defaultBranch: 'main');
+      expect(labels['base'], ['main']);
+    });
+
+    test('a default branch not on the tip changes nothing', () {
+      final labels = deriveBranchLabels([
+        _c(
+          'x',
+          parents: const ['base'],
+          refs: [_local('a'), _remote('origin/b'), _local('b')],
+        ),
+        _c('base'),
+      ], defaultBranch: 'main');
+      expect(labels['base'], ['b']);
+    });
+
     test('a remote of another name does not count as tracked', () {
       final labels = deriveBranchLabels([
         _c(

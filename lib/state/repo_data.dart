@@ -32,6 +32,9 @@ abstract class RepoData with _$RepoData {
     // The notes refs and where they point, so notes are re-listed only when
     // a note changed. Empty when the repository has no notes.
     @Default('') String notesSignature,
+    // The branch that keeps shared history when several branches sit on one
+    // commit (see [GitReader.defaultBranch]). Null when there is none.
+    String? defaultBranch,
   }) = _RepoData;
 }
 
@@ -126,6 +129,7 @@ final repoDataProvider = FutureProvider.family<RepoData, String>(
       reader.remoteBranches(),
       reader.submodules(),
       reader.refSignature(),
+      reader.defaultBranch(),
     ]);
     final refsDone = DateTime.now();
     final stashes = results[3] as List<Stash>;
@@ -175,6 +179,7 @@ final repoDataProvider = FutureProvider.family<RepoData, String>(
       submodules: results[6] as List<Submodule>,
       hasMoreCommits: hasMore,
       notesSignature: notesRefsSignature(results[7] as String),
+      defaultBranch: results[8] as String?,
     );
   }, scope: path),
 );
