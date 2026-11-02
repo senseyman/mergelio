@@ -27,6 +27,7 @@ import '../domain/git/notes.dart';
 import '../domain/git/patch_file.dart';
 import '../domain/git/rebase_plan.dart';
 import '../domain/git/stash.dart';
+import '../domain/git/tag_object.dart';
 import '../l10n/gen/app_localizations.dart';
 import 'bisect.dart';
 import 'diff_document.dart';
@@ -1630,20 +1631,38 @@ class RepoActions {
 
   /// In a repository using LFS, a checkout downloads what it writes, so it
   /// gets the transfer ceiling and a Cancel; anywhere else it is quick.
-  Future<void> checkout(String ref, {bool ignoreOtherWorktrees = false}) async {
+  Future<void> checkout(String ref, {bool ignoreOtherWorktrees = false}) =>
+      _checkout(
+        ref,
+        label: _l.actCheckout(ref),
+        ignoreOtherWorktrees: ignoreOtherWorktrees,
+      );
+
+  /// Checks out [tag] with HEAD detached at it. The ref is named in full, so
+  /// a branch that shares the tag's name cannot win the lookup.
+  Future<void> checkoutTag(String tag) =>
+      _checkout('refs/tags/$tag', label: _l.actCheckout(tag), detach: true);
+
+  Future<void> _checkout(
+    String ref, {
+    required String label,
+    bool ignoreOtherWorktrees = false,
+    bool detach = false,
+  }) async {
     final prev = await _headRef();
     final lfs = await _lfsInPlay(ref);
     final timeout = lfs ? GitWriter.lfsTransferTimeout : null;
     // Only the first run can be cancelled; undo and redo have no busy bar.
     final cancel = lfs ? GitCancel() : null;
     await _undoable(
-      _l.actCheckout(ref),
+      label,
       () => _checkoutPuttingBack(
         ref,
         cancel,
         () => _writer.checkout(
           ref,
           ignoreOtherWorktrees: ignoreOtherWorktrees,
+          detach: detach,
           timeout: timeout,
           cancel: cancel,
         ),
@@ -1653,6 +1672,7 @@ class RepoActions {
       redo: () => _writer.checkout(
         ref,
         ignoreOtherWorktrees: ignoreOtherWorktrees,
+        detach: detach,
         timeout: timeout,
       ),
     );
@@ -2005,6 +2025,110 @@ class RepoActions {
       undo: () => _writer.restoreTag(name, object),
       redo: () => _writer.deleteTag(name),
     );
+  }
+
+  /// Renames tag [from] to [to] in one ref transaction, so a taken name
+  /// leaves both tags as they were.
+  ///
+  /// An annotated tag is re-made under the new name with the same target,
+  /// tagger, date and message: the object names its tag, and one left on the
+  /// old name makes `git describe` report it as "externally known as" that.
+  /// A signed tag keeps its object untouched — changing any byte would void
+  /// the signature. Undo puts the original object back under [from].
+  Future<void> renameTag(String from, String to) async {
+    // git refuses a transaction that names one ref twice; nothing to do.
+    if (from == to) return;
+    final label = _l.actRenameTag(from, to);
+    if (!await _writer.isValidTagName(to)) {
+      _ref
+          .read(toastProvider.notifier)
+          .show(_l.actInvalidTagName(to), kind: ToastKind.error);
+      return;
+    }
+    final fromRef = 'refs/tags/$from';
+    final toRef = 'refs/tags/$to';
+    // Both ids are worked out by the first run and reused by undo and redo,
+    // which then move exactly the objects the rename moved.
+    late String object;
+    late String renamed;
+    await _undoable(
+      label,
+      () async {
+        final r = await _git.run([
+          'rev-parse',
+          '--verify',
+          '-q',
+          fromRef,
+        ], repoPath: path);
+        if (!r.ok) throw GitException('git rev-parse', r);
+        object = r.out;
+        renamed = await _renamedTagObject(object, to);
+        await _writer.moveRef(
+          from: fromRef,
+          fromObject: object,
+          to: toRef,
+          toObject: renamed,
+        );
+      },
+      undo: () => _writer.moveRef(
+        from: toRef,
+        fromObject: renamed,
+        to: fromRef,
+        toObject: object,
+      ),
+      redo: () => _writer.moveRef(
+        from: fromRef,
+        fromObject: object,
+        to: toRef,
+        toObject: renamed,
+      ),
+    );
+  }
+
+  /// The object the tag should point at once renamed to [to]: a copy
+  /// carrying the new name for an unsigned annotated tag, [object] itself
+  /// otherwise. Every fallback moves [object] as-is: the tag is still
+  /// renamed, only its own name stays the old one.
+  Future<String> _renamedTagObject(String object, String to) async {
+    if (await _out(['cat-file', '-t', object]) != 'tag') return object;
+    final raw = await _writer.tagObjectText(object);
+    // Changing any byte of a signed tag would void its signature.
+    if (isSignedTagObject(raw)) return object;
+    // Output is decoded leniently, so bytes in another encoding come back as
+    // U+FFFD; writing that text back would change the message.
+    if (raw.contains('\uFFFD')) return object;
+    final String text;
+    try {
+      text = renameTagObject(raw, to);
+    } on FormatException {
+      return object;
+    }
+    try {
+      return await _writer.makeTag(text);
+    } on GitException catch (e) {
+      // mktag holds objects to today's rules, which tags old git wrote (no
+      // tagger line, say) fail.
+      appLog.warn(
+        'Rename keeps tag object $object: ${e.result?.err ?? e}',
+        scope: path,
+      );
+      return object;
+    }
+  }
+
+  /// Creates branch [name] at the commit [tag] points to, without switching
+  /// to it. The commit is resolved now, so redo still works once the tag has
+  /// been renamed or deleted.
+  Future<void> createBranchFromTag(String name, String tag) async {
+    final sha = await _out([
+      'rev-parse',
+      '--verify',
+      '-q',
+      'refs/tags/$tag^{commit}',
+    ]);
+    // An unresolvable tag goes through as named, so git's own error explains
+    // the failure.
+    await createBranch(name, at: sha.isEmpty ? 'refs/tags/$tag' : sha);
   }
 
   /// Cherry-picks [sha]. [mainline] is the 1-based parent to replay the merge

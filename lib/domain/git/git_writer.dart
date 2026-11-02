@@ -733,16 +733,23 @@ class GitWriter {
   /// git's refusal to check out a branch already held by another worktree —
   /// callers only set it after the user has confirmed the collision, since it
   /// can leave two worktrees on the same branch with one HEAD going stale.
+  /// [detach] leaves HEAD detached at [ref] even when [ref] names a branch.
   ///
   /// The caller picks [timeout]: in a repository using LFS, writing the files
   /// can mean downloading them.
   Future<void> checkout(
     String ref, {
     bool ignoreOtherWorktrees = false,
+    bool detach = false,
     Duration? timeout,
     GitCancel? cancel,
   }) => _ok(
-    ['checkout', if (ignoreOtherWorktrees) '--ignore-other-worktrees', ref],
+    [
+      'checkout',
+      if (ignoreOtherWorktrees) '--ignore-other-worktrees',
+      if (detach) '--detach',
+      ref,
+    ],
     'git checkout',
     timeout: timeout,
     cancel: cancel,
@@ -944,6 +951,58 @@ class GitWriter {
       _ok(['update-ref', 'refs/tags/$name', object, ''], 'git update-ref');
 
   Future<void> deleteTag(String name) => _ok(['tag', '-d', name], 'git tag -d');
+
+  /// Raw text of the annotated tag object [object], in the form `git mktag`
+  /// reads back.
+  Future<String> tagObjectText(String object) async {
+    final r = await _run(['cat-file', 'tag', object]);
+    if (!r.ok) throw GitException('git cat-file tag', r);
+    // Kept byte for byte: trimming would drop the message's last newline and
+    // change the object a rewrite produces.
+    return r.stdout;
+  }
+
+  /// Stores [content] as a tag object and returns its id. git checks the
+  /// object the way fsck would, so a malformed one is refused here rather
+  /// than written.
+  Future<String> makeTag(String content) async {
+    final r = await _run(['mktag'], stdin: content);
+    if (!r.ok) throw GitException('git mktag', r);
+    return r.out;
+  }
+
+  /// Creates ref [to] at [toObject] and deletes [from] (expected at
+  /// [fromObject]) in one transaction: both happen or neither does, so a
+  /// taken target name or a ref that moved meanwhile leaves everything as it
+  /// was.
+  Future<void> moveRef({
+    required String from,
+    required String fromObject,
+    required String to,
+    required String toObject,
+  }) {
+    // Each value lands in a space-separated stdin command line; whitespace in
+    // one would split it into extra commands. Valid ref names never hold any,
+    // so this only catches a caller that skipped validating a typed name.
+    for (final v in [from, fromObject, to, toObject]) {
+      if (v.isEmpty || v.contains(RegExp(r'\s'))) {
+        throw ArgumentError.value(v, 'ref', 'empty or contains whitespace');
+      }
+    }
+    return _ok(
+      ['update-ref', '--stdin'],
+      'git update-ref',
+      stdin: 'create $to $toObject\ndelete $from $fromObject\n',
+    );
+  }
+
+  /// Whether [name] is a valid tag name by git's own rules. `git tag` adds a
+  /// rule `check-ref-format` lacks: no leading dash, which `git tag -d` would
+  /// read as an option, leaving the tag impossible to delete.
+  Future<bool> isValidTagName(String name) async =>
+      name.isNotEmpty &&
+      !name.startsWith('-') &&
+      (await _run(['check-ref-format', 'refs/tags/$name'])).ok;
 
   Future<void> pushTag(
     String name, {

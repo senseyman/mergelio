@@ -1808,6 +1808,24 @@ abstract class AppLocalizations {
   /// **'Delete tag'**
   String get sbDeleteTag;
 
+  /// No description provided for @sbRenameTagTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename tag'**
+  String get sbRenameTagTitle;
+
+  /// No description provided for @sbCheckoutDetached.
+  ///
+  /// In en, this message translates to:
+  /// **'Checkout (detached HEAD)'**
+  String get sbCheckoutDetached;
+
+  /// No description provided for @sbCreateBranchFromTag.
+  ///
+  /// In en, this message translates to:
+  /// **'Create branch from tag…'**
+  String get sbCreateBranchFromTag;
+
   /// No description provided for @sbDropStashTitle.
   ///
   /// In en, this message translates to:
@@ -8071,6 +8089,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Delete tag {name}'**
   String actDeleteTag(String name);
+
+  /// No description provided for @actRenameTag.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename tag {from} → {to}'**
+  String actRenameTag(String from, String to);
+
+  /// No description provided for @actInvalidTagName.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{name}\" is not a valid tag name'**
+  String actInvalidTagName(String name);
 
   /// No description provided for @actPushTag.
   ///

@@ -1017,6 +1017,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sbDeleteTag => 'Delete tag';
 
   @override
+  String get sbRenameTagTitle => 'Rename tag';
+
+  @override
+  String get sbCheckoutDetached => 'Checkout (detached HEAD)';
+
+  @override
+  String get sbCreateBranchFromTag => 'Create branch from tag…';
+
+  @override
   String sbDropStashTitle(String ref) {
     return 'Drop $ref?';
   }
@@ -4924,6 +4933,16 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String actDeleteTag(String name) {
     return 'Delete tag $name';
+  }
+
+  @override
+  String actRenameTag(String from, String to) {
+    return 'Rename tag $from → $to';
+  }
+
+  @override
+  String actInvalidTagName(String name) {
+    return '\"$name\" is not a valid tag name';
   }
 
   @override

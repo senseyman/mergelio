@@ -1220,8 +1220,23 @@ Future<void> _tagMenu(
     items: [
       PopupMenuItem(
         height: 34,
-        onTap: () => actions.checkout(tag),
-        child: Text(l.sbCheckout, style: const TextStyle(fontSize: 13)),
+        onTap: () => actions.checkoutTag(tag),
+        child: Text(l.sbCheckoutDetached, style: const TextStyle(fontSize: 13)),
+      ),
+      PopupMenuItem(
+        height: 34,
+        onTap: () async {
+          final name = await showInputDialog(
+            context,
+            title: l.ropCreateBranchTitle,
+            label: l.ropBranchName,
+          );
+          if (name != null) await actions.createBranchFromTag(name, tag);
+        },
+        child: Text(
+          l.sbCreateBranchFromTag,
+          style: const TextStyle(fontSize: 13),
+        ),
       ),
       PopupMenuItem(
         height: 34,
@@ -1236,6 +1251,18 @@ Future<void> _tagMenu(
         height: 34,
         onTap: () => Clipboard.setData(ClipboardData(text: tag)),
         child: Text(l.sbCopyName, style: const TextStyle(fontSize: 13)),
+      ),
+      PopupMenuItem(
+        height: 34,
+        onTap: () async {
+          final name = await showInputDialog(
+            context,
+            title: l.sbRenameTagTitle,
+            initial: tag,
+          );
+          if (name != null && name != tag) await actions.renameTag(tag, name);
+        },
+        child: Text(l.sbRenameItem, style: const TextStyle(fontSize: 13)),
       ),
       const PopupMenuDivider(),
       PopupMenuItem(
