@@ -1025,6 +1025,15 @@ class AppLocalizationsUk extends AppLocalizations {
   String get sbDeleteTag => 'Видалити тег';
 
   @override
+  String get sbRenameTagTitle => 'Перейменувати тег';
+
+  @override
+  String get sbCheckoutDetached => 'Переключитися (відʼєднаний HEAD)';
+
+  @override
+  String get sbCreateBranchFromTag => 'Створити гілку з тегу…';
+
+  @override
   String sbDropStashTitle(String ref) {
     return 'Вилучити $ref?';
   }
@@ -5010,6 +5019,16 @@ class AppLocalizationsUk extends AppLocalizations {
   @override
   String actDeleteTag(String name) {
     return 'Видалення тегу $name';
+  }
+
+  @override
+  String actRenameTag(String from, String to) {
+    return 'Перейменування тегу $from → $to';
+  }
+
+  @override
+  String actInvalidTagName(String name) {
+    return '«$name» — недопустима назва тегу';
   }
 
   @override

@@ -775,6 +775,9 @@
   },
   "sbDeleteTagBody": "The tag will be removed locally. This can be undone.",
   "sbDeleteTag": "Delete tag",
+  "sbRenameTagTitle": "Rename tag",
+  "sbCheckoutDetached": "Checkout (detached HEAD)",
+  "sbCreateBranchFromTag": "Create branch from tag…",
   "sbDropStashTitle": "Drop {ref}?",
   "@sbDropStashTitle": {
     "placeholders": {
@@ -2823,6 +2826,10 @@
   "@actCreateTag": {"placeholders": {"name": {"type": "String"}}},
   "actDeleteTag": "Delete tag {name}",
   "@actDeleteTag": {"placeholders": {"name": {"type": "String"}}},
+  "actRenameTag": "Rename tag {from} → {to}",
+  "@actRenameTag": {"placeholders": {"from": {"type": "String"}, "to": {"type": "String"}}},
+  "actInvalidTagName": "\"{name}\" is not a valid tag name",
+  "@actInvalidTagName": {"placeholders": {"name": {"type": "String"}}},
   "actPushTag": "Push tag {name}",
   "@actPushTag": {"placeholders": {"name": {"type": "String"}}},
   "actDeleteRemoteTag": "Delete tag {name} on {remote}",
