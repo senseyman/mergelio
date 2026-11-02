@@ -114,6 +114,8 @@ Map<String, List<String>> deriveBranchLabels(List<Commit> commits) {
 /// made at an existing branch's tip and switched to would take over that
 /// branch's history. The tracked one is the established branch.
 String _primary(Commit c, List<String> labels) {
+  // Runs for every commit in the graph, and almost all carry one label.
+  if (labels.length == 1) return labels.first;
   final remotes = {
     for (final r in c.refs)
       if (r.kind == RefKind.remote) r.name,
