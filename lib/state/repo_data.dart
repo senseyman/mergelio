@@ -5,6 +5,7 @@ import '../core/logging.dart';
 import '../domain/git/git_providers.dart';
 import '../domain/git/git_reader.dart';
 import '../domain/git/lane_layout.dart';
+import '../domain/git/maintenance.dart';
 import '../domain/git/models.dart';
 import '../domain/git/notes.dart';
 import '../domain/git/signature.dart';
@@ -32,6 +33,9 @@ abstract class RepoData with _$RepoData {
     // The notes refs and where they point, so notes are re-listed only when
     // a note changed. Empty when the repository has no notes.
     @Default('') String notesSignature,
+    // The branch that keeps shared history when several branches sit on one
+    // commit (see [GitReader.defaultBranch]). Null when there is none.
+    String? defaultBranch,
   }) = _RepoData;
 }
 
@@ -126,6 +130,7 @@ final repoDataProvider = FutureProvider.family<RepoData, String>(
       reader.remoteBranches(),
       reader.submodules(),
       reader.refSignature(),
+      reader.originHead(),
     ]);
     final refsDone = DateTime.now();
     final stashes = results[3] as List<Stash>;
@@ -175,6 +180,12 @@ final repoDataProvider = FutureProvider.family<RepoData, String>(
       submodules: results[6] as List<Submodule>,
       hasMoreCommits: hasMore,
       notesSignature: notesRefsSignature(results[7] as String),
+      // Picked from the branches just read rather than listing them again.
+      defaultBranch: pickTrunk(
+        branches: {for (final b in results[0] as List<Branch>) b.name},
+        originHead: results[8] as String?,
+        current: null,
+      ),
     );
   }, scope: path),
 );

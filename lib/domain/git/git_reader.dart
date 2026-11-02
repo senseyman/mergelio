@@ -289,6 +289,18 @@ class GitReader {
     return out;
   }
 
+  /// `origin/HEAD` as a short name (`origin/main`), or null when the remote
+  /// has none recorded.
+  Future<String?> originHead() async {
+    final r = await _run([
+      'symbolic-ref',
+      '--quiet',
+      '--short',
+      'refs/remotes/origin/HEAD',
+    ]);
+    return r.ok && r.out.isNotEmpty ? r.out : null;
+  }
+
   Future<List<String>> remotes() async {
     final r = await _run(['remote']);
     if (!r.ok) throw GitException('git remote failed', r);

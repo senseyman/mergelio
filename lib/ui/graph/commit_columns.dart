@@ -81,7 +81,10 @@ List<String> _ownRefs(Commit c) {
 ///
 /// [commits] must be newest-first topological order (a child before its
 /// parents), as produced by `git log --topo-order`.
-Map<String, List<String>> deriveBranchLabels(List<Commit> commits) {
+Map<String, List<String>> deriveBranchLabels(
+  List<Commit> commits, {
+  String? defaultBranch,
+}) {
   final display = <String, List<String>>{};
   // The single primary label that flows down a first-parent segment.
   final segment = <String, String>{};
@@ -98,13 +101,48 @@ Map<String, List<String>> deriveBranchLabels(List<Commit> commits) {
     }
     display[c.sha] = labels;
     if (c.parents.isNotEmpty) {
-      // Only the primary (first) ref propagates; the nearest descendant claims
-      // the first parent and a later (older) path does not overwrite it.
-      segment.putIfAbsent(c.parents.first, () => labels.first);
+      // Only one ref propagates; the nearest descendant claims the first
+      // parent and a later (older) path does not overwrite it.
+      segment.putIfAbsent(
+        c.parents.first,
+        () => _primary(c, labels, defaultBranch),
+      );
     }
   }
   return display;
 }
+
+/// The one label of [labels] (the branches naming [c]) that carries down
+/// [c]'s first-parent history: [defaultBranch] when it is among them, else a
+/// local branch whose remote-tracking twin sits on the same commit, else the
+/// first.
+///
+/// git lists the checked-out branch first, so without this a branch just
+/// made at an existing branch's tip and switched to would take over that
+/// branch's history. The default branch is the established one; tracking only
+/// tells the two apart until the new branch is pushed as well.
+String _primary(Commit c, List<String> labels, String? defaultBranch) {
+  // Runs for every commit in the graph, and almost all carry one label.
+  if (labels.length == 1) return labels.first;
+  if (defaultBranch != null && labels.contains(defaultBranch)) {
+    return defaultBranch;
+  }
+  final remotes = {
+    for (final r in c.refs)
+      if (r.kind == RefKind.remote) r.name,
+  };
+  for (final name in labels) {
+    if (remotes.any((r) => r.endsWith('/$name'))) return name;
+  }
+  return labels.first;
+}
+
+/// Whether a row labelled [row] names its branches in the left column, given
+/// the labels [prev] of the row above. A row only continuing a branch the row
+/// above already names stays bare, so a commit below a tip that several
+/// branches share does not look like one of them starts there.
+bool showsBranchLabel(List<String> row, List<String> prev) =>
+    row.isNotEmpty && !row.every(prev.contains);
 
 /// One chip in a row's left branch column: a branch name, or the HEAD marker.
 class BranchChip {

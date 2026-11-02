@@ -261,6 +261,83 @@ void main() {
       expect(labels['base'], ['main']);
     });
 
+    test('a branch tracked on the shared tip claims the history, whichever '
+        'branch is checked out', () {
+      // git lists the checked-out branch first: a new branch made on main
+      // and switched to must not take main's history over.
+      final labels = deriveBranchLabels([
+        _c(
+          'x',
+          parents: const ['base'],
+          refs: [
+            _head(),
+            _local('test'),
+            _remote('origin/main'),
+            _local('main'),
+          ],
+        ),
+        _c('base'),
+      ]);
+      expect(labels['x'], ['test', 'main']);
+      expect(labels['base'], ['main']);
+    });
+
+    test('the default branch claims the history even when the new branch is '
+        'pushed too', () {
+      // Both carry a remote twin, so tracking cannot tell them apart.
+      final labels = deriveBranchLabels([
+        _c(
+          'x',
+          parents: const ['base'],
+          refs: [
+            _head(),
+            _local('test'),
+            _remote('origin/test'),
+            _remote('origin/main'),
+            _local('main'),
+          ],
+        ),
+        _c('base'),
+      ], defaultBranch: 'main');
+      expect(labels['base'], ['main']);
+    });
+
+    test('the default branch wins with no remote at all', () {
+      final labels = deriveBranchLabels([
+        _c(
+          'x',
+          parents: const ['base'],
+          refs: [_head(), _local('test'), _local('main')],
+        ),
+        _c('base'),
+      ], defaultBranch: 'main');
+      expect(labels['base'], ['main']);
+    });
+
+    test('a default branch not on the tip changes nothing', () {
+      final labels = deriveBranchLabels([
+        _c(
+          'x',
+          parents: const ['base'],
+          refs: [_local('a'), _remote('origin/b'), _local('b')],
+        ),
+        _c('base'),
+      ], defaultBranch: 'main');
+      expect(labels['base'], ['b']);
+    });
+
+    test('a remote of another name does not count as tracked', () {
+      final labels = deriveBranchLabels([
+        _c(
+          'x',
+          parents: const ['base'],
+          refs: [_local('test'), _remote('origin/domain'), _local('main')],
+        ),
+        _c('base'),
+      ]);
+      expect(labels['base'], ['test']);
+    });
+
     test('a commit\'s own ref wins over an inheriting descendant', () {
       final labels = deriveBranchLabels([
         _c('feat', parents: const ['base'], refs: [_local('feature')]),
@@ -280,6 +357,27 @@ void main() {
       expect(labels['f2'], ['feature']);
       expect(labels['f1'], ['feature']); // first-parent descendant is f2
       expect(labels['m1'], ['main']);
+    });
+  });
+
+  group('showsBranchLabel', () {
+    test('a row that only continues a branch named just above stays bare', () {
+      // The tip above already shows main and test; its parent inheriting one
+      // of them must not read as that branch starting here.
+      expect(showsBranchLabel(['test'], ['main', 'test']), isFalse);
+      expect(showsBranchLabel(['main'], ['main', 'test']), isFalse);
+      expect(showsBranchLabel(['main'], ['main']), isFalse);
+    });
+
+    test('a branch not named on the row above is shown', () {
+      expect(showsBranchLabel(['main'], ['feature']), isTrue);
+      expect(showsBranchLabel(['main'], const []), isTrue);
+      expect(showsBranchLabel(['main', 'test'], ['main']), isTrue);
+    });
+
+    test('a row with no labels shows nothing', () {
+      expect(showsBranchLabel(const [], ['main']), isFalse);
+      expect(showsBranchLabel(const [], const []), isFalse);
     });
   });
 

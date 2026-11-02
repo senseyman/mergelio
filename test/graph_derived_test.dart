@@ -48,6 +48,22 @@ void main() {
     expect(g.laneOf['b'], (lane: 2, ci: 1));
   });
 
+  test('branch labels follow the default branch the load found', () {
+    const tip = [
+      _head,
+      GitRef(kind: RefKind.local, name: 'test'),
+      GitRef(kind: RefKind.local, name: 'main'),
+    ];
+    final d = RepoData(
+      commits: [
+        _c('x', refs: tip, parents: const ['base']),
+        _c('base'),
+      ],
+      defaultBranch: 'main',
+    );
+    expect(computeGraphDerived(d).labels['base'], ['main']);
+  });
+
   test('empty repo yields zero maxLane and empty maps', () {
     final g = computeGraphDerived(const RepoData());
     expect(g.maxLane, 0);

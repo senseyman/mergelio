@@ -118,4 +118,24 @@ void main() {
       expect(branches.map((b) => b.name), isNot(contains('feature/x')));
     },
   );
+
+  group('originHead', () {
+    test(
+      "names the remote's default branch, whatever is checked out",
+      () async {
+        await g(clone, ['switch', '-q', 'feature/x']);
+        expect(await GitReader(svc, clone.path).originHead(), 'origin/main');
+      },
+    );
+
+    test('follows set-head', () async {
+      await g(clone, ['remote', 'set-head', 'origin', 'feature/x']);
+      expect(await GitReader(svc, clone.path).originHead(), 'origin/feature/x');
+    });
+
+    test('is null when none is recorded', () async {
+      await g(clone, ['remote', 'set-head', 'origin', '-d']);
+      expect(await GitReader(svc, clone.path).originHead(), isNull);
+    });
+  });
 }

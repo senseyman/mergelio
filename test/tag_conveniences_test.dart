@@ -158,7 +158,8 @@ void main() {
 
       await actions.renameTag('v1', 'v2');
 
-      expect(await tags(), ['v1', 'v2']);
+      // Newest first, and the two can share a second: order is not the point.
+      expect(await tags(), unorderedEquals(['v1', 'v2']));
       expect(await out(['rev-parse', 'refs/tags/v2']), v2);
       expect(c.read(undoProvider(dir.path)).canUndo, isFalse);
     });
