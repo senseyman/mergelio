@@ -177,6 +177,113 @@ void main() {
       expect(toast.kind, ToastKind.error);
       expect(toast.title, '"bad name.." is not a valid tag name');
     });
+
+    test('renaming to the same name touches nothing', () async {
+      final c = container();
+      final actions = actionsOf(c);
+      await g(['tag', '-a', 'v1', '-m', 'msg']);
+      final before = await out(['rev-parse', 'refs/tags/v1']);
+
+      await actions.renameTag('v1', 'v1');
+
+      expect(await out(['rev-parse', 'refs/tags/v1']), before);
+      expect(c.read(undoProvider(dir.path)).canUndo, isFalse);
+      expect(c.read(toastProvider), isEmpty);
+    });
+
+    test('an SSH-signed tag keeps its object', () async {
+      final c = container();
+      final actions = actionsOf(c);
+      final head = await out(['rev-parse', 'HEAD']);
+      final r = await svc.run(
+        ['mktag'],
+        repoPath: dir.path,
+        stdin:
+            'object $head\n'
+            'type commit\n'
+            'tag v1\n'
+            'tagger Tester <t@example.com> 1700000000 +0000\n'
+            '\n'
+            'release\n'
+            '-----BEGIN SSH SIGNATURE-----\n'
+            'AAAA\n'
+            '-----END SSH SIGNATURE-----\n',
+      );
+      expect(r.ok, isTrue, reason: r.err);
+      await g(['update-ref', 'refs/tags/v1', r.out]);
+
+      await actions.renameTag('v1', 'v2');
+
+      expect(await out(['rev-parse', 'refs/tags/v2']), r.out);
+    });
+
+    test('a name starting with a dash is refused', () async {
+      // check-ref-format accepts it, but `git tag -d -x` would read it as an
+      // option, so a tag made under it could never be deleted again.
+      final c = container();
+      final actions = actionsOf(c);
+      await g(['tag', 'v1']);
+
+      await actions.renameTag('v1', '-x');
+
+      expect(await tags(), ['v1']);
+      expect(c.read(toastProvider).last.kind, ToastKind.error);
+    });
+
+    /// Writes [bytes] as a tag object without git's checks and points
+    /// refs/tags/v1 at it.
+    Future<String> rawTag(List<int> bytes) async {
+      final f = File('${dir.path}/../raw_tag_${dir.path.hashCode}');
+      addTearDown(() async {
+        if (await f.exists()) await f.delete();
+      });
+      await f.writeAsBytes(bytes);
+      final id = await out([
+        'hash-object',
+        '-t',
+        'tag',
+        '-w',
+        '--literally',
+        f.path,
+      ]);
+      await g(['update-ref', 'refs/tags/v1', id]);
+      return id;
+    }
+
+    test('an old tag git would no longer write still renames', () async {
+      final c = container();
+      final actions = actionsOf(c);
+      final head = await out(['rev-parse', 'HEAD']);
+      // No tagger line: early git wrote these, today's mktag refuses them.
+      final id = await rawTag(
+        'object $head\ntype commit\ntag v1\n\nold\n'.codeUnits,
+      );
+
+      await actions.renameTag('v1', 'v2');
+
+      expect(await tags(), ['v2']);
+      expect(await out(['rev-parse', 'refs/tags/v2']), id);
+    });
+
+    test('a message in another encoding is not re-encoded', () async {
+      final c = container();
+      final actions = actionsOf(c);
+      final head = await out(['rev-parse', 'HEAD']);
+      // Latin-1 "café" with no encoding header (mktag would refuse one, which
+      // hides the case): not valid UTF-8, so decoding it loses the byte.
+      final id = await rawTag([
+        ...'object $head\ntype commit\ntag v1\n'
+                'tagger T <t@e> 1700000000 +0000\n\ncaf'
+            .codeUnits,
+        0xE9,
+        0x0A,
+      ]);
+
+      await actions.renameTag('v1', 'v2');
+
+      expect(await tags(), ['v2']);
+      expect(await out(['rev-parse', 'refs/tags/v2']), id);
+    });
   });
 
   group('checkoutTag', () {

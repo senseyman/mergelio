@@ -996,9 +996,12 @@ class GitWriter {
     );
   }
 
-  /// Whether [name] is a valid tag name by git's own rules.
+  /// Whether [name] is a valid tag name by git's own rules. `git tag` adds a
+  /// rule `check-ref-format` lacks: no leading dash, which `git tag -d` would
+  /// read as an option, leaving the tag impossible to delete.
   Future<bool> isValidTagName(String name) async =>
       name.isNotEmpty &&
+      !name.startsWith('-') &&
       (await _run(['check-ref-format', 'refs/tags/$name'])).ok;
 
   Future<void> pushTag(

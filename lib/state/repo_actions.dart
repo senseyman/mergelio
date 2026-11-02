@@ -2036,6 +2036,8 @@ class RepoActions {
   /// A signed tag keeps its object untouched — changing any byte would void
   /// the signature. Undo puts the original object back under [from].
   Future<void> renameTag(String from, String to) async {
+    // git refuses a transaction that names one ref twice; nothing to do.
+    if (from == to) return;
     final label = _l.actRenameTag(from, to);
     if (!await _writer.isValidTagName(to)) {
       _ref
@@ -2060,7 +2062,7 @@ class RepoActions {
         ], repoPath: path);
         if (!r.ok) throw GitException('git rev-parse', r);
         object = r.out;
-        renamed = await _renamedTagObject(object, fromRef, to);
+        renamed = await _renamedTagObject(object, to);
         await _writer.moveRef(
           from: fromRef,
           fromObject: object,
@@ -2083,29 +2085,35 @@ class RepoActions {
     );
   }
 
-  /// The object tag [fromRef] should point at once renamed to [to]: a copy
+  /// The object the tag should point at once renamed to [to]: a copy
   /// carrying the new name for an unsigned annotated tag, [object] itself
-  /// for a lightweight or signed one.
-  Future<String> _renamedTagObject(
-    String object,
-    String fromRef,
-    String to,
-  ) async {
+  /// otherwise. Every fallback moves [object] as-is: the tag is still
+  /// renamed, only its own name stays the old one.
+  Future<String> _renamedTagObject(String object, String to) async {
     if (await _out(['cat-file', '-t', object]) != 'tag') return object;
-    final signature = await _out([
-      'for-each-ref',
-      '--format=%(contents:signature)',
-      fromRef,
-    ]);
-    if (signature.isNotEmpty) return object;
+    final raw = await _writer.tagObjectText(object);
+    // Changing any byte of a signed tag would void its signature.
+    if (isSignedTagObject(raw)) return object;
+    // Output is decoded leniently, so bytes in another encoding come back as
+    // U+FFFD; writing that text back would change the message.
+    if (raw.contains('\uFFFD')) return object;
     final String text;
     try {
-      text = renameTagObject(await _writer.tagObjectText(object), to);
+      text = renameTagObject(raw, to);
     } on FormatException {
-      // Not a shape git writes; moving the object as-is still renames it.
       return object;
     }
-    return _writer.makeTag(text);
+    try {
+      return await _writer.makeTag(text);
+    } on GitException catch (e) {
+      // mktag holds objects to today's rules, which tags old git wrote (no
+      // tagger line, say) fail.
+      appLog.warn(
+        'Rename keeps tag object $object: ${e.result?.err ?? e}',
+        scope: path,
+      );
+      return object;
+    }
   }
 
   /// Creates branch [name] at the commit [tag] points to, without switching
