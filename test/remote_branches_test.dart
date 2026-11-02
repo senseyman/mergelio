@@ -119,36 +119,23 @@ void main() {
     },
   );
 
-  group('defaultBranch', () {
-    test("is the remote's default branch, short and local", () async {
-      // The remote's default is not what is checked out here.
-      await g(clone, ['switch', '-q', 'feature/x']);
-      expect(await GitReader(svc, clone.path).defaultBranch(), 'main');
-    });
+  group('originHead', () {
+    test(
+      "names the remote's default branch, whatever is checked out",
+      () async {
+        await g(clone, ['switch', '-q', 'feature/x']);
+        expect(await GitReader(svc, clone.path).originHead(), 'origin/main');
+      },
+    );
 
-    test("the remote's default wins over a local main", () async {
-      await g(clone, [
-        'branch',
-        '-q',
-        '--track',
-        'feature/x',
-        'origin/feature/x',
-      ]);
+    test('follows set-head', () async {
       await g(clone, ['remote', 'set-head', 'origin', 'feature/x']);
-      expect(await GitReader(svc, clone.path).defaultBranch(), 'feature/x');
+      expect(await GitReader(svc, clone.path).originHead(), 'origin/feature/x');
     });
 
-    test('falls back to main with no remote HEAD', () async {
+    test('is null when none is recorded', () async {
       await g(clone, ['remote', 'set-head', 'origin', '-d']);
-      await g(clone, ['switch', '-q', 'feature/x']);
-      expect(await GitReader(svc, clone.path).defaultBranch(), 'main');
-    });
-
-    test('is null rather than whatever is checked out', () async {
-      await g(clone, ['remote', 'set-head', 'origin', '-d']);
-      await g(clone, ['switch', '-q', 'feature/x']);
-      await g(clone, ['branch', '-q', '-m', 'main', 'trunk']);
-      expect(await GitReader(svc, clone.path).defaultBranch(), isNull);
+      expect(await GitReader(svc, clone.path).originHead(), isNull);
     });
   });
 }

@@ -5,6 +5,7 @@ import '../core/logging.dart';
 import '../domain/git/git_providers.dart';
 import '../domain/git/git_reader.dart';
 import '../domain/git/lane_layout.dart';
+import '../domain/git/maintenance.dart';
 import '../domain/git/models.dart';
 import '../domain/git/notes.dart';
 import '../domain/git/signature.dart';
@@ -129,7 +130,7 @@ final repoDataProvider = FutureProvider.family<RepoData, String>(
       reader.remoteBranches(),
       reader.submodules(),
       reader.refSignature(),
-      reader.defaultBranch(),
+      reader.originHead(),
     ]);
     final refsDone = DateTime.now();
     final stashes = results[3] as List<Stash>;
@@ -179,7 +180,12 @@ final repoDataProvider = FutureProvider.family<RepoData, String>(
       submodules: results[6] as List<Submodule>,
       hasMoreCommits: hasMore,
       notesSignature: notesRefsSignature(results[7] as String),
-      defaultBranch: results[8] as String?,
+      // Picked from the branches just read rather than listing them again.
+      defaultBranch: pickTrunk(
+        branches: {for (final b in results[0] as List<Branch>) b.name},
+        originHead: results[8] as String?,
+        current: null,
+      ),
     );
   }, scope: path),
 );

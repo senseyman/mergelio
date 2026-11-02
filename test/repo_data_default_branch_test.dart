@@ -8,8 +8,13 @@ import 'package:mergelio/state/repo_data.dart';
 
 /// Answers the default-branch lookup; every other call succeeds empty.
 class _FakeGit implements GitService {
-  final String originHead;
-  _FakeGit(this.originHead);
+  /// Null: no `origin/HEAD` recorded.
+  final String? originHead;
+
+  /// The branch listing's tab-separated lines: name, HEAD mark, track, sha,
+  /// upstream.
+  final String heads;
+  _FakeGit(this.originHead, this.heads);
 
   @override
   Future<GitResult> run(
@@ -20,9 +25,12 @@ class _FakeGit implements GitService {
     GitCancel? cancel,
     String? stdin,
   }) async {
-    if (a.first == 'symbolic-ref') return GitResult(0, '$originHead\n', '');
-    if (a.first == 'for-each-ref' && a.contains('--format=%(refname:short)')) {
-      return const GitResult(0, 'main\ndevelop\n', '');
+    if (a.first == 'symbolic-ref') {
+      final h = originHead;
+      return h == null ? const GitResult(1, '', '') : GitResult(0, '$h\n', '');
+    }
+    if (a.first == 'for-each-ref' && a.contains('refs/heads')) {
+      return GitResult(0, heads, '');
     }
     return const GitResult(0, '', '');
   }
@@ -34,18 +42,36 @@ class _FakeGit implements GitService {
 }
 
 void main() {
-  test('a load carries the default branch it found', () async {
+  Future<String?> load(_FakeGit git) async {
     final c = ProviderContainer(
       overrides: [
         kvStoreProvider.overrideWithValue(InMemoryKeyValueStore()),
-        gitServiceProvider.overrideWithValue(_FakeGit('origin/develop')),
+        gitServiceProvider.overrideWithValue(git),
       ],
     );
     addTearDown(c.dispose);
     c.listen(repoDataProvider('/r'), (_, _) {});
+    return (await c.read(repoDataProvider('/r').future)).defaultBranch;
+  }
 
-    final data = await c.read(repoDataProvider('/r').future);
+  const mainAndDevelop = 'main\t*\t\taaa\t\ndevelop\t \t\tbbb\t\n';
 
-    expect(data.defaultBranch, 'develop');
+  test("a load carries the remote's default branch", () async {
+    expect(await load(_FakeGit('origin/develop', mainAndDevelop)), 'develop');
+  });
+
+  test('without a remote default it falls back to main', () async {
+    expect(await load(_FakeGit(null, mainAndDevelop)), 'main');
+  });
+
+  test('a remote default with no local branch falls back too', () async {
+    expect(await load(_FakeGit('origin/release', mainAndDevelop)), 'main');
+  });
+
+  test('none at all is null, not the checked-out branch', () async {
+    expect(
+      await load(_FakeGit(null, 'trunk\t*\t\taaa\t\nfeat\t \t\tbbb\t\n')),
+      isNull,
+    );
   });
 }
