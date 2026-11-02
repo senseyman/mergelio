@@ -143,6 +143,11 @@ change never needs a second window.*
   set) or a key you name. Commit details show each annotated tag's tagger, date
   and message beside its signature, and undoing a tag delete brings back the
   original tag, message and signature intact.
+- **Tag menu**: right-click a tag in the sidebar to check it out as a detached
+  HEAD (even when a branch has the same name), create a branch at it without
+  switching, or rename it. A rename either fully happens or changes nothing, and
+  it undoes. An annotated tag keeps its message and tagger, and a signed tag
+  keeps its signature.
 - **Notes**: add, edit or remove a commit's git note from the graph's context
   menu; commit details show it with edit and remove at hand, and both changes
   undo. Notes follow `core.notesRef`. No ordinary push or fetch carries them,
