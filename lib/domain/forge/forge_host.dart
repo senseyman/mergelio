@@ -11,7 +11,9 @@ enum ForgeKind { github, gitlab }
 class ForgeHost {
   final ForgeKind kind;
 
-  /// Canonical host name, with any `www.` prefix and port removed.
+  /// Lower-case host name without a port. `www.` is dropped for the public
+  /// clouds only; a self-hosted host is kept exactly as registered, since
+  /// `www.corp` and `corp` can be different servers.
   final String host;
 
   /// The installation's https port when it is not the default one. Taken

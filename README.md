@@ -13,7 +13,7 @@
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey.svg)](#installation)
 [![Flutter](https://img.shields.io/badge/Flutter-3.47.5-02569B.svg?logo=flutter)](https://flutter.dev)
 [![Dart SDK](https://img.shields.io/badge/Dart%20SDK-3.13.x-0175C2.svg?logo=dart)](https://dart.dev)
-[![Tests](https://img.shields.io/badge/tests-4955%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-4959%20passing-brightgreen.svg)](#testing)
 
 <img src=".github/screenshots/mergelio-demo.gif" alt="Mergelio in action: browsing history, editing a file, reviewing the diff and committing" width="900" />
 
@@ -354,8 +354,10 @@ change never needs a second window.*
   `https://example.com/gitlab` is not supported yet), then a **personal
   access token**, which is checked against that server before it is kept.
   One account per host: adding a host again on another port replaces the
-  old entry and forgets its token. A self-hosted server can be removed
-  again, which also forgets its token. Mergelio stores no token itself: it
+  old entry and forgets its token — and if that token cannot be forgotten,
+  nothing changes. A self-hosted server can be removed again, which also
+  forgets its token; if the credential helper will not let it, Mergelio
+  says so and asks before removing the server anyway. Mergelio stores no token itself: it
   hands the token to `git credential`, so where it ends up is whatever
   `credential.helper` you have configured. That is the OS keychain on macOS,
   and on Windows or Linux only if you set up a helper that uses one — the
@@ -720,7 +722,7 @@ make help
 ## Testing
 
 ```bash
-make test        # 4955 unit and widget tests
+make test        # 4959 unit and widget tests
 make coverage    # → coverage/lcov.info
 make check       # what CI runs: format check + analyze + test
 ```

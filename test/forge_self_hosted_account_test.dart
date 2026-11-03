@@ -29,6 +29,9 @@ class _Helper implements GitService {
   final requests = <String>[];
   bool failErase = false;
 
+  /// When set, only an erase naming this host fails.
+  String? failEraseFor;
+
   /// When set, every credential write waits for it, so a test can close
   /// the widget that started the write before it finishes.
   Completer<void>? gate;
@@ -62,7 +65,9 @@ class _Helper implements GitService {
         stored[host!] = parseCredentialReply(body)['password']!;
         return const GitResult(0, '', '');
       case 'reject':
-        if (failErase) return const GitResult(1, '', 'refused');
+        if (failErase || (failEraseFor != null && failEraseFor == host)) {
+          return const GitResult(1, '', 'refused');
+        }
         stored.remove(host);
         return const GitResult(0, '', '');
     }
@@ -309,14 +314,17 @@ void main() {
       );
 
       await tester.tap(find.text('Remove'));
-      await tester.pump();
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       // A server dropped while its token stayed in the helper would leave a
-      // secret behind that nothing in the app shows any more.
+      // secret behind that nothing in the app shows any more — so it asks,
+      // and keeps the server unless told otherwise.
+      expect(find.text('Remove ghe.corp:8443 anyway?'), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
       expect(h.registered, registered.forgeServers);
-      expect(h.lastToast.kind, ToastKind.error);
-      await tester.pump(const Duration(seconds: 5));
+      expect(h.helper.stored, {'ghe.corp:8443': 'x'});
     });
 
     testWidgets('Disconnect forgets the token but keeps the server', (
@@ -453,6 +461,60 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(h.helper.stored, isEmpty);
       expect(h.registered, isEmpty);
+      await tester.pump(const Duration(seconds: 5));
+    });
+  });
+
+  group('review follow-ups', () {
+    const registered = AppSettings(forgeServers: {'ghe.corp:8443': 'github'});
+
+    testWidgets(
+      'a port change whose old token cannot be erased changes nothing',
+      (tester) async {
+        final helper = _Helper()
+          ..stored['ghe.corp:8443'] = 'old'
+          ..failEraseFor = 'ghe.corp:8443';
+        final h = await _pump(
+          tester,
+          const ForgeTokenForm(),
+          settings: registered,
+          helper: helper,
+        );
+        await _chooseSelfHosted(tester);
+
+        await _submit(tester, url: 'https://ghe.corp', token: 'new');
+
+        // The old entry still lists the old token, so it can still be
+        // reached; the new one was never written.
+        expect(h.registered, registered.forgeServers);
+        expect(h.helper.stored, {'ghe.corp:8443': 'old'});
+        expect(h.lastToast.kind, ToastKind.error);
+        expect(h.lastToast.title, contains('ghe.corp:8443'));
+        await tester.pump(const Duration(seconds: 5));
+      },
+    );
+
+    testWidgets('a failed erase can still be removed anyway, when asked', (
+      tester,
+    ) async {
+      final helper = _Helper()
+        ..stored['ghe.corp:8443'] = 'x'
+        ..failErase = true;
+      final h = await _pump(
+        tester,
+        const ForgeAccountRow(server: _ghe),
+        settings: registered,
+        helper: helper,
+      );
+
+      await tester.tap(find.text('Remove'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Remove anyway'));
+      await tester.pumpAndSettle();
+
+      expect(h.registered, isEmpty);
+      // Said plainly: the token may still be in the helper.
+      expect(h.lastToast.kind, ToastKind.warning);
       await tester.pump(const Duration(seconds: 5));
     });
   });

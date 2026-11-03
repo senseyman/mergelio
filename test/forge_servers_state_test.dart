@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/data/settings_repository.dart';
@@ -17,7 +19,11 @@ const _gitlab = ForgeServer(kind: ForgeKind.gitlab, host: 'git.corp');
 class _Credentials implements GitService {
   final Map<String, String> tokens;
   final requests = <String>[];
-  _Credentials([this.tokens = const {}]);
+
+  /// When set, every lookup waits on it — a helper that is slow or waiting
+  /// on a keychain prompt.
+  final Completer<void>? hang;
+  _Credentials([this.tokens = const {}, this.hang]);
 
   @override
   Future<GitResult> run(
@@ -30,6 +36,7 @@ class _Credentials implements GitService {
   }) async {
     if (args.length >= 2 && args[0] == 'credential') {
       requests.add(stdin ?? '');
+      await hang?.future;
       final host = RegExp(
         r'^host=(.*)$',
         multiLine: true,
@@ -64,6 +71,17 @@ ProviderContainer _container({
   );
   addTearDown(c.dispose);
   return c;
+}
+
+/// The account list once both clouds' token lookups have answered.
+Future<List<ForgeServer>> _accounts(ProviderContainer c) async {
+  for (final cloud in const [kGithubCloud, kGitlabCloud]) {
+    await c.read(
+      forgeAccountTokenProvider((host: cloud.credentialHost, path: null))
+          .future,
+    );
+  }
+  return c.read(forgeAccountListProvider(null));
 }
 
 void main() {
@@ -113,6 +131,18 @@ void main() {
   });
 
   group('a repository on a registered server', () {
+    test(
+      'a self-hosted host matches exactly as registered, www. included',
+      () async {
+        // Unlike the clouds, www.corp and corp may be different servers.
+        final c = _container(
+          settings: const AppSettings(forgeServers: {'www.corp': 'gitlab'}),
+          remote: 'git@corp:o/r.git',
+        );
+        expect(await c.read(forgeHostProvider('/r').future), isNull);
+      },
+    );
+
     test('resolves to that server', () async {
       final c = _container(
         settings: const AppSettings(forgeServers: {'ghe.corp:8443': 'github'}),
@@ -152,7 +182,7 @@ void main() {
     test('lists a cloud only when its token is on file', () async {
       final c = _container(git: _Credentials({'gitlab.com': 't'}));
 
-      final list = await c.read(forgeAccountListProvider(null).future);
+      final list = await _accounts(c);
 
       expect(list, [kGitlabCloud]);
     });
@@ -167,15 +197,28 @@ void main() {
           ),
         );
 
-        final list = await c.read(forgeAccountListProvider(null).future);
+        final list = await _accounts(c);
 
         expect(list, [kGithubCloud, _ghe, _gitlab]);
       },
     );
 
+    test('shows registered servers while the cloud lookups are pending', () {
+      final hang = Completer<void>();
+      final c = _container(
+        git: _Credentials(const {'github.com': 't'}, hang),
+        settings: const AppSettings(forgeServers: {'git.corp': 'gitlab'}),
+      );
+
+      // Not awaited: a helper stuck on a keychain prompt must not hide the
+      // servers the registry already knows about.
+      expect(c.read(forgeAccountListProvider(null)), [_gitlab]);
+      hang.complete();
+    });
+
     test('is empty with nothing connected and nothing registered', () async {
       final c = _container();
-      expect(await c.read(forgeAccountListProvider(null).future), isEmpty);
+      expect(await _accounts(c), isEmpty);
     });
   });
 }

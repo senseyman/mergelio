@@ -129,29 +129,29 @@ final forgeAccountTokenProvider =
 ///
 /// [path] scopes the credential lookups exactly as
 /// [forgeAccountTokenProvider] does.
-final forgeAccountListProvider =
-    FutureProvider.family<List<ForgeServer>, String?>((ref, path) async {
-      final registered = ref.watch(forgeServersProvider);
-      // Both lookups are started before either is awaited, so the list costs
-      // one round of helper calls rather than two in a row.
-      final clouds = [
-        for (final cloud in const [kGithubCloud, kGitlabCloud])
-          (
-            cloud,
-            ref.watch(
-              forgeAccountTokenProvider((
-                host: cloud.credentialHost,
-                path: path,
-              )).future,
-            ),
-          ),
-      ];
-      return [
-        for (final (cloud, token) in clouds)
-          if (await token != null) cloud,
-        ...registered,
-      ];
-    });
+///
+/// Synchronous on purpose: the registered servers are known at once, and a
+/// cloud joins the list when its lookup answers. Waiting for both lookups
+/// first would let a slow helper — one waiting on a keychain prompt, with a
+/// minute's timeout — hide servers the registry already holds and claim
+/// there are no accounts at all.
+final forgeAccountListProvider = Provider.family<List<ForgeServer>, String?>((
+  ref,
+  path,
+) {
+  bool connected(ForgeServer cloud) =>
+      ref
+          .watch(
+            forgeAccountTokenProvider((host: cloud.credentialHost, path: path)),
+          )
+          .valueOrNull !=
+      null;
+  return [
+    for (final cloud in const [kGithubCloud, kGitlabCloud])
+      if (connected(cloud)) cloud,
+    ...ref.watch(forgeServersProvider),
+  ];
+});
 
 /// One cache for the application session.
 ///

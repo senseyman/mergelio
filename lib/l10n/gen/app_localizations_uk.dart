@@ -2209,7 +2209,7 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get forgeUrlHasPath =>
-      'Сервер у підкаталозі поки не підтримується. Введіть лише хост.';
+      'Сервер у підкаталозі поки не підтримується. Введіть лише хост і, якщо є, порт.';
 
   @override
   String get forgeUrlIsCloud => 'Це публічний сервіс. Виберіть його вище.';
@@ -2222,6 +2222,29 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get forgeRemoveServer => 'Видалити';
+
+  @override
+  String forgeOldTokenNotForgotten(String server) {
+    return 'Не вдалося видалити токен, збережений для $server, тож нічого не змінено. Спробуйте ще раз або спершу видаліть $server.';
+  }
+
+  @override
+  String forgeRemoveAnywayTitle(String server) {
+    return 'Усе одно видалити $server?';
+  }
+
+  @override
+  String forgeRemoveAnywayBody(String server) {
+    return 'Mergelio не зміг видалити свій токен для $server з менеджера облікових даних git. Якщо видалити сервер зараз, токен може там лишитися, і його доведеться видалити засобами самого менеджера.';
+  }
+
+  @override
+  String get forgeRemoveAnyway => 'Усе одно видалити';
+
+  @override
+  String forgeServerRemovedTokenKept(String server) {
+    return '$server видалено. Його токен може лишатися в менеджері облікових даних.';
+  }
 
   @override
   String forgeServerRemoved(String server) {

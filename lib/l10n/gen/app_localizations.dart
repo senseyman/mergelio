@@ -3791,7 +3791,7 @@ abstract class AppLocalizations {
   /// No description provided for @forgeUrlHasPath.
   ///
   /// In en, this message translates to:
-  /// **'A server under a sub-path is not supported yet. Enter only the host.'**
+  /// **'A server under a sub-path is not supported yet. Enter only the host, and the port if it has one.'**
   String get forgeUrlHasPath;
 
   /// No description provided for @forgeUrlIsCloud.
@@ -3817,6 +3817,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Remove'**
   String get forgeRemoveServer;
+
+  /// No description provided for @forgeOldTokenNotForgotten.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not remove the token stored for {server}, so nothing was changed. Try again, or remove {server} first.'**
+  String forgeOldTokenNotForgotten(String server);
+
+  /// No description provided for @forgeRemoveAnywayTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove {server} anyway?'**
+  String forgeRemoveAnywayTitle(String server);
+
+  /// No description provided for @forgeRemoveAnywayBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Mergelio could not remove its token for {server} from your git credential helper. If you remove the server now, the token may stay there, and you would have to delete it with the helper\'s own tool.'**
+  String forgeRemoveAnywayBody(String server);
+
+  /// No description provided for @forgeRemoveAnyway.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove anyway'**
+  String get forgeRemoveAnyway;
+
+  /// No description provided for @forgeServerRemovedTokenKept.
+  ///
+  /// In en, this message translates to:
+  /// **'Removed {server}. Its token may still be in your credential helper.'**
+  String forgeServerRemovedTokenKept(String server);
 
   /// No description provided for @forgeServerRemoved.
   ///

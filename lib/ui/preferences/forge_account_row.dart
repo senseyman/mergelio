@@ -12,6 +12,7 @@ import '../../state/feedback.dart';
 import '../../state/forge.dart';
 import '../../state/settings_controller.dart';
 import '../../state/workspace.dart';
+import '../common/dialogs.dart';
 import '../workspace/forge_presentation.dart';
 
 /// Whether [server] accepts [token].
@@ -225,19 +226,31 @@ class _ForgeTokenFormState extends ConsumerState<ForgeTokenForm> {
               .read(forgeServersProvider)
               .where((s) => s.host == server.host && s != server)
               .toList();
+    final credentials = _credentialsFor(c);
+    // The old entries' tokens go first, and must go: the registry swap below
+    // drops the only row that could reach them, so an erase that fails stops
+    // everything here and leaves the old entry listed where it can be
+    // retried or removed.
+    for (final old in replaced) {
+      final erased = await credentials.reject(
+        old.credentialHost,
+        forgeTokenUsername,
+        const ForgeToken(''),
+      );
+      if (!erased) {
+        toasts.show(
+          l.forgeOldTokenNotForgotten(old.credentialHost),
+          kind: ToastKind.error,
+        );
+        if (mounted) setState(() => _busy = false);
+        return;
+      }
+    }
     // Registered before the helper is asked to keep the token: the server
     // answered for it, so its repositories should be recognised even if no
     // helper ends up storing anything.
     if (!server.isCloud) {
       c.read(settingsProvider.notifier).addForgeServer(server);
-    }
-    final credentials = _credentialsFor(c);
-    for (final old in replaced) {
-      await credentials.reject(
-        old.credentialHost,
-        forgeTokenUsername,
-        const ForgeToken(''),
-      );
     }
     final approved = await credentials.approve(
       server.credentialHost,
@@ -420,7 +433,23 @@ class _ForgeAccountRowState extends ConsumerState<ForgeAccountRow> {
     final forgotten = await _forget(c, _server);
     if (mounted) setState(() => _busy = false);
     if (!forgotten) {
-      toasts.show(l.forgeTokenNotForgotten(name), kind: ToastKind.error);
+      // reject's false is ambiguous — no helper, a failed process, or a
+      // refusal — so the token may or may not still be there. Keep the
+      // server unless the person, told so, chooses otherwise: a broken
+      // helper must not make a registry entry impossible to remove.
+      if (!mounted) {
+        toasts.show(l.forgeTokenNotForgotten(name), kind: ToastKind.error);
+        return;
+      }
+      final anyway = await showConfirmDialog(
+        context,
+        title: l.forgeRemoveAnywayTitle(_server.credentialHost),
+        body: l.forgeRemoveAnywayBody(_server.credentialHost),
+        confirmLabel: l.forgeRemoveAnyway,
+      );
+      if (!anyway) return;
+      c.read(settingsProvider.notifier).removeForgeServer(_server);
+      toasts.show(l.forgeServerRemovedTokenKept(name), kind: ToastKind.warning);
       return;
     }
     c.read(settingsProvider.notifier).removeForgeServer(_server);
@@ -552,9 +581,7 @@ class ForgeAccountsSection extends ConsumerWidget {
     final l = AppLocalizations.of(context);
     final t = context.tokens;
     final activePath = ref.watch(workspaceProvider).activeTab?.path;
-    final accounts =
-        ref.watch(forgeAccountListProvider(activePath)).valueOrNull ??
-        const <ForgeServer>[];
+    final accounts = ref.watch(forgeAccountListProvider(activePath));
     // The refresh interval is one setting shared by every forge, so it is
     // offered the moment any account has a token on file.
     final anyConnected = accounts.any(

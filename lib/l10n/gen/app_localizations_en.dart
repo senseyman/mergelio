@@ -2192,7 +2192,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get forgeUrlHasPath =>
-      'A server under a sub-path is not supported yet. Enter only the host.';
+      'A server under a sub-path is not supported yet. Enter only the host, and the port if it has one.';
 
   @override
   String get forgeUrlIsCloud =>
@@ -2206,6 +2206,29 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get forgeRemoveServer => 'Remove';
+
+  @override
+  String forgeOldTokenNotForgotten(String server) {
+    return 'Could not remove the token stored for $server, so nothing was changed. Try again, or remove $server first.';
+  }
+
+  @override
+  String forgeRemoveAnywayTitle(String server) {
+    return 'Remove $server anyway?';
+  }
+
+  @override
+  String forgeRemoveAnywayBody(String server) {
+    return 'Mergelio could not remove its token for $server from your git credential helper. If you remove the server now, the token may stay there, and you would have to delete it with the helper\'s own tool.';
+  }
+
+  @override
+  String get forgeRemoveAnyway => 'Remove anyway';
+
+  @override
+  String forgeServerRemovedTokenKept(String server) {
+    return 'Removed $server. Its token may still be in your credential helper.';
+  }
 
   @override
   String forgeServerRemoved(String server) {

@@ -35,8 +35,9 @@ CheckBadge checkBadgeFor(ChecksSummary? summary) {
 /// Every branch returns this file's own words. The detail carried by
 /// [ForgeOffline] and [ForgeMalformed] is deliberately dropped: it is written
 /// for a log, and echoing it into the interface is how a secret eventually
-/// reaches a screenshot. [kind] says which forge answered, so the sentence
-/// names the one a person would actually go reconnect.
+/// reaches a screenshot. [server] says which installation answered, so the
+/// sentence names the one a person would actually go reconnect — by host,
+/// when there is more than one of a kind.
 String forgePanelMessage(Object error, AppLocalizations l, ForgeServer server) {
   final forge = forgeServerDisplayName(server);
   if (error is ForgeUnauthenticated) return l.forgeErrUnauthenticated(forge);
