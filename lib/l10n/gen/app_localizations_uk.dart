@@ -1996,6 +1996,14 @@ class AppLocalizationsUk extends AppLocalizations {
   String get forgeCouldNotOpenIssue => 'Не вдалося відкрити тікет у браузері';
 
   @override
+  String get forgeOpenInBrowser => 'Відкрити у браузері';
+
+  @override
+  String forgeCheckoutLocally(String branch) {
+    return 'Переключитися локально на $branch';
+  }
+
+  @override
   String get forgeCreatePr => 'Створити пулреквест…';
 
   @override
@@ -5785,6 +5793,16 @@ class AppLocalizationsUk extends AppLocalizations {
   @override
   String actFetchNotes(String remote) {
     return 'Отримання нотаток з $remote';
+  }
+
+  @override
+  String actFetchPr(int number) {
+    return 'Отримання пулреквесту #$number';
+  }
+
+  @override
+  String actFetchMr(int number) {
+    return 'Отримання запиту на злиття !$number';
   }
 
   @override

@@ -3494,6 +3494,18 @@ abstract class AppLocalizations {
   /// **'Could not open issue in browser'**
   String get forgeCouldNotOpenIssue;
 
+  /// No description provided for @forgeOpenInBrowser.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in browser'**
+  String get forgeOpenInBrowser;
+
+  /// No description provided for @forgeCheckoutLocally.
+  ///
+  /// In en, this message translates to:
+  /// **'Check out locally as {branch}'**
+  String forgeCheckoutLocally(String branch);
+
   /// No description provided for @forgeCreatePr.
   ///
   /// In en, this message translates to:
@@ -9259,6 +9271,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Fetch notes from {remote}'**
   String actFetchNotes(String remote);
+
+  /// No description provided for @actFetchPr.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetch pull request #{number}'**
+  String actFetchPr(int number);
+
+  /// No description provided for @actFetchMr.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetch merge request !{number}'**
+  String actFetchMr(int number);
 
   /// No description provided for @actNoNotesToPush.
   ///

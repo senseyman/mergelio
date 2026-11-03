@@ -1984,6 +1984,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get forgeCouldNotOpenIssue => 'Could not open issue in browser';
 
   @override
+  String get forgeOpenInBrowser => 'Open in browser';
+
+  @override
+  String forgeCheckoutLocally(String branch) {
+    return 'Check out locally as $branch';
+  }
+
+  @override
   String get forgeCreatePr => 'Create pull request…';
 
   @override
@@ -5683,6 +5691,16 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String actFetchNotes(String remote) {
     return 'Fetch notes from $remote';
+  }
+
+  @override
+  String actFetchPr(int number) {
+    return 'Fetch pull request #$number';
+  }
+
+  @override
+  String actFetchMr(int number) {
+    return 'Fetch merge request !$number';
   }
 
   @override

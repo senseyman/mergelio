@@ -227,6 +227,36 @@ class GitWriter {
   Future<void> pullFastForward({GitCancel? cancel}) =>
       _net(['pull', '--ff-only', '--no-rebase'], 'git pull', cancel: cancel);
 
+  /// Fetches [remoteRef] from [remote] straight into local branch [branch].
+  ///
+  /// The refspec carries no `+`, so git creates the branch or fast-forwards
+  /// it and refuses anything else: commits made on the branch locally are
+  /// never dropped by a force-push on the forge. git also refuses to write a
+  /// branch that is checked out, here or in another worktree.
+  Future<void> fetchIntoBranch(
+    String remote,
+    String remoteRef,
+    String branch, {
+    GitCancel? cancel,
+  }) => _net(
+    ['fetch', remote, '$remoteRef:refs/heads/$branch'],
+    'git fetch',
+    cancel: cancel,
+  );
+
+  /// Fast-forwards the current branch to [remoteRef] on [remote], or changes
+  /// nothing. `--no-rebase` so a `pull.rebase` preference cannot turn it into
+  /// a rebase, and `--ff-only` so it never makes a merge commit.
+  Future<void> pullRefFastForward(
+    String remote,
+    String remoteRef, {
+    GitCancel? cancel,
+  }) => _net(
+    ['pull', '--ff-only', '--no-rebase', remote, remoteRef],
+    'git pull',
+    cancel: cancel,
+  );
+
   /// Makes [remote] fetch every branch again, undoing a single-branch clone.
   Future<void> fetchAllBranches(String remote) =>
       _ok(['remote', 'set-branches', remote, '*'], 'git remote set-branches');

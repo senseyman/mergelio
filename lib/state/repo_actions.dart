@@ -9,6 +9,8 @@ import '../core/concurrency.dart';
 import '../core/logging.dart';
 import '../domain/external_tools.dart';
 import '../domain/file_edit.dart';
+import '../domain/forge/forge_host.dart';
+import '../domain/forge/pull_request_ref.dart';
 import '../domain/git/bisect.dart';
 import '../domain/git/commit_message.dart';
 import '../domain/git/conflict.dart';
@@ -1710,6 +1712,46 @@ class RepoActions {
       redo: () =>
           _writer.checkoutTracking(rb.remote, rb.branch, timeout: timeout),
     );
+  }
+
+  /// Checks out pull request (merge request) [number] from origin as a local
+  /// branch — `pr/<n>` on GitHub, `mr/<n>` on GitLab — creating it, or
+  /// fast-forwarding it when the request has moved on since.
+  ///
+  /// Only ever a fast-forward: a branch carrying local commits the request
+  /// does not have is left exactly where it is, and git's refusal is shown.
+  /// Origin is used because the forge was resolved from it, and it carries
+  /// the head of every request, a fork's included.
+  ///
+  /// git will not fetch into the checked-out branch, so when that is the
+  /// request's own branch it is fast-forwarded in place by a pull instead.
+  /// Either way no commit is ever made.
+  Future<void> checkoutPullRequest(ForgeKind kind, int number) async {
+    final remoteRef = pullRequestHeadRef(kind, number);
+    final branch = pullRequestLocalBranch(kind, number);
+    final label = kind == ForgeKind.gitlab
+        ? _l.actFetchMr(number)
+        : _l.actFetchPr(number);
+    if (await _headRef() == branch) {
+      await _network(
+        label,
+        (cancel) =>
+            _writer.pullRefFastForward('origin', remoteRef, cancel: cancel),
+      );
+      return;
+    }
+    var fetched = false;
+    await _network(
+      label,
+      (cancel) =>
+          _writer.fetchIntoBranch('origin', remoteRef, branch, cancel: cancel),
+      writesWorkingTree: false,
+      // The checkout that follows reports the outcome; two success toasts for
+      // one click would be noise.
+      toastSuccess: false,
+      onSuccess: () => fetched = true,
+    );
+    if (fetched) await checkout(branch);
   }
 
   /// Switches to the local branch [rb.branch] and hard-resets it to the remote
