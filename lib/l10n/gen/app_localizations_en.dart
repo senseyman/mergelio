@@ -1984,6 +1984,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String get forgeCouldNotOpenIssue => 'Could not open issue in browser';
 
   @override
+  String get forgeCreatePr => 'Create pull request…';
+
+  @override
+  String get forgeCreateMr => 'Create merge request…';
+
+  @override
+  String get forgeCouldNotOpenNewPr =>
+      'Could not open the new pull request page in your browser';
+
+  @override
+  String get forgeCouldNotOpenNewMr =>
+      'Could not open the new merge request page in your browser';
+
+  @override
+  String forgePushBeforePr(String branch) {
+    return 'Push $branch to origin first, then create the pull request.';
+  }
+
+  @override
+  String forgePushBeforeMr(String branch) {
+    return 'Push $branch to origin first, then create the merge request.';
+  }
+
+  @override
   String get forgeConnectHint =>
       'Without a token: no auto-refresh, 60 requests an hour. Connect in Preferences → Credentials.';
 

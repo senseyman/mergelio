@@ -3494,6 +3494,42 @@ abstract class AppLocalizations {
   /// **'Could not open issue in browser'**
   String get forgeCouldNotOpenIssue;
 
+  /// No description provided for @forgeCreatePr.
+  ///
+  /// In en, this message translates to:
+  /// **'Create pull request…'**
+  String get forgeCreatePr;
+
+  /// No description provided for @forgeCreateMr.
+  ///
+  /// In en, this message translates to:
+  /// **'Create merge request…'**
+  String get forgeCreateMr;
+
+  /// No description provided for @forgeCouldNotOpenNewPr.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the new pull request page in your browser'**
+  String get forgeCouldNotOpenNewPr;
+
+  /// No description provided for @forgeCouldNotOpenNewMr.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the new merge request page in your browser'**
+  String get forgeCouldNotOpenNewMr;
+
+  /// No description provided for @forgePushBeforePr.
+  ///
+  /// In en, this message translates to:
+  /// **'Push {branch} to origin first, then create the pull request.'**
+  String forgePushBeforePr(String branch);
+
+  /// No description provided for @forgePushBeforeMr.
+  ///
+  /// In en, this message translates to:
+  /// **'Push {branch} to origin first, then create the merge request.'**
+  String forgePushBeforeMr(String branch);
+
   /// No description provided for @forgeConnectHint.
   ///
   /// In en, this message translates to:

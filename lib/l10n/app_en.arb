@@ -1357,6 +1357,26 @@
   "forgeCouldNotOpenPr": "Could not open the pull request in your browser",
   "forgeCouldNotOpenMr": "Could not open the merge request in your browser",
   "forgeCouldNotOpenIssue": "Could not open issue in browser",
+  "forgeCreatePr": "Create pull request…",
+  "forgeCreateMr": "Create merge request…",
+  "forgeCouldNotOpenNewPr": "Could not open the new pull request page in your browser",
+  "forgeCouldNotOpenNewMr": "Could not open the new merge request page in your browser",
+  "forgePushBeforePr": "Push {branch} to origin first, then create the pull request.",
+  "@forgePushBeforePr": {
+    "placeholders": {
+      "branch": {
+        "type": "String"
+      }
+    }
+  },
+  "forgePushBeforeMr": "Push {branch} to origin first, then create the merge request.",
+  "@forgePushBeforeMr": {
+    "placeholders": {
+      "branch": {
+        "type": "String"
+      }
+    }
+  },
   "forgeConnectHint": "Without a token: no auto-refresh, 60 requests an hour. Connect in Preferences → Credentials.",
   "forgeConnectHintGitlab": "Without a token: no auto-refresh, and a lower shared rate limit. Connect in Preferences → Credentials.",
   "forgeErrUnauthenticated": "{forge} rejected the saved token. Reconnect in Preferences.",

@@ -88,6 +88,53 @@ Uri issueWebUrl(ForgeHost host, int number) => switch (host.kind) {
   ),
 };
 
+/// The name [upstream] carries on `origin`, or null when it tracks nothing
+/// there.
+///
+/// The forge is resolved from origin, so only a branch pushed to origin has
+/// anything to propose on it. A branch tracking another remote — a fork, a
+/// mirror — would open a compare page for a branch that may not exist there.
+String? forgeSourceBranch(String upstream) {
+  const prefix = 'origin/';
+  if (!upstream.startsWith(prefix)) return null;
+  final name = upstream.substring(prefix.length);
+  return name.isEmpty ? null : name;
+}
+
+/// Where a person goes to open a pull request (merge request) from
+/// [sourceBranch] into the repository's default branch, or null when the
+/// branch cannot be addressed safely.
+///
+/// Opens the forge's own form rather than creating anything: no token is
+/// involved, and the person still chooses the target, title and reviewers
+/// there.
+///
+/// GitHub takes the branch in the path, slashes literal. [Uri.https] escapes
+/// what a path cannot carry (`#`, `%`), but resolves an empty, `.` or `..`
+/// segment into a path outside the repository, so those are refused. GitLab
+/// takes the branch as a query parameter, which [Uri] encodes in full.
+Uri? newPullRequestWebUrl(ForgeHost host, String sourceBranch) {
+  if (sourceBranch.isEmpty) return null;
+  switch (host.kind) {
+    case ForgeKind.github:
+      final segments = sourceBranch.split('/');
+      if (segments.any((s) => s.isEmpty || s == '.' || s == '..')) {
+        return null;
+      }
+      return Uri.https(
+        host.host,
+        '/${host.owner}/${host.repo}/compare/$sourceBranch',
+        {'expand': '1'},
+      );
+    case ForgeKind.gitlab:
+      return Uri.https(
+        host.host,
+        '/${host.owner}/${host.repo}/-/merge_requests/new',
+        {'merge_request[source_branch]': sourceBranch},
+      );
+  }
+}
+
 /// The forge's own name, for a sentence that has to say which one answered.
 ///
 /// Not localized: these are product names, and translating them would name
