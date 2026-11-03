@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/domain/forge/forge_error.dart';
 import 'package:mergelio/domain/forge/forge_host.dart';
 import 'package:mergelio/domain/forge/models.dart';
+import 'package:mergelio/domain/git/models.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/ui/workspace/forge_presentation.dart';
 
@@ -307,6 +308,79 @@ void main() {
 
     test('a gitlab branch name still cannot be empty', () {
       expect(newPullRequestWebUrl(gitlab, ''), isNull);
+    });
+  });
+
+  group('pushedSourceBranch', () {
+    const onOrigin = [
+      RemoteBranch(remote: 'origin', branch: 'main'),
+      RemoteBranch(remote: 'origin', branch: 'remote-name'),
+      RemoteBranch(remote: 'origin', branch: 'pushed'),
+      RemoteBranch(remote: 'fork', branch: 'forked'),
+    ];
+
+    test('uses the name origin has, not the local one', () {
+      expect(
+        pushedSourceBranch(
+          const Branch(name: 'local-name', upstream: 'origin/remote-name'),
+          onOrigin,
+        ),
+        'remote-name',
+      );
+    });
+
+    test('is null when the upstream on origin is gone', () {
+      expect(
+        pushedSourceBranch(
+          const Branch(name: 'merged', upstream: 'origin/merged'),
+          onOrigin,
+        ),
+        isNull,
+      );
+    });
+
+    test('a gone upstream does not fall back to a same-named branch', () {
+      // `pushed` exists on origin, but this branch says it tracks something
+      // else that is gone; guessing would propose the wrong commits.
+      expect(
+        pushedSourceBranch(
+          const Branch(name: 'pushed', upstream: 'origin/old'),
+          onOrigin,
+        ),
+        isNull,
+      );
+    });
+
+    test(
+      'a branch with no upstream uses origin\'s branch of the same name',
+      () {
+        // Pushed without -u: origin has it, git just never recorded the link.
+        expect(
+          pushedSourceBranch(const Branch(name: 'pushed'), onOrigin),
+          'pushed',
+        );
+      },
+    );
+
+    test('a branch with no upstream and nothing on origin is unpushed', () {
+      expect(pushedSourceBranch(const Branch(name: 'local'), onOrigin), isNull);
+    });
+
+    test('a branch tracking another remote is refused', () {
+      expect(
+        pushedSourceBranch(
+          const Branch(name: 'main', upstream: 'fork/main'),
+          onOrigin,
+        ),
+        isNull,
+      );
+    });
+
+    test('another remote\'s same-named branch is not origin\'s', () {
+      expect(
+        pushedSourceBranch(const Branch(name: 'forked'), onOrigin),
+        isNull,
+      );
     });
   });
 }

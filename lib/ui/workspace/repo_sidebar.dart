@@ -634,9 +634,10 @@ class _BranchRow extends ConsumerWidget {
               l,
               host,
               branchName: branch.name,
-              sourceBranch: _pushedSourceBranch(
+              sourceBranch: pushedSourceBranch(
                 branch,
-                ref.read(repoDataProvider(path)).valueOrNull,
+                ref.read(repoDataProvider(path)).valueOrNull?.remoteBranches ??
+                    const [],
               ),
             ),
           ),
@@ -1045,21 +1046,6 @@ String _createRequestLabel(AppLocalizations l, ForgeKind kind) =>
 /// so the person is told to push it rather than shown a compare page for a
 /// branch the forge does not have. The URL is built from the locally
 /// resolved [host] and a git branch name, never from anything a forge sent.
-/// The name [branch] has on origin, or null when origin does not have it.
-///
-/// An upstream alone is not enough: git keeps naming it after the remote
-/// branch is deleted — routinely, once its pull request merges — and the
-/// forge would then open a compare page for a branch it no longer has. The
-/// remote-tracking refs are what say the branch is still there.
-String? _pushedSourceBranch(Branch branch, RepoData? data) {
-  final name = forgeSourceBranch(branch.upstream);
-  if (name == null || data == null) return null;
-  final onOrigin = data.remoteBranches.any(
-    (rb) => rb.remote == 'origin' && rb.branch == name,
-  );
-  return onOrigin ? name : null;
-}
-
 Future<void> _openNewPullRequest(
   WidgetRef ref,
   AppLocalizations l,

@@ -59,12 +59,17 @@ const _data = RepoData(
     // Still names its upstream, but the remote branch is gone — deleted after
     // its pull request merged, say.
     Branch(name: 'merged', upstream: 'origin/merged'),
+    Branch(name: 'renamed', upstream: 'origin/published'),
+    // Pushed without -u, so git recorded no upstream.
+    Branch(name: 'no-link'),
   ],
   remotes: ['origin', 'fork'],
   remoteBranches: [
     RemoteBranch(remote: 'origin', branch: 'main'),
     RemoteBranch(remote: 'origin', branch: 'feature/x'),
     RemoteBranch(remote: 'origin', branch: 'topic'),
+    RemoteBranch(remote: 'origin', branch: 'published'),
+    RemoteBranch(remote: 'origin', branch: 'no-link'),
     RemoteBranch(remote: 'fork', branch: 'elsewhere'),
   ],
 );
@@ -124,9 +129,21 @@ Future<_Harness> _pump(
   return _Harness(opened, container);
 }
 
-Future<void> _menuOn(WidgetTester tester, String label) async {
-  await tester.tap(find.text(label).first, buttons: kSecondaryButton);
+/// Opens the context menu of the row labelled [label] and checks it is the
+/// menu the test means: a local branch's menu has "Set upstream…", a remote
+/// branch's does not. A local branch and its origin copy can share a label,
+/// so the label alone does not say which row was hit.
+Future<void> _menuOn(
+  WidgetTester tester,
+  String label, {
+  bool local = true,
+}) async {
+  final rows = find.text(label);
+  // The Branches section is drawn above Remotes, so the first match is the
+  // local row and the last the remote one.
+  await tester.tap(local ? rows.first : rows.last, buttons: kSecondaryButton);
   await tester.pumpAndSettle();
+  expect(find.text('Set upstream…'), local ? findsOneWidget : findsNothing);
 }
 
 void main() {
@@ -209,6 +226,35 @@ void main() {
     expect(h.toasts.single.title, contains('merged'));
   });
 
+  testWidgets('a local branch proposes the name its upstream has on origin', (
+    tester,
+  ) async {
+    final h = await _pump(tester, host: _github);
+
+    await _menuOn(tester, 'renamed');
+    await tester.tap(find.text('Create pull request…'));
+    await tester.pumpAndSettle();
+
+    expect(h.opened, [
+      Uri.parse('https://github.com/o/r/compare/published?expand=1'),
+    ]);
+  });
+
+  testWidgets('a branch pushed without an upstream still opens its page', (
+    tester,
+  ) async {
+    final h = await _pump(tester, host: _github);
+
+    await _menuOn(tester, 'no-link');
+    await tester.tap(find.text('Create pull request…'));
+    await tester.pumpAndSettle();
+
+    expect(h.opened, [
+      Uri.parse('https://github.com/o/r/compare/no-link?expand=1'),
+    ]);
+    expect(h.toasts, isEmpty);
+  });
+
   testWidgets('a browser that will not open is reported', (tester) async {
     final h = await _pump(tester, host: _github, launchSucceeds: false);
 
@@ -223,7 +269,7 @@ void main() {
   testWidgets('an origin remote branch opens its compare page', (tester) async {
     final h = await _pump(tester, host: _github);
 
-    await _menuOn(tester, 'topic');
+    await _menuOn(tester, 'topic', local: false);
     await tester.tap(find.text('Create pull request…'));
     await tester.pumpAndSettle();
 
@@ -237,7 +283,7 @@ void main() {
   ) async {
     await _pump(tester, host: _github);
 
-    await _menuOn(tester, 'elsewhere');
+    await _menuOn(tester, 'elsewhere', local: false);
 
     expect(find.text('Create pull request…'), findsNothing);
   });
