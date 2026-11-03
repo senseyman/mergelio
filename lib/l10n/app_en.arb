@@ -1389,6 +1389,7 @@
   },
   "forgeConnectHint": "Without a token: no auto-refresh, 60 requests an hour. Connect in Preferences → Credentials.",
   "forgeConnectHintGitlab": "Without a token: no auto-refresh, and a lower shared rate limit. Connect in Preferences → Credentials.",
+  "forgeConnectHintSelfHosted": "Without a token: no auto-refresh, and only what this server allows anonymous callers. Connect in Preferences → Credentials.",
   "forgeErrUnauthenticated": "{forge} rejected the saved token. Reconnect in Preferences.",
   "@forgeErrUnauthenticated": {
     "placeholders": {
@@ -1518,6 +1519,26 @@
     }
   },
   "forgeRefreshInterval": "Pull and merge request refresh interval",
+  "forgeAccountsHeading": "Forge accounts",
+  "forgeAddAccount": "Add account…",
+  "forgeNoAccounts": "No accounts yet. A token raises the forge's request limit and turns on auto-refresh. A self-hosted GitHub Enterprise or GitLab server must be added here before its repositories are recognised.",
+  "forgeAddAccountTitle": "Add forge account",
+  "forgeTokenForTitle": "Token for {server}",
+  "@forgeTokenForTitle": {"placeholders": {"server": {"type": "String"}}},
+  "forgeWhereCloudGithub": "GitHub.com",
+  "forgeWhereSelfGithub": "GitHub Enterprise Server",
+  "forgeWhereCloudGitlab": "GitLab.com",
+  "forgeWhereSelfGitlab": "Self-managed GitLab",
+  "forgeServerUrlLabel": "Server URL",
+  "forgeUrlInvalid": "Enter the server's address, like https://git.example.com.",
+  "forgeUrlNotHttps": "Only https is supported: over http the token would travel unencrypted.",
+  "forgeUrlHasPath": "A server under a sub-path is not supported yet. Enter only the host.",
+  "forgeUrlIsCloud": "That is the public service. Choose it above instead.",
+  "forgeConnectAccount": "Connect…",
+  "forgeReplaceToken": "Replace token…",
+  "forgeRemoveServer": "Remove",
+  "forgeServerRemoved": "Removed {server}.",
+  "@forgeServerRemoved": {"placeholders": {"server": {"type": "String"}}},
   "lhTitleLine": "{path} · line {line}",
   "@lhTitleLine": {
     "placeholders": {

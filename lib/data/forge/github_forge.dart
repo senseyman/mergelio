@@ -9,7 +9,7 @@ import 'forge_http.dart';
 import 'github_parse.dart';
 import 'link_header.dart';
 
-/// Read access to one repository on github.com.
+/// Read access to one repository on github.com or GitHub Enterprise Server.
 class GitHubForge implements Forge {
   @override
   final ForgeHost host;
@@ -35,8 +35,6 @@ class GitHubForge implements Forge {
        _http = http,
        _cache = cache ?? EtagCache();
 
-  static const _apiHost = 'api.github.com';
-
   /// The largest page GitHub will serve. Asking for more is not an error; it
   /// is silently clamped, which would leave the request describing a page it
   /// never gets.
@@ -46,7 +44,7 @@ class GitHubForge implements Forge {
     String path, [
     Map<String, String> query = const {},
     int perPage = _maxPerPage,
-  ]) => Uri.https(_apiHost, '/repos/${host.owner}/${host.repo}$path', {
+  ]) => host.server.api('/repos/${host.owner}/${host.repo}$path', {
     'per_page': '${perPage.clamp(1, _maxPerPage)}',
     ...query,
   });

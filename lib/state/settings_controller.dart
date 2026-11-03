@@ -3,6 +3,7 @@ import 'package:flutter/material.dart' show Color, ThemeMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/settings_repository.dart';
+import '../domain/forge/forge_server.dart';
 import '../domain/theme_io.dart';
 import 'settings.dart';
 
@@ -35,6 +36,27 @@ class SettingsController extends StateNotifier<AppSettings> {
       ),
     ),
   );
+
+  /// Registers a self-hosted forge installation. One entry per host name:
+  /// a remote names a host, not a port, so two entries for one host could
+  /// not be told apart — a new port replaces the old entry. The clouds are
+  /// always known and never stored.
+  void addForgeServer(ForgeServer server) {
+    if (server.isCloud) return;
+    final next = Map<String, String>.from(state.forgeServers)
+      ..removeWhere(
+        (key, kind) => ForgeServer.fromKey(key, kind)?.host == server.host,
+      )
+      ..[server.key] = server.kind.name;
+    _update(state.copyWith(forgeServers: next));
+  }
+
+  void removeForgeServer(ForgeServer server) {
+    if (!state.forgeServers.containsKey(server.key)) return;
+    final next = Map<String, String>.from(state.forgeServers)
+      ..remove(server.key);
+    _update(state.copyWith(forgeServers: next));
+  }
 
   /// Pull-request panel refresh interval, floored at
   /// [kMinForgeRefreshIntervalSeconds] so a tick never costs more than the

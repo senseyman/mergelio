@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/domain/forge/forge_error.dart';
 import 'package:mergelio/domain/forge/forge_host.dart';
+import 'package:mergelio/domain/forge/forge_server.dart';
 import 'package:mergelio/domain/forge/models.dart';
 import 'package:mergelio/domain/git/models.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
@@ -45,25 +46,33 @@ void main() {
     late AppLocalizations l;
     setUp(() async => l = await _en());
 
+    test('a self-hosted server is named by product and host', () {
+      const ghe = ForgeServer(kind: ForgeKind.github, host: 'ghe.corp');
+      expect(
+        forgePanelMessage(const ForgeUnauthenticated(), l, ghe),
+        contains('GitHub Enterprise (ghe.corp)'),
+      );
+    });
+
     test('names each failure the user can act on', () {
       expect(
-        forgePanelMessage(const ForgeUnauthenticated(), l, ForgeKind.github),
+        forgePanelMessage(const ForgeUnauthenticated(), l, kGithubCloud),
         contains('token'),
       );
       expect(
-        forgePanelMessage(const ForgeNotVisible(), l, ForgeKind.github),
+        forgePanelMessage(const ForgeNotVisible(), l, kGithubCloud),
         contains('visible'),
       );
       expect(
-        forgePanelMessage(const ForgeOffline('x'), l, ForgeKind.github),
+        forgePanelMessage(const ForgeOffline('x'), l, kGithubCloud),
         contains('reach'),
       );
       expect(
-        forgePanelMessage(const ForgeServerFault(503), l, ForgeKind.github),
+        forgePanelMessage(const ForgeServerFault(503), l, kGithubCloud),
         contains('503'),
       );
       expect(
-        forgePanelMessage(const ForgeMalformed('x'), l, ForgeKind.github),
+        forgePanelMessage(const ForgeMalformed('x'), l, kGithubCloud),
         contains('could not read'),
       );
     });
@@ -71,14 +80,14 @@ void main() {
     test('a rate limit with a known reset says when', () {
       final at = DateTime.utc(2026, 9, 17, 14, 30);
       expect(
-        forgePanelMessage(ForgeRateLimited(at), l, ForgeKind.github),
+        forgePanelMessage(ForgeRateLimited(at), l, kGithubCloud),
         contains('resets at'),
       );
     });
 
     test('a rate limit with no reset still reads as a limit', () {
       expect(
-        forgePanelMessage(const ForgeRateLimited(null), l, ForgeKind.github),
+        forgePanelMessage(const ForgeRateLimited(null), l, kGithubCloud),
         contains('limit reached'),
       );
     });
@@ -89,29 +98,29 @@ void main() {
       final msg = forgePanelMessage(
         const ForgeOffline('token=abc123'),
         l,
-        ForgeKind.github,
+        kGithubCloud,
       );
       expect(msg, isNot(contains('abc123')));
     });
 
     test('an unexpected error still produces something showable', () {
       expect(
-        forgePanelMessage(StateError('boom'), l, ForgeKind.github),
+        forgePanelMessage(StateError('boom'), l, kGithubCloud),
         isNotEmpty,
       );
       expect(
-        forgePanelMessage(StateError('boom'), l, ForgeKind.github),
+        forgePanelMessage(StateError('boom'), l, kGithubCloud),
         isNot(contains('boom')),
       );
     });
 
     test('error messages name the forge that answered', () async {
       expect(
-        forgePanelMessage(const ForgeUnauthenticated(), l, ForgeKind.gitlab),
+        forgePanelMessage(const ForgeUnauthenticated(), l, kGitlabCloud),
         contains('GitLab'),
       );
       expect(
-        forgePanelMessage(const ForgeUnauthenticated(), l, ForgeKind.github),
+        forgePanelMessage(const ForgeUnauthenticated(), l, kGithubCloud),
         contains('GitHub'),
       );
     });
@@ -382,5 +391,24 @@ void main() {
         isNull,
       );
     });
+  });
+
+  group('forgeConnectHintFor', () {
+    test(
+      'each cloud quotes its own limits; a self-hosted server none',
+      () async {
+        final l = await _en();
+        expect(forgeConnectHintFor(l, kGithubCloud), l.forgeConnectHint);
+        expect(forgeConnectHintFor(l, kGitlabCloud), l.forgeConnectHintGitlab);
+        for (final kind in ForgeKind.values) {
+          final hint = forgeConnectHintFor(
+            l,
+            ForgeServer(kind: kind, host: 'self.corp'),
+          );
+          expect(hint, l.forgeConnectHintSelfHosted);
+          expect(hint, isNot(contains('60')));
+        }
+      },
+    );
   });
 }

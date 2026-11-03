@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/tokens.dart';
 import '../../domain/forge/forge_error.dart';
 import '../../domain/forge/forge_host.dart';
+import '../../domain/forge/forge_server.dart';
 import '../../domain/forge/models.dart';
 import '../../domain/git/models.dart';
 import '../../l10n/gen/app_localizations.dart';
@@ -36,8 +37,8 @@ CheckBadge checkBadgeFor(ChecksSummary? summary) {
 /// for a log, and echoing it into the interface is how a secret eventually
 /// reaches a screenshot. [kind] says which forge answered, so the sentence
 /// names the one a person would actually go reconnect.
-String forgePanelMessage(Object error, AppLocalizations l, ForgeKind kind) {
-  final forge = forgeDisplayName(kind);
+String forgePanelMessage(Object error, AppLocalizations l, ForgeServer server) {
+  final forge = forgeServerDisplayName(server);
   if (error is ForgeUnauthenticated) return l.forgeErrUnauthenticated(forge);
   if (error is ForgeRateLimited) {
     final at = error.resetAt;
@@ -62,12 +63,10 @@ String forgePanelMessage(Object error, AppLocalizations l, ForgeKind kind) {
 /// separator is what keeps a group named `issues` from colliding with the
 /// route.
 Uri pullRequestWebUrl(ForgeHost host, int number) => switch (host.kind) {
-  ForgeKind.github => Uri.https(
-    host.host,
+  ForgeKind.github => host.server.web(
     '/${host.owner}/${host.repo}/pull/$number',
   ),
-  ForgeKind.gitlab => Uri.https(
-    host.host,
+  ForgeKind.gitlab => host.server.web(
     '/${host.owner}/${host.repo}/-/merge_requests/$number',
   ),
 };
@@ -79,12 +78,10 @@ Uri pullRequestWebUrl(ForgeHost host, int number) => switch (host.kind) {
 /// issues and pull requests in one sequence yet serves them from separate
 /// URLs, so an issue sent to the pull path opens a different page.
 Uri issueWebUrl(ForgeHost host, int number) => switch (host.kind) {
-  ForgeKind.github => Uri.https(
-    host.host,
+  ForgeKind.github => host.server.web(
     '/${host.owner}/${host.repo}/issues/$number',
   ),
-  ForgeKind.gitlab => Uri.https(
-    host.host,
+  ForgeKind.gitlab => host.server.web(
     '/${host.owner}/${host.repo}/-/issues/$number',
   ),
 };
@@ -130,7 +127,7 @@ String? pushedSourceBranch(Branch branch, List<RemoteBranch> remoteBranches) {
 /// involved, and the person still chooses the target, title and reviewers
 /// there.
 ///
-/// GitHub takes the branch in the path, slashes literal. [Uri.https] escapes
+/// GitHub takes the branch in the path, slashes literal. [Uri] escapes
 /// what a path cannot carry (`#`, `%`), but resolves an empty, `.` or `..`
 /// segment into a path outside the repository, so those are refused. GitLab
 /// takes the branch as a query parameter, which [Uri] encodes in full.
@@ -142,14 +139,12 @@ Uri? newPullRequestWebUrl(ForgeHost host, String sourceBranch) {
       if (segments.any((s) => s.isEmpty || s == '.' || s == '..')) {
         return null;
       }
-      return Uri.https(
-        host.host,
+      return host.server.web(
         '/${host.owner}/${host.repo}/compare/$sourceBranch',
         {'expand': '1'},
       );
     case ForgeKind.gitlab:
-      return Uri.https(
-        host.host,
+      return host.server.web(
         '/${host.owner}/${host.repo}/-/merge_requests/new',
         {'merge_request[source_branch]': sourceBranch},
       );
@@ -164,6 +159,30 @@ String forgeDisplayName(ForgeKind kind) => switch (kind) {
   ForgeKind.github => 'GitHub',
   ForgeKind.gitlab => 'GitLab',
 };
+
+/// The name a sentence uses for [server]: the product alone for the public
+/// clouds, the product and host for a self-hosted installation, so a message
+/// about one of two GitHub servers says which.
+///
+/// Not localized: these are product names and host names.
+String forgeServerDisplayName(ForgeServer server) {
+  if (server.isCloud) return forgeDisplayName(server.kind);
+  final product = switch (server.kind) {
+    ForgeKind.github => 'GitHub Enterprise',
+    ForgeKind.gitlab => 'GitLab',
+  };
+  return '$product (${server.credentialHost})';
+}
+
+/// What a forge section says while no token is connected. The clouds quote
+/// their own published limits; a self-hosted server sets its own, so quoting
+/// a cloud's figure there would be a guess presented as fact.
+String forgeConnectHintFor(AppLocalizations l, ForgeServer server) {
+  if (!server.isCloud) return l.forgeConnectHintSelfHosted;
+  return server.kind == ForgeKind.gitlab
+      ? l.forgeConnectHintGitlab
+      : l.forgeConnectHint;
+}
 
 /// How a forge row opens its web page.
 ///

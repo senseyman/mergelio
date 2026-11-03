@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/core/tokens.dart';
 import 'package:mergelio/data/forge/forge_credentials.dart';
 import 'package:mergelio/data/settings_repository.dart';
+import 'package:mergelio/domain/forge/forge_server.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/state/forge.dart';
 import 'package:mergelio/state/settings.dart';
@@ -27,15 +28,13 @@ final _credentialsListView = find.byWidgetPredicate(
 Future<void> _openCredentialsTab(
   WidgetTester tester, {
   List<Override> overrides = const [],
+  AppSettings settings = const AppSettings(),
 }) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
         settingsProvider.overrideWith(
-          (ref) => SettingsController(
-            InMemorySettingsRepository(),
-            const AppSettings(),
-          ),
+          (ref) => SettingsController(InMemorySettingsRepository(), settings),
         ),
         // ForgeAccountRow watches forgeAccountTokenProvider unconditionally
         // (it no longer depends on a repository being open), and that
@@ -78,44 +77,83 @@ Future<void> _openCredentialsTab(
   // forever from this test's point of view and would time out settling.
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 100));
-
-  // The dialog's body is a fixed height and both account rows together, plus
-  // the refresh row they gate, overflow it — dragged from the GitHub row's
-  // own title (always on screen, unlike a plain ListView finder, which is
-  // ambiguous: the General tab's ListView survives as a PageView neighbor).
-  // One deliberate drag, not an incremental search: a sliver only ever
-  // builds what the current viewport needs, so a single jump reveals the
-  // rest in one pass instead of needing a target that already exists.
-  await tester.drag(find.text('GitHub account'), const Offset(0, -500));
+  // The account list waits on each cloud's token lookup before it settles.
   await tester.pump();
 }
 
 void main() {
-  testWidgets('the Credentials tab reaches both account rows', (tester) async {
-    await _openCredentialsTab(tester);
-    // The dialog's body is a fixed height and both rows together overflow
-    // it, so the GitLab row starts outside the sliver's cache extent and is
-    // not part of the widget tree until something scrolls it into range.
-    await tester.dragUntilVisible(
-      find.text('GitLab account'),
-      _credentialsListView,
-      const Offset(0, -80),
-    );
+  group('forge accounts', () {
+    testWidgets('with nothing connected, offers to add one', (tester) async {
+      await _openCredentialsTab(tester);
 
-    expect(find.byType(ForgeAccountRow), findsNWidgets(2));
-  });
+      expect(find.text('Forge accounts'), findsOneWidget);
+      expect(find.text('Add account…'), findsOneWidget);
+      expect(find.textContaining('No accounts yet'), findsOneWidget);
+      expect(find.byType(ForgeAccountRow), findsNothing);
+    });
 
-  testWidgets('preferences offers an account row per forge', (tester) async {
-    await _openCredentialsTab(tester);
+    testWidgets('lists github.com once its token is on file', (tester) async {
+      await _openCredentialsTab(
+        tester,
+        overrides: [
+          forgeAccountTokenProvider.overrideWith(
+            (ref, key) async => key.host == kGithubCloud.credentialHost
+                ? const ForgeToken('ghp_x')
+                : null,
+          ),
+        ],
+      );
 
-    expect(find.text('GitHub account'), findsOneWidget);
+      expect(find.text('GitHub account'), findsOneWidget);
+      expect(find.text('GitLab account'), findsNothing);
+      expect(find.textContaining('No accounts yet'), findsNothing);
+    });
 
-    await tester.dragUntilVisible(
-      find.text('GitLab account'),
-      _credentialsListView,
-      const Offset(0, -80),
-    );
-    expect(find.text('GitLab account'), findsOneWidget);
+    testWidgets('lists a registered server even without a token', (
+      tester,
+    ) async {
+      await _openCredentialsTab(
+        tester,
+        settings: const AppSettings(forgeServers: {'ghe.corp:8443': 'github'}),
+      );
+
+      expect(find.text('GitHub Enterprise account'), findsOneWidget);
+      expect(find.text('ghe.corp:8443'), findsOneWidget);
+      expect(find.text('Not connected'), findsOneWidget);
+      expect(find.text('Connect…'), findsOneWidget);
+      expect(find.text('Remove'), findsOneWidget);
+    });
+
+    testWidgets('a cloud account cannot be removed, only disconnected', (
+      tester,
+    ) async {
+      await _openCredentialsTab(
+        tester,
+        overrides: [
+          forgeAccountTokenProvider.overrideWith(
+            (ref, key) async => const ForgeToken('t'),
+          ),
+        ],
+      );
+
+      expect(find.text('GitHub account'), findsOneWidget);
+      expect(find.text('Remove'), findsNothing);
+      expect(find.text('Replace token…'), findsWidgets);
+    });
+
+    testWidgets('Add account opens the form', (tester) async {
+      await _openCredentialsTab(tester);
+
+      await tester.ensureVisible(find.text('Add account…'));
+      await tester.pump();
+      await tester.tap(find.text('Add account…'));
+      // Not pumpAndSettle: the SSH key list's spinner never settles.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('Add forge account'), findsOneWidget);
+      expect(find.byType(ForgeTokenForm), findsOneWidget);
+    });
   });
 
   group('refresh interval', () {
@@ -135,8 +173,9 @@ void main() {
           tester,
           overrides: [
             forgeAccountTokenProvider.overrideWith(
-              (ref, key) async =>
-                  key.host == kGithubHost ? const ForgeToken('ghp_x') : null,
+              (ref, key) async => key.host == kGithubCloud.credentialHost
+                  ? const ForgeToken('ghp_x')
+                  : null,
             ),
           ],
         );
@@ -157,8 +196,9 @@ void main() {
         tester,
         overrides: [
           forgeAccountTokenProvider.overrideWith(
-            (ref, key) async =>
-                key.host == kGitlabHost ? const ForgeToken('glpat_x') : null,
+            (ref, key) async => key.host == kGitlabCloud.credentialHost
+                ? const ForgeToken('glpat_x')
+                : null,
           ),
         ],
       );
@@ -179,8 +219,9 @@ void main() {
         tester,
         overrides: [
           forgeAccountTokenProvider.overrideWith(
-            (ref, key) async =>
-                key.host == kGithubHost ? const ForgeToken('ghp_x') : null,
+            (ref, key) async => key.host == kGithubCloud.credentialHost
+                ? const ForgeToken('ghp_x')
+                : null,
           ),
           settingsProvider.overrideWith(
             (ref) => ctl = SettingsController(

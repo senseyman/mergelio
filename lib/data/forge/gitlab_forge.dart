@@ -9,7 +9,7 @@ import 'forge_http.dart';
 import 'gitlab_parse.dart';
 import 'link_header.dart';
 
-/// Read access to one project on gitlab.com.
+/// Read access to one project on gitlab.com or a self-managed GitLab.
 class GitlabForge implements Forge {
   @override
   final ForgeHost host;
@@ -49,7 +49,7 @@ class GitlabForge implements Forge {
     int perPage = _maxPerPage,
   ]) =>
       Uri.parse(
-        'https://${host.host}/api/v4/projects'
+        '${host.server.apiBase}/projects'
         '/${Uri.encodeComponent(host.projectPath)}$path',
       ).replace(
         queryParameters: {

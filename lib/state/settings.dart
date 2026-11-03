@@ -103,6 +103,11 @@ abstract class AppSettings with _$AppSettings {
     @Default({}) Map<String, int> branchColorOverrides,
     // Saved themes by name → JSON blob.
     @Default({}) Map<String, String> savedThemes,
+    // Self-hosted forge installations: 'host' or 'host:port' → forge kind
+    // name ('github' / 'gitlab'). github.com and gitlab.com are never stored;
+    // they are always known. No secrets here — tokens live in the git
+    // credential helper.
+    @Default({}) Map<String, String> forgeServers,
     // UI language: '' follows the system locale, else 'en' / 'uk'.
     @Default('') String localeCode,
     // Opt-in anonymised telemetry + crash reporting. Off by default.

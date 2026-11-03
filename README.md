@@ -333,24 +333,19 @@ change never needs a second window.*
 - A sidebar section for the repository's remote, once it resolves to a
   supported forge: **pull requests** on GitHub, **merge requests** on GitLab —
   each row shows its author, age, branch relationship and a CI/pipeline badge.
-  Only the public clouds are recognised — `github.com` and `gitlab.com`. A
-  self-hosted GitLab or GitHub Enterprise remote is not supported, and the
-  section is absent entirely for it, as it is for any other remote.
+  `github.com` and `gitlab.com` are always recognised. A **GitHub Enterprise
+  Server** or **self-managed GitLab** is recognised once you add it as an
+  account (below); any other remote shows no section at all.
 - An issues section alongside it, and a refresh control for both.
 - Every row opens the real pull/merge request or issue in your browser.
-- **Create pull request…** (**Create merge request…** on GitLab) on a branch's
-  right-click menu opens the forge's own new-request page for it, in your
-  browser — no token needed, nothing is created until you submit it there.
-  Offered for a branch origin has; one not pushed yet asks you to push first.
-- Right-click a pull/merge request row → **Check out locally as pr/12**
-  (**mr/12** on GitLab) fetches the request's head from origin — forks'
-  requests included — into that branch and switches to it; the same entry
-  reads **Update pr/12** once you are on it. It only ever moves the branch
-  forward. If the request was force-pushed and your copy has commits it no
-  longer has, it asks before replacing the branch, and Undo puts it back.
-  No commit is ever made.
-- Connect a **personal access token** per forge from Preferences — GitHub and
-  GitLab each get their own account row. Mergelio stores no token itself: it
+- Preferences → Credentials lists your **forge accounts**, as many as you
+  need: **Add account…** asks for GitHub or GitLab, then either the public
+  service or a self-hosted server's address (`https://` only — over plain
+  http the token would travel unencrypted; a server under a sub-path such as
+  `https://example.com/gitlab` is not supported yet), then a **personal
+  access token**, which is checked against that server before it is kept.
+  One account per server; a self-hosted server can be removed again, which
+  also forgets its token. Mergelio stores no token itself: it
   hands the token to `git credential`, so where it ends up is whatever
   `credential.helper` you have configured. That is the OS keychain on macOS,
   and on Windows or Linux only if you set up a helper that uses one — the
@@ -358,8 +353,9 @@ change never needs a second window.*
   `~/.git-credentials`, and `cache`, which keeps it in memory only. Either
   way the token is never logged and never appears in an error message.
   Without a token the section still works, just against the forge's lower
-  unauthenticated rate limit — on GitHub that is 60 requests an hour, and
-  opening one repository costs about 23 of them.
+  unauthenticated rate limit — on github.com that is 60 requests an hour, and
+  opening one repository costs about 23 of them; a self-hosted server applies
+  its own limits.
 - Read-only: nothing here creates, merges, comments, or opens anything on
   your behalf.
 
