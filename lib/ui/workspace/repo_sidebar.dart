@@ -628,13 +628,16 @@ class _BranchRow extends ConsumerWidget {
         }, enabled: !branch.current && currentBranch != null),
         if (ref.read(forgeHostProvider(path)).valueOrNull case final host?)
           item(
-            forgeCreateRequestLabel(l, host.kind),
-            () => openNewPullRequest(
+            _createRequestLabel(l, host.kind),
+            () => _openNewPullRequest(
               ref,
               l,
               host,
               branchName: branch.name,
-              sourceBranch: forgeSourceBranch(branch.upstream),
+              sourceBranch: _pushedSourceBranch(
+                branch,
+                ref.read(repoDataProvider(path)).valueOrNull,
+              ),
             ),
           ),
         ...graphRefMenuItems(
@@ -1032,7 +1035,7 @@ class _RemoteBranchRow extends ConsumerWidget {
 }
 
 /// The menu label for proposing a branch, in the forge's own vocabulary.
-String forgeCreateRequestLabel(AppLocalizations l, ForgeKind kind) =>
+String _createRequestLabel(AppLocalizations l, ForgeKind kind) =>
     kind == ForgeKind.gitlab ? l.forgeCreateMr : l.forgeCreatePr;
 
 /// Opens the forge's new pull request (merge request) page for
@@ -1042,7 +1045,22 @@ String forgeCreateRequestLabel(AppLocalizations l, ForgeKind kind) =>
 /// so the person is told to push it rather than shown a compare page for a
 /// branch the forge does not have. The URL is built from the locally
 /// resolved [host] and a git branch name, never from anything a forge sent.
-Future<void> openNewPullRequest(
+/// The name [branch] has on origin, or null when origin does not have it.
+///
+/// An upstream alone is not enough: git keeps naming it after the remote
+/// branch is deleted — routinely, once its pull request merges — and the
+/// forge would then open a compare page for a branch it no longer has. The
+/// remote-tracking refs are what say the branch is still there.
+String? _pushedSourceBranch(Branch branch, RepoData? data) {
+  final name = forgeSourceBranch(branch.upstream);
+  if (name == null || data == null) return null;
+  final onOrigin = data.remoteBranches.any(
+    (rb) => rb.remote == 'origin' && rb.branch == name,
+  );
+  return onOrigin ? name : null;
+}
+
+Future<void> _openNewPullRequest(
   WidgetRef ref,
   AppLocalizations l,
   ForgeHost host, {
@@ -1145,7 +1163,7 @@ Future<void> _remoteBranchMenu(
           if (ref.read(forgeHostProvider(path)).valueOrNull case final host?)
             PopupMenuItem(
               height: 34,
-              onTap: () => openNewPullRequest(
+              onTap: () => _openNewPullRequest(
                 ref,
                 l,
                 host,
@@ -1153,7 +1171,7 @@ Future<void> _remoteBranchMenu(
                 sourceBranch: rb.branch,
               ),
               child: Text(
-                forgeCreateRequestLabel(l, host.kind),
+                _createRequestLabel(l, host.kind),
                 style: const TextStyle(fontSize: 13),
               ),
             ),

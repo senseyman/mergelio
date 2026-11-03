@@ -56,9 +56,14 @@ const _data = RepoData(
     Branch(name: 'feature/x', upstream: 'origin/feature/x'),
     Branch(name: 'local-only'),
     Branch(name: 'forked', upstream: 'fork/forked'),
+    // Still names its upstream, but the remote branch is gone — deleted after
+    // its pull request merged, say.
+    Branch(name: 'merged', upstream: 'origin/merged'),
   ],
   remotes: ['origin', 'fork'],
   remoteBranches: [
+    RemoteBranch(remote: 'origin', branch: 'main'),
+    RemoteBranch(remote: 'origin', branch: 'feature/x'),
     RemoteBranch(remote: 'origin', branch: 'topic'),
     RemoteBranch(remote: 'fork', branch: 'elsewhere'),
   ],
@@ -189,6 +194,19 @@ void main() {
 
     expect(h.opened, isEmpty);
     expect(h.toasts.single.title, contains('forked'));
+  });
+
+  testWidgets('a branch whose upstream is gone says to push first', (
+    tester,
+  ) async {
+    final h = await _pump(tester, host: _github);
+
+    await _menuOn(tester, 'merged');
+    await tester.tap(find.text('Create pull request…'));
+    await tester.pumpAndSettle();
+
+    expect(h.opened, isEmpty);
+    expect(h.toasts.single.title, contains('merged'));
   });
 
   testWidgets('a browser that will not open is reported', (tester) async {
