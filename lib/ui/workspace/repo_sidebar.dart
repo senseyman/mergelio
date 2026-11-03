@@ -3,11 +3,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tokens.dart';
+import '../../domain/forge/forge_host.dart';
 import '../../domain/git/graph_ref_filter.dart';
 import '../../domain/git/models.dart';
 import '../../domain/path_key.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/compare_target.dart';
+import '../../state/feedback.dart';
+import '../../state/forge.dart';
 import '../../state/review.dart';
 import '../../state/graph_selection.dart';
 import '../../state/branch_filter.dart';
@@ -29,6 +32,7 @@ import 'branch_filter_field.dart';
 import 'branch_switch.dart';
 import 'branch_tree.dart';
 import 'forge_issue_section.dart';
+import 'forge_presentation.dart';
 import 'forge_section.dart';
 import 'graph_ref_menu.dart';
 import 'branch_cleanup.dart';
@@ -622,6 +626,21 @@ class _BranchRow extends ConsumerWidget {
             head: branch.name,
           );
         }, enabled: !branch.current && currentBranch != null),
+        if (ref.read(forgeHostProvider(path)).valueOrNull case final host?)
+          item(
+            _createRequestLabel(l, host.kind),
+            () => _openNewPullRequest(
+              ref,
+              l,
+              host,
+              branchName: branch.name,
+              sourceBranch: pushedSourceBranch(
+                branch,
+                ref.read(repoDataProvider(path)).valueOrNull?.remoteBranches ??
+                    const [],
+              ),
+            ),
+          ),
         ...graphRefMenuItems(
           context: context,
           ref: ref,
@@ -1016,6 +1035,48 @@ class _RemoteBranchRow extends ConsumerWidget {
   }
 }
 
+/// The menu label for proposing a branch, in the forge's own vocabulary.
+String _createRequestLabel(AppLocalizations l, ForgeKind kind) =>
+    kind == ForgeKind.gitlab ? l.forgeCreateMr : l.forgeCreatePr;
+
+/// Opens the forge's new pull request (merge request) page for
+/// [sourceBranch].
+///
+/// A null [sourceBranch] means the branch has nothing on origin to propose,
+/// so the person is told to push it rather than shown a compare page for a
+/// branch the forge does not have. The URL is built from the locally
+/// resolved [host] and a git branch name, never from anything a forge sent.
+Future<void> _openNewPullRequest(
+  WidgetRef ref,
+  AppLocalizations l,
+  ForgeHost host, {
+  required String branchName,
+  required String? sourceBranch,
+}) async {
+  final gitlab = host.kind == ForgeKind.gitlab;
+  final toasts = ref.read(toastProvider.notifier);
+  final url = sourceBranch == null
+      ? null
+      : newPullRequestWebUrl(host, sourceBranch);
+  if (url == null) {
+    toasts.show(
+      gitlab
+          ? l.forgePushBeforeMr(branchName)
+          : l.forgePushBeforePr(branchName),
+    );
+    return;
+  }
+  final opened = await ref.read(forgeLaunchUrlProvider)(url);
+  // False means nothing handled the request — no browser configured, for
+  // instance — and the click would otherwise look like it did nothing.
+  if (!opened) {
+    toasts.show(
+      gitlab ? l.forgeCouldNotOpenNewMr : l.forgeCouldNotOpenNewPr,
+      kind: ToastKind.error,
+    );
+  }
+}
+
 Future<void> _remoteBranchMenu(
   BuildContext context,
   WidgetRef ref,
@@ -1081,6 +1142,25 @@ Future<void> _remoteBranchMenu(
             style: const TextStyle(fontSize: 13),
           ),
         ),
+      // Only origin's branches: the forge is resolved from origin, so a
+      // branch on any other remote may not exist where the page would open.
+      if (rb.remote == 'origin')
+        if (ref.read(workspaceProvider).activeTab?.path case final path?)
+          if (ref.read(forgeHostProvider(path)).valueOrNull case final host?)
+            PopupMenuItem(
+              height: 34,
+              onTap: () => _openNewPullRequest(
+                ref,
+                l,
+                host,
+                branchName: rb.name,
+                sourceBranch: rb.branch,
+              ),
+              child: Text(
+                _createRequestLabel(l, host.kind),
+                style: const TextStyle(fontSize: 13),
+              ),
+            ),
       PopupMenuItem(
         height: 34,
         onTap: () => Clipboard.setData(ClipboardData(text: rb.name)),

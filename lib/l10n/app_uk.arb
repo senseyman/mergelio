@@ -634,6 +634,26 @@
   "forgeCouldNotOpenPr": "Не вдалося відкрити пулреквест у браузері",
   "forgeCouldNotOpenMr": "Не вдалося відкрити запит на злиття у браузері",
   "forgeCouldNotOpenIssue": "Не вдалося відкрити тікет у браузері",
+  "forgeCreatePr": "Створити пулреквест…",
+  "forgeCreateMr": "Створити запит на злиття…",
+  "forgeCouldNotOpenNewPr": "Не вдалося відкрити сторінку нового пулреквесту у браузері",
+  "forgeCouldNotOpenNewMr": "Не вдалося відкрити сторінку нового запиту на злиття у браузері",
+  "forgePushBeforePr": "Спершу відправте {branch} в origin, потім створіть пулреквест.",
+  "@forgePushBeforePr": {
+    "placeholders": {
+      "branch": {
+        "type": "String"
+      }
+    }
+  },
+  "forgePushBeforeMr": "Спершу відправте {branch} в origin, потім створіть запит на злиття.",
+  "@forgePushBeforeMr": {
+    "placeholders": {
+      "branch": {
+        "type": "String"
+      }
+    }
+  },
   "forgeConnectHint": "Без токена: без автооновлення, 60 запитів на годину. Підключіть у Налаштуваннях → Облікові дані.",
   "forgeConnectHintGitlab": "Без токена: без автооновлення і зі спільним нижчим лімітом запитів. Підключіть у Налаштуваннях → Облікові дані.",
   "forgeErrUnauthenticated": "{forge} відхилив збережений токен. Підключіться знову в Налаштуваннях.",

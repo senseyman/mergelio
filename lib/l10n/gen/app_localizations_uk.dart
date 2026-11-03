@@ -1996,6 +1996,30 @@ class AppLocalizationsUk extends AppLocalizations {
   String get forgeCouldNotOpenIssue => 'Не вдалося відкрити тікет у браузері';
 
   @override
+  String get forgeCreatePr => 'Створити пулреквест…';
+
+  @override
+  String get forgeCreateMr => 'Створити запит на злиття…';
+
+  @override
+  String get forgeCouldNotOpenNewPr =>
+      'Не вдалося відкрити сторінку нового пулреквесту у браузері';
+
+  @override
+  String get forgeCouldNotOpenNewMr =>
+      'Не вдалося відкрити сторінку нового запиту на злиття у браузері';
+
+  @override
+  String forgePushBeforePr(String branch) {
+    return 'Спершу відправте $branch в origin, потім створіть пулреквест.';
+  }
+
+  @override
+  String forgePushBeforeMr(String branch) {
+    return 'Спершу відправте $branch в origin, потім створіть запит на злиття.';
+  }
+
+  @override
   String get forgeConnectHint =>
       'Без токена: без автооновлення, 60 запитів на годину. Підключіть у Налаштуваннях → Облікові дані.';
 

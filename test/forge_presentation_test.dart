@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/domain/forge/forge_error.dart';
 import 'package:mergelio/domain/forge/forge_host.dart';
 import 'package:mergelio/domain/forge/models.dart';
+import 'package:mergelio/domain/git/models.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/ui/workspace/forge_presentation.dart';
 
@@ -219,6 +220,166 @@ void main() {
       expect(
         pullRequestWebUrl(gitlab, 42).toString(),
         'https://gitlab.com/group/sub/app/-/merge_requests/42',
+      );
+    });
+  });
+
+  group('forgeSourceBranch', () {
+    test('names the branch an origin upstream points at', () {
+      expect(forgeSourceBranch('origin/main'), 'main');
+      expect(forgeSourceBranch('origin/feature/nested'), 'feature/nested');
+    });
+
+    test('is null when the branch tracks nothing', () {
+      expect(forgeSourceBranch(''), isNull);
+    });
+
+    test('is null when the upstream lives on another remote', () {
+      // The forge is resolved from origin, so a branch pushed only to a fork
+      // has nothing to propose on it.
+      expect(forgeSourceBranch('upstream/main'), isNull);
+      expect(forgeSourceBranch('originals/main'), isNull);
+    });
+
+    test('is null for a bare remote name', () {
+      expect(forgeSourceBranch('origin/'), isNull);
+      expect(forgeSourceBranch('origin'), isNull);
+    });
+  });
+
+  group('newPullRequestWebUrl', () {
+    const github = ForgeHost(
+      kind: ForgeKind.github,
+      host: 'github.com',
+      owner: 'senseyman',
+      repo: 'mergelio',
+    );
+    const gitlab = ForgeHost(
+      kind: ForgeKind.gitlab,
+      host: 'gitlab.com',
+      owner: 'group/sub',
+      repo: 'app',
+    );
+
+    test('opens the github compare page for the branch', () {
+      expect(
+        newPullRequestWebUrl(github, 'fix-1').toString(),
+        'https://github.com/senseyman/mergelio/compare/fix-1?expand=1',
+      );
+    });
+
+    test('keeps the slashes of a nested github branch literal', () {
+      expect(
+        newPullRequestWebUrl(github, 'feature/nested').toString(),
+        'https://github.com/senseyman/mergelio/compare/feature/nested?expand=1',
+      );
+    });
+
+    test('escapes characters git allows but a URL path does not', () {
+      // `#` would end the path and `%41` would be read back as `A`.
+      expect(
+        newPullRequestWebUrl(github, 'a#b%41').toString(),
+        'https://github.com/senseyman/mergelio/compare/a%23b%2541?expand=1',
+      );
+    });
+
+    test('refuses a branch that would climb out of the repository', () {
+      expect(newPullRequestWebUrl(github, '../../other/repo'), isNull);
+      expect(newPullRequestWebUrl(github, 'a/./b'), isNull);
+      expect(newPullRequestWebUrl(github, 'a//b'), isNull);
+      expect(newPullRequestWebUrl(github, ''), isNull);
+    });
+
+    test('opens the gitlab new merge request page with the source set', () {
+      final url = newPullRequestWebUrl(gitlab, 'feature/x')!;
+      expect(url.scheme, 'https');
+      expect(url.host, 'gitlab.com');
+      expect(url.path, '/group/sub/app/-/merge_requests/new');
+      expect(url.queryParameters, {
+        'merge_request[source_branch]': 'feature/x',
+      });
+    });
+
+    test('a gitlab branch travels in the query, so odd names stay intact', () {
+      final url = newPullRequestWebUrl(gitlab, 'a#b&c=d')!;
+      expect(url.path, '/group/sub/app/-/merge_requests/new');
+      expect(url.queryParameters['merge_request[source_branch]'], 'a#b&c=d');
+    });
+
+    test('a gitlab branch name still cannot be empty', () {
+      expect(newPullRequestWebUrl(gitlab, ''), isNull);
+    });
+  });
+
+  group('pushedSourceBranch', () {
+    const onOrigin = [
+      RemoteBranch(remote: 'origin', branch: 'main'),
+      RemoteBranch(remote: 'origin', branch: 'remote-name'),
+      RemoteBranch(remote: 'origin', branch: 'pushed'),
+      RemoteBranch(remote: 'fork', branch: 'forked'),
+    ];
+
+    test('uses the name origin has, not the local one', () {
+      expect(
+        pushedSourceBranch(
+          const Branch(name: 'local-name', upstream: 'origin/remote-name'),
+          onOrigin,
+        ),
+        'remote-name',
+      );
+    });
+
+    test('is null when the upstream on origin is gone', () {
+      expect(
+        pushedSourceBranch(
+          const Branch(name: 'merged', upstream: 'origin/merged'),
+          onOrigin,
+        ),
+        isNull,
+      );
+    });
+
+    test('a gone upstream does not fall back to a same-named branch', () {
+      // `pushed` exists on origin, but this branch says it tracks something
+      // else that is gone; guessing would propose the wrong commits.
+      expect(
+        pushedSourceBranch(
+          const Branch(name: 'pushed', upstream: 'origin/old'),
+          onOrigin,
+        ),
+        isNull,
+      );
+    });
+
+    test(
+      'a branch with no upstream uses origin\'s branch of the same name',
+      () {
+        // Pushed without -u: origin has it, git just never recorded the link.
+        expect(
+          pushedSourceBranch(const Branch(name: 'pushed'), onOrigin),
+          'pushed',
+        );
+      },
+    );
+
+    test('a branch with no upstream and nothing on origin is unpushed', () {
+      expect(pushedSourceBranch(const Branch(name: 'local'), onOrigin), isNull);
+    });
+
+    test('a branch tracking another remote is refused', () {
+      expect(
+        pushedSourceBranch(
+          const Branch(name: 'main', upstream: 'fork/main'),
+          onOrigin,
+        ),
+        isNull,
+      );
+    });
+
+    test('another remote\'s same-named branch is not origin\'s', () {
+      expect(
+        pushedSourceBranch(const Branch(name: 'forked'), onOrigin),
+        isNull,
       );
     });
   });
