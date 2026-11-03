@@ -4,14 +4,63 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/tokens.dart';
 import '../../domain/forge/forge_host.dart';
 import '../../domain/forge/models.dart';
+import '../../domain/forge/pull_request_ref.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/feedback.dart';
 import '../../state/forge.dart';
 import '../../state/forge_refresh.dart';
+import '../../state/repo_actions.dart';
+import '../../state/repo_data.dart';
 import '../../state/settings.dart';
 import '../../state/settings_controller.dart';
+import '../common/confirm.dart';
+import '../common/dialogs.dart';
 import 'forge_presentation.dart';
 import 'sidebar_section.dart';
+
+typedef CheckoutPullRequest = Future<PullRequestCheckout> Function(
+  String repoPath,
+  ForgeKind kind,
+  int number, {
+  bool replace,
+});
+
+/// How a forge row checks its request out locally.
+///
+/// Overridable so a widget test can see what would have been checked out
+/// without running git on the host.
+final forgeCheckoutPullRequestProvider = Provider<CheckoutPullRequest>(
+  (ref) =>
+      (repoPath, kind, number, {replace = false}) => ref
+          .read(repoActionsProvider(repoPath))
+          .checkoutPullRequest(kind, number, replace: replace),
+);
+
+/// Checks out request [number], asking before replacing a local branch that
+/// has commits the request no longer has — routine once a request is
+/// force-pushed or rebased, and otherwise a dead end.
+Future<void> _checkoutAskingToReplace(
+  WidgetRef ref,
+  BuildContext context,
+  CheckoutPullRequest checkout, {
+  required String repoPath,
+  required ForgeKind kind,
+  required int number,
+  required String branch,
+}) async {
+  final first = await checkout(repoPath, kind, number);
+  if (first.outcome != PullRequestCheckoutOutcome.diverged) return;
+  if (!context.mounted) return;
+  final l = AppLocalizations.of(context);
+  final ok = await confirmDestructive(
+    ref,
+    context,
+    title: l.forgeReplaceLocalTitle(branch),
+    body: l.forgeReplaceLocalBody(branch, first.localOnly),
+    confirmLabel: l.forgeReplaceLocal,
+  );
+  if (ok) await checkout(repoPath, kind, number, replace: true);
+}
 
 /// The repository's open pull requests, with what CI made of each one.
 ///
@@ -47,6 +96,7 @@ class ForgePullRequestSection extends ConsumerWidget {
     // press landed on a refresh already under way, not that it did nothing.
     final refreshing = panel?.isLoading ?? false;
     final launch = ref.watch(forgeLaunchUrlProvider);
+    final checkoutRequest = ref.watch(forgeCheckoutPullRequestProvider);
 
     return SidebarSection(
       id: 'pull-requests',
@@ -100,6 +150,26 @@ class ForgePullRequestSection extends ConsumerWidget {
                       badge: checkBadgeFor(p.checksBySha[pr.headSha]),
                       defaultBranch: p.defaultBranch,
                       failedRuns: forgeFailedRuns(p.checksBySha[pr.headSha]),
+                      localBranch: pullRequestLocalBranch(host.kind, pr.number),
+                      // Read when the menu opens rather than watched: the
+                      // sidebar already keeps the repository loaded, and a
+                      // watch here would rebuild every row on each refresh.
+                      isCheckedOut: (branch) =>
+                          ref
+                              .read(repoDataProvider(repoPath))
+                              .valueOrNull
+                              ?.branches
+                              .any((b) => b.current && b.name == branch) ??
+                          false,
+                      onCheckout: () => _checkoutAskingToReplace(
+                        ref,
+                        context,
+                        checkoutRequest,
+                        repoPath: repoPath,
+                        kind: host.kind,
+                        number: pr.number,
+                        branch: pullRequestLocalBranch(host.kind, pr.number),
+                      ),
                       // The URL is built from the locally-resolved [host]
                       // and a plain int, never from a string the forge sent
                       // back — nothing here can redirect this tap anywhere
@@ -138,6 +208,11 @@ class _PullRequestRow extends StatefulWidget {
   final List<CheckRun> failedRuns;
   final VoidCallback onOpen;
 
+  /// The branch [onCheckout] puts the request on, for the menu to name.
+  final String localBranch;
+  final bool Function(String branch) isCheckedOut;
+  final VoidCallback onCheckout;
+
   const _PullRequestRow({
     super.key,
     required this.pr,
@@ -145,6 +220,9 @@ class _PullRequestRow extends StatefulWidget {
     required this.defaultBranch,
     required this.failedRuns,
     required this.onOpen,
+    required this.localBranch,
+    required this.isCheckedOut,
+    required this.onCheckout,
   });
 
   @override
@@ -166,65 +244,93 @@ class _PullRequestRowState extends State<_PullRequestRow> {
       forgeAgo(AppLocalizations.of(context), pr.updatedAt),
       forgeBranchLabel(pr, widget.defaultBranch),
     ]);
-    return InkWell(
-      onTap: widget.onOpen,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(
-                  '#${pr.number}',
-                  style: TextStyle(color: t.textMuted, fontSize: 12),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    pr.title,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: t.textPrimary, fontSize: 13),
+    // A click keeps opening the browser, as it always has; checking out is
+    // the less common act, so it waits behind a right-click.
+    return GestureDetector(
+      onSecondaryTapUp: (d) => _menu(context, d.globalPosition),
+      child: InkWell(
+        onTap: widget.onOpen,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    '#${pr.number}',
+                    style: TextStyle(color: t.textMuted, fontSize: 12),
                   ),
-                ),
-                const SizedBox(width: 8),
-                // The badge answers a different question from the row, so it
-                // takes the press itself rather than letting it reach the
-                // row's tap target and navigate away. Only when there is
-                // something to read: a green badge opens onto nothing.
-                if (failed.isEmpty)
-                  _Badge(badge: widget.badge)
-                else
-                  GestureDetector(
-                    key: ValueKey('pr-checks-${pr.number}'),
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => setState(() => _expanded = !_expanded),
-                    child: _Badge(badge: widget.badge),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      pr.title,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: t.textPrimary, fontSize: 13),
+                    ),
                   ),
-              ],
-            ),
-            if (meta.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Text(
-                  meta,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: t.textFaint, fontSize: 11),
-                ),
+                  const SizedBox(width: 8),
+                  // The badge answers a different question from the row, so it
+                  // takes the press itself rather than letting it reach the
+                  // row's tap target and navigate away. Only when there is
+                  // something to read: a green badge opens onto nothing.
+                  if (failed.isEmpty)
+                    _Badge(badge: widget.badge)
+                  else
+                    GestureDetector(
+                      key: ValueKey('pr-checks-${pr.number}'),
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => setState(() => _expanded = !_expanded),
+                      child: _Badge(badge: widget.badge),
+                    ),
+                ],
               ),
-            if (_expanded)
-              for (final run in failed)
+              if (meta.isNotEmpty)
                 Padding(
-                  padding: const EdgeInsets.only(top: 2, left: 4),
+                  padding: const EdgeInsets.only(top: 2),
                   child: Text(
-                    run.name,
+                    meta,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: t.danger, fontSize: 11),
+                    style: TextStyle(color: t.textFaint, fontSize: 11),
                   ),
                 ),
-          ],
+              if (_expanded)
+                for (final run in failed)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2, left: 4),
+                    child: Text(
+                      run.name,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: t.danger, fontSize: 11),
+                    ),
+                  ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  Future<void> _menu(BuildContext context, Offset at) {
+    final l = AppLocalizations.of(context);
+    PopupMenuItem<void> item(String label, VoidCallback onTap) => PopupMenuItem(
+      height: 34,
+      onTap: onTap,
+      child: Text(label, style: const TextStyle(fontSize: 13)),
+    );
+    return showContextMenu<void>(
+      context: context,
+      position: at,
+      items: [
+        item(l.forgeOpenInBrowser, widget.onOpen),
+        item(
+          // Already on it, the same action brings the branch up to date.
+          widget.isCheckedOut(widget.localBranch)
+              ? l.forgeUpdateLocal(widget.localBranch)
+              : l.forgeCheckoutLocally(widget.localBranch),
+          widget.onCheckout,
+        ),
+      ],
     );
   }
 }

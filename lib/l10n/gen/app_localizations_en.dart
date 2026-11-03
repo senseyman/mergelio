@@ -1984,6 +1984,40 @@ class AppLocalizationsEn extends AppLocalizations {
   String get forgeCouldNotOpenIssue => 'Could not open issue in browser';
 
   @override
+  String get forgeOpenInBrowser => 'Open in browser';
+
+  @override
+  String forgeCheckoutLocally(String branch) {
+    return 'Check out locally as $branch';
+  }
+
+  @override
+  String forgeUpdateLocal(String branch) {
+    return 'Update $branch';
+  }
+
+  @override
+  String forgeReplaceLocalTitle(String branch) {
+    return 'Replace $branch?';
+  }
+
+  @override
+  String forgeReplaceLocalBody(String branch, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$branch has $count commits the request no longer has — it was force-pushed or rebased, or the commits were made here. Replacing moves $branch to the request\'s head. Undo puts it back.',
+      one:
+          '$branch has 1 commit the request no longer has — it was force-pushed or rebased, or the commit was made here. Replacing moves $branch to the request\'s head. Undo puts it back.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get forgeReplaceLocal => 'Replace';
+
+  @override
   String get forgeCreatePr => 'Create pull request…';
 
   @override
@@ -5683,6 +5717,25 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String actFetchNotes(String remote) {
     return 'Fetch notes from $remote';
+  }
+
+  @override
+  String actFetchPr(int number) {
+    return 'Fetch pull request #$number';
+  }
+
+  @override
+  String actFetchMr(int number) {
+    return 'Fetch merge request !$number';
+  }
+
+  @override
+  String get actRequestNotOnOrigin =>
+      'origin does not have it. It may have been deleted, or origin is not the repository it was opened on.';
+
+  @override
+  String actPrUpToDate(String branch) {
+    return '$branch is already up to date';
   }
 
   @override

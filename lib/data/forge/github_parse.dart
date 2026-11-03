@@ -61,7 +61,10 @@ List<PullRequest> parsePullRequests(Object? json) {
     final sourceBranch = _str(head?['ref']);
     final targetBranch = _str(base?['ref']);
     final headSha = _str(head?['sha']);
+    // The number names a local branch and a ref to fetch, so one no forge
+    // hands out drops the entry like any other field it cannot do without.
     if (number == null ||
+        number < 1 ||
         title == null ||
         sourceBranch == null ||
         targetBranch == null ||

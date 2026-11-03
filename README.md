@@ -338,6 +338,17 @@ change never needs a second window.*
   section is absent entirely for it, as it is for any other remote.
 - An issues section alongside it, and a refresh control for both.
 - Every row opens the real pull/merge request or issue in your browser.
+- **Create pull request…** (**Create merge request…** on GitLab) on a branch's
+  right-click menu opens the forge's own new-request page for it, in your
+  browser — no token needed, nothing is created until you submit it there.
+  Offered for a branch origin has; one not pushed yet asks you to push first.
+- Right-click a pull/merge request row → **Check out locally as pr/12**
+  (**mr/12** on GitLab) fetches the request's head from origin — forks'
+  requests included — into that branch and switches to it; the same entry
+  reads **Update pr/12** once you are on it. It only ever moves the branch
+  forward. If the request was force-pushed and your copy has commits it no
+  longer has, it asks before replacing the branch, and Undo puts it back.
+  No commit is ever made.
 - Connect a **personal access token** per forge from Preferences — GitHub and
   GitLab each get their own account row. Mergelio stores no token itself: it
   hands the token to `git credential`, so where it ends up is whatever

@@ -3494,6 +3494,42 @@ abstract class AppLocalizations {
   /// **'Could not open issue in browser'**
   String get forgeCouldNotOpenIssue;
 
+  /// No description provided for @forgeOpenInBrowser.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in browser'**
+  String get forgeOpenInBrowser;
+
+  /// No description provided for @forgeCheckoutLocally.
+  ///
+  /// In en, this message translates to:
+  /// **'Check out locally as {branch}'**
+  String forgeCheckoutLocally(String branch);
+
+  /// No description provided for @forgeUpdateLocal.
+  ///
+  /// In en, this message translates to:
+  /// **'Update {branch}'**
+  String forgeUpdateLocal(String branch);
+
+  /// No description provided for @forgeReplaceLocalTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace {branch}?'**
+  String forgeReplaceLocalTitle(String branch);
+
+  /// No description provided for @forgeReplaceLocalBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{{branch} has 1 commit the request no longer has — it was force-pushed or rebased, or the commit was made here. Replacing moves {branch} to the request\'s head. Undo puts it back.} other{{branch} has {count} commits the request no longer has — it was force-pushed or rebased, or the commits were made here. Replacing moves {branch} to the request\'s head. Undo puts it back.}}'**
+  String forgeReplaceLocalBody(String branch, int count);
+
+  /// No description provided for @forgeReplaceLocal.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace'**
+  String get forgeReplaceLocal;
+
   /// No description provided for @forgeCreatePr.
   ///
   /// In en, this message translates to:
@@ -9259,6 +9295,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Fetch notes from {remote}'**
   String actFetchNotes(String remote);
+
+  /// No description provided for @actFetchPr.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetch pull request #{number}'**
+  String actFetchPr(int number);
+
+  /// No description provided for @actFetchMr.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetch merge request !{number}'**
+  String actFetchMr(int number);
+
+  /// No description provided for @actRequestNotOnOrigin.
+  ///
+  /// In en, this message translates to:
+  /// **'origin does not have it. It may have been deleted, or origin is not the repository it was opened on.'**
+  String get actRequestNotOnOrigin;
+
+  /// No description provided for @actPrUpToDate.
+  ///
+  /// In en, this message translates to:
+  /// **'{branch} is already up to date'**
+  String actPrUpToDate(String branch);
 
   /// No description provided for @actNoNotesToPush.
   ///

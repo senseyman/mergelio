@@ -227,6 +227,48 @@ class GitWriter {
   Future<void> pullFastForward({GitCancel? cancel}) =>
       _net(['pull', '--ff-only', '--no-rebase'], 'git pull', cancel: cancel);
 
+  /// The sha [remote] publishes for exactly [ref], or null when it has no
+  /// such ref. ls-remote matches patterns by their tail, so only a line
+  /// naming [ref] in full counts.
+  Future<String?> remoteRefSha(
+    String remote,
+    String ref, {
+    GitCancel? cancel,
+  }) async {
+    final r = await _run(
+      ['ls-remote', remote, ref],
+      timeout: _netTimeout,
+      environment: await _netEnv(),
+      cancel: cancel,
+    );
+    if (!r.ok) throw GitException('git ls-remote', r);
+    for (final line in const LineSplitter().convert(r.stdout)) {
+      final parts = line.split('\t');
+      if (parts.length == 2 && parts[1] == ref) return parts[0];
+    }
+    return null;
+  }
+
+  /// Downloads [ref]'s objects from [remote] without writing any ref of ours,
+  /// so the caller decides what, if anything, should point at them.
+  Future<void> fetchRefObjects(
+    String remote,
+    String ref, {
+    GitCancel? cancel,
+  }) => _net(['fetch', '--no-tags', remote, ref], 'git fetch', cancel: cancel);
+
+  /// Moves the current branch forward to [sha], or changes nothing.
+  /// `--no-autostash` so a `merge.autoStash` setting cannot shelve the
+  /// person's work behind their back.
+  Future<void> fastForwardTo(String sha) =>
+      _ok(['merge', '--ff-only', '--no-autostash', sha], 'git merge --ff-only');
+
+  /// Moves the current branch to [sha], keeping uncommitted changes and
+  /// refusing, before touching anything, when one of them is in a file the
+  /// move would have to change.
+  Future<void> resetKeep(String sha) =>
+      _ok(['reset', '--keep', sha], 'git reset --keep');
+
   /// Makes [remote] fetch every branch again, undoing a single-branch clone.
   Future<void> fetchAllBranches(String remote) =>
       _ok(['remote', 'set-branches', remote, '*'], 'git remote set-branches');
