@@ -1733,11 +1733,20 @@ class RepoActions {
         ? _l.actFetchMr(number)
         : _l.actFetchPr(number);
     if (await _headRef() == branch) {
+      var pulled = false;
       await _network(
         label,
         (cancel) =>
             _writer.pullRefFastForward('origin', remoteRef, cancel: cancel),
+        onSuccess: () {
+          pulled = true;
+          _bumpLfs();
+        },
       );
+      // As after any pull: the cursor follows the branch to its new head.
+      if (pulled) {
+        _ref.read(selectedCommitProvider.notifier).state = await _headSha();
+      }
       return;
     }
     var fetched = false;
@@ -1749,7 +1758,10 @@ class RepoActions {
       // The checkout that follows reports the outcome; two success toasts for
       // one click would be noise.
       toastSuccess: false,
-      onSuccess: () => fetched = true,
+      onSuccess: () {
+        fetched = true;
+        _bumpLfs();
+      },
     );
     if (fetched) await checkout(branch);
   }

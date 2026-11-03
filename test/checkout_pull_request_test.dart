@@ -6,6 +6,8 @@ import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/domain/forge/forge_host.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/state/feedback.dart';
+import 'package:mergelio/state/graph_selection.dart';
+import 'package:mergelio/state/lfs.dart';
 import 'package:mergelio/state/repo_actions.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
@@ -150,6 +152,30 @@ void main() {
     expect(toasts().where((t) => t.kind == ToastKind.error), isEmpty);
   });
 
+  test('an in-place update behaves like a pull afterwards', () async {
+    final first = await publish('refs/pull/7/head', base, 'pr 7 v1');
+    await g(['checkout', '-q', '-b', 'pr/7', first]);
+    final second = await publish('refs/pull/7/head', first, 'pr 7 v2');
+    await g(['checkout', '-q', 'pr/7']);
+    final lfsBefore = c.read(lfsGenerationProvider(repo));
+
+    await actions().checkoutPullRequest(ForgeKind.github, 7);
+
+    // The cursor follows the branch to its new head, and LFS state that
+    // git status cannot show is re-read, as after any pull.
+    expect(c.read(selectedCommitProvider), second);
+    expect(c.read(lfsGenerationProvider(repo)), greaterThan(lfsBefore));
+  });
+
+  test('a fetched request re-reads LFS state, as any fetch does', () async {
+    await publish('refs/pull/7/head', base, 'pr 7');
+    final lfsBefore = c.read(lfsGenerationProvider(repo));
+
+    await actions().checkoutPullRequest(ForgeKind.github, 7);
+
+    expect(c.read(lfsGenerationProvider(repo)), greaterThan(lfsBefore));
+  });
+
   test('already on a diverged pr/<n>, makes no commit and says so', () async {
     final first = await publish('refs/pull/7/head', base, 'pr 7 v1');
     await g(['checkout', '-q', '-b', 'pr/7', first]);
@@ -165,6 +191,8 @@ void main() {
     expect(await tip('pr/7'), local);
     expect(await head(), 'pr/7');
     expect(toasts().last.kind, ToastKind.error);
+    // A refused update leaves the reader where they were.
+    expect(c.read(selectedCommitProvider), isNull);
   });
 
   test(
