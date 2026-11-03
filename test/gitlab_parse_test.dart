@@ -91,6 +91,22 @@ void main() {
       expect(prs[2].state, PullRequestState.open);
     });
 
+    test('skips an entry whose iid no forge hands out', () {
+      PullRequest? one(int n) => parseMergeRequests([
+        {
+          'iid': n,
+          'title': 't',
+          'state': 'opened',
+          'source_branch': 'b',
+          'target_branch': 'main',
+          'sha': 's',
+        },
+      ]).firstOrNull;
+      expect(one(0), isNull);
+      expect(one(-3), isNull);
+      expect(one(1)?.number, 1);
+    });
+
     test('skips an entry missing its head sha', () {
       final prs = parseMergeRequests(fixture('merge_requests.json'));
 

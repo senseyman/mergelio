@@ -85,6 +85,23 @@ void main() {
       expect(parsePullRequests(wrapped), isEmpty);
     });
 
+    test('skips an entry whose number no forge hands out', () {
+      // The number names a local branch and a ref to fetch; zero or a
+      // negative one is not a pull request, whatever else the entry says.
+      PullRequest? one(int n) => parsePullRequests([
+        {
+          'number': n,
+          'title': 't',
+          'state': 'open',
+          'head': {'ref': 'b', 'sha': 's'},
+          'base': {'ref': 'main'},
+        },
+      ]).firstOrNull;
+      expect(one(0), isNull);
+      expect(one(-3), isNull);
+      expect(one(1)?.number, 1);
+    });
+
     test('skips an entry whose number is not a number', () {
       // A number sent as a string is a different field than the one this
       // parser was written against, so the row is dropped rather than coerced.

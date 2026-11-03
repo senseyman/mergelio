@@ -31,3 +31,27 @@ void _checkNumber(int number) {
     throw ArgumentError.value(number, 'number', 'must be positive');
   }
 }
+
+/// How checking out a pull request went.
+enum PullRequestCheckoutOutcome {
+  /// The request is checked out at its current head.
+  done,
+
+  /// The local branch has commits the request does not — it was
+  /// force-pushed or rebased — so nothing was changed. Moving the branch
+  /// would drop those commits, which only the person can agree to.
+  diverged,
+
+  /// Something refused or went wrong, and was already reported.
+  failed,
+}
+
+class PullRequestCheckout {
+  final PullRequestCheckoutOutcome outcome;
+
+  /// With [PullRequestCheckoutOutcome.diverged], how many commits the local
+  /// branch has that the request does not.
+  final int localOnly;
+
+  const PullRequestCheckout(this.outcome, {this.localOnly = 0});
+}

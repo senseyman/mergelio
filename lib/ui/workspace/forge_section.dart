@@ -10,23 +10,57 @@ import '../../state/feedback.dart';
 import '../../state/forge.dart';
 import '../../state/forge_refresh.dart';
 import '../../state/repo_actions.dart';
+import '../../state/repo_data.dart';
 import '../../state/settings.dart';
 import '../../state/settings_controller.dart';
+import '../common/confirm.dart';
 import '../common/dialogs.dart';
 import 'forge_presentation.dart';
 import 'sidebar_section.dart';
+
+typedef CheckoutPullRequest = Future<PullRequestCheckout> Function(
+  String repoPath,
+  ForgeKind kind,
+  int number, {
+  bool replace,
+});
 
 /// How a forge row checks its request out locally.
 ///
 /// Overridable so a widget test can see what would have been checked out
 /// without running git on the host.
-final forgeCheckoutPullRequestProvider =
-    Provider<Future<void> Function(String repoPath, ForgeKind kind, int n)>(
-      (ref) =>
-          (repoPath, kind, number) => ref
-              .read(repoActionsProvider(repoPath))
-              .checkoutPullRequest(kind, number),
-    );
+final forgeCheckoutPullRequestProvider = Provider<CheckoutPullRequest>(
+  (ref) =>
+      (repoPath, kind, number, {replace = false}) => ref
+          .read(repoActionsProvider(repoPath))
+          .checkoutPullRequest(kind, number, replace: replace),
+);
+
+/// Checks out request [number], asking before replacing a local branch that
+/// has commits the request no longer has — routine once a request is
+/// force-pushed or rebased, and otherwise a dead end.
+Future<void> _checkoutAskingToReplace(
+  WidgetRef ref,
+  BuildContext context,
+  CheckoutPullRequest checkout, {
+  required String repoPath,
+  required ForgeKind kind,
+  required int number,
+  required String branch,
+}) async {
+  final first = await checkout(repoPath, kind, number);
+  if (first.outcome != PullRequestCheckoutOutcome.diverged) return;
+  if (!context.mounted) return;
+  final l = AppLocalizations.of(context);
+  final ok = await confirmDestructive(
+    ref,
+    context,
+    title: l.forgeReplaceLocalTitle(branch),
+    body: l.forgeReplaceLocalBody(branch, first.localOnly),
+    confirmLabel: l.forgeReplaceLocal,
+  );
+  if (ok) await checkout(repoPath, kind, number, replace: true);
+}
 
 /// The repository's open pull requests, with what CI made of each one.
 ///
@@ -117,8 +151,25 @@ class ForgePullRequestSection extends ConsumerWidget {
                       defaultBranch: p.defaultBranch,
                       failedRuns: forgeFailedRuns(p.checksBySha[pr.headSha]),
                       localBranch: pullRequestLocalBranch(host.kind, pr.number),
-                      onCheckout: () =>
-                          checkoutRequest(repoPath, host.kind, pr.number),
+                      // Read when the menu opens rather than watched: the
+                      // sidebar already keeps the repository loaded, and a
+                      // watch here would rebuild every row on each refresh.
+                      isCheckedOut: (branch) =>
+                          ref
+                              .read(repoDataProvider(repoPath))
+                              .valueOrNull
+                              ?.branches
+                              .any((b) => b.current && b.name == branch) ??
+                          false,
+                      onCheckout: () => _checkoutAskingToReplace(
+                        ref,
+                        context,
+                        checkoutRequest,
+                        repoPath: repoPath,
+                        kind: host.kind,
+                        number: pr.number,
+                        branch: pullRequestLocalBranch(host.kind, pr.number),
+                      ),
                       // The URL is built from the locally-resolved [host]
                       // and a plain int, never from a string the forge sent
                       // back — nothing here can redirect this tap anywhere
@@ -159,6 +210,7 @@ class _PullRequestRow extends StatefulWidget {
 
   /// The branch [onCheckout] puts the request on, for the menu to name.
   final String localBranch;
+  final bool Function(String branch) isCheckedOut;
   final VoidCallback onCheckout;
 
   const _PullRequestRow({
@@ -169,6 +221,7 @@ class _PullRequestRow extends StatefulWidget {
     required this.failedRuns,
     required this.onOpen,
     required this.localBranch,
+    required this.isCheckedOut,
     required this.onCheckout,
   });
 
@@ -270,7 +323,13 @@ class _PullRequestRowState extends State<_PullRequestRow> {
       position: at,
       items: [
         item(l.forgeOpenInBrowser, widget.onOpen),
-        item(l.forgeCheckoutLocally(widget.localBranch), widget.onCheckout),
+        item(
+          // Already on it, the same action brings the branch up to date.
+          widget.isCheckedOut(widget.localBranch)
+              ? l.forgeUpdateLocal(widget.localBranch)
+              : l.forgeCheckoutLocally(widget.localBranch),
+          widget.onCheckout,
+        ),
       ],
     );
   }

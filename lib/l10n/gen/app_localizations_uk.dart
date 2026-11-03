@@ -2004,6 +2004,36 @@ class AppLocalizationsUk extends AppLocalizations {
   }
 
   @override
+  String forgeUpdateLocal(String branch) {
+    return 'Оновити $branch';
+  }
+
+  @override
+  String forgeReplaceLocalTitle(String branch) {
+    return 'Замінити $branch?';
+  }
+
+  @override
+  String forgeReplaceLocalBody(String branch, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'У $branch є $count коміту, яких запит більше не має: його примусово відправили чи перебазували, або коміти зроблено тут. Заміна переносить $branch на голову запиту. Скасування поверне як було.',
+      many:
+          'У $branch є $count комітів, яких запит більше не має: його примусово відправили чи перебазували, або коміти зроблено тут. Заміна переносить $branch на голову запиту. Скасування поверне як було.',
+      few:
+          'У $branch є $count коміти, яких запит більше не має: його примусово відправили чи перебазували, або коміти зроблено тут. Заміна переносить $branch на голову запиту. Скасування поверне як було.',
+      one:
+          'У $branch є $count коміт, якого запит більше не має: його примусово відправили чи перебазували, або коміт зроблено тут. Заміна переносить $branch на голову запиту. Скасування поверне як було.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get forgeReplaceLocal => 'Замінити';
+
+  @override
   String get forgeCreatePr => 'Створити пулреквест…';
 
   @override
@@ -5803,6 +5833,15 @@ class AppLocalizationsUk extends AppLocalizations {
   @override
   String actFetchMr(int number) {
     return 'Отримання запиту на злиття !$number';
+  }
+
+  @override
+  String get actRequestNotOnOrigin =>
+      'В origin його немає. Можливо, його видалено, або origin — не той репозиторій, у якому його відкрито.';
+
+  @override
+  String actPrUpToDate(String branch) {
+    return '$branch уже актуальна';
   }
 
   @override

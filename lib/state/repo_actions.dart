@@ -1716,54 +1716,144 @@ class RepoActions {
 
   /// Checks out pull request (merge request) [number] from origin as a local
   /// branch — `pr/<n>` on GitHub, `mr/<n>` on GitLab — creating it, or
-  /// fast-forwarding it when the request has moved on since.
+  /// moving it forward when the request has moved on since.
   ///
-  /// Only ever a fast-forward: a branch carrying local commits the request
-  /// does not have is left exactly where it is, and git's refusal is shown.
   /// Origin is used because the forge was resolved from it, and it carries
-  /// the head of every request, a fork's included.
+  /// the head of every request, a fork's included. Its sha is read first and
+  /// only the objects are fetched, so nothing else writing FETCH_HEAD — an
+  /// auto-fetch — can change what this lands on.
   ///
-  /// git will not fetch into the checked-out branch, so when that is the
-  /// request's own branch it is fast-forwarded in place by a pull instead.
-  /// Either way no commit is ever made.
-  Future<void> checkoutPullRequest(ForgeKind kind, int number) async {
+  /// A local branch with commits the request does not have — it was
+  /// force-pushed or rebased — is left alone and reported as
+  /// [PullRequestCheckoutOutcome.diverged]; with [replace] it is moved to the
+  /// request's head anyway. On the checked-out branch that is a
+  /// `reset --keep`, which refuses rather than overwrite uncommitted work.
+  ///
+  /// One undo step: it puts the branch back where it was (removing it if
+  /// this created it) and returns to the branch that was checked out. No
+  /// commit is ever made.
+  Future<PullRequestCheckout> checkoutPullRequest(
+    ForgeKind kind,
+    int number, {
+    bool replace = false,
+  }) async {
+    const failed = PullRequestCheckout(PullRequestCheckoutOutcome.failed);
+    const done = PullRequestCheckout(PullRequestCheckoutOutcome.done);
     final remoteRef = pullRequestHeadRef(kind, number);
     final branch = pullRequestLocalBranch(kind, number);
     final label = kind == ForgeKind.gitlab
         ? _l.actFetchMr(number)
         : _l.actFetchPr(number);
-    if (await _headRef() == branch) {
-      var pulled = false;
-      await _network(
-        label,
-        (cancel) =>
-            _writer.pullRefFastForward('origin', remoteRef, cancel: cancel),
-        onSuccess: () {
-          pulled = true;
-          _bumpLfs();
-        },
-      );
-      // As after any pull: the cursor follows the branch to its new head.
-      if (pulled) {
-        _ref.read(selectedCommitProvider.notifier).state = await _headSha();
-      }
-      return;
-    }
+
+    String? head;
     var fetched = false;
     await _network(
       label,
-      (cancel) =>
-          _writer.fetchIntoBranch('origin', remoteRef, branch, cancel: cancel),
+      (cancel) async {
+        head = await _writer.remoteRefSha('origin', remoteRef, cancel: cancel);
+        if (head == null) throw GitException(_l.actRequestNotOnOrigin);
+        await _writer.fetchRefObjects('origin', remoteRef, cancel: cancel);
+      },
       writesWorkingTree: false,
-      // The checkout that follows reports the outcome; two success toasts for
-      // one click would be noise.
+      // What follows reports the outcome; two toasts for one click would be
+      // noise.
       toastSuccess: false,
       onSuccess: () {
         fetched = true;
         _bumpLfs();
       },
     );
-    if (fetched) await checkout(branch);
+    if (!fetched) return failed;
+    final sha = head!;
+
+    final localOut = await _git.run([
+      'rev-parse',
+      '--verify',
+      '-q',
+      'refs/heads/$branch',
+    ], repoPath: path);
+    final local = localOut.ok ? localOut.out : null;
+    final current = await _headRef() == branch;
+
+    if (current && local == sha) {
+      _ref
+          .read(toastProvider.notifier)
+          .show(_l.actPrUpToDate(branch), kind: ToastKind.info);
+      _ref.read(selectedCommitProvider.notifier).state = sha;
+      return done;
+    }
+
+    final fastForward =
+        local == null ||
+        local == sha ||
+        (await _git.run([
+          'merge-base',
+          '--is-ancestor',
+          local,
+          sha,
+        ], repoPath: path)).ok;
+    if (!fastForward && !replace) {
+      final count = await _out(['rev-list', '--count', '$sha..$local']);
+      return PullRequestCheckout(
+        PullRequestCheckoutOutcome.diverged,
+        localOnly: int.tryParse(count) ?? 0,
+      );
+    }
+
+    final prev = await _headRef();
+    final timeout = await _lfsInPlay(sha) ? GitWriter.lfsTransferTimeout : null;
+
+    // Puts the branch back where it was before [apply] moved it.
+    Future<void> restoreBranch() async {
+      if (local == null) {
+        await _writer.deleteBranch(branch, force: true);
+      } else if (local != sha) {
+        await _writer.forceBranch(branch, local);
+      }
+    }
+
+    Future<void> apply() async {
+      if (current) {
+        await (fastForward
+            ? _writer.fastForwardTo(sha)
+            : _writer.resetKeep(sha));
+        return;
+      }
+      if (local == null) {
+        await _writer.createBranch(branch, at: sha);
+      } else if (local != sha) {
+        await _writer.forceBranch(branch, sha);
+      }
+      try {
+        await _writer.checkout(branch, timeout: timeout);
+      } on Object {
+        // A checkout git refused leaves the person where they were, so the
+        // branch it was moving to goes back too rather than linger moved.
+        try {
+          await restoreBranch();
+        } on Object catch (e) {
+          appLog.warn('Putting back $branch failed: $e', scope: path);
+        }
+        rethrow;
+      }
+    }
+
+    final ok = await _undoable(
+      _l.actCheckout(branch),
+      apply,
+      undo: () async {
+        if (current) {
+          await _writer.resetKeep(local!);
+          return;
+        }
+        await _writer.checkout(prev, timeout: timeout);
+        await restoreBranch();
+      },
+      redo: apply,
+    );
+    if (!ok) return failed;
+    _ref.read(selectedCommitProvider.notifier).state = sha;
+    return done;
   }
 
   /// Switches to the local branch [rb.branch] and hard-resets it to the remote

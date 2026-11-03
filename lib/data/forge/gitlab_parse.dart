@@ -72,7 +72,10 @@ List<PullRequest> parseMergeRequests(Object? json) {
     final sourceBranch = _str(item['source_branch']);
     final targetBranch = _str(item['target_branch']);
     final headSha = _str(item['sha']);
+    // The number names a local branch and a ref to fetch, so one no forge
+    // hands out drops the entry like any other field it cannot do without.
     if (number == null ||
+        number < 1 ||
         title == null ||
         sourceBranch == null ||
         targetBranch == null ||
