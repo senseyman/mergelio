@@ -156,6 +156,10 @@ ForgeServerUrl parseForgeServerUrl(
   }
   // Uri already drops the default port, so `:443` reads as no port at all.
   final port = uri.hasPort ? uri.port : null;
+  // Uri takes any digits; only these name a port something can listen on.
+  if (port != null && (port < 1 || port > 65535)) {
+    return fail(ForgeServerUrlProblem.invalid);
+  }
   if (_cloudHosts.contains(host)) {
     if (!allowCloud || port != null) return fail(ForgeServerUrlProblem.isCloud);
     final cloud = kind == ForgeKind.github ? kGithubCloud : kGitlabCloud;

@@ -58,12 +58,18 @@ class _RedactedTextEditingController extends TextEditingController {
 /// looks, or a repository whose local config overrides `credential.helper`
 /// stores a token under one helper and reads it back through another. Null
 /// falls back to the global configuration, for when no repository is open.
-ForgeCredentials _credentialsFor(WidgetRef ref) => ForgeCredentials(
-  ref.read(gitServiceProvider),
+///
+/// Everything below takes the [ProviderContainer] rather than a widget's
+/// ref, captured before the first await: a credential write outlives the
+/// dialog or tab that started it when the person closes either mid-write,
+/// and a disposed widget's ref throws. The write has already been handed to
+/// the helper by then, so the bookkeeping after it must still happen.
+ForgeCredentials _credentialsFor(ProviderContainer c) => ForgeCredentials(
+  c.read(gitServiceProvider),
   // The active tab even under the dashboard: its credential helper config
   // decides where the token lives, and that must not change just because
   // the dashboard is showing.
-  repoPath: ref.read(workspaceProvider).activeTab?.path,
+  repoPath: c.read(workspaceProvider).activeTab?.path,
 );
 
 /// Drops everything that was derived from a token that has just changed.
@@ -75,10 +81,10 @@ ForgeCredentials _credentialsFor(WidgetRef ref) => ForgeCredentials(
 /// token must not be served as though it were fetched with one, and one
 /// fetched under a token that just changed must not be served under its
 /// replacement.
-void _forgetDerivedState(WidgetRef ref) {
-  ref.read(etagCacheProvider).clear();
-  ref.invalidate(forgeTokenProvider);
-  ref.invalidate(forgeAccountTokenProvider);
+void _forgetDerivedState(ProviderContainer c) {
+  c.read(etagCacheProvider).clear();
+  c.invalidate(forgeTokenProvider);
+  c.invalidate(forgeAccountTokenProvider);
 }
 
 /// Erases this app's token for [server]. True when git accepted the request.
@@ -88,10 +94,10 @@ void _forgetDerivedState(WidgetRef ref) {
 /// token does not have to be read back first. The username is not optional
 /// in that arrangement: it is the whole of what distinguishes this app's
 /// entry from the one the user pushes with.
-Future<bool> _forget(WidgetRef ref, ForgeServer server) async {
-  final forgotten = await _credentialsFor(ref)
+Future<bool> _forget(ProviderContainer c, ForgeServer server) async {
+  final forgotten = await _credentialsFor(c)
       .reject(server.credentialHost, forgeTokenUsername, const ForgeToken(''));
-  _forgetDerivedState(ref);
+  _forgetDerivedState(c);
   return forgotten;
 }
 
@@ -188,7 +194,9 @@ class _ForgeTokenFormState extends ConsumerState<ForgeTokenForm> {
     final raw = _token.text.trim();
     if (raw.isEmpty) return;
     final name = forgeServerDisplayName(server);
-    final toasts = ref.read(toastProvider.notifier);
+    final c = ProviderScope.containerOf(context, listen: false);
+    final toasts = c.read(toastProvider.notifier);
+    final nav = Navigator.of(context);
     setState(() => _busy = true);
     final token = ForgeToken(raw);
     final ok = await validateForgeToken(
@@ -197,48 +205,62 @@ class _ForgeTokenFormState extends ConsumerState<ForgeTokenForm> {
       httpFor: (t) => ForgeHttp(
         kind: server.kind,
         token: t,
-        client: ref.read(forgeHttpClientProvider),
+        client: c.read(forgeHttpClientProvider),
       ),
     );
+    // Closed while the server was still being asked: nothing has been
+    // written yet, so that reads as a cancel.
     if (!mounted) return;
     if (!ok) {
       setState(() => _busy = false);
       toasts.show(l.forgeTokenRejected(name), kind: ToastKind.error);
       return;
     }
+    // Entries this one replaces — the same host on another port — whose
+    // tokens would otherwise stay in the helper under a key nothing lists.
+    // Only a self-hosted server has entries; the clouds are never stored.
+    final replaced = server.isCloud
+        ? const <ForgeServer>[]
+        : c
+              .read(forgeServersProvider)
+              .where((s) => s.host == server.host && s != server)
+              .toList();
     // Registered before the helper is asked to keep the token: the server
     // answered for it, so its repositories should be recognised even if no
     // helper ends up storing anything.
     if (!server.isCloud) {
-      ref.read(settingsProvider.notifier).addForgeServer(server);
+      c.read(settingsProvider.notifier).addForgeServer(server);
     }
-    final credentials = _credentialsFor(ref);
+    final credentials = _credentialsFor(c);
+    for (final old in replaced) {
+      await credentials.reject(
+        old.credentialHost,
+        forgeTokenUsername,
+        const ForgeToken(''),
+      );
+    }
     final approved = await credentials.approve(
       server.credentialHost,
       forgeTokenUsername,
       token,
     );
-    _forgetDerivedState(ref);
-    if (!mounted) return;
+    _forgetDerivedState(c);
     // approve's own contract warns it cannot promise this: a helper that
     // silently declines to store still exits zero, so the only honest proof
     // the token survived is reading it back through the same helper rather
     // than trusting the exit code that just asked it to keep one.
-    var kept = false;
-    if (approved) {
-      kept =
-          await credentials.fill(server.credentialHost, forgeTokenUsername) !=
-          null;
-      if (!mounted) return;
-    }
-    _token.clear();
-    setState(() => _busy = false);
+    final kept =
+        approved &&
+        await credentials.fill(server.credentialHost, forgeTokenUsername) !=
+            null;
     if (kept) {
       toasts.show(l.forgeTokenSaved(name), kind: ToastKind.success);
     } else {
       toasts.show(l.forgeTokenNotKept(name), kind: ToastKind.error);
     }
-    final nav = Navigator.of(context);
+    if (!mounted) return;
+    _token.clear();
+    setState(() => _busy = false);
     if (nav.canPop()) nav.pop();
   }
 
@@ -368,11 +390,11 @@ class _ForgeAccountRowState extends ConsumerState<ForgeAccountRow> {
     if (_busy) return;
     final l = AppLocalizations.of(context);
     final name = forgeServerDisplayName(_server);
-    final toasts = ref.read(toastProvider.notifier);
+    final c = ProviderScope.containerOf(context, listen: false);
+    final toasts = c.read(toastProvider.notifier);
     setState(() => _busy = true);
-    final forgotten = await _forget(ref, _server);
-    if (!mounted) return;
-    setState(() => _busy = false);
+    final forgotten = await _forget(c, _server);
+    if (mounted) setState(() => _busy = false);
     // reject's true only means git accepted the request, not that the
     // helper had a credential to forget — but false means the request never
     // reached the helper at all (an unusable host, a failed git process, or
@@ -392,16 +414,16 @@ class _ForgeAccountRowState extends ConsumerState<ForgeAccountRow> {
     if (_busy) return;
     final l = AppLocalizations.of(context);
     final name = forgeServerDisplayName(_server);
-    final toasts = ref.read(toastProvider.notifier);
+    final c = ProviderScope.containerOf(context, listen: false);
+    final toasts = c.read(toastProvider.notifier);
     setState(() => _busy = true);
-    final forgotten = await _forget(ref, _server);
-    if (!mounted) return;
-    setState(() => _busy = false);
+    final forgotten = await _forget(c, _server);
+    if (mounted) setState(() => _busy = false);
     if (!forgotten) {
       toasts.show(l.forgeTokenNotForgotten(name), kind: ToastKind.error);
       return;
     }
-    ref.read(settingsProvider.notifier).removeForgeServer(_server);
+    c.read(settingsProvider.notifier).removeForgeServer(_server);
     toasts.show(l.forgeServerRemoved(name), kind: ToastKind.success);
   }
 

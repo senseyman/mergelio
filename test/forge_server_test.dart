@@ -162,6 +162,17 @@ void main() {
       );
     });
 
+    test('refuses a port no server can listen on', () {
+      for (final s in [
+        'https://x.corp:0',
+        'https://x.corp:65536',
+        'x.corp:99999',
+      ]) {
+        expect(problem(s), ForgeServerUrlProblem.invalid, reason: s);
+      }
+      expect(ok('x.corp:65535')?.port, 65535);
+    });
+
     test('keeps the forge it was asked for', () {
       expect(ok('git.corp', ForgeKind.gitlab), selfGitlab);
     });

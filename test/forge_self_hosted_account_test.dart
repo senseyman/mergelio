@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -27,6 +29,10 @@ class _Helper implements GitService {
   final requests = <String>[];
   bool failErase = false;
 
+  /// When set, every credential write waits for it, so a test can close
+  /// the widget that started the write before it finishes.
+  Completer<void>? gate;
+
   static String? _host(String body) =>
       RegExp(r'^host=(.*)$', multiLine: true).firstMatch(body)?.group(1);
 
@@ -44,6 +50,7 @@ class _Helper implements GitService {
     }
     final body = stdin ?? '';
     requests.add('${args[1]} $body');
+    if (args[1] != 'fill') await gate?.future;
     final host = _host(body);
     switch (args[1]) {
       case 'fill':
@@ -348,6 +355,105 @@ void main() {
       // A self-hosted server sets its own limits; the clouds' published
       // figures would be a guess here.
       expect(find.textContaining('60 requests an hour'), findsNothing);
+    });
+  });
+
+  group('a server whose port changes', () {
+    testWidgets('erases the token stored under the old port', (tester) async {
+      final helper = _Helper()..stored['ghe.corp:8443'] = 'old';
+      final h = await _pump(
+        tester,
+        const ForgeTokenForm(),
+        settings: const AppSettings(forgeServers: {'ghe.corp:8443': 'github'}),
+        helper: helper,
+      );
+      await _chooseSelfHosted(tester);
+
+      await _submit(tester, url: 'https://ghe.corp', token: 'new');
+
+      // The old entry is replaced, and its token goes with it: a token left
+      // under a key nothing lists any more is a secret nothing shows.
+      expect(h.registered, {'ghe.corp': 'github'});
+      expect(h.helper.stored, {'ghe.corp': 'new'});
+      await tester.pump(const Duration(seconds: 5));
+    });
+  });
+
+  group('a widget closed while its credential write is in flight', () {
+    testWidgets('connect still finishes, and nothing throws', (tester) async {
+      final helper = _Helper()..gate = Completer<void>();
+      final h = await _pump(tester, const ForgeTokenForm(), helper: helper);
+      await _chooseSelfHosted(tester);
+      await tester.enterText(
+        find.byKey(const ValueKey('forge-server-url')),
+        'ghe.corp',
+      );
+      await tester.enterText(find.byKey(const ValueKey('forge-token')), 't');
+      await tester.tap(find.text('Connect'));
+      await tester.pump();
+      await tester.pump();
+
+      // The dialog is closed — the form leaves the tree mid-approve.
+      await tester.pumpWidget(const SizedBox());
+      helper.gate!.complete();
+      await tester.pump();
+      await tester.pump();
+
+      expect(tester.takeException(), isNull);
+      expect(h.helper.stored, {'ghe.corp': 't'});
+      expect(h.registered, {'ghe.corp': 'github'});
+      expect(h.lastToast.kind, ToastKind.success);
+      await tester.pump(const Duration(seconds: 5));
+    });
+
+    testWidgets('disconnect still finishes, and nothing throws', (
+      tester,
+    ) async {
+      final helper = _Helper()
+        ..stored['ghe.corp:8443'] = 'x'
+        ..gate = Completer<void>();
+      final h = await _pump(
+        tester,
+        const ForgeAccountRow(server: _ghe),
+        settings: const AppSettings(forgeServers: {'ghe.corp:8443': 'github'}),
+        helper: helper,
+      );
+
+      await tester.tap(find.text('Disconnect'));
+      await tester.pump();
+      await tester.pumpWidget(const SizedBox());
+      helper.gate!.complete();
+      await tester.pump();
+      await tester.pump();
+
+      expect(tester.takeException(), isNull);
+      expect(h.helper.stored, isEmpty);
+      expect(h.lastToast.kind, ToastKind.success);
+      await tester.pump(const Duration(seconds: 5));
+    });
+
+    testWidgets('remove still finishes, and nothing throws', (tester) async {
+      final helper = _Helper()
+        ..stored['ghe.corp:8443'] = 'x'
+        ..gate = Completer<void>();
+      final h = await _pump(
+        tester,
+        const ForgeAccountRow(server: _ghe),
+        settings: const AppSettings(forgeServers: {'ghe.corp:8443': 'github'}),
+        helper: helper,
+      );
+
+      await tester.tap(find.text('Remove'));
+      await tester.pump();
+      await tester.pumpWidget(const SizedBox());
+      helper.gate!.complete();
+      await tester.pump();
+      await tester.pump();
+
+      expect(tester.takeException(), isNull);
+      expect(h.helper.stored, isEmpty);
+      expect(h.registered, isEmpty);
+      await tester.pump(const Duration(seconds: 5));
     });
   });
 }
