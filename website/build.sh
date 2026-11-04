@@ -26,7 +26,6 @@ fi
 tag=$(jq -r '.tag_name' <<<"$release")
 version=${tag#v}
 date=$(jq -r '.published_at' <<<"$release" | cut -c1-10)
-release_url=$(jq -r '.html_url' <<<"$release")
 
 # asset <regex> — browser download URL of the one asset whose name matches.
 asset() {
@@ -40,7 +39,6 @@ asset() {
 }
 
 mac_url=$(asset '-macos-arm64\.dmg$')
-win_url=$(asset '-windows-x64-setup\.exe$')
 deb_url=$(asset '_amd64\.deb$')
 rpm_url=$(asset '\.x86_64\.rpm$')
 sums_url=$(asset '^SHA256SUMS\.txt$')
@@ -55,9 +53,7 @@ cp -R "$SRC_DIR/img" "$SRC_DIR/style.css" "$SRC_DIR/main.js" "$SRC_DIR/CNAME" "$
 sed \
   -e "s|{{VERSION}}|${version}|g" \
   -e "s|{{DATE}}|${pretty_date}|g" \
-  -e "s|{{RELEASE_URL}}|${release_url}|g" \
   -e "s|{{MAC_URL}}|${mac_url}|g" \
-  -e "s|{{WIN_URL}}|${win_url}|g" \
   -e "s|{{DEB_URL}}|${deb_url}|g" \
   -e "s|{{RPM_URL}}|${rpm_url}|g" \
   -e "s|{{DEB_FILE}}|${deb_url##*/}|g" \
