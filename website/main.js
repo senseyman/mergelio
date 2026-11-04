@@ -14,20 +14,18 @@
   }
 
   var os = detectOs();
-  var labels = { mac: 'Download for macOS', win: 'Download for Windows' };
+  var labels = { mac: 'Download for macOS', win: 'Download for Windows', linux: 'Download for Linux' };
   var cards = document.querySelectorAll('.dl[data-os="' + os + '"]');
   cards.forEach(function (c) { c.classList.add('current'); });
 
-  // Linux has two packages, so the button scrolls to the cards instead of guessing.
-  if (os === 'mac' || os === 'win') {
+  // Only macOS gets a direct file link. Linux has two packages, and the
+  // Windows installer is offered from the GitHub release page rather than
+  // linked from this site, so both scroll to their cards instead.
+  if (os === 'mac') {
     var link = cards[0] && cards[0].querySelector('a.btn');
-    if (link) {
-      document.getElementById('primary-download').href = link.href;
-      document.getElementById('primary-label').textContent = labels[os];
-    }
-  } else if (os === 'linux') {
-    document.getElementById('primary-label').textContent = 'Download for Linux';
+    if (link) document.getElementById('primary-download').href = link.href;
   }
+  if (labels[os]) document.getElementById('primary-label').textContent = labels[os];
 
   document.querySelectorAll('.copy').forEach(function (btn) {
     btn.addEventListener('click', function () {
