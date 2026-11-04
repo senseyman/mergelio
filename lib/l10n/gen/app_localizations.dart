@@ -3578,6 +3578,12 @@ abstract class AppLocalizations {
   /// **'Without a token: no auto-refresh, and a lower shared rate limit. Connect in Preferences → Credentials.'**
   String get forgeConnectHintGitlab;
 
+  /// No description provided for @forgeConnectHintSelfHosted.
+  ///
+  /// In en, this message translates to:
+  /// **'Without a token: no auto-refresh, and only what this server allows anonymous callers. Connect in Preferences → Credentials.'**
+  String get forgeConnectHintSelfHosted;
+
   /// No description provided for @forgeErrUnauthenticated.
   ///
   /// In en, this message translates to:
@@ -3709,6 +3715,144 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Pull and merge request refresh interval'**
   String get forgeRefreshInterval;
+
+  /// No description provided for @forgeAccountsHeading.
+  ///
+  /// In en, this message translates to:
+  /// **'Forge accounts'**
+  String get forgeAccountsHeading;
+
+  /// No description provided for @forgeAddAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Add account…'**
+  String get forgeAddAccount;
+
+  /// No description provided for @forgeNoAccounts.
+  ///
+  /// In en, this message translates to:
+  /// **'No accounts yet. A token raises the forge\'s request limit and turns on auto-refresh. A self-hosted GitHub Enterprise or GitLab server must be added here before its repositories are recognised.'**
+  String get forgeNoAccounts;
+
+  /// No description provided for @forgeAddAccountTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add forge account'**
+  String get forgeAddAccountTitle;
+
+  /// No description provided for @forgeTokenForTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Token for {server}'**
+  String forgeTokenForTitle(String server);
+
+  /// No description provided for @forgeWhereCloudGithub.
+  ///
+  /// In en, this message translates to:
+  /// **'GitHub.com'**
+  String get forgeWhereCloudGithub;
+
+  /// No description provided for @forgeWhereSelfGithub.
+  ///
+  /// In en, this message translates to:
+  /// **'GitHub Enterprise Server'**
+  String get forgeWhereSelfGithub;
+
+  /// No description provided for @forgeWhereCloudGitlab.
+  ///
+  /// In en, this message translates to:
+  /// **'GitLab.com'**
+  String get forgeWhereCloudGitlab;
+
+  /// No description provided for @forgeWhereSelfGitlab.
+  ///
+  /// In en, this message translates to:
+  /// **'Self-managed GitLab'**
+  String get forgeWhereSelfGitlab;
+
+  /// No description provided for @forgeServerUrlLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Server URL'**
+  String get forgeServerUrlLabel;
+
+  /// No description provided for @forgeUrlInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the server\'s address, like https://git.example.com.'**
+  String get forgeUrlInvalid;
+
+  /// No description provided for @forgeUrlNotHttps.
+  ///
+  /// In en, this message translates to:
+  /// **'Only https is supported: over http the token would travel unencrypted.'**
+  String get forgeUrlNotHttps;
+
+  /// No description provided for @forgeUrlHasPath.
+  ///
+  /// In en, this message translates to:
+  /// **'A server under a sub-path is not supported yet. Enter only the host, and the port if it has one.'**
+  String get forgeUrlHasPath;
+
+  /// No description provided for @forgeUrlIsCloud.
+  ///
+  /// In en, this message translates to:
+  /// **'That is the public service. Choose it above instead.'**
+  String get forgeUrlIsCloud;
+
+  /// No description provided for @forgeConnectAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect…'**
+  String get forgeConnectAccount;
+
+  /// No description provided for @forgeReplaceToken.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace token…'**
+  String get forgeReplaceToken;
+
+  /// No description provided for @forgeRemoveServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get forgeRemoveServer;
+
+  /// No description provided for @forgeOldTokenNotForgotten.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not remove the token stored for {server}, so nothing was changed. Try again, or remove {server} first.'**
+  String forgeOldTokenNotForgotten(String server);
+
+  /// No description provided for @forgeRemoveAnywayTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove {server} anyway?'**
+  String forgeRemoveAnywayTitle(String server);
+
+  /// No description provided for @forgeRemoveAnywayBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Mergelio could not remove its token for {server} from your git credential helper. If you remove the server now, the token may stay there, and you would have to delete it with the helper\'s own tool.'**
+  String forgeRemoveAnywayBody(String server);
+
+  /// No description provided for @forgeRemoveAnyway.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove anyway'**
+  String get forgeRemoveAnyway;
+
+  /// No description provided for @forgeServerRemovedTokenKept.
+  ///
+  /// In en, this message translates to:
+  /// **'Removed {server}. Its token may still be in your credential helper.'**
+  String forgeServerRemovedTokenKept(String server);
+
+  /// No description provided for @forgeServerRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Removed {server}.'**
+  String forgeServerRemoved(String server);
 
   /// No description provided for @lhTitleLine.
   ///

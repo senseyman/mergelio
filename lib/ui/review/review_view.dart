@@ -474,7 +474,7 @@ class _PrButtonState extends ConsumerState<_PrButton> {
     } on ForgeError catch (e) {
       toast.show(
         gitlab ? l.rvMrLookupFailed : l.rvPrLookupFailed,
-        description: forgePanelMessage(e, l, q.host.kind),
+        description: forgePanelMessage(e, l, q.host.server),
         kind: ToastKind.error,
       );
     } finally {

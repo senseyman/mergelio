@@ -2066,6 +2066,10 @@ class AppLocalizationsUk extends AppLocalizations {
       'Без токена: без автооновлення і зі спільним нижчим лімітом запитів. Підключіть у Налаштуваннях → Облікові дані.';
 
   @override
+  String get forgeConnectHintSelfHosted =>
+      'Без токена: без автооновлення і лише те, що цей сервер дозволяє анонімним запитам. Підключіть у Налаштуваннях → Облікові дані.';
+
+  @override
   String forgeErrUnauthenticated(String forge) {
     return '$forge відхилив збережений токен. Підключіться знову в Налаштуваннях.';
   }
@@ -2161,6 +2165,91 @@ class AppLocalizationsUk extends AppLocalizations {
   @override
   String get forgeRefreshInterval =>
       'Інтервал оновлення пулреквестів і запитів на злиття';
+
+  @override
+  String get forgeAccountsHeading => 'Облікові записи форджів';
+
+  @override
+  String get forgeAddAccount => 'Додати обліковий запис…';
+
+  @override
+  String get forgeNoAccounts =>
+      'Облікових записів ще немає. Токен підвищує ліміт запитів форджа й вмикає автооновлення. Власний сервер GitHub Enterprise або GitLab треба додати тут, щоб його репозиторії розпізнавалися.';
+
+  @override
+  String get forgeAddAccountTitle => 'Додати обліковий запис форджа';
+
+  @override
+  String forgeTokenForTitle(String server) {
+    return 'Токен для $server';
+  }
+
+  @override
+  String get forgeWhereCloudGithub => 'GitHub.com';
+
+  @override
+  String get forgeWhereSelfGithub => 'GitHub Enterprise Server';
+
+  @override
+  String get forgeWhereCloudGitlab => 'GitLab.com';
+
+  @override
+  String get forgeWhereSelfGitlab => 'Власний GitLab';
+
+  @override
+  String get forgeServerUrlLabel => 'URL сервера';
+
+  @override
+  String get forgeUrlInvalid =>
+      'Введіть адресу сервера, наприклад https://git.example.com.';
+
+  @override
+  String get forgeUrlNotHttps =>
+      'Підтримується лише https: через http токен передавався б незашифрованим.';
+
+  @override
+  String get forgeUrlHasPath =>
+      'Сервер у підкаталозі поки не підтримується. Введіть лише хост і, якщо є, порт.';
+
+  @override
+  String get forgeUrlIsCloud => 'Це публічний сервіс. Виберіть його вище.';
+
+  @override
+  String get forgeConnectAccount => 'Підключити…';
+
+  @override
+  String get forgeReplaceToken => 'Замінити токен…';
+
+  @override
+  String get forgeRemoveServer => 'Видалити';
+
+  @override
+  String forgeOldTokenNotForgotten(String server) {
+    return 'Не вдалося видалити токен, збережений для $server, тож нічого не змінено. Спробуйте ще раз або спершу видаліть $server.';
+  }
+
+  @override
+  String forgeRemoveAnywayTitle(String server) {
+    return 'Усе одно видалити $server?';
+  }
+
+  @override
+  String forgeRemoveAnywayBody(String server) {
+    return 'Mergelio не зміг видалити свій токен для $server з менеджера облікових даних git. Якщо видалити сервер зараз, токен може там лишитися, і його доведеться видалити засобами самого менеджера.';
+  }
+
+  @override
+  String get forgeRemoveAnyway => 'Усе одно видалити';
+
+  @override
+  String forgeServerRemovedTokenKept(String server) {
+    return '$server видалено. Його токен може лишатися в менеджері облікових даних.';
+  }
+
+  @override
+  String forgeServerRemoved(String server) {
+    return '$server видалено.';
+  }
 
   @override
   String lhTitleLine(String path, String line) {

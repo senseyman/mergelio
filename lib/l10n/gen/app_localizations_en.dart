@@ -2050,6 +2050,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Without a token: no auto-refresh, and a lower shared rate limit. Connect in Preferences → Credentials.';
 
   @override
+  String get forgeConnectHintSelfHosted =>
+      'Without a token: no auto-refresh, and only what this server allows anonymous callers. Connect in Preferences → Credentials.';
+
+  @override
   String forgeErrUnauthenticated(String forge) {
     return '$forge rejected the saved token. Reconnect in Preferences.';
   }
@@ -2144,6 +2148,92 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get forgeRefreshInterval => 'Pull and merge request refresh interval';
+
+  @override
+  String get forgeAccountsHeading => 'Forge accounts';
+
+  @override
+  String get forgeAddAccount => 'Add account…';
+
+  @override
+  String get forgeNoAccounts =>
+      'No accounts yet. A token raises the forge\'s request limit and turns on auto-refresh. A self-hosted GitHub Enterprise or GitLab server must be added here before its repositories are recognised.';
+
+  @override
+  String get forgeAddAccountTitle => 'Add forge account';
+
+  @override
+  String forgeTokenForTitle(String server) {
+    return 'Token for $server';
+  }
+
+  @override
+  String get forgeWhereCloudGithub => 'GitHub.com';
+
+  @override
+  String get forgeWhereSelfGithub => 'GitHub Enterprise Server';
+
+  @override
+  String get forgeWhereCloudGitlab => 'GitLab.com';
+
+  @override
+  String get forgeWhereSelfGitlab => 'Self-managed GitLab';
+
+  @override
+  String get forgeServerUrlLabel => 'Server URL';
+
+  @override
+  String get forgeUrlInvalid =>
+      'Enter the server\'s address, like https://git.example.com.';
+
+  @override
+  String get forgeUrlNotHttps =>
+      'Only https is supported: over http the token would travel unencrypted.';
+
+  @override
+  String get forgeUrlHasPath =>
+      'A server under a sub-path is not supported yet. Enter only the host, and the port if it has one.';
+
+  @override
+  String get forgeUrlIsCloud =>
+      'That is the public service. Choose it above instead.';
+
+  @override
+  String get forgeConnectAccount => 'Connect…';
+
+  @override
+  String get forgeReplaceToken => 'Replace token…';
+
+  @override
+  String get forgeRemoveServer => 'Remove';
+
+  @override
+  String forgeOldTokenNotForgotten(String server) {
+    return 'Could not remove the token stored for $server, so nothing was changed. Try again, or remove $server first.';
+  }
+
+  @override
+  String forgeRemoveAnywayTitle(String server) {
+    return 'Remove $server anyway?';
+  }
+
+  @override
+  String forgeRemoveAnywayBody(String server) {
+    return 'Mergelio could not remove its token for $server from your git credential helper. If you remove the server now, the token may stay there, and you would have to delete it with the helper\'s own tool.';
+  }
+
+  @override
+  String get forgeRemoveAnyway => 'Remove anyway';
+
+  @override
+  String forgeServerRemovedTokenKept(String server) {
+    return 'Removed $server. Its token may still be in your credential helper.';
+  }
+
+  @override
+  String forgeServerRemoved(String server) {
+    return 'Removed $server.';
+  }
 
   @override
   String lhTitleLine(String path, String line) {

@@ -8,10 +8,13 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mergelio/data/settings_repository.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/state/forge.dart';
+import 'package:mergelio/state/settings.dart';
+import 'package:mergelio/state/settings_controller.dart';
 
 String _pullsPage(int count) => jsonEncode([
   for (var i = 1; i <= count; i++)
@@ -32,6 +35,13 @@ void main() {
     final paths = <String>[];
     final c = ProviderContainer(
       overrides: [
+        // The registry of self-hosted servers lives in settings; none here.
+        settingsProvider.overrideWith(
+          (ref) => SettingsController(
+            InMemorySettingsRepository(),
+            const AppSettings(),
+          ),
+        ),
         originRemoteUrlProvider.overrideWith(
           (ref, path) async => 'https://github.com/o/r.git',
         ),

@@ -13,9 +13,11 @@ import '../data/forge/gitlab_forge.dart';
 import '../domain/forge/forge.dart';
 import '../domain/forge/forge_error.dart';
 import '../domain/forge/forge_host.dart';
+import '../domain/forge/forge_server.dart';
 import '../domain/forge/models.dart';
 import '../domain/git/git_providers.dart';
 import 'repo_actions.dart';
+import 'settings_controller.dart';
 
 part 'forge.freezed.dart';
 
@@ -53,6 +55,16 @@ final originRemoteUrlProvider = FutureProvider.family<String, String>((
   }
 });
 
+/// The self-hosted installations the person registered, in a stable order.
+/// Entries this version cannot read are skipped rather than fatal.
+final forgeServersProvider = Provider<List<ForgeServer>>((ref) {
+  final stored = ref.watch(settingsProvider.select((s) => s.forgeServers));
+  return [
+    for (final MapEntry(:key, :value) in stored.entries)
+      ?ForgeServer.fromKey(key, value),
+  ]..sort((a, b) => a.key.compareTo(b.key));
+});
+
 /// Forge coordinates for the repository at [path], or null when it is not on a
 /// forge this version supports. Null is an ordinary answer: the section simply
 /// does not appear.
@@ -62,7 +74,7 @@ final forgeHostProvider = FutureProvider.family<ForgeHost?, String>((
 ) async {
   final url = await ref.watch(originRemoteUrlProvider(path).future);
   if (url.isEmpty) return null;
-  return resolveForgeHost(url);
+  return resolveForgeHost(url, servers: ref.watch(forgeServersProvider));
 });
 
 /// The token git's credential helper holds for this repository's forge.
@@ -81,7 +93,7 @@ final forgeTokenProvider = FutureProvider.family<ForgeToken?, String>((
   return ForgeCredentials(
     git,
     repoPath: path,
-  ).fill(host.host, forgeTokenUsername);
+  ).fill(host.server.credentialHost, forgeTokenUsername);
 });
 
 /// Which host's stored token an account row reads, and under which
@@ -109,6 +121,37 @@ final forgeAccountTokenProvider =
         repoPath: key.path,
       ).fill(key.host, forgeTokenUsername);
     });
+
+/// The accounts the Credentials tab lists: github.com and gitlab.com when a
+/// token for them is on file, then every registered self-hosted server,
+/// token or not — a registered server is worth showing even unconnected,
+/// since it is what makes its repositories recognised at all.
+///
+/// [path] scopes the credential lookups exactly as
+/// [forgeAccountTokenProvider] does.
+///
+/// Synchronous on purpose: the registered servers are known at once, and a
+/// cloud joins the list when its lookup answers. Waiting for both lookups
+/// first would let a slow helper — one waiting on a keychain prompt, with a
+/// minute's timeout — hide servers the registry already holds and claim
+/// there are no accounts at all.
+final forgeAccountListProvider = Provider.family<List<ForgeServer>, String?>((
+  ref,
+  path,
+) {
+  bool connected(ForgeServer cloud) =>
+      ref
+          .watch(
+            forgeAccountTokenProvider((host: cloud.credentialHost, path: path)),
+          )
+          .valueOrNull !=
+      null;
+  return [
+    for (final cloud in const [kGithubCloud, kGitlabCloud])
+      if (connected(cloud)) cloud,
+    ...ref.watch(forgeServersProvider),
+  ];
+});
 
 /// One cache for the application session.
 ///
@@ -319,7 +362,7 @@ final forgeRateLimitProvider = FutureProvider.family<ForgeRateLimit?, String>((
     client: ref.watch(forgeHttpClientProvider),
   );
   try {
-    final response = await http.get(Uri.https('api.github.com', '/rate_limit'));
+    final response = await http.get(host.server.api('/rate_limit'));
     return parseRateLimit(jsonDecode(response.body));
   } on Object {
     // The budget is a courtesy. Failing to read it must never fail the

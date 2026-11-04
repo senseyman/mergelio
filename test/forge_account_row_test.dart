@@ -12,6 +12,7 @@ import 'package:mergelio/data/forge/forge_credentials.dart';
 import 'package:mergelio/data/forge/forge_http.dart';
 import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/domain/forge/forge_host.dart';
+import 'package:mergelio/domain/forge/forge_server.dart';
 import 'package:mergelio/domain/forge/models.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
@@ -201,7 +202,7 @@ class _SilentlyDecliningGit implements GitService {
 Future<ProviderContainer> _pump(
   WidgetTester tester, {
   required List<Override> overrides,
-  ForgeKind kind = ForgeKind.github,
+  ForgeServer server = kGithubCloud,
 }) async {
   final container = ProviderContainer(overrides: overrides);
   addTearDown(container.dispose);
@@ -212,7 +213,16 @@ Future<ProviderContainer> _pump(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         theme: ThemeData(extensions: [AppTokens.dark()]),
-        home: Scaffold(body: ForgeAccountRow(kind: kind)),
+        // The row and the token form side by side: connecting now happens
+        // in the form, which the row's own button opens as a dialog.
+        home: Scaffold(
+          body: ListView(
+            children: [
+              ForgeAccountRow(server: server),
+              ForgeTokenForm(server: server),
+            ],
+          ),
+        ),
       ),
     ),
   );
@@ -224,7 +234,7 @@ void main() {
     test('accepts a token GitHub answers for', () async {
       final ok = await validateForgeToken(
         const ForgeToken('t'),
-        kind: ForgeKind.github,
+        server: kGithubCloud,
         httpFor: (token) => ForgeHttp(
           kind: ForgeKind.github,
           token: token,
@@ -237,7 +247,7 @@ void main() {
     test('rejects a token GitHub refuses', () async {
       final ok = await validateForgeToken(
         const ForgeToken('bad'),
-        kind: ForgeKind.github,
+        server: kGithubCloud,
         httpFor: (token) => ForgeHttp(
           kind: ForgeKind.github,
           token: token,
@@ -251,7 +261,7 @@ void main() {
       String? sent;
       await validateForgeToken(
         const ForgeToken('secret'),
-        kind: ForgeKind.github,
+        server: kGithubCloud,
         httpFor: (token) => ForgeHttp(
           kind: ForgeKind.github,
           token: token,
@@ -267,7 +277,7 @@ void main() {
     test('a forge that cannot be reached is not a rejected token', () async {
       final ok = await validateForgeToken(
         const ForgeToken('t'),
-        kind: ForgeKind.github,
+        server: kGithubCloud,
         httpFor: (token) => ForgeHttp(
           kind: ForgeKind.github,
           token: token,
@@ -285,7 +295,7 @@ void main() {
         );
         await validateForgeToken(
           const ForgeToken('t'),
-          kind: ForgeKind.github,
+          server: kGithubCloud,
           httpFor: (token) =>
               ForgeHttp(kind: ForgeKind.github, token: token, client: accepted),
         );
@@ -296,7 +306,7 @@ void main() {
         );
         await validateForgeToken(
           const ForgeToken('t'),
-          kind: ForgeKind.github,
+          server: kGithubCloud,
           httpFor: (token) =>
               ForgeHttp(kind: ForgeKind.github, token: token, client: rejected),
         );
@@ -310,7 +320,7 @@ void main() {
       );
       await validateForgeToken(
         const ForgeToken('t'),
-        kind: ForgeKind.github,
+        server: kGithubCloud,
         httpFor: (token) =>
             ForgeHttp(kind: ForgeKind.github, token: token, client: thrown),
       );
@@ -805,12 +815,24 @@ void main() {
               c.openRepo('/repo');
               return c;
             }),
+            // The budget belongs on the row for the active repository's
+            // own server.
+            forgeHostProvider.overrideWith(
+              (ref, path) async => const ForgeHost(
+                kind: ForgeKind.github,
+                host: 'github.com',
+                owner: 'o',
+                repo: 'r',
+              ),
+            ),
             forgeRateLimitProvider.overrideWith(
               (ref, path) async =>
                   const ForgeRateLimit(remaining: 42, limit: 5000),
             ),
           ],
         );
+        await tester.pump();
+        // Two reads in a row: the repository's server, then its budget.
         await tester.pump();
 
         expect(
@@ -833,6 +855,16 @@ void main() {
               c.openRepo('/repo');
               return c;
             }),
+            // The budget belongs on the row for the active repository's
+            // own server.
+            forgeHostProvider.overrideWith(
+              (ref, path) async => const ForgeHost(
+                kind: ForgeKind.github,
+                host: 'github.com',
+                owner: 'o',
+                repo: 'r',
+              ),
+            ),
             forgeRateLimitProvider.overrideWith((ref, path) async => null),
           ],
         );
@@ -999,10 +1031,11 @@ void main() {
       // them, and GitLab publishes no such numbers. Showing either under
       // the other heading tells the reader something untrue about the
       // account they are about to connect.
-      for (final kind in ForgeKind.values) {
+      for (final server in const [kGithubCloud, kGitlabCloud]) {
+        final kind = server.kind;
         await _pump(
           tester,
-          kind: kind,
+          server: server,
           overrides: [gitServiceProvider.overrideWithValue(_RecordingGit())],
         );
         await tester.pump();
@@ -1034,6 +1067,14 @@ void main() {
             c.openRepo('/repo');
             return c;
           }),
+          forgeHostProvider.overrideWith(
+            (ref, path) async => const ForgeHost(
+              kind: ForgeKind.github,
+              host: 'github.com',
+              owner: 'o',
+              repo: 'r',
+            ),
+          ),
           forgeRateLimitProvider.overrideWith(
             (ref, path) async => const ForgeRateLimit(remaining: 12, limit: 60),
           ),
@@ -1054,6 +1095,40 @@ void main() {
       expect(find.text(l.forgeRateRemaining(12, 60)), findsOneWidget);
     });
 
+    testWidgets(
+      'another github server never shows the active repository\'s budget',
+      (tester) async {
+        await _pump(
+          tester,
+          server: const ForgeServer(kind: ForgeKind.github, host: 'ghe.corp'),
+          overrides: [
+            gitServiceProvider.overrideWithValue(_RecordingGit()),
+            workspaceProvider.overrideWith((ref) {
+              final c = WorkspaceController();
+              c.openRepo('/repo');
+              return c;
+            }),
+            forgeHostProvider.overrideWith(
+              (ref, path) async => const ForgeHost(
+                kind: ForgeKind.github,
+                host: 'github.com',
+                owner: 'o',
+                repo: 'r',
+              ),
+            ),
+            forgeRateLimitProvider.overrideWith(
+              (ref, path) async =>
+                  const ForgeRateLimit(remaining: 12, limit: 60),
+            ),
+          ],
+        );
+        await tester.pump();
+        await tester.pump();
+
+        expect(find.textContaining('requests left this hour'), findsNothing);
+      },
+    );
+
     testWidgets('the gitlab row never shows github figures', (tester) async {
       // forgeRateLimitProvider answers for whichever repository is active,
       // and only GitHub publishes a free budget endpoint. Watching it from
@@ -1061,7 +1136,7 @@ void main() {
       // under a GitLab account's heading.
       await _pump(
         tester,
-        kind: ForgeKind.gitlab,
+        server: kGitlabCloud,
         overrides: [
           gitServiceProvider.overrideWithValue(_RecordingGit()),
           workspaceProvider.overrideWith((ref) {
@@ -1099,7 +1174,7 @@ void main() {
       );
       await _pump(
         tester,
-        kind: ForgeKind.gitlab,
+        server: kGitlabCloud,
         overrides: [
           gitServiceProvider.overrideWithValue(_StoringCredentialGit()),
           forgeHttpClientProvider.overrideWithValue(client),
@@ -1123,7 +1198,7 @@ void main() {
       final git = _StoringCredentialGit();
       await _pump(
         tester,
-        kind: ForgeKind.gitlab,
+        server: kGitlabCloud,
         overrides: [
           gitServiceProvider.overrideWithValue(git),
           forgeHttpClientProvider.overrideWithValue(
@@ -1152,7 +1227,7 @@ void main() {
       final git = _StoringCredentialGit();
       await _pump(
         tester,
-        kind: ForgeKind.gitlab,
+        server: kGitlabCloud,
         overrides: [gitServiceProvider.overrideWithValue(git)],
       );
 

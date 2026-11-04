@@ -76,7 +76,7 @@ class ForgeIssueSection extends ConsumerWidget {
         ...?panel?.when(
           loading: () => const [ForgeLoadingRow()],
           error: (e, _) => [
-            ForgeMessageRow(text: forgePanelMessage(e, l, host.kind)),
+            ForgeMessageRow(text: forgePanelMessage(e, l, host.server)),
           ],
           data: (issues) => issues.isEmpty
               // Nothing to say here: an empty list with the section open is

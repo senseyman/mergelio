@@ -22,20 +22,6 @@ class ForgeToken {
 /// alongside a token, and this is the name its own documentation uses.
 const forgeTokenUsername = 'x-access-token';
 
-/// The only forge Mergelio currently authenticates with a token.
-///
-/// Defined once so every caller that names it — reading, writing, or
-/// erasing — spells it identically. A second copy of this literal is
-/// exactly how a write and a read once drifted onto different accounts.
-const kGithubHost = 'github.com';
-
-/// The gitlab.com host a token is stored under.
-///
-/// Defined once for the same reason [kGithubHost] is: a write and a read
-/// that spell the host differently store and look for different
-/// credentials.
-const kGitlabHost = 'gitlab.com';
-
 /// Characters that cannot appear in a host name given to `git credential`.
 /// The protocol is newline-delimited key=value lines terminated by a blank
 /// one, so a host carrying a newline would add fields of its own choosing.

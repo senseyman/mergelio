@@ -124,13 +124,11 @@ class ForgePullRequestSection extends ConsumerWidget {
       ),
       children: [
         if (!connected)
-          ForgeMessageRow(
-            text: gitlab ? l.forgeConnectHintGitlab : l.forgeConnectHint,
-          ),
+          ForgeMessageRow(text: forgeConnectHintFor(l, host.server)),
         ...?panel?.when(
           loading: () => const [ForgeLoadingRow()],
           error: (e, _) => [
-            ForgeMessageRow(text: forgePanelMessage(e, l, host.kind)),
+            ForgeMessageRow(text: forgePanelMessage(e, l, host.server)),
           ],
           data: (p) => p.pullRequests.isEmpty
               // Nothing to say here: an empty list with the section open and

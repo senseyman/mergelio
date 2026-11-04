@@ -8,9 +8,13 @@ import 'package:mergelio/data/forge/forge_credentials.dart';
 import 'package:mergelio/data/forge/github_forge.dart';
 import 'package:mergelio/data/forge/gitlab_forge.dart';
 import 'package:mergelio/domain/forge/forge_host.dart';
+import 'package:mergelio/domain/forge/forge_server.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/state/forge.dart';
+import 'package:mergelio/state/settings_controller.dart';
+import 'package:mergelio/state/settings.dart';
+import 'package:mergelio/data/settings_repository.dart';
 
 /// A [GitService] that fails every command, so a repository backed by it
 /// behaves like one whose git toolchain is unusable — no real process, no
@@ -89,11 +93,19 @@ class _RecordingCredentialGitService implements GitService {
   }
 }
 
+/// forgeHostProvider reads the registered self-hosted servers from
+/// settings; these tests register none.
+final _settings = settingsProvider.overrideWith(
+  (ref) =>
+      SettingsController(InMemorySettingsRepository(), const AppSettings()),
+);
+
 void main() {
   group('originRemoteUrlProvider', () {
     test('a repository that cannot answer resolves to empty', () async {
       final c = ProviderContainer(
         overrides: [
+          _settings,
           gitServiceProvider.overrideWithValue(_ThrowingGitService()),
         ],
       );
@@ -107,6 +119,7 @@ void main() {
     test('reads the token the credential helper already holds', () async {
       final c = ProviderContainer(
         overrides: [
+          _settings,
           originRemoteUrlProvider.overrideWith(
             (ref, path) async => 'https://github.com/o/r.git',
           ),
@@ -126,6 +139,7 @@ void main() {
       final git = _RecordingCredentialGitService();
       final c = ProviderContainer(
         overrides: [
+          _settings,
           gitServiceProvider.overrideWithValue(git),
           originRemoteUrlProvider('/repo')
               .overrideWith((ref) async => 'https://github.com/o/r.git'),
@@ -134,7 +148,10 @@ void main() {
       addTearDown(c.dispose);
 
       await c.read(
-        forgeAccountTokenProvider((host: kGitlabHost, path: '/repo')).future,
+        forgeAccountTokenProvider((
+          host: kGitlabCloud.credentialHost,
+          path: '/repo',
+        )).future,
       );
 
       // The lookup must name gitlab.com even while a GitHub repository is
@@ -148,6 +165,7 @@ void main() {
     test('resolves a github remote into forge coordinates', () async {
       final c = ProviderContainer(
         overrides: [
+          _settings,
           originRemoteUrlProvider.overrideWith(
             (ref, path) async => 'git@github.com:senseyman/mergelio.git',
           ),
@@ -166,6 +184,7 @@ void main() {
     test('a repository on no known forge resolves to null', () async {
       final c = ProviderContainer(
         overrides: [
+          _settings,
           originRemoteUrlProvider.overrideWith(
             (ref, path) async => '/srv/git/local.git',
           ),
@@ -179,6 +198,7 @@ void main() {
     test('a repository with no origin resolves to null', () async {
       final c = ProviderContainer(
         overrides: [
+          _settings,
           originRemoteUrlProvider.overrideWith((ref, path) async => ''),
         ],
       );
@@ -192,6 +212,7 @@ void main() {
     test('builds a forge for a github repository', () async {
       final c = ProviderContainer(
         overrides: [
+          _settings,
           originRemoteUrlProvider.overrideWith(
             (ref, path) async => 'https://github.com/o/r.git',
           ),
@@ -209,6 +230,7 @@ void main() {
     test('builds nothing when the repository is not on a forge', () async {
       final c = ProviderContainer(
         overrides: [
+          _settings,
           originRemoteUrlProvider.overrideWith((ref, path) async => ''),
           forgeTokenProvider.overrideWith((ref, path) async => null),
         ],
@@ -232,6 +254,7 @@ void main() {
       String? sentAuth;
       final c = ProviderContainer(
         overrides: [
+          _settings,
           originRemoteUrlProvider.overrideWith(
             (ref, path) async => 'https://github.com/o/r.git',
           ),
@@ -260,6 +283,7 @@ void main() {
       String? sentAuth = 'unset';
       final c = ProviderContainer(
         overrides: [
+          _settings,
           originRemoteUrlProvider.overrideWith(
             (ref, path) async => 'https://github.com/o/r.git',
           ),
@@ -283,6 +307,7 @@ void main() {
     test('a gitlab remote builds a gitlab forge', () async {
       final c = ProviderContainer(
         overrides: [
+          _settings,
           gitServiceProvider.overrideWithValue(_StubCredentialGitService()),
           originRemoteUrlProvider('/repo')
               .overrideWith((ref) async => 'git@gitlab.com:group/sub/app.git'),
@@ -300,6 +325,7 @@ void main() {
     test('a github remote still builds a github forge', () async {
       final c = ProviderContainer(
         overrides: [
+          _settings,
           gitServiceProvider.overrideWithValue(_StubCredentialGitService()),
           originRemoteUrlProvider('/repo')
               .overrideWith((ref) async => 'https://github.com/o/r.git'),
@@ -315,6 +341,7 @@ void main() {
     test('reads the budget from a well-formed response', () async {
       final c = ProviderContainer(
         overrides: [
+          _settings,
           originRemoteUrlProvider.overrideWith(
             (ref, path) async => 'https://github.com/o/r.git',
           ),
@@ -349,6 +376,7 @@ void main() {
         // rest of the panel should ever see.
         final c = ProviderContainer(
           overrides: [
+            _settings,
             originRemoteUrlProvider.overrideWith(
               (ref, path) async => 'https://github.com/o/r.git',
             ),
@@ -378,6 +406,7 @@ void main() {
       var requests = 0;
       final c = ProviderContainer(
         overrides: [
+          _settings,
           gitServiceProvider.overrideWithValue(_StubCredentialGitService()),
           originRemoteUrlProvider('/repo')
               .overrideWith((ref) async => 'https://gitlab.com/group/app.git'),
@@ -414,6 +443,7 @@ void main() {
       );
       final c = ProviderContainer(
         overrides: [
+          _settings,
           originRemoteUrlProvider.overrideWith(
             (ref, path) async => 'https://github.com/o/r.git',
           ),
@@ -442,6 +472,7 @@ void main() {
       );
       final c = ProviderContainer(
         overrides: [
+          _settings,
           originRemoteUrlProvider.overrideWith(
             (ref, path) async => 'https://github.com/o/r.git',
           ),

@@ -2,15 +2,24 @@
 // string work: the same remote must resolve identically whether it was written
 // as https, ssh:// or scp-style, because a repository's remotes often mix them.
 
-/// Which forge a host belongs to. Only public clouds are recognised.
+import 'forge_server.dart';
+
+/// Which forge product a host runs.
 enum ForgeKind { github, gitlab }
 
 /// A repository as a forge addresses it.
 class ForgeHost {
   final ForgeKind kind;
 
-  /// Canonical API host, with any `www.` prefix and port removed.
+  /// Lower-case host name without a port. `www.` is dropped for the public
+  /// clouds only; a self-hosted host is kept exactly as registered, since
+  /// `www.corp` and `corp` can be different servers.
   final String host;
+
+  /// The installation's https port when it is not the default one. Taken
+  /// from the registered server, never from the remote: an ssh remote's port
+  /// says nothing about where the web and API answer.
+  final int? port;
 
   /// Everything before the repository name. A single account on GitHub; on
   /// GitLab this may be several `/`-separated groups deep.
@@ -23,7 +32,11 @@ class ForgeHost {
     required this.host,
     required this.owner,
     required this.repo,
+    this.port,
   });
+
+  /// The installation this repository lives on.
+  ForgeServer get server => ForgeServer(kind: kind, host: host, port: port);
 
   /// The project as git and the web UI spell it. Callers that need an API path
   /// segment must escape this themselves; it is stored unescaped.
@@ -35,21 +48,23 @@ class ForgeHost {
       other.kind == kind &&
       other.host == host &&
       other.owner == owner &&
-      other.repo == repo;
+      other.repo == repo &&
+      other.port == port;
 
   @override
-  int get hashCode => Object.hash(kind, host, owner, repo);
+  int get hashCode => Object.hash(kind, host, owner, repo, port);
 
   @override
   String toString() => 'ForgeHost($kind, $host, $projectPath)';
 }
 
-/// Hosts recognised as a forge, keyed by the name a remote carries.
-const _hosts = <String, ForgeKind>{
-  'github.com': ForgeKind.github,
-  'www.github.com': ForgeKind.github,
-  'gitlab.com': ForgeKind.gitlab,
-  'www.gitlab.com': ForgeKind.gitlab,
+/// The public clouds, keyed by the name a remote carries. Always recognised;
+/// anything else must be registered as a [ForgeServer].
+const _cloudHosts = <String, ForgeServer>{
+  'github.com': kGithubCloud,
+  'www.github.com': kGithubCloud,
+  'gitlab.com': kGitlabCloud,
+  'www.gitlab.com': kGitlabCloud,
 };
 
 /// `git@host:path`, the form ssh remotes are usually written in. A
@@ -65,7 +80,14 @@ const _schemes = {'https', 'http', 'ssh', 'git'};
 /// The forge coordinates for [remoteUrl], or null when it names no supported
 /// forge — a local path, an unknown host, or something unparseable. Null is an
 /// ordinary answer here, not a failure.
-ForgeHost? resolveForgeHost(String remoteUrl) {
+///
+/// github.com and gitlab.com are always known; a self-hosted installation is
+/// known once it is among [servers]. A remote matches a server by host name
+/// alone, since git and the web are routinely served on different ports.
+ForgeHost? resolveForgeHost(
+  String remoteUrl, {
+  Iterable<ForgeServer> servers = const [],
+}) {
   final raw = remoteUrl.trim();
   if (raw.isEmpty) return null;
 
@@ -83,8 +105,11 @@ ForgeHost? resolveForgeHost(String remoteUrl) {
     path = scp.group(2)!;
   }
 
-  final kind = _hosts[host.toLowerCase()];
-  if (kind == null) return null;
+  final name = host.toLowerCase();
+  final server =
+      _cloudHosts[name] ?? servers.where((s) => s.host == name).firstOrNull;
+  if (server == null) return null;
+  final kind = server.kind;
 
   final segments = path
       .split('/')
@@ -113,9 +138,8 @@ ForgeHost? resolveForgeHost(String remoteUrl) {
 
   return ForgeHost(
     kind: kind,
-    host: host.toLowerCase().startsWith('www.')
-        ? host.toLowerCase().substring(4)
-        : host.toLowerCase(),
+    host: server.host,
+    port: server.port,
     owner: owner.join('/'),
     repo: repo,
   );

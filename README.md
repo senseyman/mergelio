@@ -13,7 +13,7 @@
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey.svg)](#installation)
 [![Flutter](https://img.shields.io/badge/Flutter-3.47.5-02569B.svg?logo=flutter)](https://flutter.dev)
 [![Dart SDK](https://img.shields.io/badge/Dart%20SDK-3.13.x-0175C2.svg?logo=dart)](https://dart.dev)
-[![Tests](https://img.shields.io/badge/tests-1229%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-4959%20passing-brightgreen.svg)](#testing)
 
 <img src=".github/screenshots/mergelio-demo.gif" alt="Mergelio in action: browsing history, editing a file, reviewing the diff and committing" width="900" />
 
@@ -30,13 +30,11 @@
 - [Installation](#installation)
 - [Building from source](#building-from-source)
 - [Make targets](#make-targets)
-- [Architecture](#architecture)
-- [Project layout](#project-layout)
 - [Testing](#testing)
 - [Localization](#localization)
 - [Privacy](#privacy)
 - [Contributing](#contributing)
-- [Releasing](#releasing)
+- [Releasing](RELEASING.md)
 - [License](#license)
 
 ## Why Mergelio
@@ -333,9 +331,9 @@ change never needs a second window.*
 - A sidebar section for the repository's remote, once it resolves to a
   supported forge: **pull requests** on GitHub, **merge requests** on GitLab —
   each row shows its author, age, branch relationship and a CI/pipeline badge.
-  Only the public clouds are recognised — `github.com` and `gitlab.com`. A
-  self-hosted GitLab or GitHub Enterprise remote is not supported, and the
-  section is absent entirely for it, as it is for any other remote.
+  `github.com` and `gitlab.com` are always recognised. A **GitHub Enterprise
+  Server** or **self-managed GitLab** is recognised once you add it as an
+  account (below); any other remote shows no section at all.
 - An issues section alongside it, and a refresh control for both.
 - Every row opens the real pull/merge request or issue in your browser.
 - **Create pull request…** (**Create merge request…** on GitLab) on a branch's
@@ -349,8 +347,17 @@ change never needs a second window.*
   forward. If the request was force-pushed and your copy has commits it no
   longer has, it asks before replacing the branch, and Undo puts it back.
   No commit is ever made.
-- Connect a **personal access token** per forge from Preferences — GitHub and
-  GitLab each get their own account row. Mergelio stores no token itself: it
+- Preferences → Credentials lists your **forge accounts**, as many as you
+  need: **Add account…** asks for GitHub or GitLab, then either the public
+  service or a self-hosted server's address (`https://` only — over plain
+  http the token would travel unencrypted; a server under a sub-path such as
+  `https://example.com/gitlab` is not supported yet), then a **personal
+  access token**, which is checked against that server before it is kept.
+  One account per host: adding a host again on another port replaces the
+  old entry and forgets its token — and if that token cannot be forgotten,
+  nothing changes. A self-hosted server can be removed again, which also
+  forgets its token; if the credential helper will not let it, Mergelio
+  says so and asks before removing the server anyway. Mergelio stores no token itself: it
   hands the token to `git credential`, so where it ends up is whatever
   `credential.helper` you have configured. That is the OS keychain on macOS,
   and on Windows or Linux only if you set up a helper that uses one — the
@@ -358,10 +365,12 @@ change never needs a second window.*
   `~/.git-credentials`, and `cache`, which keeps it in memory only. Either
   way the token is never logged and never appears in an error message.
   Without a token the section still works, just against the forge's lower
-  unauthenticated rate limit — on GitHub that is 60 requests an hour, and
-  opening one repository costs about 23 of them.
-- Read-only: nothing here creates, merges, comments, or opens anything on
-  your behalf.
+  unauthenticated rate limit — on github.com that is 60 requests an hour, and
+  opening one repository costs about 23 of them; a self-hosted server applies
+  its own limits.
+- Nothing is ever written to the forge: no pull request is created, merged
+  or commented on from the app. The only writes are local — the branch a
+  checkout creates — and your token in the credential helper.
 
 ### Merge tool
 
@@ -422,10 +431,12 @@ change never needs a second window.*
 
 | Shortcut | Action |
 | --- | --- |
-| `⌘K` | Command palette |
+| `⌘K` / `⇧⌘P` | Command palette |
 | `⌘F` | Search |
 | `⌘B` | Create branch |
 | `⌘R` | Refresh the repository (also in the palette and the Changes panel) |
+| `⇧⌘D` | Toggle the multi-repository dashboard |
+| `⌘⏎` | Commit, from the commit message box |
 | `` ⌘` `` | Toggle terminal |
 | `⌘\` | Toggle the left panel |
 | `⌘,` | Preferences |
@@ -434,6 +445,7 @@ change never needs a second window.*
 | `⌘F` | Find and replace, with an editor focused |
 | `⌘+` / `⌘-` / `⌘0` | Zoom in / out / reset |
 | `⌥↑` / `⌥↓` | Previous / next conflict in the merge tool (`Alt` elsewhere) |
+| `N` | Next unresolved file in the merge tool |
 | `Esc` | Dismiss the top notification |
 
 The full list lives in **Preferences → Shortcuts**.
@@ -444,9 +456,9 @@ The full list lives in **Preferences → Shortcuts**.
 
 Builds for every platform are attached to each entry on the
 [Releases page](https://github.com/senseyman/mergelio/releases), and the latest
-ones are linked from [mergelio.com](https://mergelio.com/). There is no
-updater — Mergelio never phones home, so a new version arrives only when you
-download it.
+ones are linked from [mergelio.com](https://mergelio.com/). Once installed, the
+app can tell you about new releases if you let it — see
+[Staying up to date](#staying-up-to-date).
 
 | Platform | File | Install |
 | --- | --- | --- |
@@ -499,7 +511,9 @@ On Windows, repositories inside a WSL2 distribution are supported.
 ### Verifying a download
 
 Every release ships a `SHA256SUMS.txt` and a detached OpenPGP signature for it,
-`SHA256SUMS.txt.asc`. One signature covers every file in the release.
+`SHA256SUMS.txt.asc`. That one signature covers every download in the
+release. The update manifest the app reads, `appcast.json`, is added later
+with its own Ed25519 signature, which the app checks before trusting it.
 
 ```bash
 # once — fetch the signing key
@@ -696,16 +710,19 @@ make help
 | `run` | Debug build on the host platform |
 | `build` | Release build for the host platform |
 | `build-macos` / `build-windows` / `build-linux` | Per-platform release build |
+| `build-macos-debug` | Debug build for macOS |
 | `installer` / `installer-linux` / `installer-fedora` / `installer-windows` | Installer build (.deb, .rpm, setup.exe) |
 | `check` | CI gate: `lint` + `test` |
 | `ci` | Full pipeline: `deps` → `gen` → `check` |
+| `all` | `ci`, then a release build for the host platform |
+| `help` | List every target |
 | `clean` / `distclean` | Remove build artifacts / also generated code |
 
 
 ## Testing
 
 ```bash
-make test        # 1229 unit and widget tests
+make test        # 4959 unit and widget tests
 make coverage    # → coverage/lcov.info
 make check       # what CI runs: format check + analyze + test
 ```
@@ -715,6 +732,13 @@ the implementation, then `make check`. Pure logic is tested directly; UI
 behaviour is covered with `flutter_test` widget tests against a
 `ProviderContainer`. Accessibility contrast is asserted by a test rather than
 reviewed by eye.
+
+## Localization
+
+The interface ships in **English** and **Ukrainian**. It follows the system
+language by default; choose one in **Preferences → General → Language**.
+Strings live in `lib/l10n/app_en.arb` and `app_uk.arb`; adding a key or a whole
+new language is described in [CONTRIBUTING.md](CONTRIBUTING.md#localization).
 
 ## Privacy
 
