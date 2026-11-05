@@ -3909,6 +3909,15 @@ class AppLocalizationsEn extends AppLocalizations {
       'The request has new commits since this review opened. Open it again to see them.';
 
   @override
+  String rvPrRetargeted(String now, String was) {
+    return 'The request now targets $now; this review reads it against $was. Open it again to compare with $now.';
+  }
+
+  @override
+  String get rvPrNoForge =>
+      'Mergelio could not read this request: origin is no longer on a forge it recognises.';
+
+  @override
   String get rvPrStateOpen => 'Open';
 
   @override
@@ -5879,6 +5888,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get actRequestNotOnOrigin =>
       'origin does not have it. It may have been deleted, or origin is not the repository it was opened on.';
+
+  @override
+  String get actPrMovedWhileOpening =>
+      'The request changed while it was being opened. Try again.';
 
   @override
   String get actPrTargetUnusable =>

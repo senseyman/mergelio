@@ -138,6 +138,17 @@ void main() {
   });
 
   group('GitLab', () {
+    test('a merge request with no description reads as empty', () async {
+      final forge = gitlab(
+        MockClient(
+          (_) async =>
+              http.Response(_gitlabMr.replaceFirst('"Closes #3"', 'null'), 200),
+        ),
+      );
+
+      expect((await forge.pullRequest(7)).body, '');
+    });
+
     test('reads one merge request by iid with its description', () async {
       late Uri called;
       final forge = gitlab(

@@ -1860,9 +1860,15 @@ class RepoActions {
   /// of [targetBranch] on origin, which is what the request is read against —
   /// and returns both commits, or null when that failed and was reported.
   ///
-  /// Writes no ref and touches no working tree: both shas are read first and
-  /// only objects are fetched, the same way checking a request out does, and
-  /// a fetch is skipped altogether when both commits are already here.
+  /// Writes no ref under `refs/` and touches no working tree: both shas are
+  /// read first and only objects are fetched, the same way checking a request
+  /// out does, and a fetch is skipped altogether when both commits are
+  /// already here. Git's own `FETCH_HEAD` is still rewritten by a fetch.
+  ///
+  /// A ref fetched by name brings whatever it points at by then, so a request
+  /// pushed to between the read and the fetch can leave the commit read first
+  /// missing. That is checked and reported rather than handed to a review
+  /// that could not open it.
   ///
   /// [targetBranch] is the forge's word, so it is validated before it
   /// reaches git as a refspec.
@@ -1907,6 +1913,9 @@ class RepoActions {
         }
         if (!await present(base!)) {
           await _writer.fetchRefObjects('origin', baseRef, cancel: cancel);
+        }
+        if (!await present(head!) || !await present(base!)) {
+          throw GitException(_l.actPrMovedWhileOpening);
         }
       },
       writesWorkingTree: false,

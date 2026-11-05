@@ -268,14 +268,17 @@ Future<PullRequest?> lookUpReviewPullRequest(
   query.base,
 );
 
-/// Which request of which repository a review's header reads.
-typedef PullRequestKey = ({String repoPath, int number});
+/// Which request of which repository a review's header reads, and the head
+/// fetched for that review. The head is part of the key so reviewing the
+/// request again — which fetches it again — always reads it again too,
+/// rather than depending on the panel happening to be rebuilt in between.
+typedef PullRequestKey = ({String repoPath, int number, String head});
 
 /// The request a review was opened from, with its description. Null when the
 /// repository is not on a forge; forge failures reach the reader.
 ///
-/// AutoDispose, and never invalidated: it is read once when a review opens,
-/// and closing the review is what lets it go.
+/// AutoDispose, and never invalidated: it is read once per opened review, and
+/// closing the review is what lets it go.
 final pullRequestDetailProvider = FutureProvider.family
     .autoDispose<PullRequestDetail?, PullRequestKey>((ref, key) async {
       final forge = await ref.watch(forgeProvider(key.repoPath).future);
@@ -296,7 +299,8 @@ final pullRequestChecksProvider = FutureProvider.family
       return forge.checksForRef(key.sha);
     });
 
-/// Which of a request review's sections are open. Both start open.
+/// Which of a request review's sections are open. Both start open the first
+/// time a given fetch of a request is reviewed.
 typedef ReviewPullRequestSections = ({bool checks, bool description});
 
 /// Which request review a set of open sections belongs to: one fetch of one
@@ -307,7 +311,9 @@ typedef ReviewPullRequestSectionsKey = ({
   String head,
 });
 
-/// Open sections per request review, kept for the session. Held here rather
+/// Open sections per request review, kept for the session the way viewed
+/// marks are: closing the review and opening the same fetch again finds the
+/// sections as they were left. Held here rather
 /// than in the panel because switching the diff mode replaces the whole
 /// review body while it reloads, and the panel with it.
 final reviewPullRequestSectionsProvider =

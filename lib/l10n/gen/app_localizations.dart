@@ -6554,6 +6554,18 @@ abstract class AppLocalizations {
   /// **'The request has new commits since this review opened. Open it again to see them.'**
   String get rvPrHeadMoved;
 
+  /// No description provided for @rvPrRetargeted.
+  ///
+  /// In en, this message translates to:
+  /// **'The request now targets {now}; this review reads it against {was}. Open it again to compare with {now}.'**
+  String rvPrRetargeted(String now, String was);
+
+  /// No description provided for @rvPrNoForge.
+  ///
+  /// In en, this message translates to:
+  /// **'Mergelio could not read this request: origin is no longer on a forge it recognises.'**
+  String get rvPrNoForge;
+
   /// No description provided for @rvPrStateOpen.
   ///
   /// In en, this message translates to:
@@ -9565,6 +9577,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'origin does not have it. It may have been deleted, or origin is not the repository it was opened on.'**
   String get actRequestNotOnOrigin;
+
+  /// No description provided for @actPrMovedWhileOpening.
+  ///
+  /// In en, this message translates to:
+  /// **'The request changed while it was being opened. Try again.'**
+  String get actPrMovedWhileOpening;
 
   /// No description provided for @actPrTargetUnusable.
   ///

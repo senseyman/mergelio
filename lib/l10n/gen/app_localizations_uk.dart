@@ -3962,6 +3962,15 @@ class AppLocalizationsUk extends AppLocalizations {
       'Відтоді, як цей перегляд відкрито, у запиті з\'явилися нові коміти. Відкрийте його знову, щоб їх побачити.';
 
   @override
+  String rvPrRetargeted(String now, String was) {
+    return 'Тепер запит спрямовано в $now; цей перегляд порівнює його з $was. Відкрийте його знову, щоб порівняти з $now.';
+  }
+
+  @override
+  String get rvPrNoForge =>
+      'Mergelio не вдалося прочитати цей запит: origin більше не на платформі, яку він розпізнає.';
+
+  @override
   String get rvPrStateOpen => 'Відкритий';
 
   @override
@@ -5984,6 +5993,10 @@ class AppLocalizationsUk extends AppLocalizations {
   @override
   String get actRequestNotOnOrigin =>
       'В origin його немає. Можливо, його видалено, або origin — не той репозиторій, у якому його відкрито.';
+
+  @override
+  String get actPrMovedWhileOpening =>
+      'Запит змінився, поки його відкривали. Спробуйте ще раз.';
 
   @override
   String get actPrTargetUnusable =>

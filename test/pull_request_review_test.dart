@@ -7,6 +7,7 @@ import 'package:mergelio/domain/forge/forge_error.dart';
 import 'package:mergelio/domain/forge/forge_host.dart';
 import 'package:mergelio/domain/forge/models.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
+import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/state/feedback.dart';
 import 'package:mergelio/state/forge.dart';
 import 'package:mergelio/state/repo_actions.dart';
@@ -33,6 +34,46 @@ const _pr = PullRequest(
   targetBranch: 'main',
   headSha: 'h',
 );
+
+/// [HermeticGit] that records every command, and can run [beforeFetch] once,
+/// just before the first `git fetch` — which is where a remote moving under
+/// the caller would land.
+class _ObservedGit implements GitService {
+  final calls = <List<String>>[];
+  Future<void> Function()? beforeFetch;
+
+  @override
+  Future<GitResult> run(
+    List<String> args, {
+    String? repoPath,
+    Duration? timeout,
+    Map<String, String>? environment,
+    GitCancel? cancel,
+    String? stdin,
+  }) async {
+    calls.add(args);
+    if (args.isNotEmpty && args.first == 'fetch') {
+      final hook = beforeFetch;
+      beforeFetch = null;
+      await hook?.call();
+    }
+    return const HermeticGit().run(
+      args,
+      repoPath: repoPath,
+      timeout: timeout,
+      environment: environment,
+      cancel: cancel,
+      stdin: stdin,
+    );
+  }
+
+  @override
+  Future<String> version() => const HermeticGit().version();
+
+  @override
+  Future<bool> isRepository(String path) =>
+      const HermeticGit().isRepository(path);
+}
 
 void main() {
   group('ReviewTarget for a pull request', () {
@@ -124,7 +165,8 @@ void main() {
       final c = container(forge);
 
       final d = await c.read(
-        pullRequestDetailProvider((repoPath: '/r', number: 7)).future,
+        pullRequestDetailProvider((repoPath: '/r', number: 7, head: 'h'))
+            .future,
       );
 
       expect(d?.body, 'hi');
@@ -136,13 +178,16 @@ void main() {
         FakeForge(host: _github, pullRequestError: const ForgeOffline('x')),
       );
       final sub = c.listen(
-        pullRequestDetailProvider((repoPath: '/r', number: 7)),
+        pullRequestDetailProvider((repoPath: '/r', number: 7, head: 'h')),
         (_, _) {},
       );
       addTearDown(sub.close);
 
       await expectLater(
-        c.read(pullRequestDetailProvider((repoPath: '/r', number: 7)).future),
+        c.read(
+          pullRequestDetailProvider((repoPath: '/r', number: 7, head: 'h'))
+              .future,
+        ),
         throwsA(isA<ForgeOffline>()),
       );
     });
@@ -173,7 +218,8 @@ void main() {
 
       expect(
         await c.read(
-          pullRequestDetailProvider((repoPath: '/r', number: 7)).future,
+          pullRequestDetailProvider((repoPath: '/r', number: 7, head: 'h'))
+              .future,
         ),
         isNull,
       );
@@ -193,6 +239,7 @@ void main() {
     late String other;
     late String base;
     late ProviderContainer c;
+    late _ObservedGit git;
 
     Future<String> g(List<String> args, {String? at}) async {
       final r = await const HermeticGit().run(args, repoPath: at ?? repo);
@@ -238,9 +285,10 @@ void main() {
       await g(['clone', '-q', remote, other], at: dir.path);
       await g(['config', 'user.email', 'o@b.c'], at: other);
       await g(['config', 'user.name', 'O'], at: other);
+      git = _ObservedGit();
       c = ProviderContainer(
         overrides: [
-          gitServiceProvider.overrideWithValue(const HermeticGit()),
+          gitServiceProvider.overrideWithValue(git),
           settingsProvider.overrideWith(
             (ref) => SettingsController(
               InMemorySettingsRepository(),
@@ -307,6 +355,44 @@ void main() {
 
         expect(r, isNotNull);
         expect(await refs(), before);
+      },
+    );
+
+    test('fetches nothing when both commits are already here', () async {
+      final head = await publish('refs/pull/7/head', base, 'pr 7');
+      // Already downloaded once, the way an earlier review would have.
+      await g(['fetch', '-q', '--refmap=', 'origin', 'refs/pull/7/head']);
+      expect(await has(head), isTrue);
+
+      final r = await actions().fetchPullRequestForReview(
+        ForgeKind.github,
+        7,
+        'main',
+      );
+
+      expect(r, (base: base, head: head));
+      expect(git.calls.where((a) => a.first == 'fetch'), isEmpty);
+    });
+
+    test(
+      'a request pushed to while opening is reported, not half-opened',
+      () async {
+        // ls-remote names one head; by the time it is fetched the request
+        // points at another, so the commit read first never arrives.
+        await publish('refs/pull/7/head', base, 'pr 7 v1');
+        git.beforeFetch = () => publish('refs/pull/7/head', base, 'pr 7 v2');
+
+        final r = await actions().fetchPullRequestForReview(
+          ForgeKind.github,
+          7,
+          'main',
+        );
+
+        expect(r, isNull);
+        expect(
+          errorText(),
+          contains('The request changed while it was being opened.'),
+        );
       },
     );
 

@@ -347,6 +347,15 @@ change never needs a second window.*
   forward. If the request was force-pushed and your copy has commits it no
   longer has, it asks before replacing the branch, and Undo puts it back.
   No commit is ever made.
+- Right-click a pull/merge request row → **Review in Mergelio** opens the
+  request in the branch review, without checking anything out: its head and
+  its target branch's tip are fetched from origin as objects only — no local
+  branch or remote-tracking ref moves — and read the way the forge shows
+  them, since the branch point. Above the commits and files it shows the
+  request's state, title and branches, the CI jobs the forge reports for the
+  commit on screen, and the description rendered as Markdown, with a note
+  when the request has been pushed to or retargeted since you opened it.
+  Read-only, like everything else here.
 - Preferences → Credentials lists your **forge accounts**, as many as you
   need: **Add account…** asks for GitHub or GitLab, then either the public
   service or a self-hosted server's address (`https://` only — over plain

@@ -80,6 +80,7 @@ class _Seen {
   final details = <PullRequestKey>[];
   final checks = <ReviewChecksKey>[];
   final launched = <Uri>[];
+  late ProviderContainer container;
 }
 
 Future<_Seen> _pump(
@@ -89,6 +90,7 @@ Future<_Seen> _pump(
   Future<ChecksSummary?> Function()? checks,
   double width = 1200,
   bool settle = true,
+  bool onForge = true,
 }) async {
   tester.view.physicalSize = Size(width, 900);
   tester.view.devicePixelRatio = 1;
@@ -99,7 +101,7 @@ Future<_Seen> _pump(
       reviewSummaryProvider.overrideWith((ref, t) async => _summary),
       reviewFileDiffProvider.overrideWith((ref, k) async => null),
       reviewPrQueryProvider.overrideWith((ref, t) async => null),
-      forgeHostProvider.overrideWith((ref, p) async => _host),
+      forgeHostProvider.overrideWith((ref, p) async => onForge ? _host : null),
       forgeProvider.overrideWith((ref, p) async => null),
       pullRequestDetailProvider.overrideWith((ref, k) async {
         seen.details.add(k);
@@ -143,6 +145,7 @@ Future<_Seen> _pump(
     ),
   );
   if (settle) await tester.pumpAndSettle();
+  seen.container = container;
   return seen;
 }
 
@@ -166,7 +169,7 @@ void main() {
     expect(find.text('Why'), findsOneWidget);
     expect(find.textContaining('## Why'), findsNothing);
     expect(find.text('Because it helps.'), findsOneWidget);
-    expect(seen.details, [(repoPath: '/repo', number: 7)]);
+    expect(seen.details, [(repoPath: '/repo', number: 7, head: _head)]);
     // The diff below is still there.
     expect(find.text('Add the widget'), findsOneWidget);
   });
@@ -253,6 +256,116 @@ void main() {
       ),
       findsOneWidget,
     );
+  });
+
+  testWidgets('the moved note stays away while the request is where shown', (
+    tester,
+  ) async {
+    await _pump(tester);
+    expect(find.textContaining('has new commits'), findsNothing);
+  });
+
+  testWidgets('opening the request again reads it again', (tester) async {
+    var round = 0;
+    final seen = await _pump(
+      tester,
+      detail: () async {
+        round++;
+        final d = _detail();
+        return d.copyWith(
+          request: d.request.copyWith(
+            title: 'Round $round',
+            headSha: round == 1 ? _head : 'f' * 40,
+          ),
+        );
+      },
+    );
+    expect(find.text('Round 1'), findsOneWidget);
+
+    // Reviewing it again from the sidebar fetched the new head.
+    seen.container.read(reviewTargetProvider.notifier).state = ReviewTarget(
+      repoPath: '/repo',
+      base: _base,
+      head: 'f' * 40,
+      pullRequest: _pr,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Round 2'), findsOneWidget);
+    expect(find.textContaining('has new commits'), findsNothing);
+  });
+
+  testWidgets('says when the request now targets another branch', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      detail: () async {
+        final d = _detail();
+        return d.copyWith(
+          request: d.request.copyWith(targetBranch: 'release/2.x'),
+        );
+      },
+    );
+    expect(
+      find.text(
+        'The request now targets release/2.x; this review reads it against main. Open it again to compare with release/2.x.',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('a repository no longer on a forge claims nothing about it', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      onForge: false,
+      detail: () async => null,
+      checks: () async => null,
+    );
+
+    expect(
+      find.text(
+        'Mergelio could not read this request: origin is no longer on a forge it recognises.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('No description provided.'), findsNothing);
+    expect(find.text('No checks reported for this commit'), findsNothing);
+    // The local diff is still there.
+    expect(find.text('Add the widget'), findsOneWidget);
+  });
+
+  testWidgets('screen readers hear each job with its outcome', (tester) async {
+    final handle = tester.ensureSemantics();
+    await _pump(tester);
+
+    expect(find.bySemanticsLabel('lint, Failed'), findsOneWidget);
+    expect(find.bySemanticsLabel('build, Passed'), findsOneWidget);
+    handle.dispose();
+  });
+
+  testWidgets('section toggles are announced as buttons with their state', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    await _pump(tester);
+
+    final node = tester.getSemantics(find.bySemanticsLabel('DESCRIPTION'));
+    expect(
+      node,
+      matchesSemantics(
+        label: 'DESCRIPTION',
+        isButton: true,
+        hasToggledState: true,
+        isToggled: true,
+        hasTapAction: true,
+        isFocusable: true,
+        hasFocusAction: true,
+      ),
+    );
+    handle.dispose();
   });
 
   testWidgets('opens the request in the browser by its number', (tester) async {
