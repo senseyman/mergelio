@@ -1,3 +1,4 @@
+import 'forge_error.dart';
 import 'forge_host.dart';
 import 'models.dart';
 
@@ -24,6 +25,12 @@ abstract class Forge {
     String branch, {
     int limit = 50,
   });
+
+  /// Request [number] with its description, whatever its state. Throws
+  /// [ArgumentError] for a number no forge hands out, and [ForgeError] when
+  /// the request cannot be read — including when it is not visible, since
+  /// without it there is nothing left to show.
+  Future<PullRequestDetail> pullRequest(int number);
 
   /// CI status for [ref], which may be a sha or a branch name. A repository
   /// with no CI configured reports [ChecksOverall.none] rather than throwing.

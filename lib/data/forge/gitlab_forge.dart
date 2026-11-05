@@ -149,6 +149,33 @@ class GitlabForge implements Forge {
   }
 
   @override
+  Future<PullRequestDetail> pullRequest(int number) {
+    // Checked before anything goes out, and thrown rather than returned as a
+    // failed future, so a bad number is a caller's bug and never a request.
+    if (number < 1) {
+      throw ArgumentError.value(number, 'number', 'must be positive');
+    }
+    return _readMergeRequest(number);
+  }
+
+  Future<PullRequestDetail> _readMergeRequest(int number) async {
+    // Addressed by iid, the number a person sees; the global id would name a
+    // different merge request.
+    final url = Uri.parse(
+      '${host.server.apiBase}/projects'
+      '/${Uri.encodeComponent(host.projectPath)}/merge_requests/$number',
+    );
+    final body = await fetchWithCache(_http, _cache, url);
+    final detail = parseMergeRequestDetail(_decode(body));
+    // The number decides which ref is fetched and which page a link opens,
+    // so an answer about another request cannot stand in for this one.
+    if (detail == null || detail.request.number != number) {
+      throw const ForgeMalformed('response did not describe the request');
+    }
+    return detail;
+  }
+
+  @override
   Future<ChecksSummary> checksForRef(String ref) async {
     _rejectUnusableRef(ref);
     // A branch name carries slashes that belong to the ref, not to the url,

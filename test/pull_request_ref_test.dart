@@ -43,4 +43,45 @@ void main() {
       );
     });
   });
+
+  group('pullRequestBaseRef', () {
+    test('names the target branch under refs/heads', () {
+      expect(pullRequestBaseRef('main'), 'refs/heads/main');
+      expect(pullRequestBaseRef('release/1.x'), 'refs/heads/release/1.x');
+    });
+
+    test('refuses a name that would change what git is asked to do', () {
+      // The name arrives from the forge and is handed to git fetch as a
+      // refspec: a colon would add a destination and write a local ref, a
+      // leading plus would force it, and the rest are names git itself
+      // refuses, so nothing that works is lost.
+      for (final bad in [
+        '',
+        'a:b',
+        'refs/x:refs/heads/main',
+        '+main',
+        '-main',
+        'a..b',
+        'a b',
+        'a~1',
+        'a^',
+        'a?',
+        'a*',
+        'a[1]',
+        r'a\b',
+        '/a',
+        'a/',
+        'a//b',
+        'a.',
+        '.a',
+        'a/.b',
+        'a.lock',
+        'a@{1}',
+        'a\x00b',
+        'a\nb',
+      ]) {
+        expect(() => pullRequestBaseRef(bad), throwsArgumentError, reason: bad);
+      }
+    });
+  });
 }

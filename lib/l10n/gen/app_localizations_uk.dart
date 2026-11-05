@@ -1999,6 +1999,9 @@ class AppLocalizationsUk extends AppLocalizations {
   String get forgeOpenInBrowser => 'Відкрити у браузері';
 
   @override
+  String get forgeReviewInApp => 'Переглянути в Mergelio';
+
+  @override
   String forgeCheckoutLocally(String branch) {
     return 'Переключитися локально на $branch';
   }
@@ -3936,6 +3939,69 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get rvOpenInDiff => 'Відкрити в переглядачі змін';
+
+  @override
+  String get rvPrDescription => 'ОПИС';
+
+  @override
+  String get rvPrNoDescription => 'Опис не додано.';
+
+  @override
+  String get rvPrChecksTitle => 'ПЕРЕВІРКИ';
+
+  @override
+  String rvPrChecks(int count) {
+    return 'ПЕРЕВІРКИ ($count)';
+  }
+
+  @override
+  String get rvPrNoChecks => 'Для цього коміту перевірок немає';
+
+  @override
+  String get rvPrHeadMoved =>
+      'Відтоді, як цей перегляд відкрито, у запиті з\'явилися нові коміти. Відкрийте його знову, щоб їх побачити.';
+
+  @override
+  String rvPrRetargeted(String now, String was) {
+    return 'Тепер запит спрямовано в $now; цей перегляд порівнює його з $was. Відкрийте його знову, щоб порівняти з $now.';
+  }
+
+  @override
+  String get rvPrNoForge =>
+      'Mergelio не вдалося прочитати цей запит: origin більше не на платформі, яку він розпізнає.';
+
+  @override
+  String get rvPrStateOpen => 'Відкритий';
+
+  @override
+  String get rvPrStateDraft => 'Чернетка';
+
+  @override
+  String get rvPrStateMerged => 'Злитий';
+
+  @override
+  String get rvPrStateClosed => 'Закритий';
+
+  @override
+  String get rvCheckQueued => 'У черзі';
+
+  @override
+  String get rvCheckRunning => 'Виконується';
+
+  @override
+  String get rvCheckSuccess => 'Успішно';
+
+  @override
+  String get rvCheckFailure => 'Невдало';
+
+  @override
+  String get rvCheckCancelled => 'Скасовано';
+
+  @override
+  String get rvCheckSkipped => 'Пропущено';
+
+  @override
+  String get rvCheckUnknown => 'Невідомий стан';
 
   @override
   String get rvFileHistoryAtHead => 'Історія файлу в гілці змін';
@@ -5927,6 +5993,19 @@ class AppLocalizationsUk extends AppLocalizations {
   @override
   String get actRequestNotOnOrigin =>
       'В origin його немає. Можливо, його видалено, або origin — не той репозиторій, у якому його відкрито.';
+
+  @override
+  String get actPrMovedWhileOpening =>
+      'Запит змінився, поки його відкривали. Спробуйте ще раз.';
+
+  @override
+  String get actPrTargetUnusable =>
+      'Запит спрямовано в гілку з назвою, яку git не може отримати.';
+
+  @override
+  String actPrTargetNotOnOrigin(String branch) {
+    return 'В origin немає гілки $branch, у яку спрямовано запит.';
+  }
 
   @override
   String actPrUpToDate(String branch) {

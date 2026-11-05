@@ -12,6 +12,39 @@ import 'compare_target.dart';
 import 'forge.dart';
 import 'repo_data.dart';
 
+/// The request a review was opened from. The review's sides are then the
+/// commits fetched for it, and this is what names them and what the request's
+/// description and CI are read by.
+class ReviewPullRequest {
+  final ForgeKind kind;
+  final int number;
+
+  /// The branch the request asks to merge into, as the forge named it.
+  final String targetBranch;
+
+  const ReviewPullRequest({
+    required this.kind,
+    required this.number,
+    required this.targetBranch,
+  });
+
+  /// `#7` on GitHub, `!7` on GitLab — what each forge calls it in text.
+  String get label => switch (kind) {
+    ForgeKind.github => '#$number',
+    ForgeKind.gitlab => '!$number',
+  };
+
+  @override
+  bool operator ==(Object other) =>
+      other is ReviewPullRequest &&
+      other.kind == kind &&
+      other.number == number &&
+      other.targetBranch == targetBranch;
+
+  @override
+  int get hashCode => Object.hash(kind, number, targetBranch);
+}
+
 /// A branch review: what [head] brings relative to [base]. [threeDot] reads
 /// head against the point it branched from base — what a pull request shows —
 /// rather than against base's tip.
@@ -20,19 +53,27 @@ class ReviewTarget {
   final String base;
   final String head;
   final bool threeDot;
+
+  /// Set when the review shows a pull request rather than two local refs.
+  final ReviewPullRequest? pullRequest;
+
   const ReviewTarget({
     required this.repoPath,
     required this.base,
     required this.head,
     this.threeDot = true,
+    this.pullRequest,
   });
 
-  String get baseLabel => compareRefLabel(base);
-  String get headLabel => compareRefLabel(head);
+  String get baseLabel => pullRequest?.targetBranch ?? compareRefLabel(base);
+  String get headLabel => pullRequest?.label ?? compareRefLabel(head);
 
   /// The git range this review reads, as the user would type it.
   String get range => reviewRange(baseLabel, headLabel, threeDot: threeDot);
 
+  /// Base and head exchanged. A request does not come along: base read
+  /// against the request is not what the request proposes, so its
+  /// description and CI would describe something no longer on screen.
   ReviewTarget get swapped => ReviewTarget(
     repoPath: repoPath,
     base: head,
@@ -45,6 +86,7 @@ class ReviewTarget {
     base: base,
     head: head,
     threeDot: threeDot,
+    pullRequest: pullRequest,
   );
 
   @override
@@ -53,10 +95,11 @@ class ReviewTarget {
       other.repoPath == repoPath &&
       other.base == base &&
       other.head == head &&
-      other.threeDot == threeDot;
+      other.threeDot == threeDot &&
+      other.pullRequest == pullRequest;
 
   @override
-  int get hashCode => Object.hash(repoPath, base, head, threeDot);
+  int get hashCode => Object.hash(repoPath, base, head, threeDot, pullRequest);
 }
 
 /// The open review, or null when the centre column shows the graph.
@@ -224,3 +267,57 @@ Future<PullRequest?> lookUpReviewPullRequest(
   await forge.pullRequestsForBranch(query.head, limit: kPullRequestLimit),
   query.base,
 );
+
+/// Which request of which repository a review's header reads, and the head
+/// fetched for that review. The head is part of the key so reviewing the
+/// request again — which fetches it again — always reads it again too,
+/// rather than depending on the panel happening to be rebuilt in between.
+typedef PullRequestKey = ({String repoPath, int number, String head});
+
+/// The request a review was opened from, with its description. Null when the
+/// repository is not on a forge; forge failures reach the reader.
+///
+/// AutoDispose, and never invalidated: it is read once per opened review, and
+/// closing the review is what lets it go.
+final pullRequestDetailProvider = FutureProvider.family
+    .autoDispose<PullRequestDetail?, PullRequestKey>((ref, key) async {
+      final forge = await ref.watch(forgeProvider(key.repoPath).future);
+      if (forge == null) return null;
+      return forge.pullRequest(key.number);
+    });
+
+/// Which commit of which repository a review's CI list reads.
+typedef ReviewChecksKey = ({String repoPath, String sha});
+
+/// CI for the commit a request review shows. Keyed by that commit rather than
+/// by the request, so a request pushed to since the review opened still lists
+/// the jobs that ran on what is on screen.
+final pullRequestChecksProvider = FutureProvider.family
+    .autoDispose<ChecksSummary?, ReviewChecksKey>((ref, key) async {
+      final forge = await ref.watch(forgeProvider(key.repoPath).future);
+      if (forge == null) return null;
+      return forge.checksForRef(key.sha);
+    });
+
+/// Which of a request review's sections are open. Both start open the first
+/// time a given fetch of a request is reviewed.
+typedef ReviewPullRequestSections = ({bool checks, bool description});
+
+/// Which request review a set of open sections belongs to: one fetch of one
+/// request, so a refetch starts open again and a diff mode switch does not.
+typedef ReviewPullRequestSectionsKey = ({
+  String repoPath,
+  int number,
+  String head,
+});
+
+/// Open sections per request review, kept for the session the way viewed
+/// marks are: closing the review and opening the same fetch again finds the
+/// sections as they were left. Held here rather
+/// than in the panel because switching the diff mode replaces the whole
+/// review body while it reloads, and the panel with it.
+final reviewPullRequestSectionsProvider =
+    StateProvider.family<
+      ReviewPullRequestSections,
+      ReviewPullRequestSectionsKey
+    >((ref, _) => (checks: true, description: true));

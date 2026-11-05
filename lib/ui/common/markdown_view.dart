@@ -34,51 +34,59 @@ class MarkdownView extends ConsumerWidget {
   /// inert.
   final ValueChanged<String>? onOpenFile;
 
+  /// False when the view sits inside a scroll view of its own, such as a
+  /// list of other sections, and must take only the height it needs.
+  final bool scrollable;
+
+  final EdgeInsetsGeometry padding;
+
   const MarkdownView({
     super.key,
     required this.text,
     required this.path,
     this.imageRoot,
     this.onOpenFile,
+    this.scrollable = true,
+    this.padding = const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = context.tokens;
     final theme = Theme.of(context);
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      child: Align(
-        alignment: Alignment.topLeft,
-        child: ConstrainedBox(
-          // Line length stays readable on wide windows.
-          constraints: const BoxConstraints(maxWidth: 860),
-          child: MarkdownBody(
-            data: text,
-            selectable: true,
-            styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
-              code: AppFonts.mns(size: 12, color: t.textPrimary),
-              codeblockDecoration: BoxDecoration(
-                color: t.bgElevated,
-                border: Border.all(color: t.border),
-                borderRadius: BorderRadius.circular(6),
-              ),
+    final body = Align(
+      alignment: Alignment.topLeft,
+      child: ConstrainedBox(
+        // Line length stays readable on wide windows.
+        constraints: const BoxConstraints(maxWidth: 860),
+        child: MarkdownBody(
+          data: text,
+          selectable: true,
+          styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
+            code: AppFonts.mns(size: 12, color: t.textPrimary),
+            codeblockDecoration: BoxDecoration(
+              color: t.bgElevated,
+              border: Border.all(color: t.border),
+              borderRadius: BorderRadius.circular(6),
             ),
-            onTapLink: (_, href, _) {
-              switch (resolveMarkdownHref(href, from: path)) {
-                case WebTarget(:final uri):
-                  _launch(context, ref, uri);
-                case RepoFileTarget(path: final target):
-                  onOpenFile?.call(target);
-                case null:
-                  break;
-              }
-            },
-            imageBuilder: (uri, _, alt) => _image(context, uri, alt),
           ),
+          onTapLink: (_, href, _) {
+            switch (resolveMarkdownHref(href, from: path)) {
+              case WebTarget(:final uri):
+                _launch(context, ref, uri);
+              case RepoFileTarget(path: final target):
+                onOpenFile?.call(target);
+              case null:
+                break;
+            }
+          },
+          imageBuilder: (uri, _, alt) => _image(context, uri, alt),
         ),
       ),
     );
+    return scrollable
+        ? SingleChildScrollView(padding: padding, child: body)
+        : Padding(padding: padding, child: body);
   }
 
   Future<void> _launch(BuildContext context, WidgetRef ref, Uri uri) async {

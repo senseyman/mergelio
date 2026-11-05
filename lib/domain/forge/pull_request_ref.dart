@@ -1,7 +1,10 @@
 // Where a forge publishes a pull request's head as a git ref, and the local
-// branch Mergelio checks it out onto. Pure string work: the number is the only
-// input, so nothing a forge sent can shape a ref name.
+// branch Mergelio checks it out onto. Pure string work: head refs and local
+// branches are built from the number alone, so nothing a forge sent can shape
+// them. The one name a forge does supply, the target branch, is validated
+// before it becomes a ref.
 
+import '../git/ref_names.dart';
 import 'forge_host.dart';
 
 /// The ref origin carries for pull request (merge request) [number]'s head.
@@ -24,6 +27,21 @@ String pullRequestLocalBranch(ForgeKind kind, int number) {
     ForgeKind.github => 'pr/$number',
     ForgeKind.gitlab => 'mr/$number',
   };
+}
+
+/// The ref origin carries for the branch a request targets, which is what
+/// its diff is read against.
+///
+/// Unlike the head ref, the name here is whatever the forge sent, and it is
+/// handed to `git fetch` as a refspec. A colon would add a destination and
+/// write a local ref, a leading `+` would force one, and git refuses every
+/// other name rejected here anyway, so nothing that could work is lost.
+String pullRequestBaseRef(String targetBranch) {
+  if (targetBranch.startsWith('+') || !isValidBranchName(targetBranch)) {
+    // The name is left out of the message: it came from the forge.
+    throw ArgumentError('not a usable branch name');
+  }
+  return 'refs/heads/$targetBranch';
 }
 
 void _checkNumber(int number) {

@@ -1856,6 +1856,77 @@ class RepoActions {
     return done;
   }
 
+  /// Brings in what reviewing request [number] needs — its head, and the tip
+  /// of [targetBranch] on origin, which is what the request is read against —
+  /// and returns both commits, or null when that failed and was reported.
+  ///
+  /// Writes no ref under `refs/` and touches no working tree: both shas are
+  /// read first and only objects are fetched, the same way checking a request
+  /// out does, and a fetch is skipped altogether when both commits are
+  /// already here. Git's own `FETCH_HEAD` is still rewritten by a fetch.
+  ///
+  /// A ref fetched by name brings whatever it points at by then, so a request
+  /// pushed to between the read and the fetch can leave the commit read first
+  /// missing. That is checked and reported rather than handed to a review
+  /// that could not open it.
+  ///
+  /// [targetBranch] is the forge's word, so it is validated before it
+  /// reaches git as a refspec.
+  Future<({String base, String head})?> fetchPullRequestForReview(
+    ForgeKind kind,
+    int number,
+    String targetBranch,
+  ) async {
+    final String baseRef;
+    try {
+      baseRef = pullRequestBaseRef(targetBranch);
+    } on ArgumentError {
+      _ref
+          .read(toastProvider.notifier)
+          .show(_l.actPrTargetUnusable, kind: ToastKind.error);
+      return null;
+    }
+    final headRef = pullRequestHeadRef(kind, number);
+    final label = kind == ForgeKind.gitlab
+        ? _l.actFetchMr(number)
+        : _l.actFetchPr(number);
+
+    Future<bool> present(String sha) async => (await _git.run([
+      'cat-file',
+      '-e',
+      '$sha^{commit}',
+    ], repoPath: path)).ok;
+
+    String? head, base;
+    var fetched = false;
+    await _network(
+      label,
+      (cancel) async {
+        head = await _writer.remoteRefSha('origin', headRef, cancel: cancel);
+        if (head == null) throw GitException(_l.actRequestNotOnOrigin);
+        base = await _writer.remoteRefSha('origin', baseRef, cancel: cancel);
+        if (base == null) {
+          throw GitException(_l.actPrTargetNotOnOrigin(targetBranch));
+        }
+        if (!await present(head!)) {
+          await _writer.fetchRefObjects('origin', headRef, cancel: cancel);
+        }
+        if (!await present(base!)) {
+          await _writer.fetchRefObjects('origin', baseRef, cancel: cancel);
+        }
+        if (!await present(head!) || !await present(base!)) {
+          throw GitException(_l.actPrMovedWhileOpening);
+        }
+      },
+      writesWorkingTree: false,
+      // The review opening is the outcome; a toast on top would be noise.
+      toastSuccess: false,
+      onSuccess: () => fetched = true,
+    );
+    if (!fetched) return null;
+    return (base: base!, head: head!);
+  }
+
   /// Switches to the local branch [rb.branch] and hard-resets it to the remote
   /// [rb.name], auto-stashing any uncommitted work first. One undoable action:
   /// undo restores the local branch's prior sha, returns to the prior branch,

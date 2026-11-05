@@ -159,6 +159,31 @@ class GitHubForge implements Forge {
   }
 
   @override
+  Future<PullRequestDetail> pullRequest(int number) {
+    // Checked before anything goes out, and thrown rather than returned as a
+    // failed future, so a bad number is a caller's bug and never a request.
+    if (number < 1) {
+      throw ArgumentError.value(number, 'number', 'must be positive');
+    }
+    return _readPullRequest(number);
+  }
+
+  Future<PullRequestDetail> _readPullRequest(int number) async {
+    final body = await fetchWithCache(
+      _http,
+      _cache,
+      host.server.api('/repos/${host.owner}/${host.repo}/pulls/$number'),
+    );
+    final detail = parsePullRequestDetail(_decode(body));
+    // The number decides which ref is fetched and which page a link opens,
+    // so an answer about another request cannot stand in for this one.
+    if (detail == null || detail.request.number != number) {
+      throw const ForgeMalformed('response did not describe the request');
+    }
+    return detail;
+  }
+
+  @override
   Future<ChecksSummary> checksForRef(String ref) async {
     // Either endpoint may be absent for a repository, or invisible to this
     // token. Neither case is a failure of the other, and a repository with no
