@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -86,6 +88,7 @@ Future<_Seen> _pump(
   Future<PullRequestDetail?> Function()? detail,
   Future<ChecksSummary?> Function()? checks,
   double width = 1200,
+  bool settle = true,
 }) async {
   tester.view.physicalSize = Size(width, 900);
   tester.view.devicePixelRatio = 1;
@@ -139,7 +142,7 @@ Future<_Seen> _pump(
       ),
     ),
   );
-  await tester.pumpAndSettle();
+  if (settle) await tester.pumpAndSettle();
   return seen;
 }
 
@@ -175,6 +178,32 @@ void main() {
     expect(find.text('build'), findsOneWidget);
     expect(find.text('lint'), findsOneWidget);
     expect(find.text('3 problems'), findsOneWidget);
+  });
+
+  testWidgets('no job count is claimed before CI has answered', (tester) async {
+    final never = Completer<ChecksSummary?>();
+    tester.view.physicalSize = const Size(1200, 900);
+    await _pump(tester, checks: () => never.future, settle: false);
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('CHECKS'), findsOneWidget);
+    expect(find.textContaining('CHECKS ('), findsNothing);
+  });
+
+  testWidgets('switching the diff mode keeps sections as they were', (
+    tester,
+  ) async {
+    await _pump(tester);
+    await tester.tap(find.text('DESCRIPTION'));
+    await tester.pumpAndSettle();
+    expect(find.text('Because it helps.'), findsNothing);
+
+    await tester.tap(find.text('Tip to tip'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Because it helps.'), findsNothing);
+    expect(find.textContaining('main..#7'), findsOneWidget);
   });
 
   testWidgets('a commit with no CI says so', (tester) async {

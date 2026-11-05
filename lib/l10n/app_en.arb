@@ -2444,6 +2444,7 @@
   "rvOpenInDiff": "Open in diff viewer",
   "rvPrDescription": "DESCRIPTION",
   "rvPrNoDescription": "No description provided.",
+  "rvPrChecksTitle": "CHECKS",
   "rvPrChecks": "CHECKS ({count})",
   "@rvPrChecks": {"placeholders": {"count": {"type": "int"}}},
   "rvPrNoChecks": "No checks reported for this commit",

@@ -182,6 +182,10 @@ class ForgePullRequestSection extends ConsumerWidget {
                               .any((b) => b.current && b.name == branch) ??
                           false,
                       onReview: () async {
+                        // Taken before the fetch: the row, or the whole
+                        // section, may be gone by the time it answers, and
+                        // the review was still asked for.
+                        final review = ref.read(reviewTargetProvider.notifier);
                         final shas = await fetchForReview(
                           repoPath,
                           host.kind,
@@ -190,9 +194,7 @@ class ForgePullRequestSection extends ConsumerWidget {
                         );
                         // A failure was already reported by the fetch.
                         if (shas == null) return;
-                        ref
-                            .read(reviewTargetProvider.notifier)
-                            .state = ReviewTarget(
+                        review.state = ReviewTarget(
                           repoPath: repoPath,
                           base: shas.base,
                           head: shas.head,

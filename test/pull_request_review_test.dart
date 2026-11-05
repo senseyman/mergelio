@@ -217,7 +217,9 @@ void main() {
       '$sha^{commit}',
     ], repoPath: repo)).ok;
 
-    Future<String> refs() => g(['for-each-ref', '--format=%(refname)']);
+    // Names and values: a fetch that moved origin/main would keep every name.
+    Future<String> refs() =>
+        g(['for-each-ref', '--format=%(refname) %(objectname)']);
 
     setUp(() async {
       dir = await Directory.systemTemp.createTemp('mergelio_pr_review_');
@@ -281,6 +283,32 @@ void main() {
       expect(await refs(), before);
       expect(errors(), isEmpty);
     });
+
+    test(
+      'leaves remote-tracking refs where they were, even mapped ones',
+      () async {
+        // A fetch refspec mapping request heads is a common setup; git would
+        // update such a ref, and origin/main, on any fetch naming them.
+        await g([
+          'config',
+          '--add',
+          'remote.origin.fetch',
+          '+refs/pull/*/head:refs/remotes/origin/pr/*',
+        ]);
+        await publish('refs/pull/7/head', base, 'pr 7');
+        await publish('refs/heads/main', base, 'upstream work');
+        final before = await refs();
+
+        final r = await actions().fetchPullRequestForReview(
+          ForgeKind.github,
+          7,
+          'main',
+        );
+
+        expect(r, isNotNull);
+        expect(await refs(), before);
+      },
+    );
 
     test('reads a merge request from where GitLab publishes it', () async {
       final head = await publish('refs/merge-requests/3/head', base, 'mr 3');

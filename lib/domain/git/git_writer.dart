@@ -251,11 +251,19 @@ class GitWriter {
 
   /// Downloads [ref]'s objects from [remote] without writing any ref of ours,
   /// so the caller decides what, if anything, should point at them.
+  ///
+  /// `--refmap=` matters: without it git also moves whatever remote-tracking
+  /// ref the remote's fetch refspec maps [ref] to — `origin/main` for a
+  /// branch, or `origin/pr/7` where pull request heads are mapped.
   Future<void> fetchRefObjects(
     String remote,
     String ref, {
     GitCancel? cancel,
-  }) => _net(['fetch', '--no-tags', remote, ref], 'git fetch', cancel: cancel);
+  }) => _net(
+    ['fetch', '--no-tags', '--refmap=', remote, ref],
+    'git fetch',
+    cancel: cancel,
+  );
 
   /// Moves the current branch forward to [sha], or changes nothing.
   /// `--no-autostash` so a `merge.autoStash` setting cannot shelve the

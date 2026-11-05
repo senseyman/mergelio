@@ -3894,6 +3894,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get rvPrNoDescription => 'No description provided.';
 
   @override
+  String get rvPrChecksTitle => 'CHECKS';
+
+  @override
   String rvPrChecks(int count) {
     return 'CHECKS ($count)';
   }

@@ -3947,6 +3947,9 @@ class AppLocalizationsUk extends AppLocalizations {
   String get rvPrNoDescription => 'Опис не додано.';
 
   @override
+  String get rvPrChecksTitle => 'ПЕРЕВІРКИ';
+
+  @override
   String rvPrChecks(int count) {
     return 'ПЕРЕВІРКИ ($count)';
   }

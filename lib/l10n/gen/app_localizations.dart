@@ -6530,6 +6530,12 @@ abstract class AppLocalizations {
   /// **'No description provided.'**
   String get rvPrNoDescription;
 
+  /// No description provided for @rvPrChecksTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'CHECKS'**
+  String get rvPrChecksTitle;
+
   /// No description provided for @rvPrChecks.
   ///
   /// In en, this message translates to:

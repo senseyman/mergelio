@@ -135,12 +135,7 @@ class _ReviewViewState extends ConsumerState<ReviewView> {
         ),
         if (target.pullRequest case final pr?)
           SliverToBoxAdapter(
-            child: ReviewPullRequestPanel(
-              // A different request starts with its sections open again.
-              key: ValueKey(target),
-              target: target,
-              pullRequest: pr,
-            ),
+            child: ReviewPullRequestPanel(target: target, pullRequest: pr),
           ),
         if (from == null)
           SliverToBoxAdapter(child: _NoMergeBase(target: target)),

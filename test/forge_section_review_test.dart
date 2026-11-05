@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -48,6 +50,7 @@ Future<(ProviderContainer, List<_Fetch>, List<Uri>)> _pump(
   WidgetTester tester,
   ForgeHost host, {
   ({String base, String head})? result = (base: 'B', head: 'H'),
+  Future<({String base, String head})?>? pending,
 }) async {
   final fetches = <_Fetch>[];
   final opened = <Uri>[];
@@ -79,7 +82,7 @@ Future<(ProviderContainer, List<_Fetch>, List<Uri>)> _pump(
         targetBranch,
       ) async {
         fetches.add((repoPath, kind, number, targetBranch));
-        return result;
+        return pending ?? result;
       }),
     ],
   );
@@ -151,6 +154,26 @@ void main() {
 
     expect(fetches, hasLength(1));
     expect(c.read(reviewTargetProvider), isNull);
+  });
+
+  testWidgets('the review still opens if the sidebar went away meanwhile', (
+    tester,
+  ) async {
+    final done = Completer<({String base, String head})?>();
+    final (c, _, _) = await _pump(tester, _github, pending: done.future);
+
+    await _menu(tester);
+    await tester.tap(find.text('Review in Mergelio'));
+    await tester.pump();
+    // The section is gone before the fetch answers.
+    await tester.pumpWidget(
+      UncontrolledProviderScope(container: c, child: const SizedBox()),
+    );
+    done.complete((base: 'B', head: 'H'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(c.read(reviewTargetProvider)?.head, 'H');
   });
 
   testWidgets('a plain click still opens the browser', (tester) async {

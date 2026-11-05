@@ -295,3 +295,23 @@ final pullRequestChecksProvider = FutureProvider.family
       if (forge == null) return null;
       return forge.checksForRef(key.sha);
     });
+
+/// Which of a request review's sections are open. Both start open.
+typedef ReviewPullRequestSections = ({bool checks, bool description});
+
+/// Which request review a set of open sections belongs to: one fetch of one
+/// request, so a refetch starts open again and a diff mode switch does not.
+typedef ReviewPullRequestSectionsKey = ({
+  String repoPath,
+  int number,
+  String head,
+});
+
+/// Open sections per request review, kept for the session. Held here rather
+/// than in the panel because switching the diff mode replaces the whole
+/// review body while it reloads, and the panel with it.
+final reviewPullRequestSectionsProvider =
+    StateProvider.family<
+      ReviewPullRequestSections,
+      ReviewPullRequestSectionsKey
+    >((ref, _) => (checks: true, description: true));

@@ -19,7 +19,7 @@ import '../workspace/forge_presentation.dart';
 ///
 /// Each part fails on its own: a forge that cannot be read costs this panel
 /// its rows, never the diff below, which comes from local git.
-class ReviewPullRequestPanel extends ConsumerStatefulWidget {
+class ReviewPullRequestPanel extends ConsumerWidget {
   final ReviewTarget target;
   final ReviewPullRequest pullRequest;
 
@@ -29,38 +29,39 @@ class ReviewPullRequestPanel extends ConsumerStatefulWidget {
     required this.pullRequest,
   });
 
-  @override
-  ConsumerState<ReviewPullRequestPanel> createState() =>
-      _ReviewPullRequestPanelState();
-}
-
-class _ReviewPullRequestPanelState
-    extends ConsumerState<ReviewPullRequestPanel> {
-  bool _checksOpen = true;
-  bool _descriptionOpen = true;
-
   /// The installation errors are worded for. The repository's own when it
   /// is known; otherwise the public service of the request's kind, which is
   /// what a request with no resolved host can only have come from.
   ForgeServer _server(ForgeHost? host) =>
       host?.server ??
-      switch (widget.pullRequest.kind) {
+      switch (pullRequest.kind) {
         ForgeKind.github => kGithubCloud,
         ForgeKind.gitlab => kGitlabCloud,
       };
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final t = context.tokens;
     final l = AppLocalizations.of(context);
-    final pr = widget.pullRequest;
-    final repoPath = widget.target.repoPath;
+    final pr = pullRequest;
+    final repoPath = target.repoPath;
+    final sectionsKey = (
+      repoPath: repoPath,
+      number: pr.number,
+      head: target.head,
+    );
+    final sections = ref.watch(reviewPullRequestSectionsProvider(sectionsKey));
+    void setSections(ReviewPullRequestSections next) =>
+        ref
+                .read(reviewPullRequestSectionsProvider(sectionsKey).notifier)
+                .state =
+            next;
     final host = ref.watch(forgeHostProvider(repoPath)).valueOrNull;
     final detail = ref.watch(
       pullRequestDetailProvider((repoPath: repoPath, number: pr.number)),
     );
     final checks = ref.watch(
-      pullRequestChecksProvider((repoPath: repoPath, sha: widget.target.head)),
+      pullRequestChecksProvider((repoPath: repoPath, sha: target.head)),
     );
     final server = _server(host);
 
@@ -77,17 +78,27 @@ class _ReviewPullRequestPanelState
                 : _Heading(
                     detail: d,
                     label: pr.label,
-                    reviewedHead: widget.target.head,
-                    onOpen: host == null ? null : () => _open(host),
+                    reviewedHead: target.head,
+                    onOpen: host == null
+                        ? null
+                        : () => _open(context, ref, host),
                   ),
           ),
         ),
         _Toggle(
-          label: l.rvPrChecks(checks.valueOrNull?.runs.length ?? 0),
-          open: _checksOpen,
-          onTap: () => setState(() => _checksOpen = !_checksOpen),
+          // A count only once CI has answered: zero before then would
+          // claim there are no jobs.
+          label: switch (checks.valueOrNull) {
+            final s? => l.rvPrChecks(s.runs.length),
+            null => l.rvPrChecksTitle,
+          },
+          open: sections.checks,
+          onTap: () => setSections((
+            checks: !sections.checks,
+            description: sections.description,
+          )),
         ),
-        if (_checksOpen)
+        if (sections.checks)
           ...checks.when(
             loading: () => const [_Spinner()],
             error: (e, _) => [_Note(forgePanelMessage(e, l, server))],
@@ -97,10 +108,13 @@ class _ReviewPullRequestPanelState
           ),
         _Toggle(
           label: l.rvPrDescription,
-          open: _descriptionOpen,
-          onTap: () => setState(() => _descriptionOpen = !_descriptionOpen),
+          open: sections.description,
+          onTap: () => setSections((
+            checks: sections.checks,
+            description: !sections.description,
+          )),
         ),
-        if (_descriptionOpen)
+        if (sections.description)
           switch (detail) {
             AsyncData(:final value?) when value.body.trim().isNotEmpty =>
               MarkdownView(
@@ -121,13 +135,17 @@ class _ReviewPullRequestPanelState
     );
   }
 
-  Future<void> _open(ForgeHost host) async {
+  Future<void> _open(
+    BuildContext context,
+    WidgetRef ref,
+    ForgeHost host,
+  ) async {
     final l = AppLocalizations.of(context);
     final toast = ref.read(toastProvider.notifier);
     // Built from the locally resolved host and the number, never from a URL
     // the forge sent back.
     final opened = await ref.read(forgeLaunchUrlProvider)(
-      pullRequestWebUrl(host, widget.pullRequest.number),
+      pullRequestWebUrl(host, pullRequest.number),
     );
     if (!opened) {
       toast.show(
