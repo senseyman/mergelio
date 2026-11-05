@@ -98,6 +98,16 @@ List<PullRequest> parseMergeRequests(Object? json) {
   return List.unmodifiable(out);
 }
 
+/// One request from a single-request response, with its description, or null
+/// when the body lacks what a request needs. A missing or null description
+/// reads as empty: the forges send null when nothing was written.
+PullRequestDetail? parseMergeRequestDetail(Object? json) {
+  final request = parseMergeRequests([json]).firstOrNull;
+  if (request == null) return null;
+  final body = _obj(json)?['description'];
+  return PullRequestDetail(request: request, body: body is String ? body : '');
+}
+
 /// One job's state, or null when the job carries no outcome to report. An
 /// unrecognised value lands on [CheckState.unknown] so a status version this
 /// client has never seen is never reported passing.

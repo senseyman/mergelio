@@ -87,6 +87,16 @@ List<PullRequest> parsePullRequests(Object? json) {
   return List.unmodifiable(out);
 }
 
+/// One request from a single-request response, with its description, or null
+/// when the body lacks what a request needs. A missing or null description
+/// reads as empty: the forges send null when nothing was written.
+PullRequestDetail? parsePullRequestDetail(Object? json) {
+  final request = parsePullRequests([json]).firstOrNull;
+  if (request == null) return null;
+  final body = _obj(json)?['body'];
+  return PullRequestDetail(request: request, body: body is String ? body : '');
+}
+
 /// What is left of the hourly budget, from a `/rate_limit` response.
 ///
 /// Null when the shape cannot be read. A missing budget is shown as nothing

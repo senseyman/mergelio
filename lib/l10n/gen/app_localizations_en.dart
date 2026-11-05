@@ -1987,6 +1987,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get forgeOpenInBrowser => 'Open in browser';
 
   @override
+  String get forgeReviewInApp => 'Review in Mergelio';
+
+  @override
   String forgeCheckoutLocally(String branch) {
     return 'Check out locally as $branch';
   }
@@ -3883,6 +3886,57 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get rvOpenInDiff => 'Open in diff viewer';
+
+  @override
+  String get rvPrDescription => 'DESCRIPTION';
+
+  @override
+  String get rvPrNoDescription => 'No description provided.';
+
+  @override
+  String rvPrChecks(int count) {
+    return 'CHECKS ($count)';
+  }
+
+  @override
+  String get rvPrNoChecks => 'No checks reported for this commit';
+
+  @override
+  String get rvPrHeadMoved =>
+      'The request has new commits since this review opened. Open it again to see them.';
+
+  @override
+  String get rvPrStateOpen => 'Open';
+
+  @override
+  String get rvPrStateDraft => 'Draft';
+
+  @override
+  String get rvPrStateMerged => 'Merged';
+
+  @override
+  String get rvPrStateClosed => 'Closed';
+
+  @override
+  String get rvCheckQueued => 'Queued';
+
+  @override
+  String get rvCheckRunning => 'Running';
+
+  @override
+  String get rvCheckSuccess => 'Passed';
+
+  @override
+  String get rvCheckFailure => 'Failed';
+
+  @override
+  String get rvCheckCancelled => 'Cancelled';
+
+  @override
+  String get rvCheckSkipped => 'Skipped';
+
+  @override
+  String get rvCheckUnknown => 'Unknown state';
 
   @override
   String get rvFileHistoryAtHead => 'File history at head';
@@ -5822,6 +5876,15 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get actRequestNotOnOrigin =>
       'origin does not have it. It may have been deleted, or origin is not the repository it was opened on.';
+
+  @override
+  String get actPrTargetUnusable =>
+      'The request targets a branch name git cannot fetch.';
+
+  @override
+  String actPrTargetNotOnOrigin(String branch) {
+    return 'origin has no branch $branch, which the request targets.';
+  }
 
   @override
   String actPrUpToDate(String branch) {

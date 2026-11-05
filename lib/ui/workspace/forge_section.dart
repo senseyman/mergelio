@@ -11,6 +11,7 @@ import '../../state/forge.dart';
 import '../../state/forge_refresh.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
+import '../../state/review.dart';
 import '../../state/settings.dart';
 import '../../state/settings_controller.dart';
 import '../common/confirm.dart';
@@ -35,6 +36,26 @@ final forgeCheckoutPullRequestProvider = Provider<CheckoutPullRequest>(
           .read(repoActionsProvider(repoPath))
           .checkoutPullRequest(kind, number, replace: replace),
 );
+
+typedef FetchPullRequestForReview =
+    Future<({String base, String head})?> Function(
+      String repoPath,
+      ForgeKind kind,
+      int number,
+      String targetBranch,
+    );
+
+/// How a forge row brings in the commits its request's review reads.
+///
+/// Overridable so a widget test can see what would have been fetched without
+/// running git on the host.
+final forgeFetchPullRequestForReviewProvider =
+    Provider<FetchPullRequestForReview>(
+      (ref) =>
+          (repoPath, kind, number, targetBranch) => ref
+              .read(repoActionsProvider(repoPath))
+              .fetchPullRequestForReview(kind, number, targetBranch),
+    );
 
 /// Checks out request [number], asking before replacing a local branch that
 /// has commits the request no longer has — routine once a request is
@@ -97,6 +118,7 @@ class ForgePullRequestSection extends ConsumerWidget {
     final refreshing = panel?.isLoading ?? false;
     final launch = ref.watch(forgeLaunchUrlProvider);
     final checkoutRequest = ref.watch(forgeCheckoutPullRequestProvider);
+    final fetchForReview = ref.watch(forgeFetchPullRequestForReviewProvider);
 
     return SidebarSection(
       id: 'pull-requests',
@@ -159,6 +181,28 @@ class ForgePullRequestSection extends ConsumerWidget {
                               ?.branches
                               .any((b) => b.current && b.name == branch) ??
                           false,
+                      onReview: () async {
+                        final shas = await fetchForReview(
+                          repoPath,
+                          host.kind,
+                          pr.number,
+                          pr.targetBranch,
+                        );
+                        // A failure was already reported by the fetch.
+                        if (shas == null) return;
+                        ref
+                            .read(reviewTargetProvider.notifier)
+                            .state = ReviewTarget(
+                          repoPath: repoPath,
+                          base: shas.base,
+                          head: shas.head,
+                          pullRequest: ReviewPullRequest(
+                            kind: host.kind,
+                            number: pr.number,
+                            targetBranch: pr.targetBranch,
+                          ),
+                        );
+                      },
                       onCheckout: () => _checkoutAskingToReplace(
                         ref,
                         context,
@@ -211,6 +255,9 @@ class _PullRequestRow extends StatefulWidget {
   final bool Function(String branch) isCheckedOut;
   final VoidCallback onCheckout;
 
+  /// Opens the request in the review view, inside the app.
+  final VoidCallback onReview;
+
   const _PullRequestRow({
     super.key,
     required this.pr,
@@ -221,6 +268,7 @@ class _PullRequestRow extends StatefulWidget {
     required this.localBranch,
     required this.isCheckedOut,
     required this.onCheckout,
+    required this.onReview,
   });
 
   @override
@@ -242,8 +290,9 @@ class _PullRequestRowState extends State<_PullRequestRow> {
       forgeAgo(AppLocalizations.of(context), pr.updatedAt),
       forgeBranchLabel(pr, widget.defaultBranch),
     ]);
-    // A click keeps opening the browser, as it always has; checking out is
-    // the less common act, so it waits behind a right-click.
+    // A click keeps opening the browser, as it always has; reviewing in the
+    // app and checking out spend git and forge calls, so they wait behind a
+    // right-click.
     return GestureDetector(
       onSecondaryTapUp: (d) => _menu(context, d.globalPosition),
       child: InkWell(
@@ -320,6 +369,7 @@ class _PullRequestRowState extends State<_PullRequestRow> {
       context: context,
       position: at,
       items: [
+        item(l.forgeReviewInApp, widget.onReview),
         item(l.forgeOpenInBrowser, widget.onOpen),
         item(
           // Already on it, the same action brings the branch up to date.

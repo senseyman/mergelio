@@ -18,15 +18,21 @@ class FakeForge implements Forge {
   final List<Issue> issuesResult;
   final ChecksSummary checksResult;
 
+  /// Details by number. A number with no entry answers [ForgeNotVisible],
+  /// the way a forge answers for a request it does not have.
+  final Map<int, PullRequestDetail> details;
+
   final ForgeError? pullRequestsError;
   final ForgeError? pullRequestsForBranchError;
   final ForgeError? issuesError;
   final ForgeError? checksError;
+  final ForgeError? pullRequestError;
 
   int pullRequestsCalls = 0;
   int pullRequestsForBranchCalls = 0;
   int issuesCalls = 0;
   int checksCalls = 0;
+  int pullRequestCalls = 0;
 
   /// Refs asked about, in order, so a test can prove a commit was queried.
   final List<String> checkedRefs = [];
@@ -40,6 +46,8 @@ class FakeForge implements Forge {
     this.pullRequestsForBranchError,
     this.issuesError,
     this.checksError,
+    this.pullRequestError,
+    this.details = const {},
   }) : pullRequestsResult = pullRequests,
        issuesResult = issues,
        checksResult =
@@ -65,6 +73,16 @@ class FakeForge implements Forge {
         .where((p) => p.sourceBranch == branch)
         .take(limit)
         .toList(growable: false);
+  }
+
+  @override
+  Future<PullRequestDetail> pullRequest(int number) async {
+    pullRequestCalls++;
+    final error = pullRequestError;
+    if (error != null) throw error;
+    final detail = details[number];
+    if (detail == null) throw const ForgeNotVisible();
+    return detail;
   }
 
   @override

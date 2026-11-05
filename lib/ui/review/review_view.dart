@@ -25,6 +25,7 @@ import '../diff/syntax_style.dart';
 import '../insight/file_insight_dialog.dart';
 import '../insight/line_history_dialog.dart';
 import '../workspace/forge_presentation.dart';
+import 'pull_request_panel.dart';
 import 'review_picker.dart';
 
 final _codeStyle = AppFonts.mns(size: 12, height: 1.35);
@@ -132,6 +133,15 @@ class _ReviewViewState extends ConsumerState<ReviewView> {
             }),
           ),
         ),
+        if (target.pullRequest case final pr?)
+          SliverToBoxAdapter(
+            child: ReviewPullRequestPanel(
+              // A different request starts with its sections open again.
+              key: ValueKey(target),
+              target: target,
+              pullRequest: pr,
+            ),
+          ),
         if (from == null)
           SliverToBoxAdapter(child: _NoMergeBase(target: target)),
         // The commits are the half of the answer that needs no merge base.

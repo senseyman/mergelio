@@ -31,6 +31,10 @@ const _host = ForgeHost(
 );
 
 class _FakeForge implements Forge {
+  @override
+  Future<PullRequestDetail> pullRequest(int number) =>
+      throw UnimplementedError();
+
   final List<PullRequest> prs;
   final bool fail;
   final asked = <String>[];

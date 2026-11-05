@@ -22,6 +22,10 @@ Issue _issue(int n, {List<String> labels = const []}) => Issue(
 );
 
 class _FakeForge implements Forge {
+  @override
+  Future<PullRequestDetail> pullRequest(int number) =>
+      throw UnimplementedError();
+
   String? trunk;
 
   @override

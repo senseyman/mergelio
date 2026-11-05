@@ -61,6 +61,17 @@ abstract class PullRequest with _$PullRequest {
   }) = _PullRequest;
 }
 
+/// One request read on its own, with the description the list endpoints
+/// leave out. [body] is the author's Markdown as written, empty when there is
+/// none.
+@freezed
+abstract class PullRequestDetail with _$PullRequestDetail {
+  const factory PullRequestDetail({
+    required PullRequest request,
+    @Default('') String body,
+  }) = _PullRequestDetail;
+}
+
 @freezed
 abstract class Issue with _$Issue {
   const factory Issue({

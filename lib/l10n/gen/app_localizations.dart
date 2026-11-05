@@ -3500,6 +3500,12 @@ abstract class AppLocalizations {
   /// **'Open in browser'**
   String get forgeOpenInBrowser;
 
+  /// No description provided for @forgeReviewInApp.
+  ///
+  /// In en, this message translates to:
+  /// **'Review in Mergelio'**
+  String get forgeReviewInApp;
+
   /// No description provided for @forgeCheckoutLocally.
   ///
   /// In en, this message translates to:
@@ -6512,6 +6518,102 @@ abstract class AppLocalizations {
   /// **'Open in diff viewer'**
   String get rvOpenInDiff;
 
+  /// No description provided for @rvPrDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'DESCRIPTION'**
+  String get rvPrDescription;
+
+  /// No description provided for @rvPrNoDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'No description provided.'**
+  String get rvPrNoDescription;
+
+  /// No description provided for @rvPrChecks.
+  ///
+  /// In en, this message translates to:
+  /// **'CHECKS ({count})'**
+  String rvPrChecks(int count);
+
+  /// No description provided for @rvPrNoChecks.
+  ///
+  /// In en, this message translates to:
+  /// **'No checks reported for this commit'**
+  String get rvPrNoChecks;
+
+  /// No description provided for @rvPrHeadMoved.
+  ///
+  /// In en, this message translates to:
+  /// **'The request has new commits since this review opened. Open it again to see them.'**
+  String get rvPrHeadMoved;
+
+  /// No description provided for @rvPrStateOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get rvPrStateOpen;
+
+  /// No description provided for @rvPrStateDraft.
+  ///
+  /// In en, this message translates to:
+  /// **'Draft'**
+  String get rvPrStateDraft;
+
+  /// No description provided for @rvPrStateMerged.
+  ///
+  /// In en, this message translates to:
+  /// **'Merged'**
+  String get rvPrStateMerged;
+
+  /// No description provided for @rvPrStateClosed.
+  ///
+  /// In en, this message translates to:
+  /// **'Closed'**
+  String get rvPrStateClosed;
+
+  /// No description provided for @rvCheckQueued.
+  ///
+  /// In en, this message translates to:
+  /// **'Queued'**
+  String get rvCheckQueued;
+
+  /// No description provided for @rvCheckRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Running'**
+  String get rvCheckRunning;
+
+  /// No description provided for @rvCheckSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Passed'**
+  String get rvCheckSuccess;
+
+  /// No description provided for @rvCheckFailure.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get rvCheckFailure;
+
+  /// No description provided for @rvCheckCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled'**
+  String get rvCheckCancelled;
+
+  /// No description provided for @rvCheckSkipped.
+  ///
+  /// In en, this message translates to:
+  /// **'Skipped'**
+  String get rvCheckSkipped;
+
+  /// No description provided for @rvCheckUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown state'**
+  String get rvCheckUnknown;
+
   /// No description provided for @rvFileHistoryAtHead.
   ///
   /// In en, this message translates to:
@@ -9457,6 +9559,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'origin does not have it. It may have been deleted, or origin is not the repository it was opened on.'**
   String get actRequestNotOnOrigin;
+
+  /// No description provided for @actPrTargetUnusable.
+  ///
+  /// In en, this message translates to:
+  /// **'The request targets a branch name git cannot fetch.'**
+  String get actPrTargetUnusable;
+
+  /// No description provided for @actPrTargetNotOnOrigin.
+  ///
+  /// In en, this message translates to:
+  /// **'origin has no branch {branch}, which the request targets.'**
+  String actPrTargetNotOnOrigin(String branch);
 
   /// No description provided for @actPrUpToDate.
   ///
