@@ -4,4 +4,7 @@
     <loc>https://mergelio.com/</loc>
     <lastmod>{{DATE_ISO}}</lastmod>
   </url>
+  <url>
+    <loc>https://mergelio.com/privacy.html</loc>
+  </url>
 </urlset>
