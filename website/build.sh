@@ -47,7 +47,7 @@ pretty_date=$(date -u -d "$date" '+%B %-d, %Y' 2>/dev/null || date -u -j -f '%Y-
 
 rm -rf "$OUT_DIR"
 mkdir -p "$OUT_DIR"
-cp -R "$SRC_DIR/img" "$SRC_DIR/style.css" "$SRC_DIR/main.js" "$SRC_DIR/CNAME" "$SRC_DIR/robots.txt" "$OUT_DIR/"
+cp -R "$SRC_DIR/img" "$SRC_DIR/fonts" "$SRC_DIR/style.css" "$SRC_DIR/main.js" "$SRC_DIR/CNAME" "$SRC_DIR/robots.txt" "$OUT_DIR/"
 
 # URLs never contain '|', so it is a safe sed delimiter.
 sed \

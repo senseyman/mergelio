@@ -3,22 +3,23 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Mergelio — a free, open-source visual Git client</title>
-  <meta name="description" content="Mergelio is a free, open-source visual Git client for macOS, Windows and Linux: commit graph, line-level staging, a three-way merge tool, interactive rebase and undo for everything.">
+  <title>Mergelio — Git history you can see, shape and undo</title>
+  <meta name="description" content="Mergelio is a free, open-source Git client for macOS, Windows and Linux: a commit graph, line-level staging, a conflict editor, interactive rebase, and undo for commits, merges, rebases and resets.">
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0b0d12" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#0d1018" media="(prefers-color-scheme: dark)">
   <link rel="canonical" href="https://mergelio.com/">
   <link rel="icon" type="image/png" href="img/favicon.png">
   <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://mergelio.com/">
-  <meta property="og:title" content="Mergelio — a free, open-source visual Git client">
-  <meta property="og:description" content="Commit graph, line-level staging, a three-way merge tool, interactive rebase and undo for everything. macOS, Windows and Linux.">
+  <meta property="og:title" content="Mergelio — Git history you can see, shape and undo">
+  <meta property="og:description" content="A free, open-source Git client for macOS, Windows and Linux.">
   <meta property="og:image" content="https://mergelio.com/img/og.jpg">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
+  <link rel="preload" href="fonts/schibsted-grotesk.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="style.css">
   <script src="main.js" defer></script>
 </head>
@@ -44,6 +45,8 @@
     </defs>
   </svg>
 
+  <a class="skip" href="#main">Skip to content</a>
+
   <header class="nav">
     <div class="wrap nav-row">
       <a class="brand" href="#top" aria-label="Mergelio home">
@@ -51,7 +54,7 @@
         <span>Mergelio</span>
       </a>
       <nav class="nav-links" aria-label="Main">
-        <a href="#features">Features</a>
+        <a href="#tour">Tour</a>
         <a href="#download">Download</a>
         <a class="gh" href="https://github.com/senseyman/mergelio">
           <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8"/></svg>
@@ -61,108 +64,176 @@
     </div>
   </header>
 
-  <main id="top">
-    <section class="hero wrap">
-      <img class="hero-icon" src="img/icon.png" width="96" height="96" alt="">
-      <h1>A visual Git client that<br>keeps your history safe.</h1>
-      <p class="lead">Mergelio is free and open source, for macOS, Windows and Linux. You get a commit graph, line-by-line staging, a three-way merge tool, interactive rebase and undo for almost everything. No account, nothing sent home.</p>
-      <div class="cta">
-        <a class="btn primary" id="primary-download" href="#download">
-          <span id="primary-label">Download</span>
-          <small>v{{VERSION}}</small>
-        </a>
-        <a class="btn ghost" href="https://github.com/senseyman/mergelio">View on GitHub</a>
+  <main id="main">
+    <section class="hero wrap" id="top">
+      <div class="hero-text">
+        <h1>Git history you can see, shape and&nbsp;undo.</h1>
+        <p class="lead">Mergelio is a free, open-source Git client for macOS, Windows and Linux. Read every branch in one graph, stage exactly the lines you want, resolve conflicts, rebase, and undo commits, merges and resets when you change your mind.</p>
+        <div class="cta">
+          <a class="btn primary" id="primary-download" href="#download">
+            <span id="primary-label">Download</span>
+            <small>{{VERSION}}</small>
+          </a>
+          <a class="btn quiet" href="https://github.com/senseyman/mergelio">Source on GitHub</a>
+        </div>
+        <p class="cta-note">Free under the BSD-3-Clause licence. Mergelio uses the Git already on your machine; if there isn't one, <a href="https://git-scm.com/downloads">install Git</a> first.</p>
       </div>
-      <p class="cta-note" id="cta-note"><a href="#download">All platforms</a> · BSD-3-Clause · Requires <a href="https://git-scm.com/downloads">Git</a></p>
+
+      <figure class="demo" id="demo" data-state="start">
+        <svg class="demo-graph" viewBox="0 0 440 172" role="img" aria-labelledby="demo-title">
+          <title id="demo-title">Commit graph: main with four commits, and feature/login branching off the second with two commits of its own.</title>
+          <g class="lane-main">
+            <path class="edge" d="M40 52H280"/>
+            <path class="edge grow" pathLength="1" d="M280 52H372"/>
+          </g>
+          <g class="lane-feature">
+            <path class="edge" d="M110 52C150 52 140 124 180 124H260"/>
+            <path class="edge grow" pathLength="1" d="M260 124C320 124 312 52 372 52"/>
+          </g>
+          <g class="nodes-main">
+            <circle cx="40" cy="52" r="8"/><circle cx="110" cy="52" r="8"/>
+            <circle cx="195" cy="52" r="8"/><circle cx="280" cy="52" r="8"/>
+          </g>
+          <g class="nodes-feature">
+            <circle cx="180" cy="124" r="8"/><circle cx="260" cy="124" r="8"/>
+          </g>
+          <g class="merge-node">
+            <circle cx="372" cy="52" r="11"/>
+            <circle class="merge-dot" cx="372" cy="52" r="4"/>
+          </g>
+          <g class="ref ref-main">
+            <rect x="252" y="12" width="56" height="22" rx="11"/>
+            <text x="280" y="27.5">main</text>
+          </g>
+          <g class="ref ref-feature">
+            <rect x="208" y="142" width="104" height="22" rx="11"/>
+            <text x="260" y="157.5">feature/login</text>
+          </g>
+        </svg>
+        <figcaption>
+          <p class="demo-status" id="demo-status" aria-live="polite">feature/login has two commits that main doesn't.</p>
+          <div class="demo-actions" hidden>
+            <button type="button" class="btn small primary" id="demo-merge">Merge feature/login</button>
+            <button type="button" class="btn small quiet" id="demo-undo" disabled>Undo merge</button>
+          </div>
+        </figcaption>
+      </figure>
     </section>
 
-    <section class="shot wrap" aria-label="Screenshot">
-      <picture>
-        <source srcset="img/graph-dark.webp" media="(prefers-color-scheme: dark)">
-        <img src="img/graph-light.webp" width="1920" height="1200" alt="Mergelio window: branch list on the left, commit graph in the middle and the Changes panel with staged and unstaged files on the right.">
-      </picture>
-    </section>
-
-    <section id="features" class="features wrap">
-      <h2>Everything you do in Git, in one window</h2>
-      <div class="grid">
-        <article>
-          <h3>Commit graph</h3>
-          <p>History drawn in lanes, with ref pills, keyboard navigation, author and date filters, and search by message or by the code a commit changed.</p>
-        </article>
-        <article>
+    <section class="tour wrap" id="tour" aria-labelledby="tour-title">
+      <h2 id="tour-title">A day on a branch</h2>
+      <ol class="lane">
+        <li class="step">
+          <h3>Read the history</h3>
+          <p>Every branch gets its own lane, with branches, tags and remotes pinned to the commits they point at. Filter by author or date, or search for the commit that added a particular line of code.</p>
+          <picture class="shot shot-window">
+            <source srcset="img/graph-dark.webp" media="(prefers-color-scheme: dark)">
+            <img src="img/graph-light.webp" width="1920" height="1200" loading="lazy" alt="Mergelio window: branch list on the left, a commit graph with main, feature/wishlist and feature/search in the middle, and staged and unstaged files on the right.">
+          </picture>
+        </li>
+        <li class="step">
           <h3>Stage exactly what you mean</h3>
-          <p>Stage or discard by file, hunk or a run of lines. Side-by-side or inline diffs with word-level highlights, syntax colours and image diffs.</p>
-        </article>
-        <article>
-          <h3>Three-way merge tool</h3>
-          <p>Ours, result and theirs side by side. Resolving only stages the file: you review it and commit or continue yourself.</p>
-        </article>
-        <article>
-          <h3>Interactive rebase</h3>
-          <p>Reorder, reword, squash, fixup and drop commits. Autosquash, exec and break steps, and stacked branches move along.</p>
-        </article>
-        <article>
-          <h3>Undo for almost everything</h3>
-          <p>Reflog-backed undo and redo for commits, merges and rebases. <code>reset --hard</code> stashes your work first, and an operation journal survives crashes.</p>
-        </article>
-        <article>
-          <h3>GitHub &amp; GitLab</h3>
-          <p>Pull and merge requests with CI status, plus issues, next to your branches. Read-only: tokens go through your <code>git credential</code> helper.</p>
-        </article>
-        <article>
-          <h3>Files, editor &amp; terminal</h3>
-          <p>Browse the project, edit files in tabs with find and replace, and keep a real system-shell terminal docked under the repository.</p>
-        </article>
-        <article>
-          <h3>Private by default</h3>
-          <p>No account, no telemetry unless you turn it on, and update checks only if you say yes. Settings stay in a local database.</p>
-        </article>
-      </div>
-      <p class="more">Also: commit and tag signature checks, blame and line history, worktrees, git notes, stashes with undo, profiles with their own SSH keys, a multi-repo dashboard, a command palette, themes, and English and Ukrainian UI. <a href="https://github.com/senseyman/mergelio#features">Full feature list →</a></p>
+          <p>Stage or discard a whole file, one hunk, or just the lines you select. Diffs show side by side or inline, with word-level highlights, syntax colours and image comparison.</p>
+          <picture class="shot shot-crop">
+            <source srcset="img/diff-dark.webp" media="(prefers-color-scheme: dark)">
+            <img src="img/diff-light.webp" width="1604" height="640" loading="lazy" alt="Inline diff of src/search/index.ts: two hunks, each with Stage hunk and Discard hunk buttons, one line replaced in the second.">
+          </picture>
+        </li>
+        <li class="step">
+          <h3>Resolve conflicts side by side</h3>
+          <p>Each conflict shows your side and the incoming side next to each other, with the rest of the file around them. Accept one, accept both, or edit by hand. Resolving a file stages it and nothing more: you look it over and make the commit yourself.</p>
+          <picture class="shot shot-crop">
+            <source srcset="img/merge-dark.webp" media="(prefers-color-scheme: dark)">
+            <img src="img/merge-light.webp" width="2376" height="980" loading="lazy" alt="One conflict in src/search/index.ts: the main version on the left and the incoming version on the right, each with an Accept button, and Accept both and Edit underneath.">
+          </picture>
+        </li>
+        <li class="step step-split">
+          <h3>Tidy up before you push</h3>
+          <p>Pick, reword, squash, fix up or drop each commit, and drag rows to reorder them. fixup! commits fold under the commit they name, exec and break steps are there when you need them, and branches stacked on top move along.</p>
+          <picture class="shot shot-crop shot-side">
+            <source srcset="img/rebase-dark.webp" media="(prefers-color-scheme: dark)">
+            <img src="img/rebase-light.webp" width="1232" height="1232" loading="lazy" alt="Interactive rebase dialog: six commits onto e4054ab, a fixup! commit folded under the commit it names, wip set to squash and debug logging set to drop.">
+          </picture>
+        </li>
+        <li class="step step-head">
+          <h3>Change your mind</h3>
+          <p>Undo and redo commits, merges, rebases and branch moves while the app is open. A hard reset stashes your work before it runs, and undo puts it back. Every operation is written to a journal first, so if one is interrupted you hear about it on the next launch.</p>
+          <figure class="clip">
+            <video class="clip-light" muted loop playsinline preload="none" width="1440" height="900" poster="img/undo-light-poster.webp" aria-describedby="clip-caption">
+              <source src="img/undo-light.mp4" type="video/mp4">
+            </video>
+            <video class="clip-dark" muted loop playsinline preload="none" width="1440" height="900" poster="img/undo-dark-poster.webp" aria-describedby="clip-caption">
+              <source src="img/undo-dark.mp4" type="video/mp4">
+            </video>
+            <figcaption>
+              <p id="clip-caption">A hard reset moves main back a commit. Mergelio stashes the uncommitted work first, and one click on Undo brings back both the commit and the work.</p>
+              <button type="button" class="clip-toggle" hidden>Pause</button>
+            </figcaption>
+          </figure>
+        </li>
+      </ol>
     </section>
 
-    <section class="shot wrap" aria-label="Diff screenshot">
-      <img src="img/diff-dark.webp" width="1920" height="1200" loading="lazy" alt="Mergelio diff sheet showing an inline diff of a TypeScript file with Stage hunk and Discard hunk buttons.">
+    <section class="also wrap" aria-labelledby="also-title">
+      <h2 id="also-title">Also in the window</h2>
+      <dl class="also-list">
+        <div>
+          <dt>GitHub and GitLab</dt>
+          <dd>Pull and merge requests with CI status and issues next to your branches, self-hosted servers included. Check out a pull request or open a new one. Tokens stay in your <code>git credential</code> helper.</dd>
+        </div>
+        <div>
+          <dt>Files, editor and terminal</dt>
+          <dd>Browse the project, edit files in tabs with find and replace, and keep a real shell docked under the repository.</dd>
+        </div>
+        <div>
+          <dt>Private by default</dt>
+          <dd>No account. No telemetry unless you turn it on. Update checks only if you say yes. Settings live in a local database.</dd>
+        </div>
+        <div>
+          <dt>And the rest</dt>
+          <dd>Commit and tag signature checks, blame and line history, worktrees, git notes, stashes with undo, profiles with their own SSH keys, a multi-repo dashboard, a command palette, themes, and an English or Ukrainian interface. <a href="https://github.com/senseyman/mergelio#features">Read the full feature list</a></dd>
+        </div>
+      </dl>
     </section>
 
-    <section id="download" class="download wrap">
-      <h2>Download Mergelio {{VERSION}}</h2>
-      <p class="sub">Released {{DATE}}</p>
-      <div class="dl-list">
-        <div class="dl" data-os="mac">
-          <div class="dl-head">
+    <section class="download wrap" id="download" aria-labelledby="download-title">
+      <h2 id="download-title">Download Mergelio {{VERSION}}</h2>
+      <p class="sub">Released {{DATE}}.</p>
+      <ul class="dl-list">
+        <li class="dl" data-os="mac">
+          <div class="dl-os">
             <h3>macOS</h3>
-            <span class="tag">Apple Silicon · macOS 12+</span>
+            <p class="req">Apple Silicon, macOS 12 or later</p>
           </div>
-          <p>Signed and notarized disk image. Open it and drag Mergelio to Applications.</p>
-          <a class="btn primary" href="{{MAC_URL}}">Download .dmg</a>
-        </div>
-        <div class="dl" data-os="win">
-          <div class="dl-head">
+          <p class="dl-how">Signed and notarized. Open the disk image and drag Mergelio to Applications.</p>
+          <div class="dl-act"><a class="btn primary" href="{{MAC_URL}}">Download .dmg</a></div>
+        </li>
+        <li class="dl" data-os="win">
+          <div class="dl-os">
             <h3>Windows</h3>
-            <span class="tag">x64</span>
+            <p class="req">x64</p>
           </div>
-          <p>The Windows installer is available from the project on GitHub. A code-signed build is on its way; until then SmartScreen asks first: choose <b>More info → Run anyway</b>.</p>
-        </div>
-        <div class="dl" data-os="linux">
-          <div class="dl-head">
-            <h3>Debian / Ubuntu</h3>
-            <span class="tag">x64</span>
+          <p class="dl-how">The installer is available from the project on GitHub. A code-signed build is on its way; until then SmartScreen asks first. Choose <b>More info</b>, then <b>Run anyway</b>.</p>
+          <div class="dl-act"></div>
+        </li>
+        <li class="dl" data-os="linux">
+          <div class="dl-os">
+            <h3>Debian and Ubuntu</h3>
+            <p class="req">x64</p>
           </div>
-          <div class="cmd"><code>sudo apt install ./{{DEB_FILE}}</code><button type="button" class="copy" aria-label="Copy command">Copy</button></div>
-          <a class="btn primary" href="{{DEB_URL}}">Download .deb</a>
-        </div>
-        <div class="dl" data-os="linux">
-          <div class="dl-head">
+          <div class="dl-how cmd"><code>sudo apt install ./{{DEB_FILE}}</code><button type="button" class="copy" aria-label="Copy install command">Copy</button></div>
+          <div class="dl-act"><a class="btn primary" href="{{DEB_URL}}">Download .deb</a></div>
+        </li>
+        <li class="dl" data-os="linux">
+          <div class="dl-os">
             <h3>Fedora</h3>
-            <span class="tag">x64</span>
+            <p class="req">x64</p>
           </div>
-          <div class="cmd"><code>sudo dnf install ./{{RPM_FILE}}</code><button type="button" class="copy" aria-label="Copy command">Copy</button></div>
-          <a class="btn primary" href="{{RPM_URL}}">Download .rpm</a>
-        </div>
-      </div>
-      <p class="fine">Mergelio runs the <code>git</code> on your <code>PATH</code>. If you don't have it, <a href="https://git-scm.com/downloads">install Git</a> first. Each release ships a signed <a href="{{SUMS_URL}}">SHA256SUMS.txt</a>; see <a href="https://github.com/senseyman/mergelio#verifying-a-download">how to verify a download</a>.</p>
+          <div class="dl-how cmd"><code>sudo dnf install ./{{RPM_FILE}}</code><button type="button" class="copy" aria-label="Copy install command">Copy</button></div>
+          <div class="dl-act"><a class="btn primary" href="{{RPM_URL}}">Download .rpm</a></div>
+        </li>
+      </ul>
+      <p class="fine">Every release ships a signed <a href="{{SUMS_URL}}">SHA256SUMS.txt</a>. Here is <a href="https://github.com/senseyman/mergelio#verifying-a-download">how to verify a download</a>.</p>
     </section>
   </main>
 
@@ -173,9 +244,9 @@
         <a href="https://github.com/senseyman/mergelio">GitHub</a>
         <a href="https://github.com/senseyman/mergelio/issues">Issues</a>
         <a href="https://github.com/senseyman/mergelio/blob/main/CONTRIBUTING.md">Contributing</a>
-        <a href="https://github.com/senseyman/mergelio/blob/main/LICENSE">License</a>
+        <a href="https://github.com/senseyman/mergelio/blob/main/LICENSE">Licence</a>
       </nav>
-      <span class="copy-note">BSD-3-Clause © 2026 Neo</span>
+      <span class="copy-note">BSD-3-Clause, © 2026 Neo</span>
     </div>
   </footer>
 </body>

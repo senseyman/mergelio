@@ -1,0 +1,84 @@
+<!doctype html>
+<!-- Source for img/og.jpg, the 1200×630 link-preview image.
+     Regenerate with: ./website/og/render.sh -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face { font-family: "Schibsted Grotesk"; src: url("../fonts/schibsted-grotesk.woff2") format("woff2"); font-weight: 400 900; }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1200px; height: 630px; overflow: hidden; }
+  body {
+    display: grid;
+    grid-template-columns: 640px 1fr;
+    align-items: center;
+    padding: 0 72px;
+    gap: 40px;
+    background: #ffffff;
+    color: #151a2e;
+    font-family: "Schibsted Grotesk", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .brand { display: flex; align-items: center; gap: 14px; font-size: 30px; font-weight: 700; }
+  .brand svg { width: 44px; height: 44px; color: #151a2e; }
+  h1 { margin-top: 36px; font-size: 62px; line-height: 1.02; letter-spacing: -0.035em; font-weight: 750; }
+  p { margin-top: 26px; font-size: 25px; line-height: 1.4; color: #5a6378; }
+  .graph { width: 100%; height: auto; overflow: visible; }
+  .edge { fill: none; stroke-width: 6; stroke-linecap: round; }
+  .main { stroke: #4c5bf5; }
+  .feature { stroke: #0d9488; }
+  .n-main { fill: #4c5bf5; stroke: #fff; stroke-width: 4; }
+  .n-feature { fill: #0d9488; stroke: #fff; stroke-width: 4; }
+  .ref text { font: 600 17px "Schibsted Grotesk", sans-serif; text-anchor: middle; }
+</style>
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <linearGradient id="node" x1="0.15" y1="0.1" x2="0.85" y2="0.95">
+        <stop offset="0" stop-color="#57a8ff"/>
+        <stop offset="1" stop-color="#1e6bf0"/>
+      </linearGradient>
+      <symbol id="mark" viewBox="0 0 100 100">
+        <g stroke="currentColor" stroke-width="9" stroke-linecap="round" fill="none">
+          <path d="M50 45 33 33M50 45 67 33M45 52 41 76M55 52 59 76M33 33 21 28M33 33 27 44M67 33 79 28M67 33 73 44"/>
+        </g>
+        <g fill="currentColor">
+          <circle cx="33" cy="33" r="6.5"/><circle cx="67" cy="33" r="6.5"/>
+          <circle cx="21" cy="28" r="4"/><circle cx="27" cy="44" r="4"/>
+          <circle cx="79" cy="28" r="4"/><circle cx="73" cy="44" r="4"/>
+        </g>
+        <circle cx="50" cy="46" r="11" fill="url(#node)"/>
+        <circle cx="46.5" cy="42.5" r="3.4" fill="#fff" fill-opacity=".55"/>
+      </symbol>
+    </defs>
+  </svg>
+
+  <div>
+    <div class="brand"><svg aria-hidden="true"><use href="#mark"/></svg>Mergelio</div>
+    <h1>Git history you can<br>see, shape and undo.</h1>
+    <p>A free, open-source Git client<br>for macOS, Windows and Linux.</p>
+  </div>
+
+  <!-- The hero graph after the merge: feature/login joined back into main. -->
+  <svg class="graph" viewBox="0 0 440 190" aria-hidden="true">
+    <path class="edge main" d="M24 70H392"/>
+    <path class="edge feature" d="M100 70C142 70 132 146 176 146H262C324 146 316 70 378 70"/>
+    <g class="n-main">
+      <circle cx="24" cy="70" r="11"/><circle cx="100" cy="70" r="11"/>
+      <circle cx="190" cy="70" r="11"/><circle cx="282" cy="70" r="11"/>
+    </g>
+    <g class="n-feature"><circle cx="176" cy="146" r="11"/><circle cx="262" cy="146" r="11"/></g>
+    <circle cx="384" cy="70" r="15" fill="#4c5bf5" stroke="#fff" stroke-width="4"/>
+    <circle cx="384" cy="70" r="5.5" fill="#fff"/>
+    <g class="ref">
+      <rect x="346" y="18" width="76" height="30" rx="15" fill="#4c5bf5"/>
+      <text x="384" y="38.5" fill="#fff">main</text>
+    </g>
+    <g class="ref">
+      <rect x="196" y="166" width="132" height="30" rx="15" fill="#fff" stroke="#0d9488" stroke-width="2"/>
+      <text x="262" y="186.5" fill="#151a2e">feature/login</text>
+    </g>
+  </svg>
+</body>
+</html>
