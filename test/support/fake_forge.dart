@@ -22,6 +22,10 @@ class FakeForge implements Forge {
   /// mutable so a test can move a commit's CI along between reads.
   final Map<String, ChecksSummary> checksBySha;
 
+  /// Failures by the ref asked about, so one commit's CI can fail while the
+  /// rest answer.
+  final Map<String, ForgeError> checksErrorsBySha = {};
+
   /// Details by number. A number with no entry answers [ForgeNotVisible],
   /// the way a forge answers for a request it does not have.
   final Map<int, PullRequestDetail> details;
@@ -96,7 +100,7 @@ class FakeForge implements Forge {
   Future<ChecksSummary> checksForRef(String ref) async {
     checksCalls++;
     checkedRefs.add(ref);
-    final error = checksError;
+    final error = checksError ?? checksErrorsBySha[ref];
     if (error != null) throw error;
     return checksBySha[ref] ?? checksResult;
   }

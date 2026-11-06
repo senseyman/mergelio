@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 import '../domain/forge/forge.dart';
+import '../domain/forge/forge_error.dart';
 import '../domain/forge/forge_host.dart';
 import '../domain/forge/forge_server.dart';
 import '../domain/forge/models.dart';
@@ -28,6 +29,9 @@ const kNotifyPrListLimit = 100;
 /// Below this share of a host's request budget, the watcher stops reading
 /// that host until the budget resets, leaving the rest for the user.
 const kBudgetPauseFraction = 0.2;
+
+/// The remote whose URL names the repo's forge project.
+const kForgeRemote = 'origin';
 
 /// Whether the watcher has anything to do for the repo at the given path:
 /// its CI or pull-request notifications are on, and it sits on a forge with
@@ -151,14 +155,31 @@ class ForgeNotifyWatcher {
 
       final byServer = <ForgeServer, List<(String, ForgeHost)>>{};
       for (final path in paths) {
-        final host = await _ref.read(forgeHostProvider(path).future);
+        final ForgeHost? host;
+        try {
+          host = await _ref.read(forgeHostProvider(path).future);
+        } on Object catch (e) {
+          // One repo whose remote cannot be read must not cost the others
+          // their tick.
+          debugPrint('forge-notify host lookup failed for $path: $e');
+          continue;
+        }
         if (host == null) continue;
         (byServer[host.server] ??= []).add((path, host));
       }
 
       var anyRead = false, anyFailed = false;
       for (final MapEntry(key: server, value: repos) in byServer.entries) {
-        if (!await _mayRead(server, repos.first.$1)) continue;
+        final bool mayRead;
+        try {
+          mayRead = await _mayRead(server, repos.first.$1);
+        } on Object catch (e) {
+          // Without a budget reading there is no telling whether this host
+          // can afford a read; skip it alone, not every host after it.
+          debugPrint('forge-notify budget read failed for $server: $e');
+          continue;
+        }
+        if (!mayRead) continue;
         for (final (path, host) in repos) {
           if (_disposed) return;
           final ok = await _watchRepo(path, host.kind);
@@ -274,12 +295,12 @@ class ForgeNotifyWatcher {
         notifiedCi: diff.notifiedCi,
         maxPrNumber: diff.maxPrNumber,
       );
-      await _report(path, kind, forge, diff.events);
       if (wantCi) {
         _ciWatched.add(path);
       } else {
         _ciWatched.remove(path);
       }
+      await _report(path, kind, forge, diff.events);
       return true;
     } on Object catch (e) {
       // The old snapshot stays, so the next good read diffs against it.
@@ -290,7 +311,9 @@ class ForgeNotifyWatcher {
 
   /// Every commit whose CI is worth reporting: each open request's head,
   /// plus the current branch's upstream tip when no request already covers
-  /// it.
+  /// it. The upstream counts only when it tracks `origin`, the remote the
+  /// forge is resolved from: a branch tracking a fork lives on another
+  /// project, which this forge cannot answer for.
   Future<Map<String, ({String branch, int? prNumber, String? targetBranch})>>
   _shaLabels(String path, Map<int, PullRequest> openPrs) async {
     final labels =
@@ -313,6 +336,7 @@ class ForgeNotifyWatcher {
     for (final b in data.branches) {
       if (!b.current || b.upstream.isEmpty) continue;
       for (final r in data.remoteBranches) {
+        if (r.remote != kForgeRemote) continue;
         if (r.name != b.upstream || r.tip.isEmpty) continue;
         labels.putIfAbsent(
           r.tip,
@@ -325,6 +349,8 @@ class ForgeNotifyWatcher {
 
   /// CI states for [shas]. A sha whose last known state is final keeps it
   /// without another read; only new or still-running ones cost a request.
+  /// A sha whose read fails keeps what was known about it (or stays
+  /// unknown), so one bad commit cannot hold back the rest of the repo.
   Future<Map<String, ChecksOverall>> _readCi(
     Forge forge,
     Iterable<String> shas,
@@ -337,7 +363,18 @@ class ForgeNotifyWatcher {
         out[sha] = known;
         continue;
       }
-      out[sha] = (await forge.checksForRef(sha)).overall;
+      try {
+        out[sha] = (await forge.checksForRef(sha)).overall;
+      } on ForgeRateLimited {
+        // The whole host is refusing, not this commit: fail the repo's read
+        // so the watcher backs off instead of retrying at full rate.
+        rethrow;
+      } on ForgeUnauthenticated {
+        rethrow;
+      } on Object catch (e) {
+        debugPrint('forge-notify CI read failed for $sha: $e');
+        if (known != null) out[sha] = known;
+      }
     }
     return out;
   }

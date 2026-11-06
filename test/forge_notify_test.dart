@@ -1,6 +1,7 @@
 // The background CI / pull-request watcher: it runs only while the window is
 // unfocused, reads only repos whose notifications want it, holds off a host
 // whose budget runs low, and turns what changed into desktop notifications.
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/data/kv_store.dart';
@@ -9,11 +10,13 @@ import 'package:mergelio/domain/forge/forge_error.dart';
 import 'package:mergelio/domain/forge/forge_host.dart';
 import 'package:mergelio/domain/forge/models.dart';
 import 'package:mergelio/domain/git/models.dart';
+import 'package:mergelio/domain/notify/desktop_notifier.dart';
 import 'package:mergelio/state/desktop_notifier.dart';
 import 'package:mergelio/state/feedback.dart';
 import 'package:mergelio/state/forge.dart';
 import 'package:mergelio/state/forge_notify.dart';
 import 'package:mergelio/state/forge_refresh.dart';
+import 'package:mergelio/state/notification_gate.dart';
 import 'package:mergelio/state/notification_prefs.dart';
 import 'package:mergelio/state/operation_journal.dart';
 import 'package:mergelio/state/repo_data.dart';
@@ -61,12 +64,26 @@ class _Workspace extends WorkspaceController {
   }
 }
 
+/// Records which event kind each notification was routed through, then lets
+/// the real gate decide as usual.
+class _RecordingGate extends NotificationGate {
+  _RecordingGate(super.ref, this.kinds);
+  final List<NotifyEvent> kinds;
+
+  @override
+  Future<bool> notify(NotifyEvent e, AppNotification n) {
+    kinds.add(e);
+    return super.notify(e, n);
+  }
+}
+
 class _Harness {
   final ProviderContainer c;
   final FakeForge forge;
   final FakeDesktopNotifier notifier;
   final List<PullRequest> prs;
   ForgeRateLimit? limit;
+  final List<NotifyEvent> kinds = [];
   DateTime now = DateTime(2026, 11, 6, 12);
 
   _Harness(this.c, this.forge, this.notifier, this.prs);
@@ -88,6 +105,9 @@ _Harness _harness({
   List<String> tabs = const [_path],
   List<PullRequest>? prs,
   Map<int, PullRequestDetail> details = const {},
+  String upstreamRemote = 'origin',
+  Future<ForgeHost?> Function(String path)? hostFor,
+  Future<ForgeRateLimit?> Function(String path)? limitFor,
 }) {
   final list = [
     ...(prs ?? [_pr(10)]),
@@ -117,22 +137,29 @@ _Harness _harness({
       desktopNotifierProvider.overrideWithValue(notifier),
       windowFocusedProvider.overrideWith((ref) => focused),
       workspaceProvider.overrideWith((ref) => _Workspace(tabs)),
-      forgeHostProvider.overrideWith((ref, path) async => _host),
+      forgeHostProvider.overrideWith(
+        (ref, path) => hostFor?.call(path) ?? Future.value(_host),
+      ),
       forgeRefreshEligibleProvider.overrideWith((ref, path) async => true),
       forgeProvider.overrideWith((ref, path) async => forge),
-      forgeRateLimitProvider.overrideWith((ref, path) async => h.limit),
+      forgeRateLimitProvider.overrideWith(
+        (ref, path) => limitFor?.call(path) ?? Future.value(h.limit),
+      ),
+      notificationGateProvider.overrideWith(
+        (ref) => _RecordingGate(ref, h.kinds),
+      ),
       repoDataProvider.overrideWith(
-        (ref, path) async => const RepoData(
+        (ref, path) async => RepoData(
           branches: [
             Branch(
               name: 'feature',
               current: true,
               tip: 'l1',
-              upstream: 'origin/feature',
+              upstream: '$upstreamRemote/feature',
             ),
           ],
           remoteBranches: [
-            RemoteBranch(remote: 'origin', branch: 'feature', tip: 'u1'),
+            RemoteBranch(remote: upstreamRemote, branch: 'feature', tip: 'u1'),
           ],
         ),
       ),
@@ -147,6 +174,11 @@ _Harness _harness({
 }
 
 void main() {
+  // Failed reads are logged on purpose; keep that out of the test output.
+  final realDebugPrint = debugPrint;
+  setUp(() => debugPrint = (String? message, {int? wrapWidth}) {});
+  tearDown(() => debugPrint = realDebugPrint);
+
   test('the first tick only seeds; a new request after it notifies', () async {
     final h = _harness();
     final w = h.watcher;
@@ -254,7 +286,15 @@ void main() {
     expect(h.forge.pullRequestsCalls, 0);
     expect(h.forge.checksCalls, 0);
 
-    h.now = h.now.add(const Duration(hours: 1, seconds: 1));
+    h.now = h.now.add(const Duration(minutes: 30));
+    await w.tick();
+    expect(
+      h.forge.pullRequestsCalls,
+      0,
+      reason: 'the pause must last until the reported reset',
+    );
+
+    h.now = h.now.add(const Duration(minutes: 30, seconds: 1));
     await w.tick();
     expect(h.forge.pullRequestsCalls, 1);
   });
@@ -345,6 +385,144 @@ void main() {
     expect(h.bodies, ['CI passed on topic-10 (PR #10)']);
   });
 
+  test('no tab to watch leaves the timer unarmed', () async {
+    final h = _harness(tabs: const []);
+    final w = h.watcher;
+    await h.settle();
+    expect(w.scheduledInterval, isNull);
+  });
+
+  test('a tab with notifications off leaves the timer unarmed', () async {
+    final h = _harness(ci: false, pullRequests: false);
+    final w = h.watcher;
+    await h.settle();
+    expect(w.scheduledInterval, isNull);
+  });
+
+  test('an upstream on a remote other than the forge is not read', () async {
+    final h = _harness(upstreamRemote: 'fork');
+    final w = h.watcher;
+    await h.settle();
+
+    await w.tick();
+
+    expect(h.forge.checkedRefs, ['h10']);
+  });
+
+  test('one commit whose CI cannot be read does not stall the repo', () async {
+    final h = _harness();
+    final w = h.watcher;
+    await h.settle();
+    await w.tick();
+
+    h.forge.checksErrorsBySha['h10'] = const ForgeServerFault(422);
+    h.forge.checksBySha['h11'] = _success;
+    h.forge.checksBySha['u1'] = _success;
+    h.prs.add(_pr(11));
+    await w.tick();
+
+    expect(
+      h.bodies,
+      unorderedEquals([
+        'PR #11 opened: Change 11',
+        'CI passed on topic-11 (PR #11)',
+        'CI passed on feature',
+      ]),
+    );
+    expect(w.scheduledInterval, const Duration(seconds: 120));
+    expect(w.snapshots[_path]!.openPrs.keys, unorderedEquals([10, 11]));
+  });
+
+  test('a rate-limited CI read still backs the watcher off', () async {
+    final h = _harness();
+    final w = h.watcher;
+    await h.settle();
+    await w.tick();
+
+    h.forge.checksErrorsBySha['h10'] = const ForgeRateLimited(null);
+    await w.tick();
+
+    expect(w.scheduledInterval, const Duration(seconds: 240));
+  });
+
+  test('a host that cannot be resolved does not skip the others', () async {
+    const other = ForgeHost(
+      kind: ForgeKind.github,
+      host: 'ghe.corp',
+      owner: 'o',
+      repo: 'r',
+    );
+    final h = _harness(
+      tabs: const ['/a', '/b'],
+      hostFor: (path) async =>
+          path == '/a' ? throw StateError('no remote') : other,
+    );
+    final w = h.watcher;
+    await h.settle();
+
+    await w.tick();
+
+    expect(h.forge.pullRequestsCalls, 1);
+    expect(w.snapshots.keys, ['/b']);
+  });
+
+  test('a budget that cannot be read does not skip other hosts', () async {
+    const other = ForgeHost(
+      kind: ForgeKind.github,
+      host: 'ghe.corp',
+      owner: 'o',
+      repo: 'r',
+    );
+    final h = _harness(
+      tabs: const ['/a', '/b'],
+      hostFor: (path) async => path == '/a' ? _host : other,
+      limitFor: (path) async =>
+          path == '/a' ? throw StateError('budget') : null,
+    );
+    final w = h.watcher;
+    await h.settle();
+
+    await w.tick();
+
+    expect(h.forge.pullRequestsCalls, 1);
+    expect(w.snapshots.keys, ['/b']);
+  });
+
+  group('routing to the gate', () {
+    test('a single request event goes through pull requests', () async {
+      final h = _harness();
+      final w = h.watcher;
+      await h.settle();
+      await w.tick();
+      h.prs.add(_pr(11));
+      await w.tick();
+      expect(h.kinds, [NotifyEvent.pullRequests]);
+    });
+
+    test('a single CI event goes through CI', () async {
+      final h = _harness();
+      final w = h.watcher;
+      await h.settle();
+      await w.tick();
+      h.forge.checksBySha['u1'] = _success;
+      await w.tick();
+      expect(h.kinds, [NotifyEvent.ci]);
+    });
+
+    test('a mixed batch goes through pull requests once', () async {
+      final h = _harness();
+      final w = h.watcher;
+      await h.settle();
+      await w.tick();
+      h.forge.checksBySha['h10'] = _success;
+      h.forge.checksBySha['u1'] = _success;
+      h.prs.addAll([_pr(11), _pr(12)]);
+      await w.tick();
+      expect(h.kinds, [NotifyEvent.pullRequests]);
+      expect(h.notifier.shown, hasLength(1));
+    });
+  });
+
   group('review focus', () {
     test('one path in two tabs is read and notified once', () async {
       final h = _harness(tabs: [_path, _path]);
@@ -368,8 +546,15 @@ void main() {
 
       await w.tick();
       expect(h.forge.pullRequestsCalls, 0);
+      final interval = w.scheduledInterval!;
 
-      h.now = h.now.add(w.scheduledInterval!);
+      // An early tick (a timer is never this early, but a pause measured in
+      // ticks rather than time would let it through) still waits.
+      h.now = h.now.add(interval ~/ 2);
+      await w.tick();
+      expect(h.forge.pullRequestsCalls, 0);
+
+      h.now = h.now.add(interval ~/ 2);
       await w.tick();
       expect(h.forge.pullRequestsCalls, 1);
     });
