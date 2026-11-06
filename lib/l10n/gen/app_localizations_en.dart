@@ -5947,4 +5947,135 @@ class AppLocalizationsEn extends AppLocalizations {
   String ntfCloneFailed(String error) {
     return 'Clone failed: $error';
   }
+
+  @override
+  String ntfPrOpened(String ref, String title) {
+    return 'PR $ref opened: $title';
+  }
+
+  @override
+  String ntfMrOpened(String ref, String title) {
+    return 'MR $ref opened: $title';
+  }
+
+  @override
+  String ntfPrMerged(String ref) {
+    return 'PR $ref merged';
+  }
+
+  @override
+  String ntfMrMerged(String ref) {
+    return 'MR $ref merged';
+  }
+
+  @override
+  String ntfPrClosed(String ref) {
+    return 'PR $ref closed';
+  }
+
+  @override
+  String ntfMrClosed(String ref) {
+    return 'MR $ref closed';
+  }
+
+  @override
+  String ntfPrGone(String ref) {
+    return 'PR $ref no longer open';
+  }
+
+  @override
+  String ntfMrGone(String ref) {
+    return 'MR $ref no longer open';
+  }
+
+  @override
+  String ntfCiPassed(String branch) {
+    return 'CI passed on $branch';
+  }
+
+  @override
+  String ntfCiFailed(String branch) {
+    return 'CI failed on $branch';
+  }
+
+  @override
+  String ntfCiPassedPr(String branch, String ref) {
+    return 'CI passed on $branch ($ref)';
+  }
+
+  @override
+  String ntfCiFailedPr(String branch, String ref) {
+    return 'CI failed on $branch ($ref)';
+  }
+
+  @override
+  String ntfBatch(String summary) {
+    return '$summary';
+  }
+
+  @override
+  String ntfBatchOpened(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n PRs opened',
+      one: '$n PR opened',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ntfBatchOpenedMr(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n MRs opened',
+      one: '$n MR opened',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ntfBatchClosed(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n PRs closed',
+      one: '$n PR closed',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ntfBatchClosedMr(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n MRs closed',
+      one: '$n MR closed',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ntfBatchCiFailed(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: 'CI failed on $n commits',
+      one: 'CI failed on $n commit',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ntfBatchCiPassed(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: 'CI passed on $n commits',
+      one: 'CI passed on $n commit',
+    );
+    return '$_temp0';
+  }
 }

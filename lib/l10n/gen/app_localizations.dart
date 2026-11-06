@@ -9667,6 +9667,120 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Clone failed: {error}'**
   String ntfCloneFailed(String error);
+
+  /// No description provided for @ntfPrOpened.
+  ///
+  /// In en, this message translates to:
+  /// **'PR {ref} opened: {title}'**
+  String ntfPrOpened(String ref, String title);
+
+  /// No description provided for @ntfMrOpened.
+  ///
+  /// In en, this message translates to:
+  /// **'MR {ref} opened: {title}'**
+  String ntfMrOpened(String ref, String title);
+
+  /// No description provided for @ntfPrMerged.
+  ///
+  /// In en, this message translates to:
+  /// **'PR {ref} merged'**
+  String ntfPrMerged(String ref);
+
+  /// No description provided for @ntfMrMerged.
+  ///
+  /// In en, this message translates to:
+  /// **'MR {ref} merged'**
+  String ntfMrMerged(String ref);
+
+  /// No description provided for @ntfPrClosed.
+  ///
+  /// In en, this message translates to:
+  /// **'PR {ref} closed'**
+  String ntfPrClosed(String ref);
+
+  /// No description provided for @ntfMrClosed.
+  ///
+  /// In en, this message translates to:
+  /// **'MR {ref} closed'**
+  String ntfMrClosed(String ref);
+
+  /// No description provided for @ntfPrGone.
+  ///
+  /// In en, this message translates to:
+  /// **'PR {ref} no longer open'**
+  String ntfPrGone(String ref);
+
+  /// No description provided for @ntfMrGone.
+  ///
+  /// In en, this message translates to:
+  /// **'MR {ref} no longer open'**
+  String ntfMrGone(String ref);
+
+  /// No description provided for @ntfCiPassed.
+  ///
+  /// In en, this message translates to:
+  /// **'CI passed on {branch}'**
+  String ntfCiPassed(String branch);
+
+  /// No description provided for @ntfCiFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'CI failed on {branch}'**
+  String ntfCiFailed(String branch);
+
+  /// No description provided for @ntfCiPassedPr.
+  ///
+  /// In en, this message translates to:
+  /// **'CI passed on {branch} ({ref})'**
+  String ntfCiPassedPr(String branch, String ref);
+
+  /// No description provided for @ntfCiFailedPr.
+  ///
+  /// In en, this message translates to:
+  /// **'CI failed on {branch} ({ref})'**
+  String ntfCiFailedPr(String branch, String ref);
+
+  /// No description provided for @ntfBatch.
+  ///
+  /// In en, this message translates to:
+  /// **'{summary}'**
+  String ntfBatch(String summary);
+
+  /// No description provided for @ntfBatchOpened.
+  ///
+  /// In en, this message translates to:
+  /// **'{n, plural, one{{n} PR opened} other{{n} PRs opened}}'**
+  String ntfBatchOpened(int n);
+
+  /// No description provided for @ntfBatchOpenedMr.
+  ///
+  /// In en, this message translates to:
+  /// **'{n, plural, one{{n} MR opened} other{{n} MRs opened}}'**
+  String ntfBatchOpenedMr(int n);
+
+  /// No description provided for @ntfBatchClosed.
+  ///
+  /// In en, this message translates to:
+  /// **'{n, plural, one{{n} PR closed} other{{n} PRs closed}}'**
+  String ntfBatchClosed(int n);
+
+  /// No description provided for @ntfBatchClosedMr.
+  ///
+  /// In en, this message translates to:
+  /// **'{n, plural, one{{n} MR closed} other{{n} MRs closed}}'**
+  String ntfBatchClosedMr(int n);
+
+  /// No description provided for @ntfBatchCiFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'{n, plural, one{CI failed on {n} commit} other{CI failed on {n} commits}}'**
+  String ntfBatchCiFailed(int n);
+
+  /// No description provided for @ntfBatchCiPassed.
+  ///
+  /// In en, this message translates to:
+  /// **'{n, plural, one{CI passed on {n} commit} other{CI passed on {n} commits}}'**
+  String ntfBatchCiPassed(int n);
 }
 
 class _AppLocalizationsDelegate
