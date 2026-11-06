@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/data/kv_store.dart';
@@ -19,6 +21,37 @@ AppSettings _settings(bool master, bool global, NotifyEvent e) {
     NotifyEvent.ci => s.copyWith(notifyCi: global),
     NotifyEvent.pullRequests => s.copyWith(notifyPullRequests: global),
   };
+}
+
+class _GatedStore implements KeyValueStore {
+  final Future<void> gate;
+  final map = <String, String>{};
+  _GatedStore(this.gate);
+  @override
+  Future<String?> get(String key) async {
+    await gate;
+    return map[key];
+  }
+
+  @override
+  Future<void> put(String key, String value) async => map[key] = value;
+}
+
+class _FlakyStore implements KeyValueStore {
+  int failures;
+  final map = <String, String>{};
+  _FlakyStore({required this.failures});
+  @override
+  Future<String?> get(String key) async {
+    if (failures > 0) {
+      failures--;
+      throw StateError('read failed');
+    }
+    return map[key];
+  }
+
+  @override
+  Future<void> put(String key, String value) async => map[key] = value;
 }
 
 void main() {
@@ -110,9 +143,7 @@ void main() {
         overrides: [kvStoreProvider.overrideWithValue(store)],
       );
       addTearDown(c2.dispose);
-      c2.read(repoNotifyPrefsProvider('/r'));
-      await Future<void>.delayed(Duration.zero);
-      await Future<void>.delayed(Duration.zero);
+      await c2.read(repoNotifyPrefsProvider('/r').notifier).loaded;
       expect(
         c2.read(repoNotifyPrefsProvider('/r')).of(NotifyEvent.ci),
         NotifyOverride.on,
@@ -123,19 +154,55 @@ void main() {
       );
     });
 
-    test('a set made before the load lands is not overwritten by it', () async {
-      final store = InMemoryKeyValueStore();
-      await store.put('notifications:/r', '{"ci":"off"}');
+    test(
+      'a set made before the load lands keeps the stored overrides',
+      () async {
+        final gate = Completer<void>();
+        final store = _GatedStore(gate.future)
+          ..map['notifications:/r'] = '{"ci":"off"}';
+        final c = ProviderContainer(
+          overrides: [kvStoreProvider.overrideWithValue(store)],
+        );
+        addTearDown(c.dispose);
+        final n = c.read(repoNotifyPrefsProvider('/r').notifier);
+        final pending = n.set(NotifyEvent.longOps, NotifyOverride.on);
+        gate.complete();
+        await pending;
+        final saved = RepoNotifyPrefs.fromJson(store.map['notifications:/r']);
+        expect(saved.of(NotifyEvent.ci), NotifyOverride.off);
+        expect(saved.of(NotifyEvent.longOps), NotifyOverride.on);
+      },
+    );
+
+    test('a failed load never overwrites the stored overrides', () async {
+      final store = _FlakyStore(failures: 2)
+        ..map['notifications:/r'] = '{"ci":"off"}';
       final c = ProviderContainer(
         overrides: [kvStoreProvider.overrideWithValue(store)],
       );
       addTearDown(c.dispose);
       final n = c.read(repoNotifyPrefsProvider('/r').notifier);
       await n.set(NotifyEvent.longOps, NotifyOverride.on);
-      await Future<void>.delayed(Duration.zero);
-      final p = c.read(repoNotifyPrefsProvider('/r'));
-      expect(p.of(NotifyEvent.longOps), NotifyOverride.on);
-      expect(p.of(NotifyEvent.ci), NotifyOverride.off);
+      expect(store.map['notifications:/r'], '{"ci":"off"}');
+      expect(
+        c.read(repoNotifyPrefsProvider('/r')).of(NotifyEvent.longOps),
+        NotifyOverride.on,
+      );
+    });
+
+    test('a load that fails once is retried before the write', () async {
+      final store = _FlakyStore(failures: 1)
+        ..map['notifications:/r'] = '{"ci":"off"}';
+      final c = ProviderContainer(
+        overrides: [kvStoreProvider.overrideWithValue(store)],
+      );
+      addTearDown(c.dispose);
+      await c
+          .read(repoNotifyPrefsProvider('/r').notifier)
+          .set(NotifyEvent.longOps, NotifyOverride.on);
+      final saved = RepoNotifyPrefs.fromJson(store.map['notifications:/r']);
+      expect(saved.of(NotifyEvent.ci), NotifyOverride.off);
+      expect(saved.of(NotifyEvent.longOps), NotifyOverride.on);
     });
   });
 

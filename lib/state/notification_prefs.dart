@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/kv_store.dart';
@@ -78,6 +79,7 @@ class RepoNotifyPrefsController extends StateNotifier<RepoNotifyPrefs> {
   final KeyValueStore _kv;
   final String _key;
   late final Future<void> _loaded;
+  bool _loadOk = false;
 
   RepoNotifyPrefsController(this._kv, String repo)
     : _key = 'notifications:$repo',
@@ -85,22 +87,31 @@ class RepoNotifyPrefsController extends StateNotifier<RepoNotifyPrefs> {
     _loaded = _load();
   }
 
+  /// Completes once the stored prefs have been read (or the read failed).
+  Future<void> get loaded => _loaded;
+
   Future<void> _load() async {
     try {
       final loaded = RepoNotifyPrefs.fromJson(await _kv.get(_key));
+      _loadOk = true;
       if (mounted) state = loaded;
-    } catch (_) {
-      // Unreadable storage leaves every event inheriting.
+    } catch (e) {
+      debugPrint('notification prefs load failed: $e');
     }
   }
 
   /// Changes one override and saves. Waits for the stored prefs first, so a
   /// change made right after creation builds on them instead of replacing
-  /// them.
+  /// them. If the stored prefs could not be read, the read is retried; when
+  /// it still fails the change is kept in memory only, so a transient read
+  /// failure never overwrites what is stored.
   Future<void> set(NotifyEvent e, NotifyOverride o) async {
     await _loaded;
     if (!mounted) return;
+    if (!_loadOk) await _load();
+    if (!mounted) return;
     state = state.copyWith(e, o);
+    if (!_loadOk) return;
     await _kv.put(_key, state.toJson());
   }
 }
