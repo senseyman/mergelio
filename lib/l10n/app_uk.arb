@@ -1921,5 +1921,9 @@
   "mdViewRendered": "Перегляд",
   "mdRemoteImageBlocked": "Зображення з мережі не завантажуються",
   "mdSideAbsent": "З цього боку файлу немає",
-  "mdCouldNotOpenLink": "Не вдалося відкрити посилання в браузері"
+  "mdCouldNotOpenLink": "Не вдалося відкрити посилання в браузері",
+  "ntfOpFinished": "{op}: завершено",
+  "ntfOpFailed": "{op}: помилка: {error}",
+  "ntfCloneFinished": "Клонування завершено",
+  "ntfCloneFailed": "Клонування не вдалося: {error}"
 }

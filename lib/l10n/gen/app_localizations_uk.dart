@@ -6034,4 +6034,22 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get mdCouldNotOpenLink => 'Не вдалося відкрити посилання в браузері';
+
+  @override
+  String ntfOpFinished(String op) {
+    return '$op: завершено';
+  }
+
+  @override
+  String ntfOpFailed(String op, String error) {
+    return '$op: помилка: $error';
+  }
+
+  @override
+  String get ntfCloneFinished => 'Клонування завершено';
+
+  @override
+  String ntfCloneFailed(String error) {
+    return 'Клонування не вдалося: $error';
+  }
 }

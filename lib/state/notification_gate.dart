@@ -25,13 +25,16 @@ class NotificationGate {
   /// Shows [n] if allowed. Returns whether it was actually shown; a failing
   /// notifier is swallowed and counts as not shown.
   Future<bool> notify(NotifyEvent e, AppNotification n) async {
-    final repo = n.target.repoPath;
-    // The repo's stored overrides load asynchronously; wait so an override
-    // set to off is not missed right after the repo opens. Focus and the
-    // settings are checked afterwards, as they may have changed meanwhile.
-    await _ref.read(repoNotifyPrefsProvider(repo).notifier).loaded;
-    if (!notifyWanted(_ref, repo, e)) return false;
+    // Callers fire this without awaiting it, so nothing may escape: reading a
+    // provider after its container is gone throws, and that would surface as
+    // an unhandled async error.
     try {
+      final repo = n.target.repoPath;
+      // The repo's stored overrides load asynchronously; wait so an override
+      // set to off is not missed right after the repo opens. Focus and the
+      // settings are checked afterwards, as they may have changed meanwhile.
+      await _ref.read(repoNotifyPrefsProvider(repo).notifier).loaded;
+      if (!notifyWanted(_ref, repo, e)) return false;
       await _ref.read(desktopNotifierProvider).show(n);
       return true;
     } catch (err) {

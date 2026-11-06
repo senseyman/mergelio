@@ -5,6 +5,9 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mergelio/data/settings_repository.dart';
+import 'package:mergelio/state/settings.dart';
+import 'package:mergelio/state/settings_controller.dart';
 import 'package:mergelio/domain/git/askpass.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
@@ -84,7 +87,15 @@ void main() {
 
   ProviderContainer container() {
     final c = ProviderContainer(
-      overrides: [gitServiceProvider.overrideWithValue(git)],
+      overrides: [
+        gitServiceProvider.overrideWithValue(git),
+        settingsProvider.overrideWith(
+          (ref) => SettingsController(
+            InMemorySettingsRepository(),
+            const AppSettings(),
+          ),
+        ),
+      ],
     );
     addTearDown(c.dispose);
     return c;

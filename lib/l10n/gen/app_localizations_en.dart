@@ -5929,4 +5929,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mdCouldNotOpenLink => 'Could not open the link in your browser';
+
+  @override
+  String ntfOpFinished(String op) {
+    return '$op finished';
+  }
+
+  @override
+  String ntfOpFailed(String op, String error) {
+    return '$op failed: $error';
+  }
+
+  @override
+  String get ntfCloneFinished => 'Clone finished';
+
+  @override
+  String ntfCloneFailed(String error) {
+    return 'Clone failed: $error';
+  }
 }

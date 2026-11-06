@@ -3168,5 +3168,12 @@
   "mdViewRendered": "Preview",
   "mdRemoteImageBlocked": "Remote images are not loaded",
   "mdSideAbsent": "The file does not exist on this side",
-  "mdCouldNotOpenLink": "Could not open the link in your browser"
+  "mdCouldNotOpenLink": "Could not open the link in your browser",
+  "ntfOpFinished": "{op} finished",
+  "@ntfOpFinished": {"placeholders": {"op": {"type": "String"}}},
+  "ntfOpFailed": "{op} failed: {error}",
+  "@ntfOpFailed": {"placeholders": {"op": {"type": "String"}, "error": {"type": "String"}}},
+  "ntfCloneFinished": "Clone finished",
+  "ntfCloneFailed": "Clone failed: {error}",
+  "@ntfCloneFailed": {"placeholders": {"error": {"type": "String"}}}
 }

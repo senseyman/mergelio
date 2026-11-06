@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -26,6 +27,7 @@ import '../domain/git/lfs.dart';
 import '../domain/git/maintenance.dart';
 import '../domain/git/models.dart';
 import '../domain/git/notes.dart';
+import '../domain/notify/desktop_notifier.dart';
 import '../domain/git/patch_file.dart';
 import '../domain/git/rebase_plan.dart';
 import '../domain/git/stash.dart';
@@ -38,6 +40,9 @@ import 'external_tools.dart';
 import 'feedback.dart';
 import 'forge_refresh.dart';
 import 'merge_session.dart';
+import 'notification_gate.dart';
+import 'notification_prefs.dart';
+import 'op_clock.dart';
 import 'operation_journal.dart';
 import 'profiles.dart';
 import 'graph_selection.dart';
@@ -137,6 +142,8 @@ class RepoActions {
     }
   }
 
+  static String _firstLine(String s) => s.split('\n').first.trim();
+
   Future<void> _journalFail(int? id) async {
     if (id == null) return;
     try {
@@ -169,6 +176,9 @@ class RepoActions {
     // An op whose result the caller shows itself (a preview) wants failures
     // toasted but not its own success.
     bool toastSuccess = true,
+    // Tells the user, through a desktop notification, how a foreground op
+    // ended when it ran long enough for them to have looked away.
+    bool notifyWhenLong = false,
   }) async {
     final toasts = _ref.read(toastProvider.notifier);
     final slot = lane == _Lane.fetch ? fetchBusyProvider : busyProvider;
@@ -188,12 +198,35 @@ class RepoActions {
         ? BusyState(label, onCancel: cancel.cancel)
         : BusyState.network(label, onCancel: cancel.cancel);
     final opId = await _journalBegin(label);
+    final clock = _ref.read(opClockProvider);
+    final startedAt = clock();
+    void notifyIfLong(String Function(AppLocalizations l) body) {
+      if (!notifyWhenLong || silent) return;
+      final threshold = Duration(
+        seconds: _ref.read(settingsProvider).notifyLongOpSeconds,
+      );
+      if (clock().difference(startedAt) < threshold) return;
+      unawaited(
+        _ref
+            .read(notificationGateProvider)
+            .notify(
+              NotifyEvent.longOps,
+              AppNotification(
+                title: p.basename(path),
+                body: body(_l),
+                target: NotificationTarget(repoPath: path),
+              ),
+            ),
+      );
+    }
+
     try {
       // A network op waits on the remote: holding the view's refresh for it
       // would only make other actions' changes show late.
       await _timed(label, () => InFlightGit.uncounted(() => op(cancel)));
       await _journalDone(opId);
       onSuccess?.call();
+      notifyIfLong((l) => l.ntfOpFinished(label));
       if (!silent && toastSuccess) {
         toasts.show(_l.actComplete(label), kind: ToastKind.success);
       }
@@ -216,6 +249,10 @@ class RepoActions {
           kind: ToastKind.error,
         );
       }
+      notifyIfLong(
+        (l) =>
+            l.ntfOpFailed(label, _firstLine(err.isNotEmpty ? err : e.message)),
+      );
       return false;
     } on Object catch (_) {
       await _journalFail(opId);
@@ -226,6 +263,7 @@ class RepoActions {
           kind: ToastKind.error,
         );
       }
+      notifyIfLong((l) => l.ntfOpFailed(label, l.actUnexpectedError));
       return false;
     } finally {
       // Refresh even on failure: a failed pull/merge can still leave the repo
@@ -256,6 +294,7 @@ class RepoActions {
       silent: silent,
       writesWorkingTree: false,
       lane: _Lane.fetch,
+      notifyWhenLong: !silent,
       // Only a fetch the user asked for earns a forge refresh. Auto-fetch's
       // silent background polling ticks every few minutes and must not spend
       // the same rate-limit budget again each time it runs.
@@ -699,6 +738,7 @@ class RepoActions {
         autostash: autostash,
         cancel: cancel,
       ),
+      notifyWhenLong: true,
       onSuccess: () {
         _ref.read(forgeRefreshProvider).refreshAfterGitOp(path);
         _bumpLfs();
@@ -732,6 +772,7 @@ class RepoActions {
         cancel: cancel,
       ),
       writesWorkingTree: false,
+      notifyWhenLong: true,
       onSuccess: () {
         pushed = true;
         _ref.read(forgeRefreshProvider).refreshAfterGitOp(path);

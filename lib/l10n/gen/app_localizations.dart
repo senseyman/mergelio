@@ -9643,6 +9643,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not open the link in your browser'**
   String get mdCouldNotOpenLink;
+
+  /// No description provided for @ntfOpFinished.
+  ///
+  /// In en, this message translates to:
+  /// **'{op} finished'**
+  String ntfOpFinished(String op);
+
+  /// No description provided for @ntfOpFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'{op} failed: {error}'**
+  String ntfOpFailed(String op, String error);
+
+  /// No description provided for @ntfCloneFinished.
+  ///
+  /// In en, this message translates to:
+  /// **'Clone finished'**
+  String get ntfCloneFinished;
+
+  /// No description provided for @ntfCloneFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Clone failed: {error}'**
+  String ntfCloneFailed(String error);
 }
 
 class _AppLocalizationsDelegate

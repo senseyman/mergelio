@@ -122,4 +122,13 @@ void main() {
     final focused = _harness(focused: true);
     expect(focused.c.read(probe(true)), isFalse);
   });
+
+  test('a call after the container is disposed completes false', () async {
+    final h = _harness();
+    final gate = h.c.read(notificationGateProvider);
+    h.c.dispose();
+    final shown = await gate.notify(NotifyEvent.longOps, _note);
+    expect(shown, isFalse);
+    expect(h.fake.shown, isEmpty);
+  });
 }
