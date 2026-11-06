@@ -9,6 +9,7 @@ import 'app.dart';
 import 'core/logging.dart';
 import 'data/app_database.dart';
 import 'data/kv_store.dart';
+import 'data/notify/local_desktop_notifier.dart';
 import 'data/settings_repository.dart';
 import 'domain/git/askpass.dart';
 import 'domain/window_placement.dart';
@@ -61,6 +62,7 @@ Future<void> main(List<String> args) async {
   ErrorWidget.builder = (details) => const _FallbackErrorWidget();
 
   await windowManager.ensureInitialized();
+  await initDesktopNotifications();
 
   // Load persisted state defensively — a broken database must never block
   // startup or leave the user without a window.
