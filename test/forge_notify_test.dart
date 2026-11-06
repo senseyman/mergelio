@@ -297,6 +297,54 @@ void main() {
     expect(h.forge.pullRequestCalls, 2);
   });
 
+  test('a repo with only requests on never asks about CI', () async {
+    final h = _harness(ci: false);
+    final w = h.watcher;
+    await h.settle();
+
+    await w.tick();
+    h.prs.add(_pr(11));
+    await w.tick();
+
+    expect(h.forge.checkedRefs, isEmpty);
+    expect(h.bodies, ['PR #11 opened: Change 11']);
+  });
+
+  test('a repo with only CI on never looks up a vanished request', () async {
+    final h = _harness(
+      pullRequests: false,
+      details: {
+        10: PullRequestDetail(request: _pr(10, state: PullRequestState.merged)),
+      },
+    );
+    final w = h.watcher;
+    await h.settle();
+
+    await w.tick();
+    h.prs.clear();
+    await w.tick();
+
+    expect(h.forge.pullRequestCalls, 0);
+    expect(h.notifier.shown, isEmpty);
+  });
+
+  test('CI turned back on records what finished meanwhile silently', () async {
+    final h = _harness(ci: false);
+    final w = h.watcher;
+    await h.settle();
+    await w.tick();
+
+    h.forge.checksBySha['u1'] = _success;
+    h.c.read(settingsProvider.notifier).setNotify(NotifyEvent.ci, true);
+    await h.settle();
+    await w.tick();
+    expect(h.notifier.shown, isEmpty);
+
+    h.forge.checksBySha['h10'] = _success;
+    await w.tick();
+    expect(h.bodies, ['CI passed on topic-10 (PR #10)']);
+  });
+
   group('review focus', () {
     test('one path in two tabs is read and notified once', () async {
       final h = _harness(tabs: [_path, _path]);

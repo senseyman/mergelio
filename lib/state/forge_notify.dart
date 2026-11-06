@@ -76,6 +76,10 @@ class ForgeNotifyWatcher {
   final Map<String, ForgeSnapshot> _snapshots = {};
   // Hosts whose budget ran low, and when they may be read again.
   final Map<ForgeServer, DateTime> _pausedUntil = {};
+  // Repos whose CI was read on their last successful tick. A repo missing
+  // here had CI notifications off, so results that finished meanwhile are
+  // old news when they come back on.
+  final Set<String> _ciWatched = {};
 
   Timer? _timer;
   Duration? _interval;
@@ -143,6 +147,7 @@ class ForgeNotifyWatcher {
       final paths = await _eligiblePaths();
       if (_disposed) return;
       _snapshots.removeWhere((path, _) => !paths.contains(path));
+      _ciWatched.removeWhere((path) => !paths.contains(path));
 
       final byServer = <ForgeServer, List<(String, ForgeHost)>>{};
       for (final path in paths) {
@@ -232,8 +237,27 @@ class ForgeNotifyWatcher {
       final prs = await forge.pullRequests(limit: kNotifyPrListLimit);
       final openPrs = {for (final pr in prs) pr.number: pr};
       final labels = await _shaLabels(path, openPrs);
-      final prev = _snapshots[path];
-      final ciBySha = await _readCi(forge, labels.keys, prev);
+      var prev = _snapshots[path];
+      // CI costs a request per commit; a repo that does not want CI
+      // notifications spends none of the budget on it.
+      final wantCi = _ref.read(notifyEnabledProvider((path, NotifyEvent.ci)));
+      final ciBySha = wantCi
+          ? await _readCi(forge, labels.keys, prev)
+          : <String, ChecksOverall>{};
+      if (wantCi && prev != null && !_ciWatched.contains(path)) {
+        // CI notifications just came back on: whatever already finished is
+        // recorded, not reported, the same as a first look at the repo.
+        prev = ForgeSnapshot(
+          openPrs: prev.openPrs,
+          ciBySha: prev.ciBySha,
+          notifiedCi: {
+            ...prev.notifiedCi,
+            for (final e in ciBySha.entries)
+              if (_isFinal(e.value)) '${e.key}:${e.value.name}',
+          },
+          maxPrNumber: prev.maxPrNumber,
+        );
+      }
 
       final diff = diffForgeSnapshots(
         prev: prev ?? const ForgeSnapshot.empty(),
@@ -251,6 +275,11 @@ class ForgeNotifyWatcher {
         maxPrNumber: diff.maxPrNumber,
       );
       await _report(path, kind, forge, diff.events);
+      if (wantCi) {
+        _ciWatched.add(path);
+      } else {
+        _ciWatched.remove(path);
+      }
       return true;
     } on Object catch (e) {
       // The old snapshot stays, so the next good read diffs against it.
