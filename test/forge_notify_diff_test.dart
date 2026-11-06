@@ -59,7 +59,7 @@ void main() {
         seed: true,
       );
       expect(r.events, isEmpty);
-      expect(r.notifiedCi, {'a:success', 'b:failure'});
+      expect(r.notifiedCi, {'a:success', 'b:failure', 'd:mixed'});
     });
 
     test('new higher-numbered PR is opened', () {
@@ -200,6 +200,33 @@ void main() {
           'b': (branch: 'x', prNumber: null, targetBranch: null),
           'c': (branch: 'x', prNumber: null, targetBranch: null),
         },
+        seed: false,
+      );
+      expect(r.events, isEmpty);
+      expect(r.notifiedCi, {'a:mixed'});
+    });
+
+    test('a PR already open is not opened even above a stale mark', () {
+      final r = diffForgeSnapshots(
+        prev: ForgeSnapshot(
+          openPrs: prMap([pr(12)]),
+          ciBySha: const {},
+          notifiedCi: const {},
+        ),
+        openPrs: prMap([pr(12)]),
+        ciBySha: const {},
+        shaLabels: const {},
+        seed: false,
+      );
+      expect(r.events, isEmpty);
+    });
+
+    test('a final sha without a label is neither reported nor recorded', () {
+      final r = diffForgeSnapshots(
+        prev: const ForgeSnapshot.empty(),
+        openPrs: const {},
+        ciBySha: {'a': ChecksOverall.failure},
+        shaLabels: const {},
         seed: false,
       );
       expect(r.events, isEmpty);

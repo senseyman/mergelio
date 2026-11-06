@@ -69,6 +69,11 @@ class CiFinished extends ForgeEvent {
 enum PrGoneOutcome { merged, closed, unknown }
 
 bool _isFinal(ChecksOverall s) =>
+    s == ChecksOverall.success ||
+    s == ChecksOverall.failure ||
+    s == ChecksOverall.mixed;
+
+bool _notifies(ChecksOverall s) =>
     s == ChecksOverall.success || s == ChecksOverall.failure;
 
 /// Compares what the forge shows now against [prev].
@@ -99,7 +104,7 @@ diffForgeSnapshots({
     final prevMax = prev.maxPrNumber;
     final numbers = openPrs.keys.toList()..sort();
     for (final n in numbers) {
-      if (n > prevMax) {
+      if (n > prevMax && !prev.openPrs.containsKey(n)) {
         events.add(PrOpened(openPrs[n]!));
       }
     }
@@ -113,24 +118,22 @@ diffForgeSnapshots({
     if (!_isFinal(e.value)) continue;
     final key = '${e.key}:${e.value.name}';
     if (notified.contains(key)) continue;
-    if (seed) {
+    if (seed || !_notifies(e.value)) {
       notified.add(key);
       continue;
     }
-    if (e.value == ChecksOverall.success || e.value == ChecksOverall.failure) {
-      final label = shaLabels[e.key];
-      if (label == null) continue;
-      notified.add(key);
-      events.add(
-        CiFinished(
-          e.key,
-          e.value,
-          label.branch,
-          label.prNumber,
-          label.targetBranch,
-        ),
-      );
-    }
+    final label = shaLabels[e.key];
+    if (label == null) continue;
+    notified.add(key);
+    events.add(
+      CiFinished(
+        e.key,
+        e.value,
+        label.branch,
+        label.prNumber,
+        label.targetBranch,
+      ),
+    );
   }
   return (events: events, notifiedCi: notified, maxPrNumber: maxPr);
 }
@@ -156,11 +159,8 @@ List<AppNotification> renderForgeEvents(
         case PrGone():
           closed++;
         case CiFinished(:final state):
-          if (state == ChecksOverall.failure) {
-            failed++;
-          } else {
-            passed++;
-          }
+          if (state == ChecksOverall.failure) failed++;
+          if (state == ChecksOverall.success) passed++;
       }
     }
     final parts = <String>[
