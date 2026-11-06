@@ -44,6 +44,7 @@ class _FakeGit implements GitService {
   Duration? cloneTake;
   GitResult? pushResult;
   GitResult? cloneResult;
+  GitException? cloneThrows;
   void Function(GitCancel cancel)? onNetwork;
   void Function()? advance;
 
@@ -66,6 +67,8 @@ class _FakeGit implements GitService {
     }
     if (args.first == 'clone') {
       Directory(args.last).createSync(recursive: true);
+      final thrown = cloneThrows;
+      if (thrown != null) throw thrown;
       return cloneResult ?? const GitResult(0, '', '');
     }
     if (args.first == 'push' && pushResult != null) return pushResult!;
@@ -280,6 +283,33 @@ void main() {
         fake.shown.single.body,
         'Clone failed: fatal: repository not found',
       );
+    });
+
+    test('a failed long clone with no stderr still says why', () async {
+      git.cloneResult = const GitResult(128, '', '');
+      takes(11);
+      await c
+          .read(repoBootstrapProvider)
+          .clone(url: 'git@host:acme/repo.git', parentDir: work.path);
+      await pumpEventQueue();
+
+      expect(fake.shown, hasLength(1));
+      expect(fake.shown.single.body, 'Clone failed: Unexpected error');
+    });
+
+    test('a thrown clone error with no stderr uses its message', () async {
+      git.cloneThrows = GitException(
+        'git timed out',
+        const GitResult(-1, '', ''),
+      );
+      takes(11);
+      await c
+          .read(repoBootstrapProvider)
+          .clone(url: 'git@host:acme/repo.git', parentDir: work.path);
+      await pumpEventQueue();
+
+      expect(fake.shown, hasLength(1));
+      expect(fake.shown.single.body, 'Clone failed: git timed out');
     });
   });
 }

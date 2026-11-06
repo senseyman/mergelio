@@ -128,8 +128,11 @@ class RepoBootstrap {
         cancel: cancel,
       );
       if (!r.ok) {
-        _toast(_l.actFailed(_l.bootClone), r.err);
-        notifyIfLong(_l.ntfCloneFailed(firstLine(r.err)));
+        // git normally says why on stderr; when it says nothing, a generic
+        // reason beats a notification that trails off after a colon.
+        final err = r.err.trim().isNotEmpty ? r.err : _l.actUnexpectedError;
+        _toast(_l.actFailed(_l.bootClone), err);
+        notifyIfLong(_l.ntfCloneFailed(firstLine(err)));
         await _discardPartialClone(target, keepDirectory: destinationExisted);
         return null;
       }
@@ -143,7 +146,9 @@ class RepoBootstrap {
       await _discardPartialClone(target, keepDirectory: destinationExisted);
       return null;
     } on GitException catch (e) {
-      final err = e.result?.err ?? e.message;
+      // Prefer git's own stderr; fall back to the short message.
+      final stderr = e.result?.err ?? '';
+      final err = stderr.trim().isNotEmpty ? stderr : e.message;
       _toast(_l.actFailed(_l.bootClone), err);
       notifyIfLong(_l.ntfCloneFailed(firstLine(err)));
       await _discardPartialClone(target, keepDirectory: destinationExisted);
