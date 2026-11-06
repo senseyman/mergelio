@@ -9,6 +9,7 @@ import '../../l10n/gen/app_localizations.dart';
 import '../../state/feedback.dart';
 import '../../state/forge.dart';
 import '../../state/forge_refresh.dart';
+import '../../state/open_review.dart';
 import '../../state/repo_actions.dart';
 import '../../state/repo_data.dart';
 import '../../state/review.dart';
@@ -36,26 +37,6 @@ final forgeCheckoutPullRequestProvider = Provider<CheckoutPullRequest>(
           .read(repoActionsProvider(repoPath))
           .checkoutPullRequest(kind, number, replace: replace),
 );
-
-typedef FetchPullRequestForReview =
-    Future<({String base, String head})?> Function(
-      String repoPath,
-      ForgeKind kind,
-      int number,
-      String targetBranch,
-    );
-
-/// How a forge row brings in the commits its request's review reads.
-///
-/// Overridable so a widget test can see what would have been fetched without
-/// running git on the host.
-final forgeFetchPullRequestForReviewProvider =
-    Provider<FetchPullRequestForReview>(
-      (ref) =>
-          (repoPath, kind, number, targetBranch) => ref
-              .read(repoActionsProvider(repoPath))
-              .fetchPullRequestForReview(kind, number, targetBranch),
-    );
 
 /// Checks out request [number], asking before replacing a local branch that
 /// has commits the request no longer has — routine once a request is
@@ -186,23 +167,13 @@ class ForgePullRequestSection extends ConsumerWidget {
                         // section, may be gone by the time it answers, and
                         // the review was still asked for.
                         final review = ref.read(reviewTargetProvider.notifier);
-                        final shas = await fetchForReview(
-                          repoPath,
-                          host.kind,
-                          pr.number,
-                          pr.targetBranch,
-                        );
-                        // A failure was already reported by the fetch.
-                        if (shas == null) return;
-                        review.state = ReviewTarget(
+                        await openPullRequestReviewWith(
+                          review: review,
+                          fetch: fetchForReview,
                           repoPath: repoPath,
-                          base: shas.base,
-                          head: shas.head,
-                          pullRequest: ReviewPullRequest(
-                            kind: host.kind,
-                            number: pr.number,
-                            targetBranch: pr.targetBranch,
-                          ),
+                          kind: host.kind,
+                          number: pr.number,
+                          targetBranch: pr.targetBranch,
                         );
                       },
                       onCheckout: () => _checkoutAskingToReplace(
