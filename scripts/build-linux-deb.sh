@@ -52,9 +52,9 @@ if [[ -z ${SKIP_BUILD:-} ]]; then
     MISSING+=("libnotify-dev")
   fi
   if (( ${#MISSING[@]} > 0 )); then
-    die "Missing build dependencies: ${MISSING[*]}\n  sudo apt install clang cmake ninja-build pkg-config libgtk-3-dev"
+    die "Missing build dependencies: ${MISSING[*]}\n  sudo apt install clang cmake ninja-build pkg-config libgtk-3-dev libnotify-dev"
   fi
-  ok "Toolchain: clang, cmake, ninja, pkg-config, gtk+-3.0"
+  ok "Toolchain: clang, cmake, ninja, pkg-config, gtk+-3.0, libnotify"
 fi
 
 VERSION=$(resolve_version "${1:-}")

@@ -42,12 +42,16 @@ done
 if ! pkg-config --exists gtk+-3.0 2>/dev/null; then
   MISSING+=("libgtk-3-dev")
 fi
-
-if (( ${#MISSING[@]} > 0 )); then
-  die "Missing build dependencies: ${MISSING[*]}\n  Debian/Ubuntu: sudo apt install clang cmake ninja-build pkg-config libgtk-3-dev\n  Fedora:        sudo dnf install clang cmake ninja-build pkgconf-pkg-config gtk3-devel\n  Arch:          sudo pacman -S clang cmake ninja pkgconf gtk3"
+# Desktop notifications link against libnotify.
+if ! pkg-config --exists libnotify 2>/dev/null; then
+  MISSING+=("libnotify-dev")
 fi
 
-ok "Toolchain: clang, cmake, ninja, pkg-config, gtk+-3.0"
+if (( ${#MISSING[@]} > 0 )); then
+  die "Missing build dependencies: ${MISSING[*]}\n  Debian/Ubuntu: sudo apt install clang cmake ninja-build pkg-config libgtk-3-dev libnotify-dev\n  Fedora:        sudo dnf install clang cmake ninja-build pkgconf-pkg-config gtk3-devel libnotify-devel\n  Arch:          sudo pacman -S clang cmake ninja pkgconf gtk3 libnotify"
+fi
+
+ok "Toolchain: clang, cmake, ninja, pkg-config, gtk+-3.0, libnotify"
 
 VERSION=$(resolve_version "${1:-}")
 [[ -n $VERSION ]] || die "Could not determine the version."
