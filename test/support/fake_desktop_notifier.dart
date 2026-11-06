@@ -11,7 +11,9 @@ class FakeDesktopNotifier implements DesktopNotifier {
   @override
   Stream<NotificationTarget> get clicks => _clicks.stream;
 
-  void click(NotificationTarget t) => _clicks.add(t);
+  void click(NotificationTarget t) {
+    if (!_clicks.isClosed) _clicks.add(t);
+  }
 
   @override
   Future<void> show(AppNotification n) async {

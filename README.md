@@ -554,7 +554,7 @@ checksum file above is the verification.
   [Toolchain version](#toolchain-version) below; this one is pinned, not a floor
 - **Desktop toolchain** for your host: Xcode (macOS), Visual Studio with the
   *Desktop development with C++* workload (Windows), or
-  `clang cmake ninja-build pkg-config libgtk-3-dev` (Linux)
+  `clang cmake ninja-build pkg-config libgtk-3-dev libnotify-dev` (Linux)
 - **Git** on your `PATH`
 
 Check your setup with `make doctor`.

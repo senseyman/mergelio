@@ -147,7 +147,7 @@ Architecture: ${DEB_ARCH}
 Maintainer: ${MAINTAINER}
 Homepage: ${HOMEPAGE}
 Installed-Size: ${INSTALLED_KB}
-Depends: libgtk-3-0 | libgtk-3-0t64, libglib2.0-0 | libglib2.0-0t64, libstdc++6, zlib1g, git
+Depends: libgtk-3-0 | libgtk-3-0t64, libglib2.0-0 | libglib2.0-0t64, libnotify4, libstdc++6, zlib1g, git
 Description: Free, cross-platform visual Git client
  Mergelio is a desktop Git client with a commit graph, staging, diffs,
  merge and rebase tooling, and worktree support.

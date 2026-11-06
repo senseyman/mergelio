@@ -13,6 +13,7 @@ import 'data/notify/local_desktop_notifier.dart';
 import 'data/settings_repository.dart';
 import 'domain/git/askpass.dart';
 import 'domain/window_placement.dart';
+import 'state/desktop_notifier.dart';
 import 'state/diagnostics.dart';
 import 'state/diff_view_options.dart';
 import 'state/l10n.dart';
@@ -62,7 +63,7 @@ Future<void> main(List<String> args) async {
   ErrorWidget.builder = (details) => const _FallbackErrorWidget();
 
   await windowManager.ensureInitialized();
-  await initDesktopNotifications();
+  final notificationsReady = await initDesktopNotifications();
 
   // Load persisted state defensively — a broken database must never block
   // startup or leave the user without a window.
@@ -159,6 +160,7 @@ Future<void> main(List<String> args) async {
           c.applySession(session);
           return c;
         }),
+        desktopNotificationsReadyProvider.overrideWithValue(notificationsReady),
         kvStoreProvider.overrideWithValue(kv),
         interruptedOpsProvider.overrideWithValue(interruptedOps),
       ],

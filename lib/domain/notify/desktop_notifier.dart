@@ -1,6 +1,3 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../data/notify/local_desktop_notifier.dart';
 import '../forge/forge_host.dart';
 
 /// Where a notification leads when the user clicks it: a repo, optionally a
@@ -60,11 +57,3 @@ class NullDesktopNotifier implements DesktopNotifier {
   @override
   void dispose() {}
 }
-
-final desktopNotifierProvider = Provider<DesktopNotifier>((ref) {
-  final DesktopNotifier notifier = desktopNotificationsReady
-      ? LocalDesktopNotifier()
-      : NullDesktopNotifier();
-  ref.onDispose(notifier.dispose);
-  return notifier;
-});

@@ -7,21 +7,17 @@ import '../../domain/notify/desktop_notifier.dart';
 
 /// [DesktopNotifier] backed by the `local_notifier` plugin. Notifications are
 /// best-effort: any failure is logged and swallowed, never surfaced.
-bool _pluginReady = false;
-
-/// One-time plugin setup. Returns normally even when it fails; the notifier
-/// provider then falls back to a no-op notifier.
-Future<void> initDesktopNotifications() async {
+/// One-time plugin setup. Returns whether notifications can be shown; a failure
+/// is logged, not thrown.
+Future<bool> initDesktopNotifications() async {
   try {
     await localNotifier.setup(appName: 'Mergelio');
-    _pluginReady = true;
+    return true;
   } catch (e, st) {
     appLog.error('notification setup failed', e, st, 'notify');
+    return false;
   }
 }
-
-/// Whether [initDesktopNotifications] succeeded.
-bool get desktopNotificationsReady => _pluginReady;
 
 class LocalDesktopNotifier implements DesktopNotifier {
   final _clicks = StreamController<NotificationTarget>.broadcast();

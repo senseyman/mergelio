@@ -1,4 +1,7 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mergelio/data/notify/local_desktop_notifier.dart';
+import 'package:mergelio/state/desktop_notifier.dart';
 import 'package:mergelio/domain/forge/forge_host.dart';
 import 'package:mergelio/domain/notify/desktop_notifier.dart';
 
@@ -68,5 +71,24 @@ void main() {
     await expectLater(f.show(note), throwsA(isA<Exception>()));
     expect(f.shown, isEmpty);
     f.dispose();
+  });
+
+  test('provider yields a no-op notifier until the plugin is ready', () {
+    final c = ProviderContainer();
+    addTearDown(c.dispose);
+    expect(c.read(desktopNotifierProvider), isA<NullDesktopNotifier>());
+  });
+
+  test('provider yields the plugin notifier once ready', () {
+    final c = ProviderContainer(
+      overrides: [desktopNotificationsReadyProvider.overrideWithValue(true)],
+    );
+    addTearDown(c.dispose);
+    expect(c.read(desktopNotifierProvider), isA<LocalDesktopNotifier>());
+  });
+
+  test('FakeDesktopNotifier click after dispose is ignored', () {
+    final f = FakeDesktopNotifier()..dispose();
+    f.click(target);
   });
 }
