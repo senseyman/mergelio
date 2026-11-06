@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 
+import '../core/logging.dart';
 import '../domain/notify/desktop_notifier.dart';
 import 'desktop_notifier.dart';
 import 'open_review.dart';
@@ -28,7 +29,15 @@ final notificationClickRouterProvider =
           final tabs = ref.read(workspaceProvider).tabs;
           final tab = tabs.where((x) => x.path == t.repoPath).firstOrNull;
           if (tab == null) return;
-          ref.read(workspaceProvider.notifier).setActive(tab.id);
+          final ws = ref.read(workspaceProvider.notifier);
+          // A tab outside the group on screen would stay hidden behind the
+          // welcome screen; show its own group (an ungrouped tab only shows
+          // under All) first.
+          final shown = ref.read(workspaceProvider).activeGroupId;
+          if (shown != null && shown != tab.groupId) {
+            ws.setActiveGroup(tab.groupId);
+          }
+          ws.setActive(tab.id);
           final kind = t.kind;
           final number = t.prNumber;
           final target = t.targetBranch;
@@ -40,8 +49,9 @@ final notificationClickRouterProvider =
             number: number,
             targetBranch: target,
           );
-        } catch (_) {
+        } catch (e, st) {
           // A click must never take the app down; the window is up already.
+          appLog.error('notification click failed', e, st, 'notify');
         }
       });
       ref.onDispose(sub.cancel);
