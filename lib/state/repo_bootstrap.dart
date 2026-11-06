@@ -9,15 +9,11 @@ import '../domain/git/askpass.dart';
 import '../domain/git/clone_options.dart';
 import '../domain/git/git_providers.dart';
 import '../domain/git/git_service.dart';
-import '../domain/notify/desktop_notifier.dart';
 import '../l10n/gen/app_localizations.dart';
 import 'feedback.dart';
 import 'l10n.dart';
-import 'notification_gate.dart';
-import 'notification_prefs.dart';
 import 'op_clock.dart';
 import 'recents.dart';
-import 'settings_controller.dart';
 import 'workspace.dart';
 
 /// Gets repositories into the app: clone from a URL or create a new local one.
@@ -110,24 +106,13 @@ class RepoBootstrap {
     );
     final clock = _ref.read(opClockProvider);
     final startedAt = clock();
-    void notifyIfLong(String body) {
-      final threshold = Duration(
-        seconds: _ref.read(settingsProvider).notifyLongOpSeconds,
-      );
-      if (clock().difference(startedAt) < threshold) return;
-      unawaited(
-        _ref
-            .read(notificationGateProvider)
-            .notify(
-              NotifyEvent.longOps,
-              AppNotification(
-                title: p.basename(target),
-                body: body,
-                target: NotificationTarget(repoPath: target),
-              ),
-            ),
-      );
-    }
+    void notifyIfLong(String body) => notifyIfLongOp(
+      _ref,
+      startedAt: startedAt,
+      repoPath: target,
+      title: p.basename(target),
+      body: body,
+    );
 
     try {
       final r = await _git.run(
@@ -144,7 +129,7 @@ class RepoBootstrap {
       );
       if (!r.ok) {
         _toast(_l.actFailed(_l.bootClone), r.err);
-        notifyIfLong(_l.ntfCloneFailed(_firstLine(r.err)));
+        notifyIfLong(_l.ntfCloneFailed(firstLine(r.err)));
         await _discardPartialClone(target, keepDirectory: destinationExisted);
         return null;
       }
@@ -160,15 +145,13 @@ class RepoBootstrap {
     } on GitException catch (e) {
       final err = e.result?.err ?? e.message;
       _toast(_l.actFailed(_l.bootClone), err);
-      notifyIfLong(_l.ntfCloneFailed(_firstLine(err)));
+      notifyIfLong(_l.ntfCloneFailed(firstLine(err)));
       await _discardPartialClone(target, keepDirectory: destinationExisted);
       return null;
     } finally {
       _ref.read(busyProvider.notifier).state = null;
     }
   }
-
-  static String _firstLine(String s) => s.split('\n').first.trim();
 
   /// Clears out what a failed or abandoned clone left behind, so the next
   /// attempt is not refused for a destination that already exists. The

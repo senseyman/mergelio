@@ -27,7 +27,6 @@ import '../domain/git/lfs.dart';
 import '../domain/git/maintenance.dart';
 import '../domain/git/models.dart';
 import '../domain/git/notes.dart';
-import '../domain/notify/desktop_notifier.dart';
 import '../domain/git/patch_file.dart';
 import '../domain/git/rebase_plan.dart';
 import '../domain/git/stash.dart';
@@ -40,8 +39,6 @@ import 'external_tools.dart';
 import 'feedback.dart';
 import 'forge_refresh.dart';
 import 'merge_session.dart';
-import 'notification_gate.dart';
-import 'notification_prefs.dart';
 import 'op_clock.dart';
 import 'operation_journal.dart';
 import 'profiles.dart';
@@ -142,8 +139,6 @@ class RepoActions {
     }
   }
 
-  static String _firstLine(String s) => s.split('\n').first.trim();
-
   Future<void> _journalFail(int? id) async {
     if (id == null) return;
     try {
@@ -202,21 +197,12 @@ class RepoActions {
     final startedAt = clock();
     void notifyIfLong(String Function(AppLocalizations l) body) {
       if (!notifyWhenLong || silent) return;
-      final threshold = Duration(
-        seconds: _ref.read(settingsProvider).notifyLongOpSeconds,
-      );
-      if (clock().difference(startedAt) < threshold) return;
-      unawaited(
-        _ref
-            .read(notificationGateProvider)
-            .notify(
-              NotifyEvent.longOps,
-              AppNotification(
-                title: p.basename(path),
-                body: body(_l),
-                target: NotificationTarget(repoPath: path),
-              ),
-            ),
+      notifyIfLongOp(
+        _ref,
+        startedAt: startedAt,
+        repoPath: path,
+        title: p.basename(path),
+        body: body(_l),
       );
     }
 
@@ -251,7 +237,7 @@ class RepoActions {
       }
       notifyIfLong(
         (l) =>
-            l.ntfOpFailed(label, _firstLine(err.isNotEmpty ? err : e.message)),
+            l.ntfOpFailed(label, firstLine(err.isNotEmpty ? err : e.message)),
       );
       return false;
     } on Object catch (_) {

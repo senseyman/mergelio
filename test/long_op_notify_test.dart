@@ -11,6 +11,7 @@ import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/state/desktop_notifier.dart';
 import 'package:mergelio/state/feedback.dart';
+import 'package:mergelio/state/notification_gate.dart';
 import 'package:mergelio/state/op_clock.dart';
 import 'package:mergelio/state/operation_journal.dart';
 import 'package:mergelio/state/recents.dart';
@@ -83,7 +84,11 @@ void main() {
   late FakeDesktopNotifier fake;
   late ProviderContainer c;
 
-  void setUpHarness({bool focused = false, bool longOps = true}) {
+  void setUpHarness({
+    bool focused = false,
+    bool longOps = true,
+    bool brokenGate = false,
+  }) {
     clock = DateTime(2026, 1, 1);
     git = _FakeGit(() => clock);
     fake = FakeDesktopNotifier();
@@ -94,6 +99,10 @@ void main() {
           (ref) => RecentsController(_MemoryRecents(), const []),
         ),
         desktopNotifierProvider.overrideWithValue(fake),
+        if (brokenGate)
+          notificationGateProvider.overrideWith(
+            (ref) => throw StateError('gate unavailable'),
+          ),
         kvStoreProvider.overrideWithValue(InMemoryKeyValueStore()),
         opClockProvider.overrideWithValue(() => clock),
         windowFocusedProvider.overrideWith((ref) => focused),
@@ -134,6 +143,18 @@ void main() {
     expect(n.body, 'Push finished');
     expect(n.target.repoPath, _repo);
     expect(n.target.prNumber, isNull);
+  });
+
+  test('a notification failure leaves a successful push successful', () async {
+    setUpHarness(brokenGate: true);
+    takes(11);
+    final pushed = await actions().push();
+    await pumpEventQueue();
+
+    expect(pushed, isTrue);
+    final toasts = c.read(toastProvider);
+    expect(toasts.map((t) => t.kind), isNot(contains(ToastKind.error)));
+    expect(toasts.map((t) => t.kind), contains(ToastKind.success));
   });
 
   test('a push taking 9 s stays quiet', () async {
@@ -223,6 +244,18 @@ void main() {
       expect(fake.shown.single.title, 'repo');
       expect(fake.shown.single.body, 'Clone finished');
       expect(fake.shown.single.target.repoPath, path);
+    });
+
+    test('a notification failure still opens the cloned repo', () async {
+      setUpHarness(brokenGate: true);
+      takes(11);
+      final path = await c
+          .read(repoBootstrapProvider)
+          .clone(url: 'git@host:acme/repo.git', parentDir: work.path);
+      await pumpEventQueue();
+
+      expect(path, '${work.path}/repo');
+      expect(c.read(toastProvider), isEmpty);
     });
 
     test('a short clone stays quiet', () async {
