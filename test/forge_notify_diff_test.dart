@@ -30,6 +30,7 @@ ForgeSnapshot snap({
   Map<String, ChecksOverall> ci = const {},
   Set<String> notified = const {},
 }) => ForgeSnapshot(
+  maxPrNumber: prs.fold(0, (m, p) => p.number > m ? p.number : m),
   openPrs: {for (final p in prs) p.number: p},
   ciBySha: ci,
   notifiedCi: notified,
@@ -216,16 +217,72 @@ void main() {
       expect(r.events, isEmpty);
     });
 
-    test('an empty previous snapshot never reports PRs as opened', () {
-      final r = diffForgeSnapshots(
+    test('a seeded repo with no PRs reports the first one as opened', () {
+      final seeded = diffForgeSnapshots(
         prev: const ForgeSnapshot.empty(),
-        openPrs: prMap([pr(1), pr(2)]),
+        openPrs: const {},
+        ciBySha: const {},
+        shaLabels: const {},
+        seed: true,
+      );
+      expect(seeded.maxPrNumber, 0);
+      final r = diffForgeSnapshots(
+        prev: ForgeSnapshot(
+          openPrs: const {},
+          ciBySha: const {},
+          notifiedCi: seeded.notifiedCi,
+          maxPrNumber: seeded.maxPrNumber,
+        ),
+        openPrs: prMap([pr(5)]),
         ciBySha: const {},
         shaLabels: const {},
         seed: false,
       );
-      expect(r.events, isEmpty);
+      expect((r.events.single as PrOpened).pr.number, 5);
+      expect(r.maxPrNumber, 5);
     });
+
+    test(
+      'closed PRs leave the high-water mark so a reappearance is silent',
+      () {
+        final seeded = diffForgeSnapshots(
+          prev: const ForgeSnapshot.empty(),
+          openPrs: prMap([pr(3), pr(4)]),
+          ciBySha: const {},
+          shaLabels: const {},
+          seed: true,
+        );
+        expect(seeded.maxPrNumber, 4);
+        final closed = diffForgeSnapshots(
+          prev: ForgeSnapshot(
+            openPrs: prMap([pr(3), pr(4)]),
+            ciBySha: const {},
+            notifiedCi: seeded.notifiedCi,
+            maxPrNumber: seeded.maxPrNumber,
+          ),
+          openPrs: const {},
+          ciBySha: const {},
+          shaLabels: const {},
+          seed: false,
+        );
+        expect(closed.events.whereType<PrGone>().map((e) => e.number), [3, 4]);
+        expect(closed.events, hasLength(2));
+        expect(closed.maxPrNumber, 4);
+        final back = diffForgeSnapshots(
+          prev: ForgeSnapshot(
+            openPrs: const {},
+            ciBySha: const {},
+            notifiedCi: closed.notifiedCi,
+            maxPrNumber: closed.maxPrNumber,
+          ),
+          openPrs: prMap([pr(4)]),
+          ciBySha: const {},
+          shaLabels: const {},
+          seed: false,
+        );
+        expect(back.events, isEmpty);
+      },
+    );
   });
 
   group('renderForgeEvents', () {

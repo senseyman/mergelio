@@ -13,12 +13,14 @@ class ForgeSnapshot {
     required this.openPrs,
     required this.ciBySha,
     required this.notifiedCi,
+    this.maxPrNumber = 0,
   });
 
   const ForgeSnapshot.empty()
     : openPrs = const {},
       ciBySha = const {},
-      notifiedCi = const {};
+      notifiedCi = const {},
+      maxPrNumber = 0;
 
   final Map<int, PullRequest> openPrs;
   final Map<String, ChecksOverall> ciBySha;
@@ -26,6 +28,10 @@ class ForgeSnapshot {
   /// `'$sha:$state'` for every terminal CI result already reported (or seen
   /// while seeding), so the same result never notifies twice.
   final Set<String> notifiedCi;
+
+  /// Highest request number ever seen open. Numbers only grow within a repo,
+  /// so only a number above this mark is a newly opened request.
+  final int maxPrNumber;
 }
 
 sealed class ForgeEvent {
@@ -73,7 +79,8 @@ bool _isFinal(ChecksOverall s) =>
 /// repo, so an old request reshuffled into the list page is not news.
 /// `mixed` (cancelled or skipped) is final but silent; `none` and `running`
 /// are not final.
-({List<ForgeEvent> events, Set<String> notifiedCi}) diffForgeSnapshots({
+({List<ForgeEvent> events, Set<String> notifiedCi, int maxPrNumber})
+diffForgeSnapshots({
   required ForgeSnapshot prev,
   required Map<int, PullRequest> openPrs,
   required Map<String, ChecksOverall> ciBySha,
@@ -84,8 +91,12 @@ bool _isFinal(ChecksOverall s) =>
   final notified = {...prev.notifiedCi};
   final events = <ForgeEvent>[];
 
-  if (!seed && prev.openPrs.isNotEmpty) {
-    final prevMax = prev.openPrs.keys.reduce((a, b) => a > b ? a : b);
+  var maxPr = prev.maxPrNumber;
+  for (final n in openPrs.keys) {
+    if (n > maxPr) maxPr = n;
+  }
+  if (!seed) {
+    final prevMax = prev.maxPrNumber;
     final numbers = openPrs.keys.toList()..sort();
     for (final n in numbers) {
       if (n > prevMax) {
@@ -121,7 +132,7 @@ bool _isFinal(ChecksOverall s) =>
       );
     }
   }
-  return (events: events, notifiedCi: notified);
+  return (events: events, notifiedCi: notified, maxPrNumber: maxPr);
 }
 
 /// Turns [events] into notifications titled with [repoName]. More than
