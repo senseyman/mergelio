@@ -48,6 +48,9 @@ if [[ -z ${SKIP_BUILD:-} ]]; then
   if ! pkg-config --exists gtk+-3.0 2>/dev/null; then
     MISSING+=("libgtk-3-dev")
   fi
+  if ! pkg-config --exists libnotify 2>/dev/null; then
+    MISSING+=("libnotify-dev")
+  fi
   if (( ${#MISSING[@]} > 0 )); then
     die "Missing build dependencies: ${MISSING[*]}\n  sudo apt install clang cmake ninja-build pkg-config libgtk-3-dev"
   fi

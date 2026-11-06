@@ -5,8 +5,6 @@ import 'package:local_notifier/local_notifier.dart';
 import '../../core/logging.dart';
 import '../../domain/notify/desktop_notifier.dart';
 
-/// [DesktopNotifier] backed by the `local_notifier` plugin. Notifications are
-/// best-effort: any failure is logged and swallowed, never surfaced.
 /// One-time plugin setup. Returns whether notifications can be shown; a failure
 /// is logged, not thrown.
 Future<bool> initDesktopNotifications() async {
@@ -19,6 +17,10 @@ Future<bool> initDesktopNotifications() async {
   }
 }
 
+/// [DesktopNotifier] backed by the `local_notifier` plugin. Notifications are
+/// best-effort: any failure is logged and swallowed, never surfaced.
+/// Chosen by `desktopNotifierProvider` (state layer) only when
+/// [initDesktopNotifications] reported success at launch.
 class LocalDesktopNotifier implements DesktopNotifier {
   final _clicks = StreamController<NotificationTarget>.broadcast();
   // A notification's click handler lives on its object, so shown ones are kept
