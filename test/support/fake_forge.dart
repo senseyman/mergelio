@@ -18,11 +18,16 @@ class FakeForge implements Forge {
   final List<Issue> issuesResult;
   final ChecksSummary checksResult;
 
+  /// Answers by the ref asked about, consulted before [checksResult]. Left
+  /// mutable so a test can move a commit's CI along between reads.
+  final Map<String, ChecksSummary> checksBySha;
+
   /// Details by number. A number with no entry answers [ForgeNotVisible],
   /// the way a forge answers for a request it does not have.
   final Map<int, PullRequestDetail> details;
 
-  final ForgeError? pullRequestsError;
+  /// Not final, so a test can make one list read fail and the next succeed.
+  ForgeError? pullRequestsError;
   final ForgeError? pullRequestsForBranchError;
   final ForgeError? issuesError;
   final ForgeError? checksError;
@@ -48,7 +53,9 @@ class FakeForge implements Forge {
     this.checksError,
     this.pullRequestError,
     this.details = const {},
-  }) : pullRequestsResult = pullRequests,
+    Map<String, ChecksSummary>? checksBySha,
+  }) : checksBySha = checksBySha ?? {},
+       pullRequestsResult = pullRequests,
        issuesResult = issues,
        checksResult =
            checks ?? const ChecksSummary(overall: ChecksOverall.none);
@@ -91,7 +98,7 @@ class FakeForge implements Forge {
     checkedRefs.add(ref);
     final error = checksError;
     if (error != null) throw error;
-    return checksResult;
+    return checksBySha[ref] ?? checksResult;
   }
 
   @override
