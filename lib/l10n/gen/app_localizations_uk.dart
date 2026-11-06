@@ -6195,4 +6195,53 @@ class AppLocalizationsUk extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get prefsTabNotifications => 'Сповіщення';
+
+  @override
+  String get ntfMaster => 'Сповіщення на робочому столі';
+
+  @override
+  String get ntfEventLongOps => 'Завершення тривалих операцій';
+
+  @override
+  String get ntfEventCi => 'Результати CI';
+
+  @override
+  String get ntfEventPullRequests => 'Зміни в pull request';
+
+  @override
+  String get ntfLongOpThreshold => 'Сповіщати про операції довші за';
+
+  @override
+  String ntfLongOpSeconds(int n) {
+    return '$n с';
+  }
+
+  @override
+  String get ntfForgeHelp =>
+      'Сповіщення про CI та pull request перевіряють GitHub/GitLab у фоні, поки Mergelio не в фокусі, і лише для відкритих репозиторіїв, де їх увімкнено.';
+
+  @override
+  String get ntfRepoSection => 'Сповіщення для цього репозиторію';
+
+  @override
+  String get ntfRepoMasterOff =>
+      'Сповіщення на робочому столі вимкнено в глобальних налаштуваннях, тож нічого не показуватиметься, доки їх не ввімкнуть.';
+
+  @override
+  String ntfUseGlobal(String state) {
+    return 'Як глобально ($state)';
+  }
+
+  @override
+  String get ntfOn => 'Увімк.';
+
+  @override
+  String get ntfOff => 'Вимк.';
+
+  @override
+  String get ntfNoForge =>
+      'Для цього репозиторію немає облікового запису forge — сповіщення про CI та pull request не працюватимуть.';
 }

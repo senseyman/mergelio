@@ -9781,6 +9781,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{n, plural, one{CI passed on {n} commit} other{CI passed on {n} commits}}'**
   String ntfBatchCiPassed(int n);
+
+  /// No description provided for @prefsTabNotifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get prefsTabNotifications;
+
+  /// No description provided for @ntfMaster.
+  ///
+  /// In en, this message translates to:
+  /// **'Desktop notifications'**
+  String get ntfMaster;
+
+  /// No description provided for @ntfEventLongOps.
+  ///
+  /// In en, this message translates to:
+  /// **'Long-running operations finish'**
+  String get ntfEventLongOps;
+
+  /// No description provided for @ntfEventCi.
+  ///
+  /// In en, this message translates to:
+  /// **'CI results'**
+  String get ntfEventCi;
+
+  /// No description provided for @ntfEventPullRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'Pull request changes'**
+  String get ntfEventPullRequests;
+
+  /// No description provided for @ntfLongOpThreshold.
+  ///
+  /// In en, this message translates to:
+  /// **'Notify for operations longer than'**
+  String get ntfLongOpThreshold;
+
+  /// No description provided for @ntfLongOpSeconds.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} s'**
+  String ntfLongOpSeconds(int n);
+
+  /// No description provided for @ntfForgeHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'CI and pull request notifications check GitHub/GitLab in the background while Mergelio is not focused, and only for open repositories that have them turned on.'**
+  String get ntfForgeHelp;
+
+  /// No description provided for @ntfRepoSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications for this repository'**
+  String get ntfRepoSection;
+
+  /// No description provided for @ntfRepoMasterOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Desktop notifications are off in the global settings, so nothing is shown until they are turned on.'**
+  String get ntfRepoMasterOff;
+
+  /// No description provided for @ntfUseGlobal.
+  ///
+  /// In en, this message translates to:
+  /// **'Use global ({state})'**
+  String ntfUseGlobal(String state);
+
+  /// No description provided for @ntfOn.
+  ///
+  /// In en, this message translates to:
+  /// **'On'**
+  String get ntfOn;
+
+  /// No description provided for @ntfOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get ntfOff;
+
+  /// No description provided for @ntfNoForge.
+  ///
+  /// In en, this message translates to:
+  /// **'No forge account for this repository — CI and pull request notifications can\'t run.'**
+  String get ntfNoForge;
 }
 
 class _AppLocalizationsDelegate

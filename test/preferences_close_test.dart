@@ -70,6 +70,9 @@ void main() {
       initial: const AppSettings(savedThemes: {'Midnight': '{}'}),
     );
 
+    // The tab bar scrolls; with more tabs this one starts off to the side.
+    await tester.ensureVisible(find.text('Appearance'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Appearance'));
     await tester.pumpAndSettle();
     // Saved themes sit at the bottom of a long tab.

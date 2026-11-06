@@ -10,6 +10,8 @@ import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/state/feedback.dart';
+import 'package:mergelio/state/forge_refresh.dart';
+import 'package:mergelio/state/operation_journal.dart';
 import 'package:mergelio/state/profiles.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
@@ -107,6 +109,9 @@ Future<_FakeGit> _pump(
     ProviderScope(
       overrides: [
         gitServiceProvider.overrideWithValue(git),
+        // The notifications section reads the forge account; keep that off git.
+        forgeRefreshEligibleProvider.overrideWith((ref, path) async => true),
+        kvStoreProvider.overrideWithValue(InMemoryKeyValueStore()),
         settingsProvider.overrideWith(
           (ref) => SettingsController(
             InMemorySettingsRepository(),

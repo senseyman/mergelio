@@ -3213,5 +3213,21 @@
   "ntfBatchCiFailed": "{n, plural, one{CI failed on {n} commit} other{CI failed on {n} commits}}",
   "@ntfBatchCiFailed": {"placeholders": {"n": {"type": "int"}}},
   "ntfBatchCiPassed": "{n, plural, one{CI passed on {n} commit} other{CI passed on {n} commits}}",
-  "@ntfBatchCiPassed": {"placeholders": {"n": {"type": "int"}}}
+  "@ntfBatchCiPassed": {"placeholders": {"n": {"type": "int"}}},
+  "prefsTabNotifications": "Notifications",
+  "ntfMaster": "Desktop notifications",
+  "ntfEventLongOps": "Long-running operations finish",
+  "ntfEventCi": "CI results",
+  "ntfEventPullRequests": "Pull request changes",
+  "ntfLongOpThreshold": "Notify for operations longer than",
+  "ntfLongOpSeconds": "{n} s",
+  "@ntfLongOpSeconds": {"placeholders": {"n": {"type": "int"}}},
+  "ntfForgeHelp": "CI and pull request notifications check GitHub/GitLab in the background while Mergelio is not focused, and only for open repositories that have them turned on.",
+  "ntfRepoSection": "Notifications for this repository",
+  "ntfRepoMasterOff": "Desktop notifications are off in the global settings, so nothing is shown until they are turned on.",
+  "ntfUseGlobal": "Use global ({state})",
+  "@ntfUseGlobal": {"placeholders": {"state": {"type": "String"}}},
+  "ntfOn": "On",
+  "ntfOff": "Off",
+  "ntfNoForge": "No forge account for this repository — CI and pull request notifications can't run."
 }

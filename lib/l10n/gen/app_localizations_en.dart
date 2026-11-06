@@ -6078,4 +6078,53 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get prefsTabNotifications => 'Notifications';
+
+  @override
+  String get ntfMaster => 'Desktop notifications';
+
+  @override
+  String get ntfEventLongOps => 'Long-running operations finish';
+
+  @override
+  String get ntfEventCi => 'CI results';
+
+  @override
+  String get ntfEventPullRequests => 'Pull request changes';
+
+  @override
+  String get ntfLongOpThreshold => 'Notify for operations longer than';
+
+  @override
+  String ntfLongOpSeconds(int n) {
+    return '$n s';
+  }
+
+  @override
+  String get ntfForgeHelp =>
+      'CI and pull request notifications check GitHub/GitLab in the background while Mergelio is not focused, and only for open repositories that have them turned on.';
+
+  @override
+  String get ntfRepoSection => 'Notifications for this repository';
+
+  @override
+  String get ntfRepoMasterOff =>
+      'Desktop notifications are off in the global settings, so nothing is shown until they are turned on.';
+
+  @override
+  String ntfUseGlobal(String state) {
+    return 'Use global ($state)';
+  }
+
+  @override
+  String get ntfOn => 'On';
+
+  @override
+  String get ntfOff => 'Off';
+
+  @override
+  String get ntfNoForge =>
+      'No forge account for this repository — CI and pull request notifications can\'t run.';
 }

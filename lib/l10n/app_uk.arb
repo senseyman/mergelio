@@ -1944,5 +1944,19 @@
   "ntfBatchClosed": "{n, plural, one{{n} PR закрито} few{{n} PR закрито} many{{n} PR закрито} other{{n} PR закрито}}",
   "ntfBatchClosedMr": "{n, plural, one{{n} MR закрито} few{{n} MR закрито} many{{n} MR закрито} other{{n} MR закрито}}",
   "ntfBatchCiFailed": "{n, plural, one{CI не пройдено для {n} коміту} few{CI не пройдено для {n} комітів} many{CI не пройдено для {n} комітів} other{CI не пройдено для {n} коміту}}",
-  "ntfBatchCiPassed": "{n, plural, one{CI пройдено для {n} коміту} few{CI пройдено для {n} комітів} many{CI пройдено для {n} комітів} other{CI пройдено для {n} коміту}}"
+  "ntfBatchCiPassed": "{n, plural, one{CI пройдено для {n} коміту} few{CI пройдено для {n} комітів} many{CI пройдено для {n} комітів} other{CI пройдено для {n} коміту}}",
+  "prefsTabNotifications": "Сповіщення",
+  "ntfMaster": "Сповіщення на робочому столі",
+  "ntfEventLongOps": "Завершення тривалих операцій",
+  "ntfEventCi": "Результати CI",
+  "ntfEventPullRequests": "Зміни в pull request",
+  "ntfLongOpThreshold": "Сповіщати про операції довші за",
+  "ntfLongOpSeconds": "{n} с",
+  "ntfForgeHelp": "Сповіщення про CI та pull request перевіряють GitHub/GitLab у фоні, поки Mergelio не в фокусі, і лише для відкритих репозиторіїв, де їх увімкнено.",
+  "ntfRepoSection": "Сповіщення для цього репозиторію",
+  "ntfRepoMasterOff": "Сповіщення на робочому столі вимкнено в глобальних налаштуваннях, тож нічого не показуватиметься, доки їх не ввімкнуть.",
+  "ntfUseGlobal": "Як глобально ({state})",
+  "ntfOn": "Увімк.",
+  "ntfOff": "Вимк.",
+  "ntfNoForge": "Для цього репозиторію немає облікового запису forge — сповіщення про CI та pull request не працюватимуть."
 }
