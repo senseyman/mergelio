@@ -20,7 +20,7 @@ Future<bool> initDesktopNotifications() async {
 /// [DesktopNotifier] backed by the `local_notifier` plugin. Notifications are
 /// best-effort: any failure is logged and swallowed, never surfaced.
 /// Chosen by `desktopNotifierProvider` (state layer) only when
-/// [initDesktopNotifications] reported success at launch.
+/// [initDesktopNotifications] reported success.
 class LocalDesktopNotifier implements DesktopNotifier {
   final _clicks = StreamController<NotificationTarget>.broadcast();
   // A notification's click handler lives on its object, so shown ones are kept

@@ -1,9 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/data/notify/local_desktop_notifier.dart';
+import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/state/desktop_notifier.dart';
 import 'package:mergelio/domain/forge/forge_host.dart';
 import 'package:mergelio/domain/notify/desktop_notifier.dart';
+import 'package:mergelio/state/settings.dart';
+import 'package:mergelio/state/settings_controller.dart';
 
 import 'support/fake_desktop_notifier.dart';
 
@@ -73,18 +76,67 @@ void main() {
     f.dispose();
   });
 
-  test('provider yields a no-op notifier until the plugin is ready', () {
-    final c = ProviderContainer();
-    addTearDown(c.dispose);
-    expect(c.read(desktopNotifierProvider), isA<NullDesktopNotifier>());
-  });
+  group('plugin setup', () {
+    late int inits;
+    late bool initResult;
+    ProviderContainer container({required bool enabled}) {
+      inits = 0;
+      final c = ProviderContainer(
+        overrides: [
+          settingsProvider.overrideWith(
+            (ref) => SettingsController(
+              InMemorySettingsRepository(),
+              AppSettings(notificationsEnabled: enabled),
+            ),
+          ),
+          desktopNotificationsInitProvider.overrideWithValue(() async {
+            inits++;
+            return initResult;
+          }),
+        ],
+      );
+      addTearDown(c.dispose);
+      return c;
+    }
 
-  test('provider yields the plugin notifier once ready', () {
-    final c = ProviderContainer(
-      overrides: [desktopNotificationsReadyProvider.overrideWithValue(true)],
-    );
-    addTearDown(c.dispose);
-    expect(c.read(desktopNotifierProvider), isA<LocalDesktopNotifier>());
+    setUp(() => initResult = true);
+
+    test('with notifications off the plugin is never set up', () async {
+      final c = container(enabled: false);
+      expect(c.read(desktopNotifierProvider), isA<NullDesktopNotifier>());
+      await Future<void>.delayed(Duration.zero);
+      expect(c.read(desktopNotifierProvider), isA<NullDesktopNotifier>());
+      expect(inits, 0);
+    });
+
+    test('turning notifications on sets the plugin up once', () async {
+      final c = container(enabled: false);
+      c.read(desktopNotifierProvider);
+      final s = c.read(settingsProvider.notifier);
+      s.setNotificationsEnabled(true);
+      expect(c.read(desktopNotifierProvider), isA<NullDesktopNotifier>());
+      await Future<void>.delayed(Duration.zero);
+      expect(c.read(desktopNotifierProvider), isA<LocalDesktopNotifier>());
+
+      s.setNotificationsEnabled(false);
+      expect(c.read(desktopNotifierProvider), isA<NullDesktopNotifier>());
+      // Long enough off for anything no longer listened to to be disposed.
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+      s.setNotificationsEnabled(true);
+      await Future<void>.delayed(Duration.zero);
+      expect(c.read(desktopNotifierProvider), isA<LocalDesktopNotifier>());
+      expect(inits, 1);
+    });
+
+    test('a failed setup leaves the no-op notifier', () async {
+      initResult = false;
+      final c = container(enabled: true);
+      c.read(desktopNotifierProvider);
+      await Future<void>.delayed(Duration.zero);
+      expect(c.read(desktopNotifierProvider), isA<NullDesktopNotifier>());
+      expect(inits, 1);
+    });
   });
 
   test('FakeDesktopNotifier click after dispose is ignored', () {
