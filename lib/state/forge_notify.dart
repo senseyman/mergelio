@@ -84,6 +84,15 @@ class ForgeNotifyWatcher {
   // here had CI notifications off, so results that finished meanwhile are
   // old news when they come back on.
   final Set<String> _ciWatched = {};
+  // Bumped whenever a repo's snapshot is dropped, so a read that was already
+  // under way when it stopped being watched does not put the old view back.
+  final Map<String, int> _epochs = {};
+  // Per open repo: its eligibility and its CI setting, watched so a repo that
+  // stops being watched loses its snapshot at once, not on a later tick that
+  // may never come.
+  final Map<String, List<ProviderSubscription<bool>>> _tracked = {};
+  // When the window last gained focus, or null while it is unfocused.
+  DateTime? _focusedSince;
 
   Timer? _timer;
   Duration? _interval;
@@ -104,7 +113,16 @@ class ForgeNotifyWatcher {
       },
       fireImmediately: true,
     );
-    _ref.listen<bool>(windowFocusedProvider, (_, _) => _arm());
+    _ref.listen<bool>(
+      windowFocusedProvider,
+      (_, focused) => _onFocus(focused),
+      fireImmediately: true,
+    );
+    _ref.listen<String>(
+      workspaceProvider.select((w) => w.tabs.map((t) => t.path).join('\u0000')),
+      (_, joined) => _trackTabs(joined),
+      fireImmediately: true,
+    );
     _ref.listen<bool>(
       forgeNotifyActiveProvider,
       (_, _) => _arm(),
@@ -114,7 +132,65 @@ class ForgeNotifyWatcher {
       _disposed = true;
       _timer?.cancel();
       _timer = null;
+      for (final subs in _tracked.values) {
+        for (final sub in subs) {
+          sub.close();
+        }
+      }
+      _tracked.clear();
     });
+  }
+
+  /// Someone at the window for longer than one interval has had the panel in
+  /// front of them; whatever changed meanwhile is old news, so the next
+  /// unfocused tick looks afresh instead of reporting it. A glance shorter
+  /// than that keeps what was seen before it.
+  void _onFocus(bool focused) {
+    if (focused) {
+      _focusedSince ??= _now();
+    } else {
+      final since = _focusedSince;
+      _focusedSince = null;
+      if (since != null && _now().difference(since) > _base) {
+        for (final path in _snapshots.keys.toList()) {
+          _drop(path);
+        }
+      }
+    }
+    _arm();
+  }
+
+  void _trackTabs(String joined) {
+    final paths = joined.isEmpty ? <String>{} : joined.split('\u0000').toSet();
+    for (final path in _tracked.keys.toList()) {
+      if (paths.contains(path)) continue;
+      for (final sub in _tracked.remove(path)!) {
+        sub.close();
+      }
+      _drop(path);
+    }
+    for (final path in paths) {
+      if (_tracked.containsKey(path)) continue;
+      _tracked[path] = [
+        _ref.listen<bool>(forgeNotifyEligibleProvider(path), (_, eligible) {
+          if (!eligible) _drop(path);
+        }),
+        _ref.listen<bool>(notifyEnabledProvider((path, NotifyEvent.ci)), (
+          _,
+          ci,
+        ) {
+          if (!ci) _ciWatched.remove(path);
+        }),
+      ];
+    }
+  }
+
+  /// Forgets what the repo at [path] looked like, so the next read of it
+  /// seeds silently.
+  void _drop(String path) {
+    _snapshots.remove(path);
+    _ciWatched.remove(path);
+    _epochs[path] = (_epochs[path] ?? 0) + 1;
   }
 
   /// The gap before the next tick, or null while nothing is scheduled.
@@ -150,8 +226,11 @@ class ForgeNotifyWatcher {
       if (_ref.read(windowFocusedProvider)) return;
       final paths = await _eligiblePaths();
       if (_disposed) return;
-      _snapshots.removeWhere((path, _) => !paths.contains(path));
-      _ciWatched.removeWhere((path) => !paths.contains(path));
+      // The listeners drop a repo the moment it stops being watched; this
+      // catches one that fell out of the set some other way.
+      for (final path in _snapshots.keys.toList()) {
+        if (!paths.contains(path)) _drop(path);
+      }
 
       final byServer = <ForgeServer, List<(String, ForgeHost)>>{};
       for (final path in paths) {
@@ -182,10 +261,14 @@ class ForgeNotifyWatcher {
         if (!mayRead) continue;
         for (final (path, host) in repos) {
           if (_disposed) return;
-          final ok = await _watchRepo(path, host.kind);
-          if (ok == null) continue;
+          final read = await _watchRepo(path, host.kind);
+          if (read == _Read.skipped) continue;
           anyRead = true;
-          if (!ok) anyFailed = true;
+          if (read == _Read.ok) continue;
+          anyFailed = true;
+          // The host refused, not this repo: its other repos would only be
+          // refused the same way.
+          if (read == _Read.rateLimited) break;
         }
       }
       if (anyFailed) {
@@ -204,6 +287,9 @@ class ForgeNotifyWatcher {
   /// Open tab paths, once each, whose CI or pull-request notifications are
   /// on and that have a forge account to read with.
   Future<Set<String>> _eligiblePaths() async {
+    // With every notification off there is nothing to look up, not even a
+    // repo's stored overrides.
+    if (!_ref.read(settingsProvider).notificationsEnabled) return {};
     final tabs = {for (final t in _ref.read(workspaceProvider).tabs) t.path};
     final out = <String>{};
     for (final path in tabs) {
@@ -249,16 +335,16 @@ class ForgeNotifyWatcher {
     return false;
   }
 
-  /// Reads one repo and reports what changed. Returns whether the read
-  /// succeeded, or null when the repo had no forge to read.
-  Future<bool?> _watchRepo(String path, ForgeKind kind) async {
+  /// Reads one repo and reports what changed.
+  Future<_Read> _watchRepo(String path, ForgeKind kind) async {
     try {
       final forge = await _ref.read(forgeProvider(path).future);
-      if (forge == null) return null;
+      if (forge == null) return _Read.skipped;
       final prs = await forge.pullRequests(limit: kNotifyPrListLimit);
       final openPrs = {for (final pr in prs) pr.number: pr};
       final labels = await _shaLabels(path, openPrs);
       var prev = _snapshots[path];
+      final epoch = _epochs[path];
       // CI costs a request per commit; a repo that does not want CI
       // notifications spends none of the budget on it.
       final wantCi = _ref.read(notifyEnabledProvider((path, NotifyEvent.ci)));
@@ -287,6 +373,9 @@ class ForgeNotifyWatcher {
         shaLabels: labels,
         seed: prev == null,
       );
+      // Stopped being watched while this read was under way: what it saw
+      // belongs to a view that was just thrown away.
+      if (_epochs[path] != epoch) return _Read.ok;
       // Store before notifying: a notification that fails must not leave the
       // change to be reported again on the next tick.
       _snapshots[path] = ForgeSnapshot(
@@ -301,11 +390,14 @@ class ForgeNotifyWatcher {
         _ciWatched.remove(path);
       }
       await _report(path, kind, forge, diff.events);
-      return true;
+      return _Read.ok;
+    } on ForgeRateLimited catch (e) {
+      debugPrint('forge-notify read rate-limited for $path: $e');
+      return _Read.rateLimited;
     } on Object catch (e) {
       // The old snapshot stays, so the next good read diffs against it.
       debugPrint('forge-notify read failed for $path: $e');
-      return false;
+      return _Read.failed;
     }
   }
 
@@ -443,6 +535,10 @@ class ForgeNotifyWatcher {
     }
   }
 }
+
+/// How one repo's read went: it had no forge to read, it was read, it failed,
+/// or its host refused for running over its rate limit.
+enum _Read { skipped, ok, failed, rateLimited }
 
 bool _isFinal(ChecksOverall s) =>
     s == ChecksOverall.success ||

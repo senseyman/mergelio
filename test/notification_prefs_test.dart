@@ -37,6 +37,15 @@ class _GatedStore implements KeyValueStore {
   Future<void> put(String key, String value) async => map[key] = value;
 }
 
+class _CountingKv extends InMemoryKeyValueStore {
+  int gets = 0;
+  @override
+  Future<String?> get(String key) {
+    gets++;
+    return super.get(key);
+  }
+}
+
 class _FlakyStore implements KeyValueStore {
   int failures;
   final map = <String, String>{};
@@ -272,6 +281,25 @@ void main() {
       expect(c.read(settingsProvider).notifyLongOpSeconds, 3600);
       s.setNotifyLongOpSeconds(30);
       expect(c.read(settingsProvider).notifyLongOpSeconds, 30);
+    });
+
+    test('with the master switch off no repo prefs are read', () async {
+      final store = _CountingKv();
+      final c = ProviderContainer(
+        overrides: [
+          _settingsOverride(),
+          kvStoreProvider.overrideWithValue(store),
+        ],
+      );
+      addTearDown(c.dispose);
+      expect(c.read(notifyEnabledProvider(('/r', NotifyEvent.ci))), isFalse);
+      await Future<void>.delayed(Duration.zero);
+      expect(store.gets, 0);
+
+      c.read(settingsProvider.notifier).setNotificationsEnabled(true);
+      c.read(notifyEnabledProvider(('/r', NotifyEvent.ci)));
+      await Future<void>.delayed(Duration.zero);
+      expect(store.gets, 1);
     });
   });
 }

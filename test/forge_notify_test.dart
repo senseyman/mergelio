@@ -77,6 +77,15 @@ class _RecordingGate extends NotificationGate {
   }
 }
 
+class _CountingStore extends InMemoryKeyValueStore {
+  int gets = 0;
+  @override
+  Future<String?> get(String key) {
+    gets++;
+    return super.get(key);
+  }
+}
+
 class _Harness {
   final ProviderContainer c;
   final FakeForge forge;
@@ -85,6 +94,11 @@ class _Harness {
   ForgeRateLimit? limit;
   final List<NotifyEvent> kinds = [];
   DateTime now = DateTime(2026, 11, 6, 12);
+
+  /// How often each forge-facing provider was built, and how many reads the
+  /// key-value store saw: a watcher with nothing to do must touch none.
+  final Map<String, int> reads = {};
+  final _CountingStore kv = _CountingStore();
 
   _Harness(this.c, this.forge, this.notifier, this.prs);
 
@@ -99,6 +113,7 @@ class _Harness {
 }
 
 _Harness _harness({
+  bool master = true,
   bool ci = true,
   bool pullRequests = true,
   bool focused = false,
@@ -120,31 +135,40 @@ _Harness _harness({
   );
   final notifier = FakeDesktopNotifier();
   late final _Harness h;
+  void count(String what) => h.reads[what] = (h.reads[what] ?? 0) + 1;
   final c = ProviderContainer(
     overrides: [
       settingsProvider.overrideWith(
         (ref) => SettingsController(
           InMemorySettingsRepository(),
           AppSettings(
-            notificationsEnabled: true,
+            notificationsEnabled: master,
             notifyCi: ci,
             notifyPullRequests: pullRequests,
             forgeRefreshIntervalSeconds: 120,
           ),
         ),
       ),
-      kvStoreProvider.overrideWithValue(InMemoryKeyValueStore()),
+      kvStoreProvider.overrideWith((ref) => h.kv),
       desktopNotifierProvider.overrideWithValue(notifier),
       windowFocusedProvider.overrideWith((ref) => focused),
       workspaceProvider.overrideWith((ref) => _Workspace(tabs)),
-      forgeHostProvider.overrideWith(
-        (ref, path) => hostFor?.call(path) ?? Future.value(_host),
-      ),
-      forgeRefreshEligibleProvider.overrideWith((ref, path) async => true),
-      forgeProvider.overrideWith((ref, path) async => forge),
-      forgeRateLimitProvider.overrideWith(
-        (ref, path) => limitFor?.call(path) ?? Future.value(h.limit),
-      ),
+      forgeHostProvider.overrideWith((ref, path) {
+        count('host');
+        return hostFor?.call(path) ?? Future.value(_host);
+      }),
+      forgeRefreshEligibleProvider.overrideWith((ref, path) async {
+        count('eligible');
+        return true;
+      }),
+      forgeProvider.overrideWith((ref, path) async {
+        count('forge');
+        return forge;
+      }),
+      forgeRateLimitProvider.overrideWith((ref, path) {
+        count('budget');
+        return limitFor?.call(path) ?? Future.value(h.limit);
+      }),
       notificationGateProvider.overrideWith(
         (ref) => _RecordingGate(ref, h.kinds),
       ),
@@ -586,25 +610,149 @@ void main() {
     );
 
     test('turning requests off and on again re-seeds silently', () async {
-      final h = _harness(ci: false);
+      final h = _harness(
+        ci: false,
+        details: {
+          10: PullRequestDetail(
+            request: _pr(10, state: PullRequestState.merged),
+          ),
+        },
+      );
       final w = h.watcher;
       await h.settle();
       await w.tick();
       expect(w.snapshots.keys, [_path]);
 
+      // Toggled in Preferences, so the window has focus and no tick runs
+      // while the setting is off.
       final settings = h.c.read(settingsProvider.notifier);
       settings.setNotify(NotifyEvent.pullRequests, false);
       await h.settle();
-      await w.tick();
       expect(w.snapshots, isEmpty);
 
-      h.prs.add(_pr(12));
+      h.prs
+        ..clear()
+        ..add(_pr(12));
       settings.setNotify(NotifyEvent.pullRequests, true);
       await h.settle();
       await w.tick();
 
       expect(h.notifier.shown, isEmpty);
-      expect(w.snapshots.keys, [_path]);
+      expect(h.forge.pullRequestCalls, 0);
+      expect(w.snapshots[_path]!.openPrs.keys, [12]);
     });
+
+    test('CI turned off and on with no tick between stays silent', () async {
+      final h = _harness();
+      final w = h.watcher;
+      await h.settle();
+      await w.tick();
+
+      final settings = h.c.read(settingsProvider.notifier);
+      settings.setNotify(NotifyEvent.ci, false);
+      await h.settle();
+      h.forge.checksBySha['u1'] = _success;
+      settings.setNotify(NotifyEvent.ci, true);
+      await h.settle();
+      await w.tick();
+
+      expect(h.notifier.shown, isEmpty);
+    });
+
+    test('a closed and reopened tab re-seeds silently', () async {
+      final h = _harness(
+        details: {
+          10: PullRequestDetail(
+            request: _pr(10, state: PullRequestState.merged),
+          ),
+        },
+      );
+      final w = h.watcher;
+      await h.settle();
+      await w.tick();
+
+      final ws = h.c.read(workspaceProvider.notifier);
+      ws.closeTab(1);
+      await h.settle();
+      expect(w.snapshots, isEmpty);
+
+      h.prs
+        ..clear()
+        ..add(_pr(12));
+      ws.openRepo(_path);
+      await h.settle();
+      await w.tick();
+
+      expect(h.notifier.shown, isEmpty);
+      expect(h.forge.pullRequestCalls, 0);
+    });
+  });
+
+  group('focus stretches', () {
+    test('focus held past one interval re-seeds on the next tick', () async {
+      final h = _harness();
+      final w = h.watcher;
+      await h.settle();
+      await w.tick();
+
+      final focus = h.c.read(windowFocusedProvider.notifier);
+      focus.state = true;
+      await h.settle();
+      h.now = h.now.add(const Duration(seconds: 121));
+      h.prs.add(_pr(11));
+      focus.state = false;
+      await h.settle();
+      await w.tick();
+      expect(h.notifier.shown, isEmpty);
+
+      h.prs.add(_pr(12));
+      await w.tick();
+      expect(h.bodies, ['PR #12 opened: Change 12']);
+    });
+
+    test('a short focus keeps what was seen before it', () async {
+      final h = _harness();
+      final w = h.watcher;
+      await h.settle();
+      await w.tick();
+
+      final focus = h.c.read(windowFocusedProvider.notifier);
+      focus.state = true;
+      await h.settle();
+      h.now = h.now.add(const Duration(seconds: 60));
+      h.prs.add(_pr(11));
+      focus.state = false;
+      await h.settle();
+      await w.tick();
+
+      expect(h.bodies, ['PR #11 opened: Change 11']);
+    });
+  });
+
+  test('with the master switch off nothing is read or armed', () async {
+    final h = _harness(master: false);
+    final w = h.watcher;
+    await h.settle();
+    expect(w.scheduledInterval, isNull);
+
+    await w.tick();
+    await h.settle();
+
+    expect(h.reads, isEmpty);
+    expect(h.kv.gets, 0);
+    expect(h.forge.pullRequestsCalls, 0);
+    expect(w.scheduledInterval, isNull);
+  });
+
+  test('a rate-limited repo skips the rest of its host this tick', () async {
+    final h = _harness(tabs: const ['/a', '/b']);
+    final w = h.watcher;
+    await h.settle();
+
+    h.forge.pullRequestsError = const ForgeRateLimited(null);
+    await w.tick();
+
+    expect(h.forge.pullRequestsCalls, 1);
+    expect(w.scheduledInterval, const Duration(seconds: 240));
   });
 }

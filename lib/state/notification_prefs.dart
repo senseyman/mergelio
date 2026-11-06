@@ -127,10 +127,12 @@ final repoNotifyPrefsProvider =
     );
 
 /// Whether [event] notifies for the repo at the given path, combining the
-/// global settings with the repo's override.
+/// global settings with the repo's override. With the master switch off the
+/// repo's override is never loaded, so nothing reads the store per open tab.
 final notifyEnabledProvider =
     Provider.family<bool, (String repoPath, NotifyEvent event)>((ref, key) {
       final s = ref.watch(settingsProvider);
+      if (!s.notificationsEnabled) return false;
       final o = ref.watch(repoNotifyPrefsProvider(key.$1)).of(key.$2);
       return effectiveNotify(s, key.$2, o);
     });
