@@ -272,7 +272,11 @@ void main() {
     });
 
     test('a failed long clone reports the error', () async {
-      git.cloneResult = const GitResult(128, '', 'fatal: repository not found');
+      git.cloneResult = const GitResult(
+        128,
+        '',
+        "Cloning into 'repo'...\nfatal: repository not found",
+      );
       takes(11);
       await c
           .read(repoBootstrapProvider)

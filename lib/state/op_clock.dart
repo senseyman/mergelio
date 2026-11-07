@@ -13,9 +13,17 @@ import 'settings_controller.dart';
 final opClockProvider = Provider<DateTime Function()>((_) => DateTime.now);
 
 // Lines git prints around a failure that never say what went wrong: where
-// it pushed to or fetched from, the server's progress chatter, hints, and the
-// per-ref summaries of what did update.
-const _gitNoisePrefixes = ['To ', 'From ', 'hint:', 'remote:', '*', '='];
+// it pushed to, fetched from or cloned into, the server's progress chatter,
+// hints, and the per-ref summaries of what did update.
+const _gitNoisePrefixes = [
+  'To ',
+  'From ',
+  'Cloning into ',
+  'hint:',
+  'remote:',
+  '*',
+  '=',
+];
 
 /// The line of git's [text] that best says why it failed, trimmed: enough
 /// for a notification body. Skips the lines that only say where git talked

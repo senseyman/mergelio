@@ -48,6 +48,18 @@ void main() {
     );
   });
 
+  test('a failed clone skips the line naming its directory', () {
+    expect(
+      gitErrorLine(
+        "Cloning into 'repo'...\n"
+        "fatal: unable to access 'https://host/o/r.git/': "
+        'Could not resolve host: host',
+      ),
+      "fatal: unable to access 'https://host/o/r.git/': "
+      'Could not resolve host: host',
+    );
+  });
+
   test('only filtered lines falls back to the first non-empty one', () {
     expect(gitErrorLine('hint: x'), 'hint: x');
     expect(gitErrorLine('\n  \n  hint: x\nremote: y'), 'hint: x');
