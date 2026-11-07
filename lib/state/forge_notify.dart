@@ -391,6 +391,9 @@ class ForgeNotifyWatcher {
 
   /// Reads one repo and reports what changed.
   Future<_Read> _watchRepo(String path, ForgeKind kind) async {
+    // Taken before the first await, so a drop at any point in the read is
+    // seen when it comes to storing what the read found.
+    final epoch = _epochs[path];
     try {
       final forge = await _ref.read(forgeProvider(path).future);
       if (forge == null) return _Read.skipped;
@@ -398,7 +401,6 @@ class ForgeNotifyWatcher {
       final openPrs = {for (final pr in prs) pr.number: pr};
       final labels = await _shaLabels(path, openPrs);
       var prev = _snapshots[path];
-      final epoch = _epochs[path];
       // CI costs a request per commit; a repo that does not want CI
       // notifications spends none of the budget on it.
       final wantCi = _ref.read(notifyEnabledProvider((path, NotifyEvent.ci)));

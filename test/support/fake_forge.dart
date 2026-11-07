@@ -64,9 +64,15 @@ class FakeForge implements Forge {
        checksResult =
            checks ?? const ChecksSummary(overall: ChecksOverall.none);
 
+  /// When set, a list read waits on it before answering, so a test can act
+  /// while the read is under way.
+  Future<void>? pullRequestsHold;
+
   @override
   Future<List<PullRequest>> pullRequests({int limit = 50}) async {
     pullRequestsCalls++;
+    final hold = pullRequestsHold;
+    if (hold != null) await hold;
     final error = pullRequestsError;
     if (error != null) throw error;
     return pullRequestsResult.take(limit).toList(growable: false);

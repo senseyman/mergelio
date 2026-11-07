@@ -691,6 +691,30 @@ void main() {
     });
   });
 
+  test(
+    'a repo dropped while its request list is read stores nothing',
+    () async {
+      final h = _harness();
+      final w = h.watcher;
+      await h.settle();
+      final held = Completer<void>();
+      h.forge.pullRequestsHold = held.future;
+
+      final run = w.tick();
+      await h.settle();
+      expect(h.forge.pullRequestsCalls, 1);
+
+      final settings = h.c.read(settingsProvider.notifier);
+      settings.setNotify(NotifyEvent.pullRequests, false);
+      settings.setNotify(NotifyEvent.ci, false);
+      await h.settle();
+      held.complete();
+      await run;
+
+      expect(w.snapshots, isEmpty);
+    },
+  );
+
   group('focus stretches', () {
     test('focus held past one interval re-seeds as soon as it ends', () async {
       final h = _harness();
