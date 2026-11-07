@@ -236,8 +236,10 @@ class RepoActions {
         );
       }
       notifyIfLong(
-        (l) =>
-            l.ntfOpFailed(label, firstLine(err.isNotEmpty ? err : e.message)),
+        (l) => l.ntfOpFailed(
+          label,
+          gitErrorLine(err.isNotEmpty ? err : e.message),
+        ),
       );
       return false;
     } on Object catch (_) {

@@ -182,11 +182,12 @@ void main() {
     expect(fake.shown.map((n) => n.body), ['Pull finished', 'Fetch finished']);
   });
 
-  test('a failed long push reports the first stderr line only', () async {
+  test('a failed long push reports the line that says why', () async {
     git.pushResult = const GitResult(
       1,
       '',
-      '! [rejected] main -> main\nhint: updates were rejected',
+      'To github.com:o/r.git\n'
+          ' ! [rejected] main -> main\nhint: updates were rejected',
     );
     takes(11);
     await actions().push();

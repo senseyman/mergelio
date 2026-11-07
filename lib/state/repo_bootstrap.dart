@@ -132,7 +132,7 @@ class RepoBootstrap {
         // reason beats a notification that trails off after a colon.
         final err = r.err.trim().isNotEmpty ? r.err : _l.actUnexpectedError;
         _toast(_l.actFailed(_l.bootClone), err);
-        notifyIfLong(_l.ntfCloneFailed(firstLine(err)));
+        notifyIfLong(_l.ntfCloneFailed(gitErrorLine(err)));
         await _discardPartialClone(target, keepDirectory: destinationExisted);
         return null;
       }
@@ -150,7 +150,7 @@ class RepoBootstrap {
       final stderr = e.result?.err ?? '';
       final err = stderr.trim().isNotEmpty ? stderr : e.message;
       _toast(_l.actFailed(_l.bootClone), err);
-      notifyIfLong(_l.ntfCloneFailed(firstLine(err)));
+      notifyIfLong(_l.ntfCloneFailed(gitErrorLine(err)));
       await _discardPartialClone(target, keepDirectory: destinationExisted);
       return null;
     } finally {
