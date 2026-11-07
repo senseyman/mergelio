@@ -69,10 +69,13 @@ final forgeNotifyActiveProvider = Provider<bool>((ref) {
 ///
 /// The timer runs only while the window is unfocused and some open tab has
 /// CI or pull-request notifications on; focus coming back cancels it, and
-/// the first tick after losing focus waits a full interval. What each repo
-/// looked like is kept across focus changes, so the next unfocused stretch
-/// reports only what changed since. A failed read backs the interval off the
-/// same way auto-fetch does, and never surfaces as a toast or notification.
+/// the first tick after losing focus waits a full interval. Losing focus
+/// reads at once only the repos with nothing seen yet, recording them
+/// silently so that first tick already reports what changed after the user
+/// looked away. What each repo looked like is kept across short focus
+/// changes, so the next unfocused stretch reports only what changed since.
+/// A failed read backs the interval off the same way auto-fetch does, and
+/// never surfaces as a toast or notification.
 class ForgeNotifyWatcher {
   final Ref _ref;
   final DateTime Function() _now;
@@ -91,6 +94,9 @@ class ForgeNotifyWatcher {
   // stops being watched loses its snapshot at once, not on a later tick that
   // may never come.
   final Map<String, List<ProviderSubscription<bool>>> _tracked = {};
+  // When a seed on blur last tried each repo, so one whose read keeps failing
+  // costs a read per interval at most, not one per switch away.
+  final Map<String, DateTime> _seedTriedAt = {};
   // When the window last gained focus, or null while it is unfocused.
   DateTime? _focusedSince;
 
@@ -99,7 +105,11 @@ class ForgeNotifyWatcher {
   Duration _base = kMinForgeRefreshDelay;
   int _failures = 0;
   bool _disposed = false;
+  // The last pass queued, running or waiting its turn; passes never overlap.
   Future<void>? _inFlight;
+  // The tick queued or running, which another tick joins instead of adding
+  // a second one.
+  Future<void>? _tickRun;
 
   ForgeNotifyWatcher(this._ref, {DateTime Function()? now})
     : _now = now ?? DateTime.now {
@@ -115,7 +125,7 @@ class ForgeNotifyWatcher {
     );
     _ref.listen<bool>(
       windowFocusedProvider,
-      (_, focused) => _onFocus(focused),
+      (was, focused) => _onFocus(was, focused),
       fireImmediately: true,
     );
     _ref.listen<String>(
@@ -142,10 +152,10 @@ class ForgeNotifyWatcher {
   }
 
   /// Someone at the window for longer than one interval has had the panel in
-  /// front of them; whatever changed meanwhile is old news, so the next
-  /// unfocused tick looks afresh instead of reporting it. A glance shorter
-  /// than that keeps what was seen before it.
-  void _onFocus(bool focused) {
+  /// front of them; whatever changed meanwhile is old news, so the repos are
+  /// looked at afresh the moment focus goes instead of reporting it. A glance
+  /// shorter than that keeps what was seen before it.
+  void _onFocus(bool? was, bool focused) {
     if (focused) {
       _focusedSince ??= _now();
     } else {
@@ -158,6 +168,10 @@ class ForgeNotifyWatcher {
       }
     }
     _arm();
+    // Only a real loss of focus: the watcher starting up while the window
+    // already lacks it has no "before" to have missed. An armed timer means
+    // the window is unfocused and some repo is watched.
+    if (was == true && !focused && _timer != null) unawaited(_seedMissing());
   }
 
   void _trackTabs(String joined) {
@@ -190,6 +204,7 @@ class ForgeNotifyWatcher {
   void _drop(String path) {
     _snapshots.remove(path);
     _ciWatched.remove(path);
+    _seedTriedAt.remove(path);
     _epochs[path] = (_epochs[path] ?? 0) + 1;
   }
 
@@ -213,23 +228,60 @@ class ForgeNotifyWatcher {
 
   /// One pass over every eligible repo, then the next timer. Never throws.
   Future<void> tick() {
-    // A tick already running covers this one; two at once would report the
-    // same change twice.
-    return _inFlight ??= _tick().whenComplete(() => _inFlight = null);
+    // A tick already queued covers this one; two at once would report the
+    // same change twice. A seed running meanwhile is waited for, since it
+    // reports nothing.
+    return _tickRun ??= _serial(() => _tick())
+        .whenComplete(() => _tickRun = null);
   }
 
-  Future<void> _tick() async {
+  /// Reads, silently, every eligible repo that has no snapshot yet, so the
+  /// first tick after it diffs against what things looked like when the
+  /// user looked away rather than seeding then. Runs after any pass already
+  /// under way, never alongside it. Leaves the backoff and the timer alone:
+  /// a repo it fails to read simply gets seeded by the next tick instead,
+  /// and a tick the timer fires meanwhile waits for it and rearms itself.
+  Future<void> _seedMissing() => _serial(() => _tick(seedOnly: true));
+
+  /// Runs [pass] once the pass already in flight, if any, has finished.
+  Future<void> _serial(Future<void> Function() pass) {
+    final before = _inFlight;
+    late final Future<void> run;
+    run = (before == null ? pass() : before.then((_) => pass())).whenComplete(
+      () {
+        if (identical(_inFlight, run)) _inFlight = null;
+      },
+    );
+    return _inFlight = run;
+  }
+
+  Future<void> _tick({bool seedOnly = false}) async {
     if (_disposed) return;
     try {
       // Someone is looking at the window: the panel shows them the same
       // thing, and nothing would be shown anyway.
       if (_ref.read(windowFocusedProvider)) return;
-      final paths = await _eligiblePaths();
+      var paths = await _eligiblePaths();
       if (_disposed) return;
       // The listeners drop a repo the moment it stops being watched; this
       // catches one that fell out of the set some other way.
       for (final path in _snapshots.keys.toList()) {
         if (!paths.contains(path)) _drop(path);
+      }
+      if (seedOnly) {
+        final now = _now();
+        bool triedLately(String path) {
+          final at = _seedTriedAt[path];
+          return at != null && now.difference(at) < _base;
+        }
+
+        paths = {
+          for (final path in paths)
+            if (!_snapshots.containsKey(path) && !triedLately(path)) path,
+        };
+        for (final path in paths) {
+          _seedTriedAt[path] = now;
+        }
       }
 
       final byServer = <ForgeServer, List<(String, ForgeHost)>>{};
@@ -271,6 +323,7 @@ class ForgeNotifyWatcher {
           if (read == _Read.rateLimited) break;
         }
       }
+      if (seedOnly) return;
       if (anyFailed) {
         _failures++;
       } else if (anyRead) {
@@ -278,9 +331,10 @@ class ForgeNotifyWatcher {
       }
     } on Object catch (e) {
       debugPrint('forge-notify tick failed: $e');
-      _failures++;
+      if (!seedOnly) _failures++;
     } finally {
-      _arm();
+      // A seed leaves the timer armed on blur where it is.
+      if (!seedOnly) _arm();
     }
   }
 

@@ -1,6 +1,8 @@
 // The background CI / pull-request watcher: it runs only while the window is
 // unfocused, reads only repos whose notifications want it, holds off a host
 // whose budget runs low, and turns what changed into desktop notifications.
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -273,9 +275,10 @@ void main() {
     expect(w.scheduledInterval, const Duration(seconds: 120));
     expect(
       h.forge.pullRequestsCalls,
-      0,
-      reason: 'losing focus must not tick at once',
+      1,
+      reason: 'losing focus only seeds the repo that has no snapshot yet',
     );
+    expect(h.notifier.shown, isEmpty);
 
     h.c.read(windowFocusedProvider.notifier).state = true;
     await h.settle();
@@ -689,7 +692,7 @@ void main() {
   });
 
   group('focus stretches', () {
-    test('focus held past one interval re-seeds on the next tick', () async {
+    test('focus held past one interval re-seeds as soon as it ends', () async {
       final h = _harness();
       final w = h.watcher;
       await h.settle();
@@ -702,13 +705,236 @@ void main() {
       h.prs.add(_pr(11));
       focus.state = false;
       await h.settle();
-      await w.tick();
+      expect(h.forge.pullRequestsCalls, 2, reason: 'seeded on blur');
       expect(h.notifier.shown, isEmpty);
 
+      // Opened before the first tick after blur: still news.
       h.prs.add(_pr(12));
       await w.tick();
       expect(h.bodies, ['PR #12 opened: Change 12']);
     });
+
+    test(
+      'CI finishing before the first tick after a long focus notifies',
+      () async {
+        final h = _harness();
+        final w = h.watcher;
+        await h.settle();
+        await w.tick();
+
+        final focus = h.c.read(windowFocusedProvider.notifier);
+        focus.state = true;
+        await h.settle();
+        h.now = h.now.add(const Duration(seconds: 121));
+        focus.state = false;
+        await h.settle();
+        expect(h.notifier.shown, isEmpty);
+
+        h.forge.checksBySha['u1'] = _success;
+        await w.tick();
+        expect(h.bodies, ['CI passed on feature']);
+      },
+    );
+
+    test('the first blur after launch seeds at once', () async {
+      final h = _harness(focused: true);
+      final w = h.watcher;
+      await h.settle();
+      expect(h.forge.pullRequestsCalls, 0);
+
+      h.c.read(windowFocusedProvider.notifier).state = false;
+      await h.settle();
+      expect(h.forge.pullRequestsCalls, 1);
+      expect(w.snapshots.keys, [_path]);
+      expect(h.notifier.shown, isEmpty);
+
+      h.prs.add(_pr(11));
+      await w.tick();
+      expect(h.bodies, ['PR #11 opened: Change 11']);
+    });
+
+    test('a failed seed on blur leaves the backoff alone', () async {
+      final h = _harness(focused: true);
+      final w = h.watcher;
+      await h.settle();
+
+      h.forge.pullRequestsError = const ForgeUnauthenticated();
+      h.c.read(windowFocusedProvider.notifier).state = false;
+      await h.settle();
+      expect(h.forge.pullRequestsCalls, 1);
+      expect(w.snapshots, isEmpty);
+      expect(w.scheduledInterval, const Duration(seconds: 120));
+
+      await w.tick();
+      expect(
+        w.scheduledInterval,
+        const Duration(seconds: 240),
+        reason: 'one failure: the tick, not the seed before it',
+      );
+
+      h.forge.pullRequestsError = null;
+      h.prs.add(_pr(11));
+      await w.tick();
+      expect(h.notifier.shown, isEmpty, reason: 'the tick seeds instead');
+      expect(w.snapshots.keys, [_path]);
+    });
+
+    test(
+      'a repo whose seed keeps failing is retried once an interval',
+      () async {
+        final h = _harness(focused: true);
+        h.watcher;
+        await h.settle();
+        h.forge.pullRequestsError = const ForgeUnauthenticated();
+        final focus = h.c.read(windowFocusedProvider.notifier);
+
+        focus.state = false;
+        await h.settle();
+        expect(h.forge.pullRequestsCalls, 1);
+
+        for (var i = 0; i < 3; i++) {
+          focus.state = true;
+          await h.settle();
+          h.now = h.now.add(const Duration(seconds: 10));
+          focus.state = false;
+          await h.settle();
+        }
+        expect(h.forge.pullRequestsCalls, 1, reason: 'glances cost no read');
+
+        focus.state = true;
+        await h.settle();
+        h.now = h.now.add(const Duration(seconds: 100));
+        focus.state = false;
+        await h.settle();
+        expect(h.forge.pullRequestsCalls, 2, reason: 'an interval has passed');
+      },
+    );
+
+    test('a watcher created unfocused waits for its timer', () async {
+      final h = _harness();
+      final w = h.watcher;
+      await h.settle();
+
+      expect(h.forge.pullRequestsCalls, 0);
+      expect(w.scheduledInterval, const Duration(seconds: 120));
+    });
+
+    test('a tick asked for during a seed runs after it', () async {
+      var held = Completer<ForgeRateLimit?>();
+      final h = _harness(limitFor: (_) => held.future);
+      final w = h.watcher;
+      await h.settle();
+
+      // A first tick fails, so the repo has no snapshot for the seed.
+      h.forge.pullRequestsError = const ForgeUnauthenticated();
+      final first = w.tick();
+      await h.settle();
+      final focus = h.c.read(windowFocusedProvider.notifier);
+      focus.state = true;
+      await h.settle();
+      focus.state = false;
+      await h.settle();
+
+      final tickBudget = held;
+      held = Completer<ForgeRateLimit?>();
+      final seedBudget = held;
+      tickBudget.complete(null);
+      await first;
+      await h.settle();
+      expect(h.forge.pullRequestsCalls, 1, reason: 'the seed is held');
+      final budgetReads = h.reads['budget'];
+
+      h.forge.pullRequestsError = null;
+      final second = w.tick();
+      await h.settle();
+      expect(
+        h.reads['budget'],
+        budgetReads,
+        reason: 'no tick alongside the seed',
+      );
+
+      held = Completer<ForgeRateLimit?>()..complete(null);
+      seedBudget.complete(null);
+      await second;
+
+      expect(h.forge.pullRequestsCalls, 3, reason: 'tick, seed, then tick');
+      expect(w.snapshots.keys, [_path]);
+    });
+
+    test('a short glance costs no read on blur', () async {
+      final h = _harness();
+      final w = h.watcher;
+      await h.settle();
+      await w.tick();
+
+      final focus = h.c.read(windowFocusedProvider.notifier);
+      focus.state = true;
+      await h.settle();
+      h.now = h.now.add(const Duration(seconds: 60));
+      focus.state = false;
+      await h.settle();
+
+      expect(h.forge.pullRequestsCalls, 1);
+    });
+
+    test('a blur with the master switch off reads nothing', () async {
+      final h = _harness(master: false, focused: true);
+      h.watcher;
+      await h.settle();
+
+      h.c.read(windowFocusedProvider.notifier).state = false;
+      await h.settle();
+
+      expect(h.reads, isEmpty);
+      expect(h.forge.pullRequestsCalls, 0);
+    });
+
+    test('a blur with nothing eligible reads nothing', () async {
+      final h = _harness(ci: false, pullRequests: false, focused: true);
+      h.watcher;
+      await h.settle();
+
+      h.c.read(windowFocusedProvider.notifier).state = false;
+      await h.settle();
+
+      expect(h.forge.pullRequestsCalls, 0);
+    });
+
+    test(
+      'a blur during a tick waits for it instead of reading alongside',
+      () async {
+        var held = Completer<ForgeRateLimit?>();
+        final h = _harness(limitFor: (_) => held.future);
+        final w = h.watcher;
+        await h.settle();
+
+        final first = w.tick();
+        await h.settle();
+        final budgetReads = h.reads['budget'];
+        expect(budgetReads, isNotNull);
+
+        final focus = h.c.read(windowFocusedProvider.notifier);
+        focus.state = true;
+        await h.settle();
+        h.now = h.now.add(const Duration(seconds: 121));
+        focus.state = false;
+        await h.settle();
+        expect(
+          h.reads['budget'],
+          budgetReads,
+          reason: 'no seed while the tick runs',
+        );
+
+        held.complete(null);
+        held = Completer<ForgeRateLimit?>()..complete(null);
+        await first;
+        await h.settle();
+
+        expect(h.forge.pullRequestsCalls, 1);
+        expect(w.snapshots.keys, [_path]);
+        expect(w.scheduledInterval, const Duration(seconds: 120));
+      },
+    );
 
     test('a short focus keeps what was seen before it', () async {
       final h = _harness();
