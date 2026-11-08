@@ -377,6 +377,15 @@ change never needs a second window.*
   unauthenticated rate limit — on github.com that is 60 requests an hour, and
   opening one repository costs about 23 of them; a self-hosted server applies
   its own limits.
+- **Desktop notifications** (Preferences → Notifications), all off by
+  default: a long fetch, pull, push or clone finishing, a CI run passing or
+  failing, and a pull/merge request being opened, merged or closed. They only
+  appear while Mergelio is not the focused window — when you are looking,
+  the app already shows it. CI and request notifications cover every open
+  request in the repository plus the current branch. Each repository can
+  override the global switches under Preferences → Repository. Clicking a
+  notification brings up that repository's tab and, for a request, opens it
+  in the review.
 - Nothing is ever written to the forge: no pull request is created, merged
   or commented on from the app. The only writes are local — the branch a
   checkout creates — and your token in the credential helper.
@@ -760,6 +769,10 @@ Mergelio has no accounts and phones home to nothing by default.
   answer, nothing is requested. With them on, Mergelio fetches a small manifest
   from this repository's releases once a day — no account, no identifiers, and
   nothing about your repositories is sent.
+- **CI and pull request notifications are opt-in.** With them on, Mergelio
+  polls the configured forge in the background while its window is not
+  focused, and only for open repositories that have them turned on. Nothing
+  is polled while they are off, which is the default.
 - Credentials are handled by your existing git credential helper and
   `ssh-agent`; Mergelio does not store passwords or tokens itself. When git or
   ssh has to ask, the prompt names the repository it is for, so several asking
