@@ -439,6 +439,10 @@ class ForgeNotifyWatcher {
         shaLabels: labels,
         seed: prev == null,
       );
+      // Looked up before anything is stored: a host that refuses the lookup
+      // fails this read and leaves the old snapshot, so the request still
+      // counts as open and is looked up again on a later tick.
+      final resolved = await _resolve(path, forge, diff.events);
       // Stopped being watched while this read was under way: what it saw
       // belongs to a view that was just thrown away.
       if (_epochs[path] != epoch) return _Read.ok;
@@ -456,7 +460,7 @@ class ForgeNotifyWatcher {
       } else {
         _ciWatched.remove(path);
       }
-      await _report(path, kind, forge, diff.events);
+      await _report(path, kind, resolved);
       return _Read.ok;
     } on ForgeRateLimited catch (e) {
       debugPrint('forge-notify read rate-limited for $path: $e');
@@ -552,9 +556,10 @@ class ForgeNotifyWatcher {
     return (ciBySha: out, ciPace: pace);
   }
 
-  Future<void> _report(
+  /// The [events] the repo's settings want shown, each request that left
+  /// the open list paired with what became of it.
+  Future<List<(ForgeEvent, PrGoneOutcome?)>> _resolve(
     String path,
-    ForgeKind kind,
     Forge forge,
     List<ForgeEvent> events,
   ) async {
@@ -576,6 +581,14 @@ class ForgeNotifyWatcher {
           if (outcome != null) resolved.add((e, outcome));
       }
     }
+    return resolved;
+  }
+
+  Future<void> _report(
+    String path,
+    ForgeKind kind,
+    List<(ForgeEvent, PrGoneOutcome?)> resolved,
+  ) async {
     if (resolved.isEmpty) return;
 
     final rendered = renderForgeEvents(
@@ -602,7 +615,9 @@ class ForgeNotifyWatcher {
   }
 
   /// What became of a request that left the open list, or null when it is
-  /// in fact still open.
+  /// in fact still open. A host refusing for its rate limit or the token is
+  /// rethrown, so the read fails and backs off instead of reporting the
+  /// request as gone.
   Future<PrGoneOutcome?> _goneOutcome(Forge forge, int number) async {
     try {
       final detail = await forge.pullRequest(number);
@@ -611,6 +626,10 @@ class ForgeNotifyWatcher {
         PullRequestState.closed => PrGoneOutcome.closed,
         PullRequestState.open || PullRequestState.draft => null,
       };
+    } on ForgeRateLimited {
+      rethrow;
+    } on ForgeUnauthenticated {
+      rethrow;
     } on Object {
       return PrGoneOutcome.unknown;
     }

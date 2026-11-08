@@ -35,7 +35,10 @@ class FakeForge implements Forge {
   final ForgeError? pullRequestsForBranchError;
   final ForgeError? issuesError;
   final ForgeError? checksError;
-  final ForgeError? pullRequestError;
+
+  /// Not final, so a test can make one detail lookup fail and the next
+  /// succeed.
+  ForgeError? pullRequestError;
 
   int pullRequestsCalls = 0;
   int pullRequestsForBranchCalls = 0;

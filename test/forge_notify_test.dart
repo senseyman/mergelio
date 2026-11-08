@@ -572,6 +572,39 @@ void main() {
     expect(w.scheduledInterval, const Duration(seconds: 240));
   });
 
+  for (final refused in <ForgeError>[
+    const ForgeRateLimited(null),
+    ForgeUnauthenticated(),
+  ]) {
+    test('a gone request whose lookup is refused (${refused.runtimeType}) '
+        'waits for a later tick', () async {
+      final h = _harness(
+        prs: [_pr(10), _pr(11)],
+        details: {
+          10: PullRequestDetail(
+            request: _pr(10, state: PullRequestState.merged),
+          ),
+        },
+      );
+      final w = h.watcher;
+      await h.settle();
+      await w.tick();
+
+      h.prs.removeWhere((p) => p.number == 10);
+      h.forge.pullRequestError = refused;
+      await w.tick();
+
+      expect(h.notifier.shown, isEmpty);
+      expect(w.scheduledInterval, const Duration(seconds: 240));
+      expect(w.snapshots[_path]!.openPrs.keys, contains(10));
+
+      h.forge.pullRequestError = null;
+      await w.tick();
+
+      expect(h.bodies, ['PR #10 merged']);
+    });
+  }
+
   test('a host that cannot be resolved does not skip the others', () async {
     const other = ForgeHost(
       kind: ForgeKind.github,
