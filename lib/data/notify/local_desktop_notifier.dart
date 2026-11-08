@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
+
 import 'package:local_notifier/local_notifier.dart';
 
 import '../../core/logging.dart';
@@ -17,8 +19,9 @@ Future<bool> initDesktopNotifications() async {
   }
 }
 
-/// [DesktopNotifier] backed by the `local_notifier` plugin. Notifications are
-/// best-effort: any failure is logged and swallowed, never surfaced.
+/// [DesktopNotifier] backed by the `local_notifier` plugin. A notification
+/// that fails to show is logged, forgotten and rethrown, so the caller can
+/// count it as not shown.
 /// Chosen by `desktopNotifierProvider` (state layer) only when
 /// [initDesktopNotifications] reported success.
 class LocalDesktopNotifier implements DesktopNotifier {
@@ -30,18 +33,24 @@ class LocalDesktopNotifier implements DesktopNotifier {
   @override
   Stream<NotificationTarget> get clicks => _clicks.stream;
 
+  /// How many shown notifications are still held for their clicks.
+  @visibleForTesting
+  int get liveCount => _live.length;
+
   @override
   Future<void> show(AppNotification n) async {
+    final note = LocalNotification(title: n.title, body: n.body);
+    note.onClick = () {
+      if (!_clicks.isClosed) _clicks.add(n.target);
+    };
+    note.onClose = (_) => _live.remove(note);
+    _live.add(note);
     try {
-      final note = LocalNotification(title: n.title, body: n.body);
-      note.onClick = () {
-        if (!_clicks.isClosed) _clicks.add(n.target);
-      };
-      note.onClose = (_) => _live.remove(note);
-      _live.add(note);
       await note.show();
     } catch (e, st) {
+      _live.remove(note);
       appLog.error('notification failed', e, st, 'notify');
+      rethrow;
     }
   }
 
