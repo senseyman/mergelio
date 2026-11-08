@@ -25,13 +25,26 @@ const _gitNoisePrefixes = [
   '=',
 ];
 
+// How git relays the server's own explanation, such as a hook's rejection.
+const _remotePrefix = 'remote: ';
+const _remoteReasons = ['error:', 'fatal:'];
+
 /// The line of git's [text] that best says why it failed, trimmed: enough
-/// for a notification body. Skips the lines that only say where git talked
-/// to or how far it got; when every line is like that, the first non-empty
-/// one still beats nothing. Empty when [text] has no visible line.
+/// for a notification body. A server error relayed on a `remote:` line says
+/// it most precisely, so the first one wins, without that prefix. Otherwise
+/// skips the lines that only say where git talked to or how far it got; when
+/// every line is like that, the first non-empty one still beats nothing.
+/// Empty when [text] has no visible line.
 String gitErrorLine(String text) {
+  final lines = text.split('\n');
+  for (final raw in lines) {
+    final line = raw.trim();
+    if (!line.startsWith(_remotePrefix)) continue;
+    final reason = line.substring(_remotePrefix.length).trim();
+    if (_remoteReasons.any(reason.startsWith)) return reason;
+  }
   String? first;
-  for (final raw in text.split('\n')) {
+  for (final raw in lines) {
     final line = raw.trim();
     if (line.isEmpty) continue;
     first ??= line;

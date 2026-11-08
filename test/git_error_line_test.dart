@@ -41,10 +41,45 @@ void main() {
     expect(
       gitErrorLine(
         '\n  \nremote: Enumerating objects: 5\n'
-        'remote: error: GH006: Protected branch update failed\n'
+        'remote: Counting objects: 100% (5/5), done.\n'
         'error: failed to push some refs',
       ),
       'error: failed to push some refs',
+    );
+  });
+
+  test("the server's own error wins over git's summary", () {
+    expect(
+      gitErrorLine(
+        '\n  \nremote: Enumerating objects: 5\n'
+        'remote: error: GH006: Protected branch update failed for '
+        'refs/heads/main.\n'
+        'error: failed to push some refs',
+      ),
+      'error: GH006: Protected branch update failed for refs/heads/main.',
+    );
+  });
+
+  test('the first of several server errors is kept', () {
+    expect(
+      gitErrorLine(
+        'remote: error: GH001: Large files detected.\n'
+        'remote: error: GH006: Protected branch update failed for '
+        'refs/heads/main.\n'
+        ' ! [remote rejected] main -> main (pre-receive hook declined)',
+      ),
+      'error: GH001: Large files detected.',
+    );
+  });
+
+  test('a fatal from the server counts as its error', () {
+    expect(
+      gitErrorLine(
+        'To github.com:o/r.git\n'
+        'remote: fatal: repository is archived  \n'
+        "error: failed to push some refs to 'github.com:o/r.git'",
+      ),
+      'fatal: repository is archived',
     );
   });
 
