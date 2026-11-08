@@ -3,6 +3,10 @@ import '../domain/forge/models.dart';
 import '../domain/notify/desktop_notifier.dart';
 import '../l10n/gen/app_localizations.dart';
 
+/// For one commit: how many ticks in a row its CI read was skipped since it
+/// was last read, and how many reads in a row found no CI at all.
+typedef CiPace = ({int skipped, int nones});
+
 /// More events than this in one repo and one tick collapse into a single
 /// notification, so a busy repo cannot bury the desktop.
 const kForgeBatchThreshold = 3;
@@ -13,6 +17,7 @@ class ForgeSnapshot {
     required this.openPrs,
     required this.ciBySha,
     required this.notifiedCi,
+    required this.ciPace,
     this.maxPrNumber = 0,
   });
 
@@ -20,6 +25,7 @@ class ForgeSnapshot {
     : openPrs = const {},
       ciBySha = const {},
       notifiedCi = const {},
+      ciPace = const {},
       maxPrNumber = 0;
 
   final Map<int, PullRequest> openPrs;
@@ -28,6 +34,10 @@ class ForgeSnapshot {
   /// `'$sha:$state'` for every terminal CI result already reported (or seen
   /// while seeding), so the same result never notifies twice.
   final Set<String> notifiedCi;
+
+  /// How each sha in [ciBySha] has been read lately, which decides when a
+  /// settled result is worth asking about again.
+  final Map<String, CiPace> ciPace;
 
   /// Highest request number ever seen open. Numbers only grow within a repo,
   /// so only a number above this mark is a newly opened request.
@@ -83,7 +93,9 @@ bool _notifies(ChecksOverall s) =>
 /// when its number exceeds every number in [prev]: numbers only grow within a
 /// repo, so an old request reshuffled into the list page is not news.
 /// `mixed` (cancelled or skipped) is final but silent; `none` and `running`
-/// are not final.
+/// are not final. A sha whose state changed since [prev] forgets what it
+/// reported before, so a re-run that ends the way an earlier run did is
+/// reported again.
 ({List<ForgeEvent> events, Set<String> notifiedCi, int maxPrNumber})
 diffForgeSnapshots({
   required ForgeSnapshot prev,
@@ -95,6 +107,14 @@ diffForgeSnapshots({
 }) {
   final notified = {...prev.notifiedCi};
   final events = <ForgeEvent>[];
+  for (final e in ciBySha.entries) {
+    final before = prev.ciBySha[e.key];
+    if (before == null || before == e.value) continue;
+    // The current state's own key stays: it is only there when that result
+    // was recorded on purpose without being reported.
+    final keep = '${e.key}:${e.value.name}';
+    notified.removeWhere((k) => k != keep && k.startsWith('${e.key}:'));
+  }
 
   var maxPr = prev.maxPrNumber;
   for (final n in openPrs.keys) {

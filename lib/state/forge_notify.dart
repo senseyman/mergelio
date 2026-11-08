@@ -26,6 +26,15 @@ import 'workspace.dart';
 /// merged or closed rather than pushed off the end.
 const kNotifyPrListLimit = 100;
 
+/// A settled CI result, final or found empty twice in a row, is asked about
+/// again only once in this many ticks: often enough to catch a re-run on the
+/// same commit, rarely enough that a repo without CI costs little.
+const kCiRecheckTicks = 3;
+
+/// Reads in a row that must find no CI before a commit counts as having
+/// none: a fresh push often shows nothing until its checks register.
+const kCiSettledNones = 2;
+
 /// Below this share of a host's request budget, the watcher stops reading
 /// that host until the budget resets, leaving the rest for the user.
 const kBudgetPauseFraction = 0.2;
@@ -404,9 +413,9 @@ class ForgeNotifyWatcher {
       // CI costs a request per commit; a repo that does not want CI
       // notifications spends none of the budget on it.
       final wantCi = _ref.read(notifyEnabledProvider((path, NotifyEvent.ci)));
-      final ciBySha = wantCi
+      final (:ciBySha, :ciPace) = wantCi
           ? await _readCi(forge, labels.keys, prev)
-          : <String, ChecksOverall>{};
+          : (ciBySha: <String, ChecksOverall>{}, ciPace: <String, CiPace>{});
       if (wantCi && prev != null && !_ciWatched.contains(path)) {
         // CI notifications just came back on: whatever already finished is
         // recorded, not reported, the same as a first look at the repo.
@@ -418,6 +427,7 @@ class ForgeNotifyWatcher {
             for (final e in ciBySha.entries)
               if (_isFinal(e.value)) '${e.key}:${e.value.name}',
           },
+          ciPace: prev.ciPace,
           maxPrNumber: prev.maxPrNumber,
         );
       }
@@ -438,6 +448,7 @@ class ForgeNotifyWatcher {
         openPrs: openPrs,
         ciBySha: ciBySha,
         notifiedCi: diff.notifiedCi,
+        ciPace: ciPace,
         maxPrNumber: diff.maxPrNumber,
       );
       if (wantCi) {
@@ -495,24 +506,35 @@ class ForgeNotifyWatcher {
     return labels;
   }
 
-  /// CI states for [shas]. A sha whose last known state is final keeps it
-  /// without another read; only new or still-running ones cost a request.
-  /// A sha whose read fails keeps what was known about it (or stays
+  /// CI states for [shas], with how each was read. New and still-running
+  /// shas are read every tick. A settled one, final or found with no CI
+  /// [kCiSettledNones] times in a row, keeps its state and is read again only
+  /// every [kCiRecheckTicks] ticks, so a re-run on the same commit is still
+  /// seen. A sha whose read fails keeps what was known about it (or stays
   /// unknown), so one bad commit cannot hold back the rest of the repo.
-  Future<Map<String, ChecksOverall>> _readCi(
-    Forge forge,
-    Iterable<String> shas,
-    ForgeSnapshot? prev,
-  ) async {
+  Future<({Map<String, ChecksOverall> ciBySha, Map<String, CiPace> ciPace})>
+  _readCi(Forge forge, Iterable<String> shas, ForgeSnapshot? prev) async {
     final out = <String, ChecksOverall>{};
+    final pace = <String, CiPace>{};
     for (final sha in shas) {
       final known = prev?.ciBySha[sha];
-      if (known != null && _isFinal(known)) {
+      final was = prev?.ciPace[sha] ?? (skipped: 0, nones: 0);
+      final settled =
+          known != null &&
+          (_isFinal(known) ||
+              (known == ChecksOverall.none && was.nones >= kCiSettledNones));
+      if (settled && was.skipped + 1 < kCiRecheckTicks) {
         out[sha] = known;
+        pace[sha] = (skipped: was.skipped + 1, nones: was.nones);
         continue;
       }
       try {
-        out[sha] = (await forge.checksForRef(sha)).overall;
+        final now = (await forge.checksForRef(sha)).overall;
+        out[sha] = now;
+        pace[sha] = (
+          skipped: 0,
+          nones: now == ChecksOverall.none ? was.nones + 1 : 0,
+        );
       } on ForgeRateLimited {
         // The whole host is refusing, not this commit: fail the repo's read
         // so the watcher backs off instead of retrying at full rate.
@@ -521,10 +543,13 @@ class ForgeNotifyWatcher {
         rethrow;
       } on Object catch (e) {
         debugPrint('forge-notify CI read failed for $sha: $e');
-        if (known != null) out[sha] = known;
+        if (known != null) {
+          out[sha] = known;
+          pace[sha] = was;
+        }
       }
     }
-    return out;
+    return (ciBySha: out, ciPace: pace);
   }
 
   Future<void> _report(

@@ -51,6 +51,8 @@ PullRequest _pr(int n, {PullRequestState state = PullRequestState.open}) =>
 
 const _success = ChecksSummary(overall: ChecksOverall.success);
 const _running = ChecksSummary(overall: ChecksOverall.running);
+const _failure = ChecksSummary(overall: ChecksOverall.failure);
+const _none = ChecksSummary(overall: ChecksOverall.none);
 
 /// A workspace whose tabs a test sets outright, so the same path can sit in
 /// two tabs the way two repo groups can both hold it.
@@ -250,6 +252,104 @@ void main() {
     await w.tick();
 
     expect(h.bodies, ['CI passed on feature']);
+  });
+
+  group('CI re-checks', () {
+    int reads(_Harness h, String sha) =>
+        h.forge.checkedRefs.where((r) => r == sha).length;
+
+    test('a final result is read again every third tick', () async {
+      final h = _harness();
+      h.forge.checksBySha['h10'] = _failure;
+      final w = h.watcher;
+      await h.settle();
+
+      await w.tick();
+      expect(reads(h, 'h10'), 1);
+
+      // A re-run on the same commit goes green.
+      h.forge.checksBySha['h10'] = _success;
+      await w.tick();
+      await w.tick();
+      expect(reads(h, 'h10'), 1);
+      expect(h.notifier.shown, isEmpty);
+
+      await w.tick();
+      expect(reads(h, 'h10'), 2);
+      expect(h.bodies, ['CI passed on topic-10 (PR #10)']);
+    });
+
+    test('failure, success, failure on one commit notifies each', () async {
+      final h = _harness();
+      final w = h.watcher;
+      await h.settle();
+      await w.tick();
+
+      h.forge.checksBySha['h10'] = _failure;
+      await w.tick();
+      h.forge.checksBySha['h10'] = _success;
+      for (var i = 0; i < 3; i++) {
+        await w.tick();
+      }
+      h.forge.checksBySha['h10'] = _failure;
+      for (var i = 0; i < 3; i++) {
+        await w.tick();
+      }
+
+      expect(h.bodies, [
+        'CI failed on topic-10 (PR #10)',
+        'CI passed on topic-10 (PR #10)',
+        'CI failed on topic-10 (PR #10)',
+      ]);
+    });
+
+    test('a re-run seen running between two finals notifies once', () async {
+      final h = _harness();
+      h.forge.checksBySha['h10'] = _success;
+      final w = h.watcher;
+      await h.settle();
+      await w.tick();
+
+      h.forge.checksBySha['h10'] = _running;
+      for (var i = 0; i < 3; i++) {
+        await w.tick();
+      }
+      h.forge.checksBySha['h10'] = _success;
+      await w.tick();
+
+      expect(h.bodies, ['CI passed on topic-10 (PR #10)']);
+    });
+
+    test('a commit with no CI settles after two reads', () async {
+      final h = _harness();
+      h.forge.checksBySha['h10'] = _none;
+      final w = h.watcher;
+      await h.settle();
+
+      await w.tick();
+      await w.tick();
+      expect(reads(h, 'h10'), 2);
+
+      await w.tick();
+      await w.tick();
+      expect(reads(h, 'h10'), 2);
+
+      await w.tick();
+      expect(reads(h, 'h10'), 3);
+    });
+
+    test('checks appearing after one empty read notify', () async {
+      final h = _harness();
+      h.forge.checksBySha['h10'] = _none;
+      final w = h.watcher;
+      await h.settle();
+      await w.tick();
+
+      h.forge.checksBySha['h10'] = _success;
+      await w.tick();
+
+      expect(h.bodies, ['CI passed on topic-10 (PR #10)']);
+    });
   });
 
   test('a repo with CI and requests off is never read', () async {

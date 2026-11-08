@@ -30,6 +30,7 @@ ForgeSnapshot snap({
   Map<String, ChecksOverall> ci = const {},
   Set<String> notified = const {},
 }) => ForgeSnapshot(
+  ciPace: const {},
   maxPrNumber: prs.fold(0, (m, p) => p.number > m ? p.number : m),
   openPrs: {for (final p in prs) p.number: p},
   ciBySha: ci,
@@ -183,7 +184,61 @@ void main() {
         seed: false,
       );
       expect((r.events.single as CiFinished).state, ChecksOverall.failure);
-      expect(r.notifiedCi, {'a:success', 'a:failure'});
+      expect(r.notifiedCi, {'a:failure'});
+    });
+
+    test('a state change forgets what that sha reported before', () {
+      const label = {'a': (branch: 'x', prNumber: null, targetBranch: null)};
+      final passed = diffForgeSnapshots(
+        prev: snap(ci: {'a': ChecksOverall.failure}, notified: {'a:failure'}),
+        openPrs: const {},
+        ciBySha: {'a': ChecksOverall.success, 'b': ChecksOverall.failure},
+        shaLabels: label,
+        seed: false,
+      );
+      expect(passed.notifiedCi, {'a:success'});
+
+      final failedAgain = diffForgeSnapshots(
+        prev: snap(ci: {'a': ChecksOverall.success}, notified: {'a:success'}),
+        openPrs: const {},
+        ciBySha: {'a': ChecksOverall.failure},
+        shaLabels: label,
+        seed: false,
+      );
+      expect(
+        (failedAgain.events.single as CiFinished).state,
+        ChecksOverall.failure,
+      );
+      expect(failedAgain.notifiedCi, {'a:failure'});
+    });
+
+    test('a re-run seen running clears the result it replaces', () {
+      final r = diffForgeSnapshots(
+        prev: snap(
+          ci: {'a': ChecksOverall.success, 'b': ChecksOverall.success},
+          notified: {'a:success', 'b:success'},
+        ),
+        openPrs: const {},
+        ciBySha: {'a': ChecksOverall.running, 'b': ChecksOverall.success},
+        shaLabels: const {},
+        seed: false,
+      );
+      expect(r.events, isEmpty);
+      expect(r.notifiedCi, {'b:success'});
+    });
+
+    test('a state that did not change keeps its key', () {
+      final r = diffForgeSnapshots(
+        prev: snap(ci: {'a': ChecksOverall.failure}, notified: {'a:failure'}),
+        openPrs: const {},
+        ciBySha: {'a': ChecksOverall.failure},
+        shaLabels: const {
+          'a': (branch: 'x', prNumber: null, targetBranch: null),
+        },
+        seed: false,
+      );
+      expect(r.events, isEmpty);
+      expect(r.notifiedCi, {'a:failure'});
     });
 
     test('mixed, running and none stay silent', () {
@@ -209,6 +264,7 @@ void main() {
     test('a PR already open is not opened even above a stale mark', () {
       final r = diffForgeSnapshots(
         prev: ForgeSnapshot(
+          ciPace: const {},
           openPrs: prMap([pr(12)]),
           ciBySha: const {},
           notifiedCi: const {},
@@ -255,6 +311,7 @@ void main() {
       expect(seeded.maxPrNumber, 0);
       final r = diffForgeSnapshots(
         prev: ForgeSnapshot(
+          ciPace: const {},
           openPrs: const {},
           ciBySha: const {},
           notifiedCi: seeded.notifiedCi,
@@ -282,6 +339,7 @@ void main() {
         expect(seeded.maxPrNumber, 4);
         final closed = diffForgeSnapshots(
           prev: ForgeSnapshot(
+            ciPace: const {},
             openPrs: prMap([pr(3), pr(4)]),
             ciBySha: const {},
             notifiedCi: seeded.notifiedCi,
@@ -297,6 +355,7 @@ void main() {
         expect(closed.maxPrNumber, 4);
         final back = diffForgeSnapshots(
           prev: ForgeSnapshot(
+            ciPace: const {},
             openPrs: const {},
             ciBySha: const {},
             notifiedCi: closed.notifiedCi,
