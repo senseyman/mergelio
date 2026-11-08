@@ -71,12 +71,14 @@ class _Workspace extends WorkspaceController {
 /// Records which event kind each notification was routed through, then lets
 /// the real gate decide as usual.
 class _RecordingGate extends NotificationGate {
-  _RecordingGate(super.ref, this.kinds);
+  _RecordingGate(super.ref, this.kinds, this.onNotify);
   final List<NotifyEvent> kinds;
+  final void Function() onNotify;
 
   @override
   Future<bool> notify(NotifyEvent e, AppNotification n) {
     kinds.add(e);
+    onNotify();
     return super.notify(e, n);
   }
 }
@@ -97,6 +99,9 @@ class _Harness {
   final List<PullRequest> prs;
   ForgeRateLimit? limit;
   final List<NotifyEvent> kinds = [];
+
+  /// Runs as each notification reaches the gate, before the gate decides.
+  void Function() onNotify = () {};
   DateTime now = DateTime(2026, 11, 6, 12);
 
   /// How often each forge-facing provider was built, and how many reads the
@@ -174,7 +179,7 @@ _Harness _harness({
         return limitFor?.call(path) ?? Future.value(h.limit);
       }),
       notificationGateProvider.overrideWith(
-        (ref) => _RecordingGate(ref, h.kinds),
+        (ref) => _RecordingGate(ref, h.kinds, () => h.onNotify()),
       ),
       repoDataProvider.overrideWith(
         (ref, path) async => RepoData(
@@ -847,6 +852,46 @@ void main() {
       expect(w.snapshots, isEmpty);
     },
   );
+
+  test(
+    'a repo closed while a gone request is looked up stays silent',
+    () async {
+      final h = _harness(prs: [_pr(10), _pr(11)]);
+      final w = h.watcher;
+      await h.settle();
+      await w.tick();
+
+      final held = Completer<void>();
+      h.forge.pullRequestHold = held.future;
+      h.prs.removeWhere((p) => p.number == 10);
+      final run = w.tick();
+      await h.settle();
+      expect(h.forge.pullRequestCalls, 1);
+
+      h.c.read(workspaceProvider.notifier).closeTab(1);
+      await h.settle();
+      h.forge.details[10] = PullRequestDetail(
+        request: _pr(10, state: PullRequestState.merged),
+      );
+      held.complete();
+      await run;
+
+      expect(h.notifier.shown, isEmpty);
+    },
+  );
+
+  test('a repo closed between two notifications stops the rest', () async {
+    final h = _harness(prs: [_pr(10)]);
+    final w = h.watcher;
+    await h.settle();
+    await w.tick();
+
+    h.prs.addAll([_pr(11), _pr(12)]);
+    h.onNotify = () => h.c.read(workspaceProvider.notifier).closeTab(1);
+    await w.tick();
+
+    expect(h.kinds, hasLength(1));
+  });
 
   group('focus stretches', () {
     test('focus held past one interval re-seeds as soon as it ends', () async {

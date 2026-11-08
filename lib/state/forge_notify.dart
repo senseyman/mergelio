@@ -460,7 +460,7 @@ class ForgeNotifyWatcher {
       } else {
         _ciWatched.remove(path);
       }
-      await _report(path, kind, resolved);
+      await _report(path, kind, resolved, epoch);
       return _Read.ok;
     } on ForgeRateLimited catch (e) {
       debugPrint('forge-notify read rate-limited for $path: $e');
@@ -584,10 +584,15 @@ class ForgeNotifyWatcher {
     return resolved;
   }
 
+  /// Shows [resolved] for the repo at [path], stopping as soon as the repo
+  /// stops being watched: each notification waits on the one before it, and
+  /// the repo's epoch moving past [epoch] means its tab closed or its
+  /// notifications went off meanwhile.
   Future<void> _report(
     String path,
     ForgeKind kind,
     List<(ForgeEvent, PrGoneOutcome?)> resolved,
+    int? epoch,
   ) async {
     if (resolved.isEmpty) return;
 
@@ -602,11 +607,13 @@ class ForgeNotifyWatcher {
     if (resolved.length > kForgeBatchThreshold) {
       final anyPr = resolved.any((r) => r.$1 is! CiFinished);
       for (final n in rendered) {
+        if (_epochs[path] != epoch) return;
         await gate.notify(anyPr ? NotifyEvent.pullRequests : NotifyEvent.ci, n);
       }
       return;
     }
     for (var i = 0; i < rendered.length; i++) {
+      if (_epochs[path] != epoch) return;
       final kindOf = resolved[i].$1 is CiFinished
           ? NotifyEvent.ci
           : NotifyEvent.pullRequests;

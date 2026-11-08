@@ -95,9 +95,15 @@ class FakeForge implements Forge {
         .toList(growable: false);
   }
 
+  /// When set, a detail lookup waits on it before answering, so a test can
+  /// act while the lookup is under way.
+  Future<void>? pullRequestHold;
+
   @override
   Future<PullRequestDetail> pullRequest(int number) async {
     pullRequestCalls++;
+    final hold = pullRequestHold;
+    if (hold != null) await hold;
     final error = pullRequestError;
     if (error != null) throw error;
     final detail = details[number];
