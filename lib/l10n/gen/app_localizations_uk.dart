@@ -6221,7 +6221,7 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get ntfForgeHelp =>
-      'Сповіщення про CI та pull request перевіряють GitHub/GitLab у фоні, поки Mergelio не в фокусі, і лише для відкритих репозиторіїв, де їх увімкнено.';
+      'Сповіщення про CI та pull request охоплюють усі відкриті pull request у репозиторії, а також поточну гілку. Вони перевіряють GitHub/GitLab у фоні, поки Mergelio не в фокусі, і лише для відкритих репозиторіїв, де їх увімкнено.';
 
   @override
   String get ntfRepoSection => 'Сповіщення для цього репозиторію';

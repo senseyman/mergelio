@@ -176,6 +176,10 @@ void main() {
       for (final w in [520.0, 440.0, 336.0]) {
         await _pump(tester, const NotificationsTab(), width: w);
         expect(find.textContaining('GitHub/GitLab'), findsOneWidget);
+        expect(
+          find.textContaining('every open pull request in the repository'),
+          findsOneWidget,
+        );
         expect(tester.takeException(), isNull, reason: 'width $w');
       }
     });
@@ -183,6 +187,10 @@ void main() {
     testWidgets('renders in Ukrainian', (tester) async {
       await _pump(tester, const NotificationsTab(), locale: const Locale('uk'));
       expect(find.text('Сповіщення на робочому столі'), findsOneWidget);
+      expect(
+        find.textContaining('усі відкриті pull request у репозиторії'),
+        findsOneWidget,
+      );
     });
   });
 

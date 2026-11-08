@@ -3222,7 +3222,7 @@
   "ntfLongOpThreshold": "Notify for operations longer than",
   "ntfLongOpSeconds": "{n} s",
   "@ntfLongOpSeconds": {"placeholders": {"n": {"type": "int"}}},
-  "ntfForgeHelp": "CI and pull request notifications check GitHub/GitLab in the background while Mergelio is not focused, and only for open repositories that have them turned on.",
+  "ntfForgeHelp": "CI and pull request notifications cover every open pull request in the repository, plus the current branch. They check GitHub/GitLab in the background while Mergelio is not focused, and only for open repositories that have them turned on.",
   "ntfRepoSection": "Notifications for this repository",
   "ntfRepoMasterOff": "Desktop notifications are off in the global settings, so nothing is shown until they are turned on.",
   "ntfUseGlobal": "Use global ({state})",

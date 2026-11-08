@@ -21,9 +21,10 @@ import 'settings_controller.dart';
 import 'window_focus.dart';
 import 'workspace.dart';
 
-/// How many open requests one read asks for. A single page on both forges,
-/// and enough that a request dropping out of it almost always means it was
-/// merged or closed rather than pushed off the end.
+/// How many open requests one read asks for: a single page on both forges.
+/// A request that leaves the page is looked up once; if it is merged or
+/// closed that is reported, but one still open that only fell off the end
+/// stops being watched.
 const kNotifyPrListLimit = 100;
 
 /// A settled CI result, final or found empty twice in a row, is asked about

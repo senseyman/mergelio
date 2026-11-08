@@ -6104,7 +6104,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ntfForgeHelp =>
-      'CI and pull request notifications check GitHub/GitLab in the background while Mergelio is not focused, and only for open repositories that have them turned on.';
+      'CI and pull request notifications cover every open pull request in the repository, plus the current branch. They check GitHub/GitLab in the background while Mergelio is not focused, and only for open repositories that have them turned on.';
 
   @override
   String get ntfRepoSection => 'Notifications for this repository';

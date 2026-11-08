@@ -9827,7 +9827,7 @@ abstract class AppLocalizations {
   /// No description provided for @ntfForgeHelp.
   ///
   /// In en, this message translates to:
-  /// **'CI and pull request notifications check GitHub/GitLab in the background while Mergelio is not focused, and only for open repositories that have them turned on.'**
+  /// **'CI and pull request notifications cover every open pull request in the repository, plus the current branch. They check GitHub/GitLab in the background while Mergelio is not focused, and only for open repositories that have them turned on.'**
   String get ntfForgeHelp;
 
   /// No description provided for @ntfRepoSection.

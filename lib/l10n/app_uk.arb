@@ -1952,7 +1952,7 @@
   "ntfEventPullRequests": "Зміни в pull request",
   "ntfLongOpThreshold": "Сповіщати про операції довші за",
   "ntfLongOpSeconds": "{n} с",
-  "ntfForgeHelp": "Сповіщення про CI та pull request перевіряють GitHub/GitLab у фоні, поки Mergelio не в фокусі, і лише для відкритих репозиторіїв, де їх увімкнено.",
+  "ntfForgeHelp": "Сповіщення про CI та pull request охоплюють усі відкриті pull request у репозиторії, а також поточну гілку. Вони перевіряють GitHub/GitLab у фоні, поки Mergelio не в фокусі, і лише для відкритих репозиторіїв, де їх увімкнено.",
   "ntfRepoSection": "Сповіщення для цього репозиторію",
   "ntfRepoMasterOff": "Сповіщення на робочому столі вимкнено в глобальних налаштуваннях, тож нічого не показуватиметься, доки їх не ввімкнуть.",
   "ntfUseGlobal": "Як глобально ({state})",
