@@ -13,6 +13,7 @@ import '../../state/feedback.dart';
 import '../../state/profiles.dart';
 import '../../state/repo_config.dart';
 import '../../state/settings_controller.dart';
+import 'repo_notifications_section.dart';
 
 /// Preferences → Repository: a few git config keys for the repository in the
 /// active tab, each with the value git uses and where that comes from. Writes
@@ -202,6 +203,7 @@ class _RepoConfigTabState extends ConsumerState<RepoConfigTab> {
             note: note(k.key),
             onWrite: (value) => _write(repo, k.key, value),
           ),
+        RepoNotificationsSection(repoPath: repo),
       ],
     );
 

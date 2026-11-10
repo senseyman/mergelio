@@ -5929,4 +5929,202 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mdCouldNotOpenLink => 'Could not open the link in your browser';
+
+  @override
+  String ntfOpFinished(String op) {
+    return '$op finished';
+  }
+
+  @override
+  String ntfOpFailed(String op, String error) {
+    return '$op failed: $error';
+  }
+
+  @override
+  String get ntfCloneFinished => 'Clone finished';
+
+  @override
+  String ntfCloneFailed(String error) {
+    return 'Clone failed: $error';
+  }
+
+  @override
+  String ntfPrOpened(String ref, String title) {
+    return 'PR $ref opened: $title';
+  }
+
+  @override
+  String ntfMrOpened(String ref, String title) {
+    return 'MR $ref opened: $title';
+  }
+
+  @override
+  String ntfPrMerged(String ref) {
+    return 'PR $ref merged';
+  }
+
+  @override
+  String ntfMrMerged(String ref) {
+    return 'MR $ref merged';
+  }
+
+  @override
+  String ntfPrClosed(String ref) {
+    return 'PR $ref closed';
+  }
+
+  @override
+  String ntfMrClosed(String ref) {
+    return 'MR $ref closed';
+  }
+
+  @override
+  String ntfPrGone(String ref) {
+    return 'PR $ref no longer open';
+  }
+
+  @override
+  String ntfMrGone(String ref) {
+    return 'MR $ref no longer open';
+  }
+
+  @override
+  String ntfCiPassed(String branch) {
+    return 'CI passed on $branch';
+  }
+
+  @override
+  String ntfCiFailed(String branch) {
+    return 'CI failed on $branch';
+  }
+
+  @override
+  String ntfCiPassedPr(String branch, String ref) {
+    return 'CI passed on $branch ($ref)';
+  }
+
+  @override
+  String ntfCiFailedPr(String branch, String ref) {
+    return 'CI failed on $branch ($ref)';
+  }
+
+  @override
+  String ntfBatch(String summary) {
+    return '$summary';
+  }
+
+  @override
+  String ntfBatchOpened(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n PRs opened',
+      one: '$n PR opened',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ntfBatchOpenedMr(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n MRs opened',
+      one: '$n MR opened',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ntfBatchClosed(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n PRs closed',
+      one: '$n PR closed',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ntfBatchClosedMr(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n MRs closed',
+      one: '$n MR closed',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ntfBatchCiFailed(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: 'CI failed on $n commits',
+      one: 'CI failed on $n commit',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ntfBatchCiPassed(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: 'CI passed on $n commits',
+      one: 'CI passed on $n commit',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get prefsTabNotifications => 'Notifications';
+
+  @override
+  String get ntfMaster => 'Desktop notifications';
+
+  @override
+  String get ntfEventLongOps => 'Long-running operations finish';
+
+  @override
+  String get ntfEventCi => 'CI results';
+
+  @override
+  String get ntfEventPullRequests => 'Pull request changes';
+
+  @override
+  String get ntfLongOpThreshold => 'Notify for operations longer than';
+
+  @override
+  String ntfLongOpSeconds(int n) {
+    return '$n s';
+  }
+
+  @override
+  String get ntfForgeHelp =>
+      'CI and pull request notifications cover every open pull request in the repository, plus the current branch. They check GitHub/GitLab in the background while Mergelio is not focused, and only for open repositories that have them turned on.';
+
+  @override
+  String get ntfRepoSection => 'Notifications for this repository';
+
+  @override
+  String get ntfRepoMasterOff =>
+      'Desktop notifications are off in the global settings, so nothing is shown until they are turned on.';
+
+  @override
+  String ntfUseGlobal(String state) {
+    return 'Use global ($state)';
+  }
+
+  @override
+  String get ntfOn => 'On';
+
+  @override
+  String get ntfOff => 'Off';
+
+  @override
+  String get ntfNoForge =>
+      'No forge account for this repository — CI and pull request notifications can\'t run.';
 }

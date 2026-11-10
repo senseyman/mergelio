@@ -18,15 +18,27 @@ class FakeForge implements Forge {
   final List<Issue> issuesResult;
   final ChecksSummary checksResult;
 
+  /// Answers by the ref asked about, consulted before [checksResult]. Left
+  /// mutable so a test can move a commit's CI along between reads.
+  final Map<String, ChecksSummary> checksBySha;
+
+  /// Failures by the ref asked about, so one commit's CI can fail while the
+  /// rest answer.
+  final Map<String, ForgeError> checksErrorsBySha = {};
+
   /// Details by number. A number with no entry answers [ForgeNotVisible],
   /// the way a forge answers for a request it does not have.
   final Map<int, PullRequestDetail> details;
 
-  final ForgeError? pullRequestsError;
+  /// Not final, so a test can make one list read fail and the next succeed.
+  ForgeError? pullRequestsError;
   final ForgeError? pullRequestsForBranchError;
   final ForgeError? issuesError;
   final ForgeError? checksError;
-  final ForgeError? pullRequestError;
+
+  /// Not final, so a test can make one detail lookup fail and the next
+  /// succeed.
+  ForgeError? pullRequestError;
 
   int pullRequestsCalls = 0;
   int pullRequestsForBranchCalls = 0;
@@ -48,14 +60,22 @@ class FakeForge implements Forge {
     this.checksError,
     this.pullRequestError,
     this.details = const {},
-  }) : pullRequestsResult = pullRequests,
+    Map<String, ChecksSummary>? checksBySha,
+  }) : checksBySha = checksBySha ?? {},
+       pullRequestsResult = pullRequests,
        issuesResult = issues,
        checksResult =
            checks ?? const ChecksSummary(overall: ChecksOverall.none);
 
+  /// When set, a list read waits on it before answering, so a test can act
+  /// while the read is under way.
+  Future<void>? pullRequestsHold;
+
   @override
   Future<List<PullRequest>> pullRequests({int limit = 50}) async {
     pullRequestsCalls++;
+    final hold = pullRequestsHold;
+    if (hold != null) await hold;
     final error = pullRequestsError;
     if (error != null) throw error;
     return pullRequestsResult.take(limit).toList(growable: false);
@@ -75,9 +95,15 @@ class FakeForge implements Forge {
         .toList(growable: false);
   }
 
+  /// When set, a detail lookup waits on it before answering, so a test can
+  /// act while the lookup is under way.
+  Future<void>? pullRequestHold;
+
   @override
   Future<PullRequestDetail> pullRequest(int number) async {
     pullRequestCalls++;
+    final hold = pullRequestHold;
+    if (hold != null) await hold;
     final error = pullRequestError;
     if (error != null) throw error;
     final detail = details[number];
@@ -89,9 +115,9 @@ class FakeForge implements Forge {
   Future<ChecksSummary> checksForRef(String ref) async {
     checksCalls++;
     checkedRefs.add(ref);
-    final error = checksError;
+    final error = checksError ?? checksErrorsBySha[ref];
     if (error != null) throw error;
-    return checksResult;
+    return checksBySha[ref] ?? checksResult;
   }
 
   @override

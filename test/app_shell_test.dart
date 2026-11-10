@@ -7,8 +7,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/core/tokens.dart';
 import 'package:mergelio/data/settings_repository.dart';
+import 'package:mergelio/domain/notify/desktop_notifier.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
+import 'package:mergelio/state/forge_notify.dart';
 import 'package:mergelio/state/forge_refresh.dart';
+import 'package:mergelio/state/notification_clicks.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
 import 'package:mergelio/ui/shell/app_shell.dart';
@@ -18,6 +21,8 @@ void main() {
     t,
   ) async {
     var built = false;
+    var watcherBuilt = false;
+    var routerBuilt = false;
     await t.pumpWidget(
       ProviderScope(
         overrides: [
@@ -38,6 +43,16 @@ void main() {
             built = true;
             return ForgeRefreshController(ref);
           }),
+          // No tab is open and notifications are off by default, so the
+          // real watcher reads neither git nor the forge here.
+          forgeNotifyWatcherProvider.overrideWith((ref) {
+            watcherBuilt = true;
+            return ForgeNotifyWatcher(ref);
+          }),
+          notificationClickRouterProvider.overrideWith((ref) {
+            routerBuilt = true;
+            return const Stream<NotificationTarget>.empty().listen((_) {});
+          }),
         ],
         child: MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -55,6 +70,21 @@ void main() {
       reason:
           'AppShell must watch forgeRefreshProvider to keep the auto-refresh '
           'scheduler alive for the app lifetime',
+    );
+    expect(
+      watcherBuilt,
+      isTrue,
+      reason:
+          'AppShell must watch forgeNotifyWatcherProvider so CI and pull '
+          'request changes are noticed while the window is unfocused',
+    );
+
+    expect(
+      routerBuilt,
+      isTrue,
+      reason:
+          'AppShell must watch notificationClickRouterProvider so a clicked '
+          'notification reaches its repo tab',
     );
   });
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -11,6 +12,7 @@ import '../domain/git/git_service.dart';
 import '../l10n/gen/app_localizations.dart';
 import 'feedback.dart';
 import 'l10n.dart';
+import 'op_clock.dart';
 import 'recents.dart';
 import 'workspace.dart';
 
@@ -102,6 +104,16 @@ class RepoBootstrap {
       _l.bootClone,
       onCancel: cancel.cancel,
     );
+    final clock = _ref.read(opClockProvider);
+    final startedAt = clock();
+    void notifyIfLong(String body) => notifyIfLongOp(
+      _ref,
+      startedAt: startedAt,
+      repoPath: target,
+      title: p.basename(target),
+      body: body,
+    );
+
     try {
       final r = await _git.run(
         cloneArgs(url.trim(), target, options),
@@ -116,10 +128,15 @@ class RepoBootstrap {
         cancel: cancel,
       );
       if (!r.ok) {
-        _toast(_l.actFailed(_l.bootClone), r.err);
+        // git normally says why on stderr; when it says nothing, a generic
+        // reason beats a notification that trails off after a colon.
+        final err = r.err.trim().isNotEmpty ? r.err : _l.actUnexpectedError;
+        _toast(_l.actFailed(_l.bootClone), err);
+        notifyIfLong(_l.ntfCloneFailed(gitErrorLine(err)));
         await _discardPartialClone(target, keepDirectory: destinationExisted);
         return null;
       }
+      notifyIfLong(_l.ntfCloneFinished);
       _open(name, target);
       return target;
     } on GitCancelledException {
@@ -129,7 +146,11 @@ class RepoBootstrap {
       await _discardPartialClone(target, keepDirectory: destinationExisted);
       return null;
     } on GitException catch (e) {
-      _toast(_l.actFailed(_l.bootClone), e.result?.err ?? e.message);
+      // Prefer git's own stderr; fall back to the short message.
+      final stderr = e.result?.err ?? '';
+      final err = stderr.trim().isNotEmpty ? stderr : e.message;
+      _toast(_l.actFailed(_l.bootClone), err);
+      notifyIfLong(_l.ntfCloneFailed(gitErrorLine(err)));
       await _discardPartialClone(target, keepDirectory: destinationExisted);
       return null;
     } finally {

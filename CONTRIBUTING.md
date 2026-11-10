@@ -39,7 +39,7 @@ Taking part in this project means following its
   the README for why a newer SDK breaks code generation.
 - **Desktop toolchain** for your host: Xcode (macOS), Visual Studio with the
   *Desktop development with C++* workload (Windows), or
-  `clang cmake ninja-build pkg-config libgtk-3-dev` (Linux).
+  `clang cmake ninja-build pkg-config libgtk-3-dev libnotify-dev` (Linux).
 - **Git** on your `PATH` — the app shells out to it at runtime.
 
 With [fvm](https://fvm.app) the pin is picked up from `.fvmrc`:

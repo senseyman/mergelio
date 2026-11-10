@@ -6034,4 +6034,214 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get mdCouldNotOpenLink => 'Не вдалося відкрити посилання в браузері';
+
+  @override
+  String ntfOpFinished(String op) {
+    return '$op: завершено';
+  }
+
+  @override
+  String ntfOpFailed(String op, String error) {
+    return '$op: помилка: $error';
+  }
+
+  @override
+  String get ntfCloneFinished => 'Клонування завершено';
+
+  @override
+  String ntfCloneFailed(String error) {
+    return 'Клонування не вдалося: $error';
+  }
+
+  @override
+  String ntfPrOpened(String ref, String title) {
+    return 'PR $ref відкрито: $title';
+  }
+
+  @override
+  String ntfMrOpened(String ref, String title) {
+    return 'MR $ref відкрито: $title';
+  }
+
+  @override
+  String ntfPrMerged(String ref) {
+    return 'PR $ref злито';
+  }
+
+  @override
+  String ntfMrMerged(String ref) {
+    return 'MR $ref злито';
+  }
+
+  @override
+  String ntfPrClosed(String ref) {
+    return 'PR $ref закрито';
+  }
+
+  @override
+  String ntfMrClosed(String ref) {
+    return 'MR $ref закрито';
+  }
+
+  @override
+  String ntfPrGone(String ref) {
+    return 'PR $ref більше не відкритий';
+  }
+
+  @override
+  String ntfMrGone(String ref) {
+    return 'MR $ref більше не відкритий';
+  }
+
+  @override
+  String ntfCiPassed(String branch) {
+    return 'CI пройдено в $branch';
+  }
+
+  @override
+  String ntfCiFailed(String branch) {
+    return 'CI не пройдено в $branch';
+  }
+
+  @override
+  String ntfCiPassedPr(String branch, String ref) {
+    return 'CI пройдено в $branch ($ref)';
+  }
+
+  @override
+  String ntfCiFailedPr(String branch, String ref) {
+    return 'CI не пройдено в $branch ($ref)';
+  }
+
+  @override
+  String ntfBatch(String summary) {
+    return '$summary';
+  }
+
+  @override
+  String ntfBatchOpened(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n PR відкрито',
+      many: '$n PR відкрито',
+      few: '$n PR відкрито',
+      one: '$n PR відкрито',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ntfBatchOpenedMr(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n MR відкрито',
+      many: '$n MR відкрито',
+      few: '$n MR відкрито',
+      one: '$n MR відкрито',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ntfBatchClosed(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n PR закрито',
+      many: '$n PR закрито',
+      few: '$n PR закрито',
+      one: '$n PR закрито',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ntfBatchClosedMr(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n MR закрито',
+      many: '$n MR закрито',
+      few: '$n MR закрито',
+      one: '$n MR закрито',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ntfBatchCiFailed(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: 'CI не пройдено для $n коміту',
+      many: 'CI не пройдено для $n комітів',
+      few: 'CI не пройдено для $n комітів',
+      one: 'CI не пройдено для $n коміту',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ntfBatchCiPassed(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: 'CI пройдено для $n коміту',
+      many: 'CI пройдено для $n комітів',
+      few: 'CI пройдено для $n комітів',
+      one: 'CI пройдено для $n коміту',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get prefsTabNotifications => 'Сповіщення';
+
+  @override
+  String get ntfMaster => 'Сповіщення на робочому столі';
+
+  @override
+  String get ntfEventLongOps => 'Завершення тривалих операцій';
+
+  @override
+  String get ntfEventCi => 'Результати CI';
+
+  @override
+  String get ntfEventPullRequests => 'Зміни в pull request';
+
+  @override
+  String get ntfLongOpThreshold => 'Сповіщати про операції довші за';
+
+  @override
+  String ntfLongOpSeconds(int n) {
+    return '$n с';
+  }
+
+  @override
+  String get ntfForgeHelp =>
+      'Сповіщення про CI та pull request охоплюють усі відкриті pull request у репозиторії, а також поточну гілку. Вони перевіряють GitHub/GitLab у фоні, поки Mergelio не в фокусі, і лише для відкритих репозиторіїв, де їх увімкнено.';
+
+  @override
+  String get ntfRepoSection => 'Сповіщення для цього репозиторію';
+
+  @override
+  String get ntfRepoMasterOff =>
+      'Сповіщення на робочому столі вимкнено в глобальних налаштуваннях, тож нічого не показуватиметься, доки їх не ввімкнуть.';
+
+  @override
+  String ntfUseGlobal(String state) {
+    return 'Як глобально ($state)';
+  }
+
+  @override
+  String get ntfOn => 'Увімк.';
+
+  @override
+  String get ntfOff => 'Вимк.';
+
+  @override
+  String get ntfNoForge =>
+      'Для цього репозиторію немає облікового запису forge — сповіщення про CI та pull request не працюватимуть.';
 }

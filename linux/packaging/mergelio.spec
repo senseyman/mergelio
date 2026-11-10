@@ -44,6 +44,7 @@ URL:            https://github.com/senseyman/mergelio
 # guaranteed to be present and pinning it would only narrow the package.
 Requires:       gtk3
 Requires:       glib2
+Requires:       libnotify
 Requires:       libstdc++
 Requires:       zlib
 Requires:       git

@@ -22,6 +22,9 @@ const kMinForgeRefreshIntervalSeconds = 120;
 /// Default pull-request panel refresh interval, in seconds (ten minutes).
 const kDefaultForgeRefreshIntervalSeconds = 600;
 
+/// Offered thresholds, in seconds, for a long-running operation notification.
+const kNotifyLongOpChoices = [5, 10, 30, 60];
+
 /// Brings a stored settings blob forward to the current rules. Earlier builds
 /// offered 5s and 15s poll intervals; those values are raised to the floor
 /// rather than left to poll at a rate the app no longer allows.
@@ -140,6 +143,16 @@ abstract class AppSettings with _$AppSettings {
     @Default(300.0) double filesNavWidth,
     @Default(false) bool filesHideIgnored,
     @Default(false) bool filesNavCollapsed,
+    // Desktop notifications. The master switch silences everything when off;
+    // each event kind then has its own global default that a repo can
+    // override. Off by default: a Git client should not speak up unasked.
+    @Default(false) bool notificationsEnabled,
+    @Default(false) bool notifyLongOps,
+    @Default(false) bool notifyCi,
+    @Default(false) bool notifyPullRequests,
+    // How long an operation must run before finishing it is worth a
+    // notification, in seconds.
+    @Default(10) int notifyLongOpSeconds,
   }) = _AppSettings;
 
   factory AppSettings.fromJson(Map<String, dynamic> json) =>

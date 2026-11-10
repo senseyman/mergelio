@@ -48,10 +48,13 @@ if [[ -z ${SKIP_BUILD:-} ]]; then
   if ! pkg-config --exists gtk+-3.0 2>/dev/null; then
     MISSING+=("libgtk-3-dev")
   fi
-  if (( ${#MISSING[@]} > 0 )); then
-    die "Missing build dependencies: ${MISSING[*]}\n  sudo apt install clang cmake ninja-build pkg-config libgtk-3-dev"
+  if ! pkg-config --exists libnotify 2>/dev/null; then
+    MISSING+=("libnotify-dev")
   fi
-  ok "Toolchain: clang, cmake, ninja, pkg-config, gtk+-3.0"
+  if (( ${#MISSING[@]} > 0 )); then
+    die "Missing build dependencies: ${MISSING[*]}\n  sudo apt install clang cmake ninja-build pkg-config libgtk-3-dev libnotify-dev"
+  fi
+  ok "Toolchain: clang, cmake, ninja, pkg-config, gtk+-3.0, libnotify"
 fi
 
 VERSION=$(resolve_version "${1:-}")
@@ -147,7 +150,7 @@ Architecture: ${DEB_ARCH}
 Maintainer: ${MAINTAINER}
 Homepage: ${HOMEPAGE}
 Installed-Size: ${INSTALLED_KB}
-Depends: libgtk-3-0 | libgtk-3-0t64, libglib2.0-0 | libglib2.0-0t64, libstdc++6, zlib1g, git
+Depends: libgtk-3-0 | libgtk-3-0t64, libglib2.0-0 | libglib2.0-0t64, libnotify4, libstdc++6, zlib1g, git
 Description: Free, cross-platform visual Git client
  Mergelio is a desktop Git client with a commit graph, staging, diffs,
  merge and rebase tooling, and worktree support.

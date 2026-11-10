@@ -5,7 +5,9 @@ import '../../core/logging.dart';
 import '../../state/auto_fetch.dart';
 import '../../state/diff_tab_switch.dart';
 import '../../state/feedback.dart';
+import '../../state/forge_notify.dart';
 import '../../state/forge_refresh.dart';
+import '../../state/notification_clicks.dart';
 import '../../state/open_files_sync.dart';
 import '../../state/operation_journal.dart';
 import '../../state/profile_theme_sync.dart';
@@ -46,6 +48,8 @@ class AppShell extends ConsumerWidget {
     // disk watcher alive for the app's lifetime.
     ref.watch(autoFetchProvider);
     ref.watch(forgeRefreshProvider);
+    ref.watch(forgeNotifyWatcherProvider);
+    ref.watch(notificationClickRouterProvider);
     ref.watch(windowFocusSyncProvider);
     ref.watch(profileThemeSyncProvider);
     ref.watch(profileWorkspaceSyncProvider);

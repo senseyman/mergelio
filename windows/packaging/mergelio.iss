@@ -106,3 +106,9 @@ Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags
 ; has to come back. runasoriginaluser keeps it out of the elevated context the
 ; installer runs in.
 Filename: "{app}\{#AppExe}"; Flags: nowait postinstall runasoriginaluser; Check: WizardSilent
+
+[UninstallDelete]
+; The notification plugin adds this Start-menu shortcut itself the first time
+; desktop notifications are switched on; Windows needs it to show them. It is
+; not one of the installer's own icons, so it has to be named to go away.
+Type: files; Name: "{userprograms}\{#AppName}.lnk"

@@ -9643,6 +9643,228 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not open the link in your browser'**
   String get mdCouldNotOpenLink;
+
+  /// No description provided for @ntfOpFinished.
+  ///
+  /// In en, this message translates to:
+  /// **'{op} finished'**
+  String ntfOpFinished(String op);
+
+  /// No description provided for @ntfOpFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'{op} failed: {error}'**
+  String ntfOpFailed(String op, String error);
+
+  /// No description provided for @ntfCloneFinished.
+  ///
+  /// In en, this message translates to:
+  /// **'Clone finished'**
+  String get ntfCloneFinished;
+
+  /// No description provided for @ntfCloneFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Clone failed: {error}'**
+  String ntfCloneFailed(String error);
+
+  /// No description provided for @ntfPrOpened.
+  ///
+  /// In en, this message translates to:
+  /// **'PR {ref} opened: {title}'**
+  String ntfPrOpened(String ref, String title);
+
+  /// No description provided for @ntfMrOpened.
+  ///
+  /// In en, this message translates to:
+  /// **'MR {ref} opened: {title}'**
+  String ntfMrOpened(String ref, String title);
+
+  /// No description provided for @ntfPrMerged.
+  ///
+  /// In en, this message translates to:
+  /// **'PR {ref} merged'**
+  String ntfPrMerged(String ref);
+
+  /// No description provided for @ntfMrMerged.
+  ///
+  /// In en, this message translates to:
+  /// **'MR {ref} merged'**
+  String ntfMrMerged(String ref);
+
+  /// No description provided for @ntfPrClosed.
+  ///
+  /// In en, this message translates to:
+  /// **'PR {ref} closed'**
+  String ntfPrClosed(String ref);
+
+  /// No description provided for @ntfMrClosed.
+  ///
+  /// In en, this message translates to:
+  /// **'MR {ref} closed'**
+  String ntfMrClosed(String ref);
+
+  /// No description provided for @ntfPrGone.
+  ///
+  /// In en, this message translates to:
+  /// **'PR {ref} no longer open'**
+  String ntfPrGone(String ref);
+
+  /// No description provided for @ntfMrGone.
+  ///
+  /// In en, this message translates to:
+  /// **'MR {ref} no longer open'**
+  String ntfMrGone(String ref);
+
+  /// No description provided for @ntfCiPassed.
+  ///
+  /// In en, this message translates to:
+  /// **'CI passed on {branch}'**
+  String ntfCiPassed(String branch);
+
+  /// No description provided for @ntfCiFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'CI failed on {branch}'**
+  String ntfCiFailed(String branch);
+
+  /// No description provided for @ntfCiPassedPr.
+  ///
+  /// In en, this message translates to:
+  /// **'CI passed on {branch} ({ref})'**
+  String ntfCiPassedPr(String branch, String ref);
+
+  /// No description provided for @ntfCiFailedPr.
+  ///
+  /// In en, this message translates to:
+  /// **'CI failed on {branch} ({ref})'**
+  String ntfCiFailedPr(String branch, String ref);
+
+  /// No description provided for @ntfBatch.
+  ///
+  /// In en, this message translates to:
+  /// **'{summary}'**
+  String ntfBatch(String summary);
+
+  /// No description provided for @ntfBatchOpened.
+  ///
+  /// In en, this message translates to:
+  /// **'{n, plural, one{{n} PR opened} other{{n} PRs opened}}'**
+  String ntfBatchOpened(int n);
+
+  /// No description provided for @ntfBatchOpenedMr.
+  ///
+  /// In en, this message translates to:
+  /// **'{n, plural, one{{n} MR opened} other{{n} MRs opened}}'**
+  String ntfBatchOpenedMr(int n);
+
+  /// No description provided for @ntfBatchClosed.
+  ///
+  /// In en, this message translates to:
+  /// **'{n, plural, one{{n} PR closed} other{{n} PRs closed}}'**
+  String ntfBatchClosed(int n);
+
+  /// No description provided for @ntfBatchClosedMr.
+  ///
+  /// In en, this message translates to:
+  /// **'{n, plural, one{{n} MR closed} other{{n} MRs closed}}'**
+  String ntfBatchClosedMr(int n);
+
+  /// No description provided for @ntfBatchCiFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'{n, plural, one{CI failed on {n} commit} other{CI failed on {n} commits}}'**
+  String ntfBatchCiFailed(int n);
+
+  /// No description provided for @ntfBatchCiPassed.
+  ///
+  /// In en, this message translates to:
+  /// **'{n, plural, one{CI passed on {n} commit} other{CI passed on {n} commits}}'**
+  String ntfBatchCiPassed(int n);
+
+  /// No description provided for @prefsTabNotifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get prefsTabNotifications;
+
+  /// No description provided for @ntfMaster.
+  ///
+  /// In en, this message translates to:
+  /// **'Desktop notifications'**
+  String get ntfMaster;
+
+  /// No description provided for @ntfEventLongOps.
+  ///
+  /// In en, this message translates to:
+  /// **'Long-running operations finish'**
+  String get ntfEventLongOps;
+
+  /// No description provided for @ntfEventCi.
+  ///
+  /// In en, this message translates to:
+  /// **'CI results'**
+  String get ntfEventCi;
+
+  /// No description provided for @ntfEventPullRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'Pull request changes'**
+  String get ntfEventPullRequests;
+
+  /// No description provided for @ntfLongOpThreshold.
+  ///
+  /// In en, this message translates to:
+  /// **'Notify for operations longer than'**
+  String get ntfLongOpThreshold;
+
+  /// No description provided for @ntfLongOpSeconds.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} s'**
+  String ntfLongOpSeconds(int n);
+
+  /// No description provided for @ntfForgeHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'CI and pull request notifications cover every open pull request in the repository, plus the current branch. They check GitHub/GitLab in the background while Mergelio is not focused, and only for open repositories that have them turned on.'**
+  String get ntfForgeHelp;
+
+  /// No description provided for @ntfRepoSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications for this repository'**
+  String get ntfRepoSection;
+
+  /// No description provided for @ntfRepoMasterOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Desktop notifications are off in the global settings, so nothing is shown until they are turned on.'**
+  String get ntfRepoMasterOff;
+
+  /// No description provided for @ntfUseGlobal.
+  ///
+  /// In en, this message translates to:
+  /// **'Use global ({state})'**
+  String ntfUseGlobal(String state);
+
+  /// No description provided for @ntfOn.
+  ///
+  /// In en, this message translates to:
+  /// **'On'**
+  String get ntfOn;
+
+  /// No description provided for @ntfOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get ntfOff;
+
+  /// No description provided for @ntfNoForge.
+  ///
+  /// In en, this message translates to:
+  /// **'No forge account for this repository — CI and pull request notifications can\'t run.'**
+  String get ntfNoForge;
 }
 
 class _AppLocalizationsDelegate

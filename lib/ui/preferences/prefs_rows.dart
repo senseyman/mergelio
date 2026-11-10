@@ -7,7 +7,9 @@ import '../../core/tokens.dart';
 class SwitchRow extends StatelessWidget {
   final String label;
   final bool value;
-  final ValueChanged<bool> onChanged;
+
+  /// Null disables the switch.
+  final ValueChanged<bool>? onChanged;
   const SwitchRow(this.label, this.value, this.onChanged, {super.key});
 
   @override

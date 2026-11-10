@@ -15,6 +15,7 @@ import '../graph/commit_columns.dart';
 import 'editor_command_row.dart';
 import 'forge_account_row.dart';
 import 'logs_row.dart';
+import 'notifications_tab.dart';
 import 'prefs_rows.dart';
 import 'repo_config_tab.dart';
 import 'ssh_key_error_text.dart';
@@ -40,7 +41,7 @@ class _PrefsBody extends ConsumerWidget {
     // The repository on screen, not one the dashboard is covering.
     final repo = ref.watch(workspaceProvider.select((w) => w.shownTab?.path));
     return DefaultTabController(
-      length: 6,
+      length: 7,
       child: Column(
         children: [
           TabBar(
@@ -51,6 +52,7 @@ class _PrefsBody extends ConsumerWidget {
             tabs: [
               Tab(text: l.prefsTabGeneral),
               Tab(text: l.prefsTabRepository),
+              Tab(text: l.prefsTabNotifications),
               Tab(text: l.prefsTabAppearance),
               Tab(text: l.prefsTabShortcuts),
               Tab(text: l.prefsTabCredentials),
@@ -62,6 +64,7 @@ class _PrefsBody extends ConsumerWidget {
               children: [
                 const _GeneralTab(),
                 RepoConfigTab(repoPath: repo),
+                const NotificationsTab(),
                 const _AppearanceTab(),
                 const _ShortcutsTab(),
                 const _CredentialsTab(),

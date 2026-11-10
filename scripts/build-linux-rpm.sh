@@ -66,10 +66,13 @@ if [[ -z ${SKIP_BUILD:-} ]]; then
   if ! pkg-config --exists gtk+-3.0 2>/dev/null; then
     MISSING+=("gtk3-devel")
   fi
-  if (( ${#MISSING[@]} > 0 )); then
-    die "Missing build dependencies: ${MISSING[*]}\n  sudo dnf install clang cmake ninja-build pkgconf-pkg-config gtk3-devel"
+  if ! pkg-config --exists libnotify 2>/dev/null; then
+    MISSING+=("libnotify-devel")
   fi
-  ok "Toolchain: clang, cmake, ninja, pkg-config, gtk+-3.0"
+  if (( ${#MISSING[@]} > 0 )); then
+    die "Missing build dependencies: ${MISSING[*]}\n  sudo dnf install clang cmake ninja-build pkgconf-pkg-config gtk3-devel libnotify-devel"
+  fi
+  ok "Toolchain: clang, cmake, ninja, pkg-config, gtk+-3.0, libnotify"
 fi
 
 VERSION=$(resolve_version "${1:-}")

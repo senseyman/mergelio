@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/settings_repository.dart';
 import '../domain/forge/forge_server.dart';
 import '../domain/theme_io.dart';
+import 'notification_prefs.dart';
 import 'settings.dart';
 
 /// Owns [AppSettings], applies mutations, and persists on every change.
@@ -69,6 +70,20 @@ class SettingsController extends StateNotifier<AppSettings> {
       ),
     ),
   );
+  void setNotificationsEnabled(bool v) =>
+      _update(state.copyWith(notificationsEnabled: v));
+
+  /// Sets the global default for one notification kind.
+  void setNotify(NotifyEvent e, bool v) => _update(switch (e) {
+    NotifyEvent.longOps => state.copyWith(notifyLongOps: v),
+    NotifyEvent.ci => state.copyWith(notifyCi: v),
+    NotifyEvent.pullRequests => state.copyWith(notifyPullRequests: v),
+  });
+
+  /// Long-operation threshold, clamped to 1..3600 seconds.
+  void setNotifyLongOpSeconds(int seconds) =>
+      _update(state.copyWith(notifyLongOpSeconds: seconds.clamp(1, 3600)));
+
   void setConfirmDestructive(bool v) =>
       _update(state.copyWith(confirmDestructive: v));
   void setRestoreTabs(bool v) => _update(state.copyWith(restoreTabs: v));
