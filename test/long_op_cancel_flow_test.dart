@@ -94,15 +94,18 @@ void main() {
     for (final t in c.read(toastProvider)) t.title,
   ];
 
-  Future<void> cancelWhenOffered() async {
+  /// Cancels once the busy state offers it. [ready] says when git has reached
+  /// the slow part; without it a fixed pause stands in, which is enough when
+  /// the slow part is the first thing git does.
+  Future<void> cancelWhenOffered({bool Function()? ready}) async {
     final until = DateTime.now().add(const Duration(seconds: 10));
     while (DateTime.now().isBefore(until)) {
       final cancel = seen.lastOrNull?.onCancel;
-      if (cancel != null) {
-        // Let git get into the slow part first.
+      if (cancel != null && ready == null) {
         await Future<void>.delayed(const Duration(milliseconds: 600));
         return cancel();
       }
+      if (cancel != null && ready!()) return cancel();
       await Future<void>.delayed(const Duration(milliseconds: 20));
     }
     fail('Cancel was never offered');
@@ -490,7 +493,15 @@ echo "-----END PGP SIGNATURE-----"''';
       await g(['config', 'gpg.program', secondSlow]);
 
       final run = actions.continueOp();
-      await cancelWhenOffered();
+      // Cancelling during the first signature would stop the resolved pick
+      // itself; wait until the second one is under way.
+      await cancelWhenOffered(
+        ready: () {
+          final f = File(count);
+          return f.existsSync() &&
+              (int.tryParse(f.readAsStringSync().trim()) ?? 0) >= 2;
+        },
+      );
       await run;
 
       expect(await out(['show', 'HEAD:f.txt']), 'resolved');
