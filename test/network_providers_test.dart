@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:mergelio/data/net/proxied_client.dart';
 import 'package:mergelio/data/settings_repository.dart';
+import 'package:mergelio/domain/git/git_network_overrides.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/domain/net/proxy.dart';
@@ -135,6 +136,37 @@ void main() {
       final p = await c.read(proxyPolicyProvider.future);
       expect(p.mode, ProxyMode.manual);
       expect(p.manualUrl, 'http://typed:3128');
+    });
+  });
+
+  group('git network overrides', () {
+    test('follow the proxy settings', () {
+      final c = _container(_FakeGit((_) => const GitResult(1, '', '')));
+      expect(c.read(gitProxyOverridesProvider), same(GitNetworkOverrides.none));
+      c.read(settingsProvider.notifier)
+        ..setProxyMode(ProxyMode.manual)
+        ..setProxyUrl('http://typed:1')
+        ..setProxyForGit(true);
+      expect(c.read(gitProxyOverridesProvider).config, {
+        'http.proxy': 'http://typed:1',
+      });
+    });
+
+    test('the git service applies them to network commands', () async {
+      final c = ProviderContainer(
+        overrides: [
+          gitNetworkOverridesProvider.overrideWithValue(
+            const GitNetworkOverrides(config: {'http.proxy': 'http://p:9'}),
+          ),
+        ],
+      );
+      addTearDown(c.dispose);
+      final r = await c.read(gitServiceProvider).run([
+        'config',
+        '--get',
+        'http.proxy',
+      ], environment: networkEnv());
+      expect(r.out, 'http://p:9');
     });
   });
 

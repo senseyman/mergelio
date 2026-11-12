@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../domain/git/git_network_overrides.dart';
 import '../domain/git/git_providers.dart';
 import '../domain/net/proxy.dart';
 import 'settings_controller.dart';
@@ -46,4 +47,13 @@ final proxyPolicyProvider = FutureProvider<ProxyPolicy>((ref) async {
     gitProxy: await ref.watch(gitHttpProxyProvider.future),
     env: ref.watch(proxyEnvironmentProvider),
   );
+});
+
+/// What git's network commands are told about the proxy, from the settings.
+/// The app hands this to [gitNetworkOverridesProvider].
+final gitProxyOverridesProvider = Provider<GitNetworkOverrides>((ref) {
+  final (mode, url, forGit) = ref.watch(
+    settingsProvider.select((s) => (s.proxyMode, s.proxyUrl, s.proxyForGit)),
+  );
+  return gitProxyOverrides(ProxyMode.parse(mode), url, forGit: forGit);
 });

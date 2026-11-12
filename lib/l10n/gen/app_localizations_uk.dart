@@ -6306,4 +6306,16 @@ class AppLocalizationsUk extends AppLocalizations {
   String proxyCredentialsDropped(String setting) {
     return 'Ім\'я користувача та пароль із $setting не можна надіслати: Mergelio потрібні обидва, без \';\' у жодному і без \':\' в імені. Проксі, що їх вимагає, відхилятиме ці запити.';
   }
+
+  @override
+  String get proxyForGit => 'Використовувати це налаштування і для команд git';
+
+  @override
+  String get proxyForGitNote =>
+      'Fetch, pull, push і clone через https використовують це налаштування замість власних налаштувань проксі git. Проксі, заданий у git для конкретної URL-адреси, усе одно має перевагу, а ssh-віддалені репозиторії це не зачіпає.';
+
+  @override
+  String proxyForGitTooOld(String version) {
+    return 'Git $version не може прийняти це налаштування; потрібен git 2.31 або новіший, тож команди git і далі використовують власні налаштування проксі.';
+  }
 }

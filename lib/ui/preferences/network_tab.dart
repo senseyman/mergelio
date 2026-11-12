@@ -5,10 +5,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
 import '../../core/tokens.dart';
+import '../../domain/git/git_providers.dart';
+import '../../domain/git/git_toolchain.dart';
 import '../../domain/net/proxy.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/network.dart';
 import '../../state/settings_controller.dart';
+import 'prefs_rows.dart';
 
 /// The host the status line is worked out for. `no_proxy` can treat hosts
 /// differently, but one representative answer is what a person checking
@@ -44,6 +47,8 @@ class _NetworkTabState extends ConsumerState<NetworkTab> {
     final mode = ProxyMode.parse(s.proxyMode);
     final route = ref.watch(proxyPolicyProvider).valueOrNull?.routeFor(_probe);
     final settings = ref.read(settingsProvider.notifier);
+    final forGit = mode != ProxyMode.auto && s.proxyForGit;
+    final gitTooOld = _tooOldForGit(ref.watch(gitVersionProvider).valueOrNull);
 
     final faint = TextStyle(color: t.textFaint, fontSize: 12);
     Widget chip(String label, ProxyMode value) => ChoiceChip(
@@ -93,9 +98,27 @@ class _NetworkTabState extends ConsumerState<NetworkTab> {
           if (Platform.isMacOS) note(l.proxyGuiEnvNote),
         ],
         if (mode == ProxyMode.manual) note(l.proxyManualNote),
-        note(l.proxyGitNote),
+        // Automatic already is what git does, so there is nothing to apply.
+        if (mode != ProxyMode.auto) ...[
+          const SizedBox(height: 8),
+          SwitchRow(l.proxyForGit, s.proxyForGit, settings.setProxyForGit),
+        ],
+        if (forGit && gitTooOld != null)
+          note(
+            l.proxyForGitTooOld(gitTooOld),
+            TextStyle(color: t.danger, fontSize: 12),
+          )
+        else
+          note(forGit ? l.proxyForGitNote : l.proxyGitNote),
       ],
     );
+  }
+
+  /// The version of a git that cannot take config through the environment,
+  /// or null when it can or is not known yet.
+  String? _tooOldForGit(String? version) {
+    if (version == null || gitVersionAtLeast(version, 2, 31)) return null;
+    return RegExp(r'\d+(\.\d+)+').firstMatch(version)?.group(0) ?? version;
   }
 
   /// A setting as a person would look for it: the typed url is the field

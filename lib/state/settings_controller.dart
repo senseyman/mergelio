@@ -109,6 +109,8 @@ class SettingsController extends StateNotifier<AppSettings> {
 
   void setProxyUrl(String url) => _update(state.copyWith(proxyUrl: url.trim()));
 
+  void setProxyForGit(bool v) => _update(state.copyWith(proxyForGit: v));
+
   void setUpdateSkippedVersion(String version) =>
       _update(state.copyWith(updateSkippedVersion: version));
 

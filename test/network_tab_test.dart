@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/core/tokens.dart';
 import 'package:mergelio/data/settings_repository.dart';
+import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/net/proxy.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/state/network.dart';
@@ -15,6 +16,7 @@ Future<SettingsController> _pumpTab(
   AppSettings settings = const AppSettings(),
   String? gitProxy,
   Map<String, String> env = const {},
+  String gitVersion = 'git version 2.50.0',
 }) async {
   tester.view.physicalSize = const Size(900, 700);
   tester.view.devicePixelRatio = 1;
@@ -28,6 +30,7 @@ Future<SettingsController> _pumpTab(
         // the tab is shown what the provider would really hand it.
         gitHttpProxyProvider.overrideWith((ref) async => gitProxy),
         proxyEnvironmentProvider.overrideWithValue(env),
+        gitVersionProvider.overrideWith((ref) async => gitVersion),
       ],
       child: MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -80,6 +83,45 @@ void main() {
     await tester.pump();
     expect(find.text(l.proxyManualNote), findsOneWidget);
     expect(find.text(l.proxyAutoNote), findsNothing);
+  });
+
+  testWidgets('the git switch is offered only where it changes something', (
+    tester,
+  ) async {
+    final settings = await _pumpTab(tester);
+    final l = await AppLocalizations.delegate.load(const Locale('en'));
+    expect(find.text(l.proxyForGit), findsNothing);
+    for (final mode in [ProxyMode.manual, ProxyMode.off]) {
+      settings.setProxyMode(mode);
+      await tester.pump();
+      expect(find.text(l.proxyForGit), findsOneWidget, reason: mode.name);
+    }
+  });
+
+  testWidgets('the git switch writes the setting and changes the git note', (
+    tester,
+  ) async {
+    final settings = await _pumpTab(
+      tester,
+      settings: const AppSettings(proxyMode: 'off'),
+    );
+    final l = await AppLocalizations.delegate.load(const Locale('en'));
+    expect(find.text(l.proxyGitNote), findsOneWidget);
+    await tester.tap(find.byType(Switch));
+    await tester.pump();
+    expect(settings.state.proxyForGit, isTrue);
+    expect(find.text(l.proxyGitNote), findsNothing);
+    expect(find.text(l.proxyForGitNote), findsOneWidget);
+  });
+
+  testWidgets('a git too old for the switch is called out', (tester) async {
+    await _pumpTab(
+      tester,
+      settings: const AppSettings(proxyMode: 'off', proxyForGit: true),
+      gitVersion: 'git version 2.30.9',
+    );
+    final l = await AppLocalizations.delegate.load(const Locale('en'));
+    expect(find.text(l.proxyForGitTooOld('2.30.9')), findsOneWidget);
   });
 
   testWidgets('picking No proxy turns it off', (tester) async {

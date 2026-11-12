@@ -1,3 +1,5 @@
+import '../git/git_network_overrides.dart';
+
 /// The name a route carries when it came from the proxy typed into
 /// Preferences rather than from git or the environment.
 const kManualProxySetting = 'manual';
@@ -204,4 +206,26 @@ class ProxyPolicy {
     ProxyVia(:final address) => 'PROXY $address',
     ProxyDirect() || ProxyUnsupported() => 'DIRECT',
   };
+}
+
+/// What git's own network commands are told when the app's proxy setting is
+/// meant to cover them too. Automatic leaves git alone: git already reads the
+/// configuration that mode follows. Manual hands git the typed url — git
+/// speaks SOCKS and https proxies even where the app cannot — and lifts
+/// `no_proxy`, as manual does for the app. Off, or manual with nothing typed,
+/// sets an empty `http.proxy`, which git takes as no proxy at all.
+GitNetworkOverrides gitProxyOverrides(
+  ProxyMode mode,
+  String manualUrl, {
+  required bool forGit,
+}) {
+  if (!forGit || mode == ProxyMode.auto) return GitNetworkOverrides.none;
+  final url = mode == ProxyMode.manual ? manualUrl.trim() : '';
+  if (url.isEmpty) {
+    return const GitNetworkOverrides(config: {'http.proxy': ''});
+  }
+  return GitNetworkOverrides(
+    config: {'http.proxy': url},
+    env: const {'NO_PROXY': '', 'no_proxy': ''},
+  );
 }

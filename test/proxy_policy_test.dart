@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mergelio/domain/git/git_network_overrides.dart';
 import 'package:mergelio/domain/net/proxy.dart';
 
 final _https = Uri.parse('https://api.github.com/user');
@@ -205,6 +206,43 @@ void main() {
         const ProxyPolicy(gitProxy: 'socks5://h:1').findProxy(_https),
         'DIRECT',
       );
+    });
+  });
+
+  group('gitProxyOverrides', () {
+    test('nothing unless asked to cover git', () {
+      expect(
+        gitProxyOverrides(ProxyMode.manual, 'http://p:1', forGit: false),
+        same(GitNetworkOverrides.none),
+      );
+    });
+
+    test('automatic leaves git to its own configuration', () {
+      expect(
+        gitProxyOverrides(ProxyMode.auto, 'http://p:1', forGit: true),
+        same(GitNetworkOverrides.none),
+      );
+    });
+
+    test('manual sets http.proxy and lifts no_proxy, as for the app', () {
+      final o = gitProxyOverrides(
+        ProxyMode.manual,
+        ' socks5://p:1 ',
+        forGit: true,
+      );
+      // git speaks SOCKS even though the app cannot, so it is passed on.
+      expect(o.config, {'http.proxy': 'socks5://p:1'});
+      expect(o.env, {'NO_PROXY': '', 'no_proxy': ''});
+    });
+
+    test('off, or manual with nothing typed, turns git\'s proxy off', () {
+      for (final o in [
+        gitProxyOverrides(ProxyMode.off, 'http://p:1', forGit: true),
+        gitProxyOverrides(ProxyMode.manual, '  ', forGit: true),
+      ]) {
+        expect(o.config, {'http.proxy': ''});
+        expect(o.env, isEmpty);
+      }
     });
   });
 

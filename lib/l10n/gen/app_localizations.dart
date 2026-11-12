@@ -9961,6 +9961,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The user name and password in {setting} cannot be sent: Mergelio needs both, with no \';\' in either and no \':\' in the user name. A proxy that requires them will refuse these requests.'**
   String proxyCredentialsDropped(String setting);
+
+  /// No description provided for @proxyForGit.
+  ///
+  /// In en, this message translates to:
+  /// **'Use this setting for git commands too'**
+  String get proxyForGit;
+
+  /// No description provided for @proxyForGitNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetch, pull, push and clone over https use this setting instead of git\'s own proxy configuration. A proxy git has configured for one specific URL still takes precedence, and ssh remotes are not affected.'**
+  String get proxyForGitNote;
+
+  /// No description provided for @proxyForGitTooOld.
+  ///
+  /// In en, this message translates to:
+  /// **'Git {version} cannot take this setting; git 2.31 or later is needed, so git commands keep their own proxy configuration.'**
+  String proxyForGitTooOld(String version);
 }
 
 class _AppLocalizationsDelegate

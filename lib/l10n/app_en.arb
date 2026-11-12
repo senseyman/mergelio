@@ -3250,5 +3250,9 @@
   "proxyGitNote": "Git's own commands — fetch, pull, push, clone — always follow git's configuration.",
   "proxyManualNote": "Every request goes through this proxy, including hosts listed in NO_PROXY.",
   "proxyCredentialsDropped": "The user name and password in {setting} cannot be sent: Mergelio needs both, with no ';' in either and no ':' in the user name. A proxy that requires them will refuse these requests.",
-  "@proxyCredentialsDropped": {"placeholders": {"setting": {"type": "String"}}}
+  "@proxyCredentialsDropped": {"placeholders": {"setting": {"type": "String"}}},
+  "proxyForGit": "Use this setting for git commands too",
+  "proxyForGitNote": "Fetch, pull, push and clone over https use this setting instead of git's own proxy configuration. A proxy git has configured for one specific URL still takes precedence, and ssh remotes are not affected.",
+  "proxyForGitTooOld": "Git {version} cannot take this setting; git 2.31 or later is needed, so git commands keep their own proxy configuration.",
+  "@proxyForGitTooOld": {"placeholders": {"version": {"type": "String"}}}
 }
