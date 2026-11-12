@@ -56,6 +56,12 @@ void main() {
       expect(noProxyMatches('a.b', ''), isFalse);
     });
 
+    test('an IPv6 entry keeps its colons; a bracketed one drops its port', () {
+      expect(noProxyMatches('::1', '::1'), isTrue);
+      expect(noProxyMatches('::1', '[::1]:8080'), isTrue);
+      expect(noProxyMatches('::2', '::1'), isFalse);
+    });
+
     test('a lone star exempts everything', () {
       expect(noProxyMatches('anything.example', '*'), isTrue);
     });
@@ -166,6 +172,23 @@ void main() {
         const ProxyPolicy(gitProxy: 'http://u@h:3128').findProxy(_https),
         'PROXY h:3128',
       );
+    });
+
+    test('credentials the directive cannot carry are left out', () {
+      // dart:io splits the directive on ';' and the userinfo on the first
+      // ':', and its parse error quotes the whole directive — password
+      // included — into a message that ends up in the log.
+      for (final raw in [
+        'http://u:se%3Bcret@h:3128',
+        'http://u%3Bx:secret@h:3128',
+        'http://a%3Ab:secret@h:3128',
+      ]) {
+        expect(
+          ProxyPolicy(gitProxy: raw).findProxy(_https),
+          'PROXY h:3128',
+          reason: raw,
+        );
+      }
     });
 
     test('an unsupported proxy goes direct rather than failing', () {

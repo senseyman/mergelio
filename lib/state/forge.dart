@@ -173,9 +173,17 @@ final forgeHttpClientProvider = Provider<http.Client?>((ref) => null);
 /// The client one [ForgeHttp] owns: the injected one when a test supplies
 /// it, otherwise a fresh client routed by the proxy policy. Fresh, because
 /// [ForgeHttp.close] closes whatever it was given.
-Future<http.Client> _forgeClient(Ref ref) async =>
-    ref.watch(forgeHttpClientProvider) ??
-    proxiedHttpClient(await ref.watch(proxyPolicyProvider.future));
+///
+/// Only the proxy settings are watched; the policy itself is read. A rebuilt
+/// forge refetches every panel built on it, and the policy recomputes each
+/// time Preferences re-reads git config — a change made in Preferences is
+/// worth that, a re-read that changed nothing is not.
+Future<http.Client> _forgeClient(Ref ref) async {
+  final injected = ref.watch(forgeHttpClientProvider);
+  if (injected != null) return injected;
+  ref.watch(settingsProvider.select((s) => (s.proxyMode, s.proxyUrl)));
+  return proxiedHttpClient(await ref.read(proxyPolicyProvider.future));
+}
 
 /// A forge for the repository at [path], or null when it is not on one.
 final forgeProvider = FutureProvider.family<Forge?, String>((ref, path) async {

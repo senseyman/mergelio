@@ -114,6 +114,44 @@ void main() {
     });
   });
 
+  group('forge clients and the proxy policy', () {
+    List<Override> forgeOverrides() => [
+      originRemoteUrlProvider.overrideWith(
+        (ref, path) async => 'https://github.com/o/r.git',
+      ),
+      forgeTokenProvider.overrideWith((ref, path) async => null),
+    ];
+
+    test('re-reading git config does not rebuild a live forge', () async {
+      // Rebuilding the forge refetches every panel built on it, which spends
+      // the rate budget; Preferences re-reads git config each time it opens.
+      final c = _container(
+        _FakeGit(() => const GitResult(1, '', '')),
+        extra: forgeOverrides(),
+      );
+      final sub = c.listen(forgeProvider('/repo'), (_, _) {});
+      addTearDown(sub.close);
+      final before = await c.read(forgeProvider('/repo').future);
+      c.invalidate(gitHttpProxyProvider);
+      await c.read(proxyPolicyProvider.future);
+      await Future<void>.delayed(Duration.zero);
+      expect(await c.read(forgeProvider('/repo').future), same(before));
+    });
+
+    test('changing the proxy setting rebuilds the forge', () async {
+      final c = _container(
+        _FakeGit(() => const GitResult(1, '', '')),
+        extra: forgeOverrides(),
+      );
+      final sub = c.listen(forgeProvider('/repo'), (_, _) {});
+      addTearDown(sub.close);
+      final before = await c.read(forgeProvider('/repo').future);
+      c.read(settingsProvider.notifier).setProxyMode(ProxyMode.off);
+      await Future<void>.delayed(Duration.zero);
+      expect(await c.read(forgeProvider('/repo').future), isNot(same(before)));
+    });
+  });
+
   group('proxiedHttpClient', () {
     // A loopback server standing in for the proxy: whatever reaches it went
     // through the policy, because the target host does not exist.

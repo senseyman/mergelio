@@ -99,7 +99,14 @@ bool noProxyMatches(String host, String list) {
   for (final raw in list.split(',')) {
     var entry = raw.trim().toLowerCase();
     if (entry == '*') return true;
-    entry = entry.replaceFirst(RegExp(r':\d+$'), '');
+    // A port is only told apart from an IPv6 literal's last group when the
+    // literal is bracketed or the entry has a single colon.
+    if (entry.startsWith('[')) {
+      entry = entry.replaceFirst(RegExp(r'\]:\d+$'), ']');
+      entry = entry.substring(1, entry.length - (entry.endsWith(']') ? 1 : 0));
+    } else if (':'.allMatches(entry).length == 1) {
+      entry = entry.replaceFirst(RegExp(r':\d+$'), '');
+    }
     if (entry.startsWith('.')) entry = entry.substring(1);
     if (entry.isEmpty) continue;
     if (h == entry || h.endsWith('.$entry')) return true;
@@ -173,9 +180,17 @@ class ProxyPolicy {
   /// [routeFor] in the form `HttpClient.findProxy` takes. A proxy that
   /// cannot be spoken goes direct: failing every request instead would
   /// break the app for someone whose git is set up for SOCKS.
+  ///
+  /// Credentials go in only when dart:io can read them back: it splits the
+  /// directive on `;` and the userinfo on the first `:`, and its parse error
+  /// quotes the whole directive, password and all, into a message that gets
+  /// logged. Left out, the proxy answers 407 instead.
   String findProxy(Uri target) => switch (routeFor(target)) {
     ProxyVia(:final user, :final password, :final address)
-        when user != null && password != null =>
+        when user != null &&
+            password != null &&
+            !user.contains(':') &&
+            !'$user$password'.contains(';') =>
       'PROXY $user:$password@$address',
     ProxyVia(:final address) => 'PROXY $address',
     ProxyDirect() || ProxyUnsupported() => 'DIRECT',
