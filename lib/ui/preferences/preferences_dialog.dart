@@ -70,7 +70,7 @@ class _PrefsBody extends ConsumerWidget {
                 const _AppearanceTab(),
                 const _ShortcutsTab(),
                 const _CredentialsTab(),
-                const NetworkTab(),
+                NetworkTab(repoPath: repo),
                 const UpdatesTab(),
               ],
             ),

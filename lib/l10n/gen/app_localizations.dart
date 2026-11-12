@@ -9979,6 +9979,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Git {version} cannot take this setting; git 2.31 or later is needed, so git commands keep their own proxy configuration.'**
   String proxyForGitTooOld(String version);
+
+  /// No description provided for @proxySshRemotes.
+  ///
+  /// In en, this message translates to:
+  /// **'In {repo}, {remotes} connect over ssh, which this setting does not cover: git sends ssh traffic straight to the server.'**
+  String proxySshRemotes(String repo, String remotes);
 }
 
 class _AppLocalizationsDelegate

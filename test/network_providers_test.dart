@@ -170,6 +170,38 @@ void main() {
     });
   });
 
+  group('sshRemotesProvider', () {
+    test('names the remotes whose effective url is ssh', () async {
+      final git = _FakeGit(
+        (args) => switch (args) {
+          ['remote'] => const GitResult(0, 'origin\nupstream\nmirror\n', ''),
+          [_, _, 'origin'] => const GitResult(
+            0,
+            'git@github.com:o/r.git\n',
+            '',
+          ),
+          [_, _, 'upstream'] => const GitResult(0, 'https://h/r\n', ''),
+          // An insteadOf rewrite is what --get-url reports, not the
+          // configured https url.
+          [_, _, 'mirror'] => const GitResult(0, 'ssh://git@h/r\n', ''),
+          _ => const GitResult(1, '', ''),
+        },
+      );
+      final c = _container(git);
+      expect(await c.read(sshRemotesProvider('/repo').future), [
+        'origin',
+        'mirror',
+      ]);
+      expect(git.calls, contains(equals(['ls-remote', '--get-url', 'origin'])));
+      expect(git.repos.toSet(), {'/repo'});
+    });
+
+    test('a repository git cannot read has none', () async {
+      final c = _container(_FakeGit((_) => throw GitException('gone')));
+      expect(await c.read(sshRemotesProvider('/repo').future), isEmpty);
+    });
+  });
+
   group('forge clients and the proxy policy', () {
     List<Override> forgeOverrides() => [
       originRemoteUrlProvider.overrideWith(

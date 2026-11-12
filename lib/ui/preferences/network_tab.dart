@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
 
 import '../../core/theme.dart';
 import '../../core/tokens.dart';
@@ -21,7 +22,10 @@ final _probe = Uri.parse('https://github.com/');
 /// Where the proxy for Mergelio's own requests is chosen, and where the
 /// proxy actually in use is shown along with the setting that picked it.
 class NetworkTab extends ConsumerStatefulWidget {
-  const NetworkTab({super.key});
+  /// The repository shown behind Preferences, whose ssh remotes are named
+  /// when git is told to use this proxy. Null when no repository is open.
+  final String? repoPath;
+  const NetworkTab({super.key, this.repoPath});
 
   @override
   ConsumerState<NetworkTab> createState() => _NetworkTabState();
@@ -49,6 +53,10 @@ class _NetworkTabState extends ConsumerState<NetworkTab> {
     final settings = ref.read(settingsProvider.notifier);
     final forGit = mode != ProxyMode.auto && s.proxyForGit;
     final gitTooOld = _tooOldForGit(ref.watch(gitVersionProvider).valueOrNull);
+    final repo = widget.repoPath;
+    final sshRemotes = forGit && repo != null
+        ? ref.watch(sshRemotesProvider(repo)).valueOrNull ?? const <String>[]
+        : const <String>[];
 
     final faint = TextStyle(color: t.textFaint, fontSize: 12);
     Widget chip(String label, ProxyMode value) => ChoiceChip(
@@ -110,6 +118,11 @@ class _NetworkTabState extends ConsumerState<NetworkTab> {
           )
         else
           note(forGit ? l.proxyForGitNote : l.proxyGitNote),
+        if (forGit && sshRemotes.isNotEmpty)
+          note(
+            l.proxySshRemotes(p.basename(repo!), sshRemotes.join(', ')),
+            TextStyle(color: t.textPrimary, fontSize: 12),
+          ),
       ],
     );
   }

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/git/git_network_overrides.dart';
 import '../domain/git/git_providers.dart';
+import '../domain/git/remote_spec.dart';
 import '../domain/net/proxy.dart';
 import 'settings_controller.dart';
 
@@ -57,3 +58,30 @@ final gitProxyOverridesProvider = Provider<GitNetworkOverrides>((ref) {
   );
   return gitProxyOverrides(ProxyMode.parse(mode), url, forGit: forGit);
 });
+
+/// The remotes of the repository at [path] that git reaches over ssh, which
+/// no http proxy setting covers. Each url is read the way git will use it,
+/// `url.<base>.insteadOf` rewrites applied, so an https remote rewritten to
+/// ssh is caught too. Local reads only; nothing here touches the network.
+final sshRemotesProvider = FutureProvider.autoDispose
+    .family<List<String>, String>((ref, path) async {
+      final git = ref.watch(gitServiceProvider);
+      try {
+        final names = await git.run(['remote'], repoPath: path);
+        if (!names.ok) return const [];
+        final ssh = <String>[];
+        for (final name in names.out.split('\n')) {
+          if (name.trim().isEmpty) continue;
+          final url = await git.run([
+            'ls-remote',
+            '--get-url',
+            name.trim(),
+          ], repoPath: path);
+          if (url.ok && isSshRemoteUrl(url.out)) ssh.add(name.trim());
+        }
+        return ssh;
+      } on Object {
+        // A hint, not a check: a repository that cannot be read has none.
+        return const [];
+      }
+    });

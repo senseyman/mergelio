@@ -17,6 +17,8 @@ Future<SettingsController> _pumpTab(
   String? gitProxy,
   Map<String, String> env = const {},
   String gitVersion = 'git version 2.50.0',
+  String? repoPath,
+  List<String> sshRemotes = const [],
 }) async {
   tester.view.physicalSize = const Size(900, 700);
   tester.view.devicePixelRatio = 1;
@@ -31,12 +33,13 @@ Future<SettingsController> _pumpTab(
         gitHttpProxyProvider.overrideWith((ref) async => gitProxy),
         proxyEnvironmentProvider.overrideWithValue(env),
         gitVersionProvider.overrideWith((ref) async => gitVersion),
+        sshRemotesProvider.overrideWith((ref, path) async => sshRemotes),
       ],
       child: MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         theme: ThemeData(extensions: [AppTokens.dark()]),
-        home: const Scaffold(body: NetworkTab()),
+        home: Scaffold(body: NetworkTab(repoPath: repoPath)),
       ),
     ),
   );
@@ -112,6 +115,34 @@ void main() {
     expect(settings.state.proxyForGit, isTrue);
     expect(find.text(l.proxyGitNote), findsNothing);
     expect(find.text(l.proxyForGitNote), findsOneWidget);
+  });
+
+  testWidgets('says which remotes of the open repo the proxy cannot cover', (
+    tester,
+  ) async {
+    await _pumpTab(
+      tester,
+      settings: const AppSettings(proxyMode: 'manual', proxyForGit: true),
+      repoPath: '/src/go-ethereum',
+      sshRemotes: ['origin', 'fork'],
+    );
+    final l = await AppLocalizations.delegate.load(const Locale('en'));
+    expect(
+      find.text(l.proxySshRemotes('go-ethereum', 'origin, fork')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('no ssh hint while git keeps its own proxy settings', (
+    tester,
+  ) async {
+    await _pumpTab(
+      tester,
+      settings: const AppSettings(proxyMode: 'manual'),
+      repoPath: '/src/r',
+      sshRemotes: ['origin'],
+    );
+    expect(find.textContaining('origin'), findsNothing);
   });
 
   testWidgets('a git too old for the switch is called out', (tester) async {

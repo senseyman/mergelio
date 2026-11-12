@@ -6318,4 +6318,9 @@ class AppLocalizationsUk extends AppLocalizations {
   String proxyForGitTooOld(String version) {
     return 'Git $version не може прийняти це налаштування; потрібен git 2.31 або новіший, тож команди git і далі використовують власні налаштування проксі.';
   }
+
+  @override
+  String proxySshRemotes(String repo, String remotes) {
+    return 'У $repo віддалені репозиторії $remotes під\'єднуються через ssh, на який це налаштування не поширюється: git надсилає ssh-трафік напряму на сервер.';
+  }
 }
