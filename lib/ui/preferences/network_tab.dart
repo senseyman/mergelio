@@ -42,7 +42,7 @@ class _NetworkTabState extends ConsumerState<NetworkTab> {
     final l = AppLocalizations.of(context);
     final s = ref.watch(settingsProvider);
     final mode = ProxyMode.parse(s.proxyMode);
-    final policy = ref.watch(proxyPolicyProvider).valueOrNull;
+    final route = ref.watch(proxyPolicyProvider).valueOrNull?.routeFor(_probe);
     final settings = ref.read(settingsProvider.notifier);
 
     final faint = TextStyle(color: t.textFaint, fontSize: 12);
@@ -75,21 +75,33 @@ class _NetworkTabState extends ConsumerState<NetworkTab> {
         ),
         if (mode == ProxyMode.manual)
           _ProxyUrlField(url: s.proxyUrl, onChanged: settings.setProxyUrl),
-        if (policy != null)
+        if (route != null) ...[
           note(
-            _status(l, policy.routeFor(_probe)),
-            policy.routeFor(_probe) is ProxyUnsupported
+            _status(l, route),
+            route is ProxyUnsupported
                 ? TextStyle(color: t.danger, fontSize: 12)
                 : TextStyle(color: t.textPrimary, fontSize: 12),
           ),
+          if (route is ProxyVia && route.credentialsDropped)
+            note(
+              l.proxyCredentialsDropped(_settingLabel(l, route.setting!)),
+              TextStyle(color: t.danger, fontSize: 12),
+            ),
+        ],
         if (mode == ProxyMode.auto) ...[
           note(l.proxyAutoNote),
           if (Platform.isMacOS) note(l.proxyGuiEnvNote),
         ],
+        if (mode == ProxyMode.manual) note(l.proxyManualNote),
         note(l.proxyGitNote),
       ],
     );
   }
+
+  /// A setting as a person would look for it: the typed url is the field
+  /// above, not an internal name.
+  String _settingLabel(AppLocalizations l, String setting) =>
+      setting == kManualProxySetting ? l.proxyUrlLabel : setting;
 
   String _status(AppLocalizations l, ProxyRoute route) => switch (route) {
     ProxyUnsupported(:final setting) => l.proxyStatusUnsupported(setting!),

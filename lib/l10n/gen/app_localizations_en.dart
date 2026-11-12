@@ -6171,7 +6171,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get proxyAutoNote =>
-      'Uses git\'s http.proxy, then the HTTPS_PROXY, http_proxy and ALL_PROXY environment variables, skipping hosts listed in NO_PROXY.';
+      'Uses http.proxy from git\'s global or system config, then the HTTPS_PROXY, http_proxy and ALL_PROXY environment variables, skipping hosts listed in NO_PROXY. A proxy set in one repository\'s config applies only to git commands in that repository.';
 
   @override
   String get proxyGuiEnvNote =>
@@ -6180,4 +6180,13 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get proxyGitNote =>
       'Git\'s own commands — fetch, pull, push, clone — always follow git\'s configuration.';
+
+  @override
+  String get proxyManualNote =>
+      'Every request goes through this proxy, including hosts listed in NO_PROXY.';
+
+  @override
+  String proxyCredentialsDropped(String setting) {
+    return 'The user name and password in $setting cannot be sent: Mergelio needs both, with no \';\' in either and no \':\' in the user name. A proxy that requires them will refuse these requests.';
+  }
 }

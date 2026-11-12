@@ -53,6 +53,21 @@ class ProxyVia extends ProxyRoute {
   /// `host:port`, bracketing an IPv6 literal. Never includes credentials, so
   /// it is safe to show.
   String get address => host.contains(':') ? '[$host]:$port' : '$host:$port';
+
+  /// Whether the credentials can go into a dart:io proxy directive. It splits
+  /// the directive on `;` and the userinfo on the first `:`, needs both a
+  /// user and a password, and its parse error quotes the whole directive,
+  /// password and all, into a message that gets logged.
+  bool get _credentialsSendable =>
+      user != null &&
+      password != null &&
+      !user!.contains(':') &&
+      !'$user$password'.contains(';');
+
+  /// Credentials were configured but will not be sent, so an authenticating
+  /// proxy will answer 407.
+  bool get credentialsDropped =>
+      (user != null || password != null) && !_credentialsSendable;
 }
 
 /// A proxy is configured but `dart:io` cannot speak it — SOCKS, or TLS to
@@ -181,17 +196,11 @@ class ProxyPolicy {
   /// cannot be spoken goes direct: failing every request instead would
   /// break the app for someone whose git is set up for SOCKS.
   ///
-  /// Credentials go in only when dart:io can read them back: it splits the
-  /// directive on `;` and the userinfo on the first `:`, and its parse error
-  /// quotes the whole directive, password and all, into a message that gets
-  /// logged. Left out, the proxy answers 407 instead.
+  /// Credentials go in only when [ProxyVia.credentialsDropped] is false;
+  /// left out, the proxy answers 407 rather than the password being logged.
   String findProxy(Uri target) => switch (routeFor(target)) {
-    ProxyVia(:final user, :final password, :final address)
-        when user != null &&
-            password != null &&
-            !user.contains(':') &&
-            !'$user$password'.contains(';') =>
-      'PROXY $user:$password@$address',
+    final ProxyVia via when via._credentialsSendable =>
+      'PROXY ${via.user}:${via.password}@${via.address}',
     ProxyVia(:final address) => 'PROXY $address',
     ProxyDirect() || ProxyUnsupported() => 'DIRECT',
   };

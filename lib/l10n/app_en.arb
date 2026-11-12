@@ -3245,7 +3245,10 @@
   "@proxyStatusViaFrom": {"placeholders": {"address": {"type": "String"}, "setting": {"type": "String"}}},
   "proxyStatusUnsupported": "{setting} names a SOCKS or https:// proxy, which Mergelio's own requests cannot use, so they go direct.",
   "@proxyStatusUnsupported": {"placeholders": {"setting": {"type": "String"}}},
-  "proxyAutoNote": "Uses git's http.proxy, then the HTTPS_PROXY, http_proxy and ALL_PROXY environment variables, skipping hosts listed in NO_PROXY.",
+  "proxyAutoNote": "Uses http.proxy from git's global or system config, then the HTTPS_PROXY, http_proxy and ALL_PROXY environment variables, skipping hosts listed in NO_PROXY. A proxy set in one repository's config applies only to git commands in that repository.",
   "proxyGuiEnvNote": "Apps opened from Finder or the Dock do not see variables exported in a shell profile. Set git's http.proxy to cover every launch.",
-  "proxyGitNote": "Git's own commands — fetch, pull, push, clone — always follow git's configuration."
+  "proxyGitNote": "Git's own commands — fetch, pull, push, clone — always follow git's configuration.",
+  "proxyManualNote": "Every request goes through this proxy, including hosts listed in NO_PROXY.",
+  "proxyCredentialsDropped": "The user name and password in {setting} cannot be sent: Mergelio needs both, with no ';' in either and no ':' in the user name. A proxy that requires them will refuse these requests.",
+  "@proxyCredentialsDropped": {"placeholders": {"setting": {"type": "String"}}}
 }

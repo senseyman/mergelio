@@ -191,6 +191,15 @@ void main() {
       }
     });
 
+    test('a route says when its credentials cannot be sent', () {
+      ProxyVia via(String raw) => parseProxy(raw, 'x') as ProxyVia;
+      expect(via('http://u:p@h:1').credentialsDropped, isFalse);
+      expect(via('http://h:1').credentialsDropped, isFalse);
+      expect(via('http://u@h:1').credentialsDropped, isTrue);
+      expect(via('http://u:se%3Bcret@h:1').credentialsDropped, isTrue);
+      expect(via('http://a%3Ab:p@h:1').credentialsDropped, isTrue);
+    });
+
     test('an unsupported proxy goes direct rather than failing', () {
       expect(
         const ProxyPolicy(gitProxy: 'socks5://h:1').findProxy(_https),

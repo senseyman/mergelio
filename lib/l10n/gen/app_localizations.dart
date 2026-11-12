@@ -9935,7 +9935,7 @@ abstract class AppLocalizations {
   /// No description provided for @proxyAutoNote.
   ///
   /// In en, this message translates to:
-  /// **'Uses git\'s http.proxy, then the HTTPS_PROXY, http_proxy and ALL_PROXY environment variables, skipping hosts listed in NO_PROXY.'**
+  /// **'Uses http.proxy from git\'s global or system config, then the HTTPS_PROXY, http_proxy and ALL_PROXY environment variables, skipping hosts listed in NO_PROXY. A proxy set in one repository\'s config applies only to git commands in that repository.'**
   String get proxyAutoNote;
 
   /// No description provided for @proxyGuiEnvNote.
@@ -9949,6 +9949,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Git\'s own commands — fetch, pull, push, clone — always follow git\'s configuration.'**
   String get proxyGitNote;
+
+  /// No description provided for @proxyManualNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Every request goes through this proxy, including hosts listed in NO_PROXY.'**
+  String get proxyManualNote;
+
+  /// No description provided for @proxyCredentialsDropped.
+  ///
+  /// In en, this message translates to:
+  /// **'The user name and password in {setting} cannot be sent: Mergelio needs both, with no \';\' in either and no \':\' in the user name. A proxy that requires them will refuse these requests.'**
+  String proxyCredentialsDropped(String setting);
 }
 
 class _AppLocalizationsDelegate

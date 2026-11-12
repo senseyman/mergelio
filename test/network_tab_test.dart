@@ -64,6 +64,24 @@ void main() {
     expect(find.text(l.proxyStatusUnsupported('ALL_PROXY')), findsOneWidget);
   });
 
+  testWidgets('says when proxy credentials cannot be sent', (tester) async {
+    await _pumpTab(tester, gitProxy: 'http://u:se%3Bcret@proxy.corp:3128');
+    final l = await AppLocalizations.delegate.load(const Locale('en'));
+    expect(find.text(l.proxyCredentialsDropped('http.proxy')), findsOneWidget);
+    expect(find.textContaining('cret'), findsNothing);
+  });
+
+  testWidgets('each mode says what it covers', (tester) async {
+    final settings = await _pumpTab(tester);
+    final l = await AppLocalizations.delegate.load(const Locale('en'));
+    expect(find.text(l.proxyAutoNote), findsOneWidget);
+    expect(find.text(l.proxyManualNote), findsNothing);
+    settings.setProxyMode(ProxyMode.manual);
+    await tester.pump();
+    expect(find.text(l.proxyManualNote), findsOneWidget);
+    expect(find.text(l.proxyAutoNote), findsNothing);
+  });
+
   testWidgets('picking No proxy turns it off', (tester) async {
     final settings = await _pumpTab(tester, gitProxy: 'proxy.corp:3128');
     final l = await AppLocalizations.delegate.load(const Locale('en'));

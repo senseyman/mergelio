@@ -16,17 +16,20 @@ final proxyEnvironmentProvider = Provider<Map<String, String>>(
   (ref) => Platform.environment,
 );
 
-/// git's `http.proxy` from global and system config: null when unset, empty
-/// when set to turn the proxy off. Read once per session; Preferences
-/// invalidates it so an edit made outside the app shows up there.
+/// git's `http.proxy` from global config, else system config: null when
+/// unset, empty when set to turn the proxy off. Both scopes are named so
+/// the answer never depends on which directory the app was started in — a
+/// repository's own setting applies to that repository, not to the app.
+/// Read once per session; Preferences invalidates it so an edit made outside
+/// the app shows up there.
 final gitHttpProxyProvider = FutureProvider<String?>((ref) async {
+  final git = ref.watch(gitServiceProvider);
   try {
-    final r = await ref.watch(gitServiceProvider).run([
-      'config',
-      '--get',
-      'http.proxy',
-    ]);
-    return r.ok ? r.out : null;
+    for (final scope in const ['--global', '--system']) {
+      final r = await git.run(['config', scope, '--get', 'http.proxy']);
+      if (r.ok) return r.out;
+    }
+    return null;
   } on Object {
     // No git means no git config to honour, not a broken network.
     return null;

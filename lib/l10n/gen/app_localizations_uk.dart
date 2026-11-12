@@ -6288,7 +6288,7 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get proxyAutoNote =>
-      'Використовує http.proxy з git, потім змінні середовища HTTPS_PROXY, http_proxy і ALL_PROXY, оминаючи хости з NO_PROXY.';
+      'Використовує http.proxy із глобальних або системних налаштувань git, потім змінні середовища HTTPS_PROXY, http_proxy і ALL_PROXY, оминаючи хости з NO_PROXY. Проксі, заданий у налаштуваннях окремого репозиторію, діє лише на команди git у ньому.';
 
   @override
   String get proxyGuiEnvNote =>
@@ -6297,4 +6297,13 @@ class AppLocalizationsUk extends AppLocalizations {
   @override
   String get proxyGitNote =>
       'Власні команди git — fetch, pull, push, clone — завжди дотримуються налаштувань git.';
+
+  @override
+  String get proxyManualNote =>
+      'Усі запити йдуть через цей проксі, зокрема до хостів із NO_PROXY.';
+
+  @override
+  String proxyCredentialsDropped(String setting) {
+    return 'Ім\'я користувача та пароль із $setting не можна надіслати: Mergelio потрібні обидва, без \';\' у жодному і без \':\' в імені. Проксі, що їх вимагає, відхилятиме ці запити.';
+  }
 }

@@ -18,7 +18,7 @@ import 'package:mergelio/state/update_controller.dart';
 
 class _FakeGit implements GitService {
   _FakeGit(this.answer);
-  final FutureOr<GitResult> Function() answer;
+  final FutureOr<GitResult> Function(List<String> args) answer;
   final List<List<String>> calls = [];
   final List<String?> repos = [];
 
@@ -33,7 +33,7 @@ class _FakeGit implements GitService {
   }) async {
     calls.add(args);
     repos.add(repoPath);
-    return answer();
+    return answer(args);
   }
 
   @override
@@ -66,23 +66,47 @@ final _api = Uri.parse('https://api.github.com/user');
 
 void main() {
   group('gitHttpProxyProvider', () {
-    test('reads http.proxy from the config git sees outside a repo', () async {
-      final git = _FakeGit(() => const GitResult(0, 'proxy.corp:3128\n', ''));
+    test('reads global config, never whatever repo the app runs in', () async {
+      // A repository's own http.proxy applies to that repository; the cwd
+      // of the process is not a repository the user opened.
+      final git = _FakeGit((_) => const GitResult(0, 'proxy.corp:3128\n', ''));
       final c = _container(git);
       expect(await c.read(gitHttpProxyProvider.future), 'proxy.corp:3128');
-      expect(git.calls.single, ['config', '--get', 'http.proxy']);
+      expect(git.calls.single, ['config', '--global', '--get', 'http.proxy']);
       expect(git.repos.single, isNull);
     });
 
+    test('falls back to system config when global has none', () async {
+      final git = _FakeGit(
+        (args) => args.contains('--system')
+            ? const GitResult(0, 'sys.proxy:1\n', '')
+            : const GitResult(1, '', ''),
+      );
+      final c = _container(git);
+      expect(await c.read(gitHttpProxyProvider.future), 'sys.proxy:1');
+      expect(git.calls.last, ['config', '--system', '--get', 'http.proxy']);
+    });
+
+    test('a global value, even empty, hides the system one', () async {
+      final git = _FakeGit(
+        (args) => args.contains('--system')
+            ? const GitResult(0, 'sys.proxy:1\n', '')
+            : const GitResult(0, '\n', ''),
+      );
+      final c = _container(git);
+      expect(await c.read(gitHttpProxyProvider.future), '');
+      expect(git.calls, hasLength(1));
+    });
+
     test('unset is null and set-to-empty is empty', () async {
-      final unset = _container(_FakeGit(() => const GitResult(1, '', '')));
+      final unset = _container(_FakeGit((_) => const GitResult(1, '', '')));
       expect(await unset.read(gitHttpProxyProvider.future), isNull);
-      final empty = _container(_FakeGit(() => const GitResult(0, '\n', '')));
+      final empty = _container(_FakeGit((_) => const GitResult(0, '\n', '')));
       expect(await empty.read(gitHttpProxyProvider.future), '');
     });
 
     test('git failing to run reads as unset', () async {
-      final c = _container(_FakeGit(() => throw GitException('no git')));
+      final c = _container(_FakeGit((_) => throw GitException('no git')));
       expect(await c.read(gitHttpProxyProvider.future), isNull);
     });
   });
@@ -90,7 +114,7 @@ void main() {
   group('proxyPolicyProvider', () {
     test('combines settings, git and environment', () async {
       final c = _container(
-        _FakeGit(() => const GitResult(0, 'git.proxy:1\n', '')),
+        _FakeGit((_) => const GitResult(0, 'git.proxy:1\n', '')),
         env: {'HTTPS_PROXY': 'env.proxy:2'},
       );
       final p = await c.read(proxyPolicyProvider.future);
@@ -101,7 +125,7 @@ void main() {
     });
 
     test('follows the setting as it changes', () async {
-      final c = _container(_FakeGit(() => const GitResult(1, '', '')));
+      final c = _container(_FakeGit((_) => const GitResult(1, '', '')));
       final sub = c.listen(proxyPolicyProvider, (_, _) {});
       addTearDown(sub.close);
       expect((await c.read(proxyPolicyProvider.future)).mode, ProxyMode.auto);
@@ -126,7 +150,7 @@ void main() {
       // Rebuilding the forge refetches every panel built on it, which spends
       // the rate budget; Preferences re-reads git config each time it opens.
       final c = _container(
-        _FakeGit(() => const GitResult(1, '', '')),
+        _FakeGit((_) => const GitResult(1, '', '')),
         extra: forgeOverrides(),
       );
       final sub = c.listen(forgeProvider('/repo'), (_, _) {});
@@ -140,7 +164,7 @@ void main() {
 
     test('changing the proxy setting rebuilds the forge', () async {
       final c = _container(
-        _FakeGit(() => const GitResult(1, '', '')),
+        _FakeGit((_) => const GitResult(1, '', '')),
         extra: forgeOverrides(),
       );
       final sub = c.listen(forgeProvider('/repo'), (_, _) {});
@@ -185,7 +209,7 @@ void main() {
 
     test('forge calls go through the proxy', () async {
       final c = _container(
-        _FakeGit(() => const GitResult(1, '', '')),
+        _FakeGit((_) => const GitResult(1, '', '')),
         settings: AppSettings(
           proxyMode: 'manual',
           proxyUrl: 'http://127.0.0.1:${proxy.port}',
@@ -205,7 +229,7 @@ void main() {
     });
 
     test('an injected forge client still wins, with no git read', () async {
-      final git = _FakeGit(() => const GitResult(1, '', ''));
+      final git = _FakeGit((_) => const GitResult(1, '', ''));
       final c = _container(
         git,
         extra: [
@@ -225,7 +249,7 @@ void main() {
 
     test('update checks go through the proxy', () async {
       final c = _container(
-        _FakeGit(() => const GitResult(1, '', '')),
+        _FakeGit((_) => const GitResult(1, '', '')),
         settings: AppSettings(
           updateConsent: 'on',
           proxyMode: 'manual',
