@@ -88,6 +88,7 @@ void main() {
         '../other:dir',
         r'C:\repos\r',
         'C:/repos/r',
+        '  https://h/r  ',
         '',
       ]) {
         expect(isSshRemoteUrl(url), isFalse, reason: url);

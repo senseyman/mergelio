@@ -17,6 +17,8 @@ import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
 import 'package:mergelio/state/update_controller.dart';
 
+import 'support/hermetic_git.dart';
+
 class _FakeGit implements GitService {
   _FakeGit(this.answer);
   final FutureOr<GitResult> Function(List<String> args) answer;
@@ -175,15 +177,15 @@ void main() {
       final git = _FakeGit(
         (args) => switch (args) {
           ['remote'] => const GitResult(0, 'origin\nupstream\nmirror\n', ''),
-          [_, _, 'origin'] => const GitResult(
+          [_, _, _, 'origin'] => const GitResult(
             0,
             'git@github.com:o/r.git\n',
             '',
           ),
-          [_, _, 'upstream'] => const GitResult(0, 'https://h/r\n', ''),
+          [_, _, _, 'upstream'] => const GitResult(0, 'https://h/r\n', ''),
           // An insteadOf rewrite is what --get-url reports, not the
           // configured https url.
-          [_, _, 'mirror'] => const GitResult(0, 'ssh://git@h/r\n', ''),
+          [_, _, _, 'mirror'] => const GitResult(0, 'ssh://git@h/r\n', ''),
           _ => const GitResult(1, '', ''),
         },
       );
@@ -192,8 +194,32 @@ void main() {
         'origin',
         'mirror',
       ]);
-      expect(git.calls, contains(equals(['ls-remote', '--get-url', 'origin'])));
+      expect(
+        git.calls,
+        contains(equals(['ls-remote', '--get-url', '--', 'origin'])),
+      );
       expect(git.repos.toSet(), {'/repo'});
+    });
+
+    test('a remote whose name starts with a dash is still looked up', () async {
+      final dir = Directory.systemTemp.createTempSync('ssh-remotes');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      const git = HermeticGit();
+      await git.run(['init', '-q'], repoPath: dir.path);
+      await git.run([
+        'remote',
+        'add',
+        '--',
+        '-x',
+        'git@h:r.git',
+      ], repoPath: dir.path);
+      final c = ProviderContainer(
+        overrides: [gitServiceProvider.overrideWithValue(git)],
+      );
+      addTearDown(c.dispose);
+      final sub = c.listen(sshRemotesProvider(dir.path), (_, _) {});
+      addTearDown(sub.close);
+      expect(await c.read(sshRemotesProvider(dir.path).future), ['-x']);
     });
 
     test('a repository git cannot read has none', () async {

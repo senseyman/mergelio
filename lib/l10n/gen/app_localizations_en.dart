@@ -6203,7 +6203,13 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String proxySshRemotes(String repo, String remotes) {
-    return 'In $repo, $remotes connect over ssh, which this setting does not cover: git sends ssh traffic straight to the server.';
+  String proxySshRemotes(int count, String repo, String remotes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'connect',
+      one: 'connects',
+    );
+    return 'In $repo, $remotes $_temp0 over ssh, which this setting does not cover: git sends ssh traffic straight to the server.';
   }
 }

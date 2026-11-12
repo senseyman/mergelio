@@ -6320,7 +6320,15 @@ class AppLocalizationsUk extends AppLocalizations {
   }
 
   @override
-  String proxySshRemotes(String repo, String remotes) {
-    return 'У $repo віддалені репозиторії $remotes під\'єднуються через ssh, на який це налаштування не поширюється: git надсилає ssh-трафік напряму на сервер.';
+  String proxySshRemotes(int count, String repo, String remotes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'віддалені репозиторії $remotes під\'єднуються',
+      many: 'віддалені репозиторії $remotes під\'єднуються',
+      few: 'віддалені репозиторії $remotes під\'єднуються',
+      one: 'віддалений репозиторій $remotes під\'єднується',
+    );
+    return 'У $repo $_temp0 через ssh, на який це налаштування не поширюється: git надсилає ssh-трафік напряму на сервер.';
   }
 }

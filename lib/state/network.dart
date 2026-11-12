@@ -75,9 +75,12 @@ final sshRemotesProvider = FutureProvider.autoDispose
           final url = await git.run([
             'ls-remote',
             '--get-url',
+            // A remote may be named "-x"; this keeps git from reading the
+            // name as an option.
+            '--',
             name.trim(),
           ], repoPath: path);
-          if (url.ok && isSshRemoteUrl(url.out)) ssh.add(name.trim());
+          if (isSshRemoteUrl(url.out)) ssh.add(name.trim());
         }
         return ssh;
       } on Object {

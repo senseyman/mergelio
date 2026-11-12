@@ -93,32 +93,28 @@ void main() {
     });
   });
 
-  group('isNetworkEnv', () {
-    test('recognises the environment of a command that talks to a remote', () {
-      expect(isNetworkEnv(networkEnv()), isTrue);
-      expect(isNetworkEnv(networkEnv(askpass: '/a', repo: '/r')), isTrue);
-    });
-
-    test('a credential lookup or a plain command is not one', () {
-      expect(isNetworkEnv(null), isFalse);
-      expect(isNetworkEnv(const {'PATH': '/bin'}), isFalse);
-      // The shape of a credential-helper lookup: no prompt, but no remote.
-      expect(
-        isNetworkEnv(const {'GIT_TERMINAL_PROMPT': '0', 'GIT_ASKPASS': ''}),
-        isFalse,
-      );
-    });
-  });
-
   group('NetworkEnvGitService', () {
-    test('adds the overrides to network commands only', () async {
+    test(
+      'adds the overrides to every command, keeping what it was given',
+      () async {
+        // Not only fetch and push reach the network: a checkout downloads LFS
+        // objects through git-lfs's smudge filter, which inherits this
+        // environment. http.proxy means nothing to a command that does not.
+        final inner = _Recorder();
+        final git = NetworkEnvGitService(inner, () => _proxy);
+        await git.run(['checkout', 'main']);
+        await git.run(['fetch'], environment: networkEnv());
+        expect(inner.envs.first!['GIT_CONFIG_VALUE_0'], 'http://p:1');
+        expect(inner.envs.last!['GIT_CONFIG_VALUE_0'], 'http://p:1');
+        expect(inner.envs.last!['GIT_TERMINAL_PROMPT'], '0');
+      },
+    );
+
+    test('with no overrides the environment is passed through as is', () async {
       final inner = _Recorder();
-      final git = NetworkEnvGitService(inner, () => _proxy);
+      final git = NetworkEnvGitService(inner, () => GitNetworkOverrides.none);
       await git.run(['status']);
-      await git.run(['fetch'], environment: networkEnv());
-      expect(inner.envs.first, isNull);
-      expect(inner.envs.last!['GIT_CONFIG_VALUE_0'], 'http://p:1');
-      expect(inner.envs.last!['GIT_TERMINAL_PROMPT'], '0');
+      expect(inner.envs.single, isNull);
     });
 
     test(

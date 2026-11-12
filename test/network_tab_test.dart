@@ -128,9 +128,49 @@ void main() {
     );
     final l = await AppLocalizations.delegate.load(const Locale('en'));
     expect(
-      find.text(l.proxySshRemotes('go-ethereum', 'origin, fork')),
+      find.text(l.proxySshRemotes(2, 'go-ethereum', 'origin, fork')),
       findsOneWidget,
     );
+  });
+
+  test('one ssh remote reads in the singular', () async {
+    final en = await AppLocalizations.delegate.load(const Locale('en'));
+    expect(en.proxySshRemotes(1, 'r', 'origin'), contains('origin connects'));
+    expect(en.proxySshRemotes(2, 'r', 'a, b'), contains('a, b connect '));
+  });
+
+  testWidgets('git is not asked its version while the switch is off', (
+    tester,
+  ) async {
+    var asked = 0;
+    final controller = SettingsController(
+      InMemorySettingsRepository(),
+      const AppSettings(proxyMode: 'manual'),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          settingsProvider.overrideWith((ref) => controller),
+          gitHttpProxyProvider.overrideWith((ref) async => null),
+          proxyEnvironmentProvider.overrideWithValue(const {}),
+          gitVersionProvider.overrideWith((ref) async {
+            asked++;
+            return 'git version 2.50.0';
+          }),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          theme: ThemeData(extensions: [AppTokens.dark()]),
+          home: const Scaffold(body: NetworkTab()),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(asked, 0);
+    controller.setProxyForGit(true);
+    await tester.pump();
+    expect(asked, 1);
   });
 
   testWidgets('no ssh hint while git keeps its own proxy settings', (

@@ -9983,8 +9983,8 @@ abstract class AppLocalizations {
   /// No description provided for @proxySshRemotes.
   ///
   /// In en, this message translates to:
-  /// **'In {repo}, {remotes} connect over ssh, which this setting does not cover: git sends ssh traffic straight to the server.'**
-  String proxySshRemotes(String repo, String remotes);
+  /// **'In {repo}, {remotes} {count, plural, one{connects} other{connect}} over ssh, which this setting does not cover: git sends ssh traffic straight to the server.'**
+  String proxySshRemotes(int count, String repo, String remotes);
 }
 
 class _AppLocalizationsDelegate

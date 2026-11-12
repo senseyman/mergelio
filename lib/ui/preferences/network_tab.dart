@@ -52,7 +52,9 @@ class _NetworkTabState extends ConsumerState<NetworkTab> {
     final route = ref.watch(proxyPolicyProvider).valueOrNull?.routeFor(_probe);
     final settings = ref.read(settingsProvider.notifier);
     final forGit = mode != ProxyMode.auto && s.proxyForGit;
-    final gitTooOld = _tooOldForGit(ref.watch(gitVersionProvider).valueOrNull);
+    final gitTooOld = forGit
+        ? _tooOldForGit(ref.watch(gitVersionProvider).valueOrNull)
+        : null;
     final repo = widget.repoPath;
     final sshRemotes = forGit && repo != null
         ? ref.watch(sshRemotesProvider(repo)).valueOrNull ?? const <String>[]
@@ -118,9 +120,13 @@ class _NetworkTabState extends ConsumerState<NetworkTab> {
           )
         else
           note(forGit ? l.proxyForGitNote : l.proxyGitNote),
-        if (forGit && sshRemotes.isNotEmpty)
+        if (sshRemotes.isNotEmpty)
           note(
-            l.proxySshRemotes(p.basename(repo!), sshRemotes.join(', ')),
+            l.proxySshRemotes(
+              sshRemotes.length,
+              p.basename(repo!),
+              sshRemotes.join(', '),
+            ),
             TextStyle(color: t.textPrimary, fontSize: 12),
           ),
       ],

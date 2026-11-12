@@ -3,14 +3,7 @@ import 'dart:typed_data';
 
 import 'git_service.dart';
 
-/// Whether [environment] is the one [networkEnv] builds for a command that
-/// talks to a remote. It always names an ssh command; nothing else that runs
-/// git does, a credential-helper lookup included.
-bool isNetworkEnv(Map<String, String>? environment) =>
-    environment?.containsKey('GIT_SSH_COMMAND') ?? false;
-
-/// Configuration and environment laid over every git command that talks to a
-/// remote.
+/// Configuration and environment laid over every git command.
 class GitNetworkOverrides {
   /// git config keys and values, passed the way `-c` would pass them.
   final Map<String, String> config;
@@ -55,8 +48,12 @@ class GitNetworkOverrides {
   }
 }
 
-/// A [GitService] that lays [overrides] over each command that talks to a
-/// remote, and passes everything else through untouched.
+/// A [GitService] that lays [overrides] over every command it runs.
+///
+/// Every command, not only fetch and push: a checkout reaches the network
+/// too when git-lfs's smudge filter downloads objects, and that filter
+/// inherits this environment. Proxy config means nothing to a command that
+/// never opens a connection.
 ///
 /// [overrides] is asked at every call rather than captured, so a changed
 /// setting applies to the next fetch without rebuilding anything that holds
@@ -81,16 +78,14 @@ class NetworkEnvGitService implements GitService, GitBytesRunner {
     GitCancel? cancel,
     String? stdin,
   }) {
-    final o = isNetworkEnv(environment)
-        ? overrides()
-        : GitNetworkOverrides.none;
+    final o = overrides();
     return _inner.run(
       args,
       repoPath: repoPath,
       timeout: timeout,
       environment: o.isEmpty
           ? environment
-          : o.applyTo(environment!, inherited: _inherited),
+          : o.applyTo(environment ?? const {}, inherited: _inherited),
       cancel: cancel,
       stdin: stdin,
     );
