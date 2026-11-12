@@ -435,6 +435,8 @@ class _PendingOpBar extends ConsumerWidget {
                     RebaseStop(:final command?) => l.wtpExecFailedBody(command),
                     RebaseStop(kind: RebaseStopKind.reword) =>
                       l.wtpRewordRejectedBody,
+                    RebaseStop(kind: RebaseStopKind.split) =>
+                      l.wtpSplitPausedBody,
                     RebaseStop() => l.wtpBreakPausedBody,
                     null when pending.continues => l.wtpOpPausedBody(name),
                     null => l.wtpMergeOpenBody,

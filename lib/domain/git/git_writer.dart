@@ -1370,9 +1370,15 @@ class GitWriter {
       _ok(['reset', '--soft', sha], 'git reset --soft');
 
   /// Moves HEAD to [sha] and resets the index to match it, leaving the working
-  /// tree alone: the changes stay on disk, unstaged.
-  Future<void> resetMixed(String sha) =>
-      _ok(['reset', '--mixed', sha], 'git reset --mixed');
+  /// tree alone: the changes stay on disk, unstaged. [intentToAdd] keeps files
+  /// that [sha] lacks in the index as intent-to-add, so they stay tracked
+  /// rather than turning into untracked files.
+  Future<void> resetMixed(String sha, {bool intentToAdd = false}) => _ok([
+    'reset',
+    '--mixed',
+    if (intentToAdd) '-N',
+    sha,
+  ], 'git reset --mixed');
 
   // --- Stash ops ------------------------------------------------------------
 

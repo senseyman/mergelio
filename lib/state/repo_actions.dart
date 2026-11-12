@@ -3617,13 +3617,18 @@ class RepoActions {
             RebaseStopKind.exec => _l.actExecFailed,
             RebaseStopKind.reword => _l.actRewordRejected,
             RebaseStopKind.breakpoint => _l.actRebaseBreak,
+            RebaseStopKind.split => _l.actSplitReady,
           },
           description: switch (stop.kind) {
             RebaseStopKind.exec => _l.actExecFailedHint(stop.command ?? ''),
             RebaseStopKind.reword => _l.actRewordRejectedHint,
             RebaseStopKind.breakpoint => _l.actBreakHint,
+            RebaseStopKind.split => _l.actSplitHint,
           },
-          kind: ToastKind.warning,
+          // A split stops where the user asked it to; nothing went wrong.
+          kind: stop.kind == RebaseStopKind.split
+              ? ToastKind.info
+              : ToastKind.warning,
         );
   }
 
@@ -3847,6 +3852,57 @@ class RepoActions {
     sha,
     'HEAD',
   ], repoPath: path)).ok;
+
+  /// Splits [sha] into commits the user makes. An interactive rebase stops on
+  /// it and its changes go back to the working tree, unstaged. Nothing is
+  /// committed here: the user stages and commits each part, then continues,
+  /// and the commits above are replayed on top. Aborting puts the branch back
+  /// as it was.
+  ///
+  /// The root commit has no parent to step back to, and a merge — the commit
+  /// itself or one above it — cannot be replayed by a linear plan, so both
+  /// are refused before anything starts.
+  Future<void> splitCommit(String sha) async {
+    final toasts = _ref.read(toastProvider.notifier);
+    void refuse(String why) => toasts.show(
+      _l.actCannotSplit,
+      description: why,
+      kind: ToastKind.warning,
+    );
+    final target = await _out(['rev-parse', sha]);
+    if (!await _isAncestorOfHead(target)) {
+      toasts.show(_l.actNotOnBranch, kind: ToastKind.warning);
+      return;
+    }
+    final parent = await _out(['rev-parse', '--verify', '--quiet', '$target^']);
+    if (parent.isEmpty) return refuse(_l.actSplitRootCommit);
+    if ((await _out(['rev-parse', '--verify', '--quiet', '$target^2']))
+        .isNotEmpty) {
+      return refuse(_l.actSplitMergeCommit);
+    }
+    if (await rebaseCrossesMerge(parent)) {
+      return refuse(_l.actRewordWouldFlatten);
+    }
+    final steps = [
+      for (final s in await rebaseStepsFrom(parent))
+        s.sha == target ? s.withAction(RebaseAction.edit) : s,
+    ];
+    await rebase(parent, steps);
+    // git records the commit an edit stopped on. Without that record the
+    // rebase was refused or hit a conflict before reaching the commit; with
+    // HEAD anywhere else the commit has already been taken apart. Either way
+    // there is nothing to reset.
+    if ((await _rebaseFile('amend')).trim() != await _headSha()) return;
+    // Files the commit added stay tracked (intent-to-add). As untracked files
+    // they would block an abort: git will not overwrite untracked files when
+    // it puts the branch back.
+    try {
+      await _writer.resetMixed('HEAD^', intentToAdd: true);
+    } on GitException catch (e) {
+      _toastErr(_l.actCannotSplit, e);
+    }
+    _refresh();
+  }
 
   /// Runs [op] as a rebase, with [note] added to the success toast when the
   /// result needs explaining.

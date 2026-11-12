@@ -96,6 +96,18 @@ void main() {
     expect(find.text('Abort'), findsOneWidget);
   });
 
+  testWidgets('a split explains what to commit, with no output toggle', (
+    tester,
+  ) async {
+    await pumpStop(tester, const RebaseStop.split());
+
+    expect(find.textContaining('Stage and commit'), findsOneWidget);
+    expect(find.textContaining('paused at a break'), findsNothing);
+    expect(find.text('Show output'), findsNothing);
+    expect(find.text('Continue rebase'), findsOneWidget);
+    expect(find.text('Abort'), findsOneWidget);
+  });
+
   testWidgets('a failed exec names its command', (tester) async {
     await pumpStop(tester, const RebaseStop.exec('flutter test'));
 

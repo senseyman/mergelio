@@ -18,15 +18,16 @@ import 'package:mergelio/state/settings_controller.dart';
 import 'package:mergelio/state/workspace.dart';
 import 'package:mergelio/ui/graph/graph_view.dart';
 
-Commit _c(String sha, {String body = ''}) => Commit(
-  sha: sha,
-  message: 'msg $sha',
-  body: body,
-  author: 'Tester',
-  authorEmail: 't@e',
-  date: DateTime(2026, 7, 1),
-  parents: const [],
-);
+Commit _c(String sha, {String body = '', List<String> parents = const []}) =>
+    Commit(
+      sha: sha,
+      message: 'msg $sha',
+      body: body,
+      author: 'Tester',
+      authorEmail: 't@e',
+      date: DateTime(2026, 7, 1),
+      parents: parents,
+    );
 
 void main() {
   String? clipboard;
@@ -53,6 +54,7 @@ void main() {
     Map<String, String> notes = const {},
     // Overrides [notes]: the index as a read still running or failed.
     Future<Map<String, String>> Function()? index,
+    List<String> parents = const [],
   }) async {
     final workspace = WorkspaceController()..openRepo('/r');
     await tester.pumpWidget(
@@ -77,7 +79,7 @@ void main() {
           home: Scaffold(
             body: GraphList(
               data: RepoData(
-                commits: assignLanes([_c('aaa', body: body)]),
+                commits: assignLanes([_c('aaa', body: body, parents: parents)]),
                 branches: const [Branch(name: 'main', current: true)],
               ),
             ),
@@ -103,6 +105,21 @@ void main() {
     expect(find.text('Copy description'), findsOneWidget);
     expect(find.text('Copy message'), findsOneWidget);
     expect(find.text('Copy SHA'), findsOneWidget);
+  });
+
+  testWidgets('a commit with one parent can be split', (tester) async {
+    await openMenu(tester, parents: const ['p1']);
+    expect(find.text('Split commit…'), findsOneWidget);
+  });
+
+  testWidgets('a root or merge commit is not offered a split', (tester) async {
+    await openMenu(tester);
+    expect(find.text('Split commit…'), findsNothing);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+
+    await openMenu(tester, parents: const ['p1', 'p2']);
+    expect(find.text('Split commit…'), findsNothing);
   });
 
   testWidgets('copy summary puts the subject line on the clipboard', (

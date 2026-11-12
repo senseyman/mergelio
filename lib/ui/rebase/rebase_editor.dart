@@ -38,6 +38,7 @@ String rebaseActionSummary(AppLocalizations l, RebaseAction a) => switch (a) {
   RebaseAction.drop => l.rbDrop,
   RebaseAction.exec => l.rbExec,
   RebaseAction.breakpoint => l.rbBreak,
+  RebaseAction.edit => l.rbEdit,
 };
 
 String _presetTitle(AppLocalizations l, RebasePreset p) => switch (p) {
@@ -437,8 +438,10 @@ class _RebaseEditorState extends State<_RebaseEditor> {
     padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
     child: Text(
       [
+        // The editor never writes an edit, so the legend does not explain one.
         for (final a in RebaseAction.values)
-          '${_verb(a)} — ${rebaseActionSummary(l, a)}',
+          if (a != RebaseAction.edit)
+            '${_verb(a)} — ${rebaseActionSummary(l, a)}',
       ].join('  ·  '),
       style: TextStyle(color: t.textFaint, fontSize: 11.5, height: 1.5),
     ),

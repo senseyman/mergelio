@@ -3,7 +3,9 @@ import 'git_toolchain.dart';
 /// What to do with a commit during an interactive rebase — or, for [exec] and
 /// [breakpoint], a step of the plan that is not a commit at all: a command run
 /// between commits, and a stop that hands the repository back to the user.
-enum RebaseAction { pick, reword, squash, fixup, drop, exec, breakpoint }
+/// [edit] applies a commit and stops on it; only splitting a commit asks for
+/// one, so the editor does not offer it.
+enum RebaseAction { pick, reword, squash, fixup, drop, exec, breakpoint, edit }
 
 /// The actions a commit row can take; [RebaseAction.exec] and
 /// [RebaseAction.breakpoint] are rows of their own, never a commit's choice.
@@ -123,6 +125,8 @@ String buildRebaseTodo(
       case RebaseAction.drop:
         // Omit dropped commits entirely.
         break;
+      case RebaseAction.edit:
+        lines.add('edit ${s.sha}');
       case RebaseAction.exec:
         lines.add('exec ${s.command.trim()}');
       case RebaseAction.breakpoint:
@@ -405,11 +409,11 @@ String fixupSubject(String subject) => 'fixup! $subject';
 // --- Stops ----------------------------------------------------------------------
 
 /// What a [RebaseStop] is.
-enum RebaseStopKind { breakpoint, exec, reword }
+enum RebaseStopKind { breakpoint, exec, reword, split }
 
 /// Why a rebase is sitting still when no file is conflicted: a break the plan
-/// asked for, an exec whose [command] failed, or a reword whose new message a
-/// commit hook refused.
+/// asked for, an exec whose [command] failed, a reword whose new message a
+/// commit hook refused, or a commit being split into parts the user commits.
 class RebaseStop {
   final RebaseStopKind kind;
 
@@ -420,12 +424,14 @@ class RebaseStop {
     : kind = RebaseStopKind.breakpoint,
       command = null;
   const RebaseStop.reword() : kind = RebaseStopKind.reword, command = null;
+  const RebaseStop.split() : kind = RebaseStopKind.split, command = null;
 
   bool get isExec => kind == RebaseStopKind.exec;
 
   /// Whether a step failed, with output worth showing, as opposed to a pause
   /// the plan asked for.
-  bool get failed => kind != RebaseStopKind.breakpoint;
+  bool get failed =>
+      kind == RebaseStopKind.exec || kind == RebaseStopKind.reword;
 
   @override
   bool operator ==(Object other) =>
@@ -439,8 +445,8 @@ class RebaseStop {
 }
 
 /// Reads the stop out of git's `done` file (the steps already run, the one it
-/// stopped on last). Null when the last step was not a break or an exec — a
-/// conflicted or empty pick, which has its own handling.
+/// stopped on last). Null when the last step was not a break, an exec or an
+/// edit — a conflicted or empty pick, which has its own handling.
 /// A step that commits a single commit of its own, and its sha.
 final _ownCommitLine = RegExp(
   r'^(?:pick|p|reword|r|edit|e)\s+([0-9a-f]{4,64})\b',
@@ -473,6 +479,10 @@ String? interruptedPick(String done, String rewrittenList) {
   return landed ? null : lines.last;
 }
 
+/// An `edit` step. The app writes one only to split a commit, so stopping on
+/// it means the split is waiting on the user.
+final _editLine = RegExp(r'^(?:edit|e)\s+[0-9a-f]{4,64}\b');
+
 RebaseStop? parseRebaseStop(String done) {
   final lines = [
     for (final l in done.split('\n'))
@@ -481,6 +491,7 @@ RebaseStop? parseRebaseStop(String done) {
   if (lines.isEmpty) return null;
   final last = lines.last;
   if (last == 'break' || last == 'b') return const RebaseStop.breakpoint();
+  if (_editLine.hasMatch(last)) return const RebaseStop.split();
   if (_rewordLine.hasMatch(last)) return const RebaseStop.reword();
   for (final verb in const ['exec ', 'x ']) {
     if (last.startsWith(verb)) {

@@ -1782,6 +1782,10 @@ class _CommitContextMenu extends ConsumerWidget {
           l.menuEditMessage,
           () => editCommitMessage(context, ref, repoPath: path, commit: commit),
         ),
+        // A root commit has no parent to step back to, and a merge cannot be
+        // taken apart into a line of commits.
+        if (commit.parents.length == 1)
+          item(l.menuSplitCommit, () => actions.splitCommit(sha)),
         item(
           hasNote ? l.menuEditNote : l.menuAddNote,
           () => editCommitNote(context, ref, repoPath: path, sha: sha),

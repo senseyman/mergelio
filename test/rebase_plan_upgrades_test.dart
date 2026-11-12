@@ -450,6 +450,52 @@ void main() {
       expect(parseRebaseStop(''), isNull);
       expect(parseRebaseStop('exec make\npick aaa\n'), isNull);
     });
+
+    test('an edit is the split stop, in long and short form', () {
+      expect(
+        parseRebaseStop('pick aaa\nedit bbbbbbb\n'),
+        const RebaseStop.split(),
+      );
+      expect(
+        parseRebaseStop('pick aaa\ne bbbbbbb # msg\n'),
+        const RebaseStop.split(),
+      );
+      expect(parseRebaseStop('edit bbbbbbb\npick ccc\n'), isNull);
+    });
+
+    test('a split is a pause the plan asked for, not a failure', () {
+      expect(const RebaseStop.split().failed, isFalse);
+      expect(const RebaseStop.split().isExec, isFalse);
+      expect(const RebaseStop.breakpoint().failed, isFalse);
+      expect(const RebaseStop.exec('make').failed, isTrue);
+      expect(const RebaseStop.reword().failed, isTrue);
+    });
+  });
+
+  group('edit steps', () {
+    test('an edit is written as an edit line and stays a commit', () {
+      const s = RebaseStep('bbb', RebaseAction.edit);
+      expect(s.isCommit, isTrue);
+      expect(
+        buildRebaseTodo([pick('aaa'), s, pick('ccc')]),
+        'pick aaa\nedit bbb\npick ccc\n',
+      );
+    });
+
+    test('an edit is not offered as a per-commit choice in the editor', () {
+      expect(rebaseCommitActions, isNot(contains(RebaseAction.edit)));
+    });
+
+    test('a plan with an edit is not a no-op', () {
+      final original = [pick('aaa'), pick('bbb')];
+      expect(
+        isNoOpPlan(original, [
+          pick('aaa'),
+          const RebaseStep('bbb', RebaseAction.edit),
+        ]),
+        isFalse,
+      );
+    });
   });
 
   test('withAction is for commit steps only', () {
