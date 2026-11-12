@@ -1958,5 +1958,19 @@
   "ntfUseGlobal": "Як глобально ({state})",
   "ntfOn": "Увімк.",
   "ntfOff": "Вимк.",
-  "ntfNoForge": "Для цього репозиторію немає облікового запису forge — сповіщення про CI та pull request не працюватимуть."
+  "ntfNoForge": "Для цього репозиторію немає облікового запису forge — сповіщення про CI та pull request не працюватимуть.",
+  "prefsTabNetwork": "Мережа",
+  "proxyTitle": "Проксі для pull request і перевірки оновлень",
+  "proxyModeAuto": "Як у git",
+  "proxyModeManual": "Вручну",
+  "proxyModeOff": "Без проксі",
+  "proxyUrlLabel": "URL проксі",
+  "proxyStatusDirect": "Зараз: пряме з'єднання",
+  "proxyStatusDirectFrom": "Зараз: пряме з'єднання, задано в {setting}",
+  "proxyStatusVia": "Зараз: через {address}",
+  "proxyStatusViaFrom": "Зараз: через {address}, з {setting}",
+  "proxyStatusUnsupported": "{setting} вказує на SOCKS- або https://-проксі, якого власні запити Mergelio не підтримують, тож вони йдуть напряму.",
+  "proxyAutoNote": "Використовує http.proxy з git, потім змінні середовища HTTPS_PROXY, http_proxy і ALL_PROXY, оминаючи хости з NO_PROXY.",
+  "proxyGuiEnvNote": "Застосунки, відкриті з Finder або Dock, не бачать змінних, експортованих у профілі оболонки. Задайте http.proxy у git, щоб це діяло за будь-якого запуску.",
+  "proxyGitNote": "Власні команди git — fetch, pull, push, clone — завжди дотримуються налаштувань git."
 }

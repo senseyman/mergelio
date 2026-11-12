@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/settings_repository.dart';
 import '../domain/forge/forge_server.dart';
+import '../domain/net/proxy.dart';
 import '../domain/theme_io.dart';
 import 'notification_prefs.dart';
 import 'settings.dart';
@@ -102,6 +103,11 @@ class SettingsController extends StateNotifier<AppSettings> {
 
   void setUpdateConsent(String value) =>
       _update(state.copyWith(updateConsent: value));
+
+  void setProxyMode(ProxyMode mode) =>
+      _update(state.copyWith(proxyMode: mode.name));
+
+  void setProxyUrl(String url) => _update(state.copyWith(proxyUrl: url.trim()));
 
   void setUpdateSkippedVersion(String version) =>
       _update(state.copyWith(updateSkippedVersion: version));

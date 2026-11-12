@@ -119,6 +119,11 @@ abstract class AppSettings with _$AppSettings {
     // 'on' and 'off' are their answer. Checking is a network call out of a Git
     // client, so it never starts on its own.
     @Default('') String updateConsent,
+    // How forge and update requests reach the network: 'auto' does what git
+    // would, 'manual' uses proxyUrl, 'off' goes direct. Git's own commands
+    // always follow git's configuration.
+    @Default('auto') String proxyMode,
+    @Default('') String proxyUrl,
     // A release the user dismissed, as "1.5.0+16". Cleared by the next one.
     @Default('') String updateSkippedVersion,
     // Epoch ms of the last completed check; 0 means never.

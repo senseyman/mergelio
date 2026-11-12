@@ -6127,4 +6127,57 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get ntfNoForge =>
       'No forge account for this repository — CI and pull request notifications can\'t run.';
+
+  @override
+  String get prefsTabNetwork => 'Network';
+
+  @override
+  String get proxyTitle => 'Proxy for pull requests and update checks';
+
+  @override
+  String get proxyModeAuto => 'Same as git';
+
+  @override
+  String get proxyModeManual => 'Manual';
+
+  @override
+  String get proxyModeOff => 'No proxy';
+
+  @override
+  String get proxyUrlLabel => 'Proxy URL';
+
+  @override
+  String get proxyStatusDirect => 'Currently: direct connection';
+
+  @override
+  String proxyStatusDirectFrom(String setting) {
+    return 'Currently: direct connection, set by $setting';
+  }
+
+  @override
+  String proxyStatusVia(String address) {
+    return 'Currently: via $address';
+  }
+
+  @override
+  String proxyStatusViaFrom(String address, String setting) {
+    return 'Currently: via $address, from $setting';
+  }
+
+  @override
+  String proxyStatusUnsupported(String setting) {
+    return '$setting names a SOCKS or https:// proxy, which Mergelio\'s own requests cannot use, so they go direct.';
+  }
+
+  @override
+  String get proxyAutoNote =>
+      'Uses git\'s http.proxy, then the HTTPS_PROXY, http_proxy and ALL_PROXY environment variables, skipping hosts listed in NO_PROXY.';
+
+  @override
+  String get proxyGuiEnvNote =>
+      'Apps opened from Finder or the Dock do not see variables exported in a shell profile. Set git\'s http.proxy to cover every launch.';
+
+  @override
+  String get proxyGitNote =>
+      'Git\'s own commands — fetch, pull, push, clone — always follow git\'s configuration.';
 }

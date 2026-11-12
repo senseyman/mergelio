@@ -6244,4 +6244,57 @@ class AppLocalizationsUk extends AppLocalizations {
   @override
   String get ntfNoForge =>
       'Для цього репозиторію немає облікового запису forge — сповіщення про CI та pull request не працюватимуть.';
+
+  @override
+  String get prefsTabNetwork => 'Мережа';
+
+  @override
+  String get proxyTitle => 'Проксі для pull request і перевірки оновлень';
+
+  @override
+  String get proxyModeAuto => 'Як у git';
+
+  @override
+  String get proxyModeManual => 'Вручну';
+
+  @override
+  String get proxyModeOff => 'Без проксі';
+
+  @override
+  String get proxyUrlLabel => 'URL проксі';
+
+  @override
+  String get proxyStatusDirect => 'Зараз: пряме з\'єднання';
+
+  @override
+  String proxyStatusDirectFrom(String setting) {
+    return 'Зараз: пряме з\'єднання, задано в $setting';
+  }
+
+  @override
+  String proxyStatusVia(String address) {
+    return 'Зараз: через $address';
+  }
+
+  @override
+  String proxyStatusViaFrom(String address, String setting) {
+    return 'Зараз: через $address, з $setting';
+  }
+
+  @override
+  String proxyStatusUnsupported(String setting) {
+    return '$setting вказує на SOCKS- або https://-проксі, якого власні запити Mergelio не підтримують, тож вони йдуть напряму.';
+  }
+
+  @override
+  String get proxyAutoNote =>
+      'Використовує http.proxy з git, потім змінні середовища HTTPS_PROXY, http_proxy і ALL_PROXY, оминаючи хости з NO_PROXY.';
+
+  @override
+  String get proxyGuiEnvNote =>
+      'Застосунки, відкриті з Finder або Dock, не бачать змінних, експортованих у профілі оболонки. Задайте http.proxy у git, щоб це діяло за будь-якого запуску.';
+
+  @override
+  String get proxyGitNote =>
+      'Власні команди git — fetch, pull, push, clone — завжди дотримуються налаштувань git.';
 }

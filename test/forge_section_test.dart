@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:mergelio/core/tokens.dart';
 import 'package:mergelio/data/forge/forge_credentials.dart';
 import 'package:mergelio/data/settings_repository.dart';
@@ -65,6 +67,11 @@ Future<void> _pump(
             InMemorySettingsRepository(),
             const AppSettings(),
           ),
+        ),
+        // A refresh re-reads the rate budget; answering it here keeps the
+        // request, and the proxy lookup in front of it, off the host.
+        forgeHttpClientProvider.overrideWithValue(
+          MockClient((_) async => http.Response('', 404)),
         ),
         ...overrides,
       ],

@@ -10,12 +10,14 @@ import '../data/forge/forge_http.dart';
 import '../data/forge/github_forge.dart';
 import '../data/forge/github_parse.dart';
 import '../data/forge/gitlab_forge.dart';
+import '../data/net/proxied_client.dart';
 import '../domain/forge/forge.dart';
 import '../domain/forge/forge_error.dart';
 import '../domain/forge/forge_host.dart';
 import '../domain/forge/forge_server.dart';
 import '../domain/forge/models.dart';
 import '../domain/git/git_providers.dart';
+import 'network.dart';
 import 'repo_actions.dart';
 import 'settings_controller.dart';
 
@@ -168,6 +170,13 @@ final etagCacheProvider = Provider<EtagCache>((ref) => EtagCache());
 /// it produces.
 final forgeHttpClientProvider = Provider<http.Client?>((ref) => null);
 
+/// The client one [ForgeHttp] owns: the injected one when a test supplies
+/// it, otherwise a fresh client routed by the proxy policy. Fresh, because
+/// [ForgeHttp.close] closes whatever it was given.
+Future<http.Client> _forgeClient(Ref ref) async =>
+    ref.watch(forgeHttpClientProvider) ??
+    proxiedHttpClient(await ref.watch(proxyPolicyProvider.future));
+
 /// A forge for the repository at [path], or null when it is not on one.
 final forgeProvider = FutureProvider.family<Forge?, String>((ref, path) async {
   final host = await ref.watch(forgeHostProvider(path).future);
@@ -176,7 +185,7 @@ final forgeProvider = FutureProvider.family<Forge?, String>((ref, path) async {
   final http = ForgeHttp(
     kind: host.kind,
     token: token,
-    client: ref.watch(forgeHttpClientProvider),
+    client: await _forgeClient(ref),
   );
   // This forge keeps using [http] for as long as anything watches this
   // provider, so it cannot be closed right after the call that built it —
@@ -359,7 +368,7 @@ final forgeRateLimitProvider = FutureProvider.family<ForgeRateLimit?, String>((
   final http = ForgeHttp(
     kind: host.kind,
     token: token,
-    client: ref.watch(forgeHttpClientProvider),
+    client: await _forgeClient(ref),
   );
   try {
     final response = await http.get(host.server.api('/rate_limit'));

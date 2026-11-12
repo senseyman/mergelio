@@ -9865,6 +9865,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No forge account for this repository — CI and pull request notifications can\'t run.'**
   String get ntfNoForge;
+
+  /// No description provided for @prefsTabNetwork.
+  ///
+  /// In en, this message translates to:
+  /// **'Network'**
+  String get prefsTabNetwork;
+
+  /// No description provided for @proxyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Proxy for pull requests and update checks'**
+  String get proxyTitle;
+
+  /// No description provided for @proxyModeAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Same as git'**
+  String get proxyModeAuto;
+
+  /// No description provided for @proxyModeManual.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual'**
+  String get proxyModeManual;
+
+  /// No description provided for @proxyModeOff.
+  ///
+  /// In en, this message translates to:
+  /// **'No proxy'**
+  String get proxyModeOff;
+
+  /// No description provided for @proxyUrlLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Proxy URL'**
+  String get proxyUrlLabel;
+
+  /// No description provided for @proxyStatusDirect.
+  ///
+  /// In en, this message translates to:
+  /// **'Currently: direct connection'**
+  String get proxyStatusDirect;
+
+  /// No description provided for @proxyStatusDirectFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'Currently: direct connection, set by {setting}'**
+  String proxyStatusDirectFrom(String setting);
+
+  /// No description provided for @proxyStatusVia.
+  ///
+  /// In en, this message translates to:
+  /// **'Currently: via {address}'**
+  String proxyStatusVia(String address);
+
+  /// No description provided for @proxyStatusViaFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'Currently: via {address}, from {setting}'**
+  String proxyStatusViaFrom(String address, String setting);
+
+  /// No description provided for @proxyStatusUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'{setting} names a SOCKS or https:// proxy, which Mergelio\'s own requests cannot use, so they go direct.'**
+  String proxyStatusUnsupported(String setting);
+
+  /// No description provided for @proxyAutoNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Uses git\'s http.proxy, then the HTTPS_PROXY, http_proxy and ALL_PROXY environment variables, skipping hosts listed in NO_PROXY.'**
+  String get proxyAutoNote;
+
+  /// No description provided for @proxyGuiEnvNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Apps opened from Finder or the Dock do not see variables exported in a shell profile. Set git\'s http.proxy to cover every launch.'**
+  String get proxyGuiEnvNote;
+
+  /// No description provided for @proxyGitNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Git\'s own commands — fetch, pull, push, clone — always follow git\'s configuration.'**
+  String get proxyGitNote;
 }
 
 class _AppLocalizationsDelegate
