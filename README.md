@@ -515,6 +515,37 @@ After an update, the first launch opens a **What's new** tab with the notes for
 every version since the one you last ran. It shows once per version; reopen it
 from the command palette.
 
+### Working behind a proxy
+
+Git reaches your remotes through its own proxy settings. Mergelio's own
+requests — pull requests, issues, token checks, update checks and downloads —
+follow **Preferences → Network**:
+
+- **Same as git** (the default) uses `http.proxy` from git's global config,
+  else its system config (set but empty means no proxy), then the
+  `HTTPS_PROXY`, `http_proxy` and `ALL_PROXY` environment variables, skipping
+  hosts listed in `NO_PROXY`. A proxy set in one repository's own config, or
+  for one URL (`http.<url>.proxy`), is not used for Mergelio's requests.
+  Mergelio opened from Finder or the Dock on macOS does not see variables
+  exported in a shell profile, so `git config --global http.proxy …` is the
+  setting that covers every launch.
+- **Manual** sends every request through the URL you type, `NO_PROXY` hosts
+  included.
+- **No proxy** connects directly.
+
+The tab shows the proxy in use and which setting chose it. Mergelio's own
+requests can use only plain-http proxies: a SOCKS or `https://` proxy is
+reported there, and those requests then connect directly. A user name and
+password in the proxy URL are sent only when there are both, with no `;` in
+either and no `:` in the user name; otherwise the tab says they are not sent.
+
+With Manual or No proxy, **Use this setting for git commands too** applies the
+same choice to git — fetch, pull, push, clone, and LFS downloads — in place of
+git's own proxy settings. It needs git 2.31 or later. A proxy git has
+configured for one specific URL still wins, and remotes reached over ssh are
+not affected; the tab names the open repository's ssh remotes, including https
+remotes that a `url.<base>.insteadOf` rule rewrites to ssh.
+
 ### Runtime requirement
 
 Mergelio drives the `git` binary on your `PATH` — install
@@ -774,7 +805,10 @@ Mergelio has no accounts and phones home to nothing by default.
   focused, and only for open repositories that have them turned on. Nothing
   is polled while they are off, which is the default.
 - Credentials are handled by your existing git credential helper and
-  `ssh-agent`; Mergelio does not store passwords or tokens itself. When git or
+  `ssh-agent`; Mergelio does not store passwords or tokens itself. The one
+  exception is a proxy URL typed into Preferences → Network: it is saved as
+  typed, so a user name and password in it are kept in plain text in the
+  settings database below. When git or
   ssh has to ask, the prompt names the repository it is for, so several asking
   at once can be told apart.
 - Everything else — settings, recents, open tabs, the operation journal — stays

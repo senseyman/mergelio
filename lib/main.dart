@@ -11,10 +11,12 @@ import 'data/app_database.dart';
 import 'data/kv_store.dart';
 import 'data/settings_repository.dart';
 import 'domain/git/askpass.dart';
+import 'domain/git/git_providers.dart';
 import 'domain/window_placement.dart';
 import 'state/diagnostics.dart';
 import 'state/diff_view_options.dart';
 import 'state/l10n.dart';
+import 'state/network.dart';
 import 'state/operation_journal.dart';
 import 'state/profiles.dart';
 import 'state/recents.dart';
@@ -142,6 +144,9 @@ Future<void> main(List<String> args) async {
       observers: const [LoggingProviderObserver()],
       overrides: [
         settingsProvider.overrideWith((ref) => settingsController),
+        gitNetworkOverridesProvider.overrideWith(
+          (ref) => ref.watch(gitProxyOverridesProvider),
+        ),
         appL10nOverride,
         diffViewOptionsProvider.overrideWith(
           (ref) => DiffViewOptions.fromSettings(settings),

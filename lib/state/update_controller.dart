@@ -3,7 +3,9 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 
+import '../data/net/proxied_client.dart';
 import '../data/update/appcast_client.dart';
 import '../data/update/host_info.dart';
 import '../data/update/installer_factory.dart';
@@ -12,6 +14,7 @@ import '../domain/update/app_version.dart';
 import '../domain/update/update_decision.dart';
 import '../domain/update/update_manifest.dart';
 import 'feedback.dart';
+import 'network.dart';
 import 'settings_controller.dart';
 
 /// No newer release is on offer, or the user dismissed the one that was.
@@ -212,21 +215,33 @@ class UpdateController extends StateNotifier<UpdateStatus> {
 
 final updateStatusProvider =
     StateNotifierProvider<UpdateController, UpdateStatus>((ref) {
-      final client = AppcastClient();
-      final downloader = UpdateDownloader();
+      // A client per request, routed by the proxy policy of that moment, so
+      // a proxy changed in Preferences applies to the next check without
+      // rebuilding this controller.
+      Future<http.Client> client() async =>
+          proxiedHttpClient(await ref.read(proxyPolicyProvider.future));
       final installer = installerForHost();
       return UpdateController(
         settings: ref.read(settingsProvider.notifier),
-        fetchManifest: client.fetch,
+        fetchManifest: () async {
+          final http = await client();
+          try {
+            return await AppcastClient(client: http).fetch();
+          } finally {
+            http.close();
+          }
+        },
         currentVersion: currentAppVersion,
         platformKey: currentPlatformKey,
         downloadArtifact: (artifact, onProgress) async {
           final dir = await Directory.systemTemp.createTemp('mergelio-update');
-          return downloader.download(
-            artifact,
-            into: dir,
-            onProgress: onProgress,
-          );
+          final http = await client();
+          try {
+            return await UpdateDownloader(client: http)
+                .download(artifact, into: dir, onProgress: onProgress);
+          } finally {
+            http.close();
+          }
         },
         handOff: installer.handOff,
         canInstallInPlace: installer.canInstallInPlace,

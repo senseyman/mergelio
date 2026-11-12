@@ -61,4 +61,38 @@ void main() {
       expect(remoteUrlError('--upload-pack=touch /tmp/pwn'), isNotNull);
     });
   });
+
+  group('isSshRemoteUrl', () {
+    test('ssh urls and scp-style remotes are ssh', () {
+      for (final url in [
+        'git@github.com:ethereum/go-ethereum.git',
+        'github.com:o/r.git',
+        'ssh://git@github.com/o/r.git',
+        'SSH://host:2222/r',
+        'git+ssh://host/r',
+        'ssh+git://host/r',
+        '  git@host:r  ',
+      ]) {
+        expect(isSshRemoteUrl(url), isTrue, reason: url);
+      }
+    });
+
+    test('http, git protocol, files and local paths are not', () {
+      for (final url in [
+        'https://github.com/o/r.git',
+        'http://host/r',
+        'git://host/r',
+        'file:///srv/r.git',
+        '/srv/r.git',
+        './r',
+        '../other:dir',
+        r'C:\repos\r',
+        'C:/repos/r',
+        '  https://h/r  ',
+        '',
+      ]) {
+        expect(isSshRemoteUrl(url), isFalse, reason: url);
+      }
+    });
+  });
 }

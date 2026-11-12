@@ -45,3 +45,24 @@ String? remoteUrlError(String url) {
   }
   return null;
 }
+
+/// Whether git reaches [url] over ssh: an `ssh://` url (or `git+ssh://`,
+/// `ssh+git://`) or the scp-like `[user@]host:path`. git takes the scp form
+/// only when the colon comes before any slash and is not a drive letter, so
+/// `./a:b` and `C:\repo` are local paths.
+bool isSshRemoteUrl(String url) {
+  final raw = url.trim();
+  final scheme = RegExp(r'^([A-Za-z][A-Za-z0-9+.-]*)://').firstMatch(raw);
+  if (scheme != null) {
+    return const {
+      'ssh',
+      'git+ssh',
+      'ssh+git',
+    }.contains(scheme.group(1)!.toLowerCase());
+  }
+  final colon = raw.indexOf(':');
+  if (colon <= 0) return false;
+  final slash = raw.indexOf(RegExp(r'[/\\]'));
+  if (slash >= 0 && slash < colon) return false;
+  return !RegExp(r'^[A-Za-z]$').hasMatch(raw.substring(0, colon));
+}

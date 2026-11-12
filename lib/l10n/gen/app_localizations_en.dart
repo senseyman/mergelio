@@ -6127,4 +6127,89 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get ntfNoForge =>
       'No forge account for this repository — CI and pull request notifications can\'t run.';
+
+  @override
+  String get prefsTabNetwork => 'Network';
+
+  @override
+  String get proxyTitle => 'Proxy for pull requests and update checks';
+
+  @override
+  String get proxyModeAuto => 'Same as git';
+
+  @override
+  String get proxyModeManual => 'Manual';
+
+  @override
+  String get proxyModeOff => 'No proxy';
+
+  @override
+  String get proxyUrlLabel => 'Proxy URL';
+
+  @override
+  String get proxyStatusDirect => 'Currently: direct connection';
+
+  @override
+  String proxyStatusDirectFrom(String setting) {
+    return 'Currently: direct connection, set by $setting';
+  }
+
+  @override
+  String proxyStatusVia(String address) {
+    return 'Currently: via $address';
+  }
+
+  @override
+  String proxyStatusViaFrom(String address, String setting) {
+    return 'Currently: via $address, from $setting';
+  }
+
+  @override
+  String proxyStatusUnsupported(String setting) {
+    return '$setting names a SOCKS or https:// proxy, which Mergelio\'s own requests cannot use, so they go direct.';
+  }
+
+  @override
+  String get proxyAutoNote =>
+      'Uses http.proxy from git\'s global or system config, then the HTTPS_PROXY, http_proxy and ALL_PROXY environment variables, skipping hosts listed in NO_PROXY. A proxy set in one repository\'s config applies only to git commands in that repository.';
+
+  @override
+  String get proxyGuiEnvNote =>
+      'Apps opened from Finder or the Dock do not see variables exported in a shell profile. Set git\'s http.proxy to cover every launch.';
+
+  @override
+  String get proxyGitNote =>
+      'Git\'s own commands — fetch, pull, push, clone — always follow git\'s configuration.';
+
+  @override
+  String get proxyManualNote =>
+      'Every request goes through this proxy, including hosts listed in NO_PROXY.';
+
+  @override
+  String proxyCredentialsDropped(String setting) {
+    return 'The user name and password in $setting cannot be sent: Mergelio needs both, with no \';\' in either and no \':\' in the user name. A proxy that requires them will refuse these requests.';
+  }
+
+  @override
+  String get proxyForGit => 'Use this setting for git commands too';
+
+  @override
+  String get proxyForGitNote =>
+      'Fetch, pull, push and clone over https use this setting instead of git\'s own proxy configuration. A proxy git has configured for one specific URL still takes precedence, and ssh remotes are not affected.';
+
+  @override
+  String proxyForGitTooOld(String version) {
+    return 'Git $version cannot take this setting; git 2.31 or later is needed, so git commands keep their own proxy configuration.';
+  }
+
+  @override
+  String proxySshRemotes(int count, String repo, String remotes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'connect',
+      one: 'connects',
+    );
+    return 'In $repo, $remotes $_temp0 over ssh, which this setting does not cover: git sends ssh traffic straight to the server.';
+  }
 }

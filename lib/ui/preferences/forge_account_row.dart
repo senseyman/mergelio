@@ -4,12 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/tokens.dart';
 import '../../data/forge/forge_credentials.dart';
 import '../../data/forge/forge_http.dart';
+import '../../data/net/proxied_client.dart';
 import '../../domain/forge/forge_host.dart';
 import '../../domain/forge/forge_server.dart';
 import '../../domain/git/git_providers.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../state/feedback.dart';
 import '../../state/forge.dart';
+import '../../state/network.dart';
 import '../../state/settings_controller.dart';
 import '../../state/workspace.dart';
 import '../common/dialogs.dart';
@@ -200,14 +202,13 @@ class _ForgeTokenFormState extends ConsumerState<ForgeTokenForm> {
     final nav = Navigator.of(context);
     setState(() => _busy = true);
     final token = ForgeToken(raw);
+    final client =
+        c.read(forgeHttpClientProvider) ??
+        proxiedHttpClient(await c.read(proxyPolicyProvider.future));
     final ok = await validateForgeToken(
       token,
       server: server,
-      httpFor: (t) => ForgeHttp(
-        kind: server.kind,
-        token: t,
-        client: c.read(forgeHttpClientProvider),
-      ),
+      httpFor: (t) => ForgeHttp(kind: server.kind, token: t, client: client),
     );
     // Closed while the server was still being asked: nothing has been
     // written yet, so that reads as a cancel.

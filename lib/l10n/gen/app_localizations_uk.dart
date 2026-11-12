@@ -6244,4 +6244,91 @@ class AppLocalizationsUk extends AppLocalizations {
   @override
   String get ntfNoForge =>
       'Для цього репозиторію немає облікового запису forge — сповіщення про CI та pull request не працюватимуть.';
+
+  @override
+  String get prefsTabNetwork => 'Мережа';
+
+  @override
+  String get proxyTitle => 'Проксі для pull request і перевірки оновлень';
+
+  @override
+  String get proxyModeAuto => 'Як у git';
+
+  @override
+  String get proxyModeManual => 'Вручну';
+
+  @override
+  String get proxyModeOff => 'Без проксі';
+
+  @override
+  String get proxyUrlLabel => 'URL проксі';
+
+  @override
+  String get proxyStatusDirect => 'Зараз: пряме з\'єднання';
+
+  @override
+  String proxyStatusDirectFrom(String setting) {
+    return 'Зараз: пряме з\'єднання, задано в $setting';
+  }
+
+  @override
+  String proxyStatusVia(String address) {
+    return 'Зараз: через $address';
+  }
+
+  @override
+  String proxyStatusViaFrom(String address, String setting) {
+    return 'Зараз: через $address, з $setting';
+  }
+
+  @override
+  String proxyStatusUnsupported(String setting) {
+    return '$setting вказує на SOCKS- або https://-проксі, якого власні запити Mergelio не підтримують, тож вони йдуть напряму.';
+  }
+
+  @override
+  String get proxyAutoNote =>
+      'Використовує http.proxy із глобальних або системних налаштувань git, потім змінні середовища HTTPS_PROXY, http_proxy і ALL_PROXY, оминаючи хости з NO_PROXY. Проксі, заданий у налаштуваннях окремого репозиторію, діє лише на команди git у ньому.';
+
+  @override
+  String get proxyGuiEnvNote =>
+      'Застосунки, відкриті з Finder або Dock, не бачать змінних, експортованих у профілі оболонки. Задайте http.proxy у git, щоб це діяло за будь-якого запуску.';
+
+  @override
+  String get proxyGitNote =>
+      'Власні команди git — fetch, pull, push, clone — завжди дотримуються налаштувань git.';
+
+  @override
+  String get proxyManualNote =>
+      'Усі запити йдуть через цей проксі, зокрема до хостів із NO_PROXY.';
+
+  @override
+  String proxyCredentialsDropped(String setting) {
+    return 'Ім\'я користувача та пароль із $setting не можна надіслати: Mergelio потрібні обидва, без \';\' у жодному і без \':\' в імені. Проксі, що їх вимагає, відхилятиме ці запити.';
+  }
+
+  @override
+  String get proxyForGit => 'Використовувати це налаштування і для команд git';
+
+  @override
+  String get proxyForGitNote =>
+      'Fetch, pull, push і clone через https використовують це налаштування замість власних налаштувань проксі git. Проксі, заданий у git для конкретної URL-адреси, усе одно має перевагу, а ssh-віддалені репозиторії це не зачіпає.';
+
+  @override
+  String proxyForGitTooOld(String version) {
+    return 'Git $version не може прийняти це налаштування; потрібен git 2.31 або новіший, тож команди git і далі використовують власні налаштування проксі.';
+  }
+
+  @override
+  String proxySshRemotes(int count, String repo, String remotes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'віддалені репозиторії $remotes під\'єднуються',
+      many: 'віддалені репозиторії $remotes під\'єднуються',
+      few: 'віддалені репозиторії $remotes під\'єднуються',
+      one: 'віддалений репозиторій $remotes під\'єднується',
+    );
+    return 'У $repo $_temp0 через ssh, на який це налаштування не поширюється: git надсилає ssh-трафік напряму на сервер.';
+  }
 }
