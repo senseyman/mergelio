@@ -1565,10 +1565,10 @@ class RepoActions {
 
   /// Resets to [prev] as part of an undo, but refuses when the working tree is
   /// dirty so an undo never silently discards uncommitted work.
-  Future<void> _undoReset(String prev) async {
+  Future<void> _undoReset(String prev, {bool redo = false}) async {
     final dirty = (await _out(['status', '--porcelain'])).isNotEmpty;
     if (dirty) {
-      throw GitException(_l.actUndoDirty);
+      throw GitException(redo ? _l.actRedoDirty : _l.actUndoDirty);
     }
     await _writer.resetHard(prev);
   }
@@ -5003,7 +5003,7 @@ class RepoActions {
             // Guarded like undo: the hard reset would otherwise throw away
             // whatever the user changed after undoing.
             redo: () async {
-              await _undoReset(after);
+              await _undoReset(after, redo: true);
               await _moveBranchesBack(before, moved);
               _refresh();
             },

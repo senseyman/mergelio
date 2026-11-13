@@ -354,6 +354,10 @@ void main() {
 
     expect(await out(['rev-parse', 'HEAD']), undone);
     expect(File('${dir.path}/top.txt').readAsStringSync(), 'edited\n');
+    expect(
+      c.read(toastProvider).map((t) => t.description),
+      contains('Uncommitted changes — commit or stash before redoing'),
+    );
   });
 
   test('the repository stays busy until the commit is taken apart', () async {

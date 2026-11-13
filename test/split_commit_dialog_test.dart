@@ -55,13 +55,14 @@ void main() {
               const AppSettings(),
             ),
           ),
-          repoActionsProvider.overrideWith(
-            (ref, path) => actions = _RecordingActions(
-              ref,
-              path,
-              GitWriter(_FakeGit(), path),
-            )..remotes = remotes,
-          ),
+          repoActionsProvider.overrideWith((ref, path) {
+            actions = _RecordingActions(ref, path, GitWriter(_FakeGit(), path))
+              ..remotes = remotes;
+            // An override replaces the provider's own disposal; without it
+            // the refresh timer outlives the test.
+            ref.onDispose(actions.dispose);
+            return actions;
+          }),
         ],
         child: MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,

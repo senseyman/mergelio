@@ -8312,6 +8312,12 @@ abstract class AppLocalizations {
   /// **'Uncommitted changes — commit or stash before undoing'**
   String get actUndoDirty;
 
+  /// No description provided for @actRedoDirty.
+  ///
+  /// In en, this message translates to:
+  /// **'Uncommitted changes — commit or stash before redoing'**
+  String get actRedoDirty;
+
   /// No description provided for @actUndo.
   ///
   /// In en, this message translates to:

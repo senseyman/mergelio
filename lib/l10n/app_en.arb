@@ -2884,6 +2884,7 @@
   "actMergeCommit": "Merge commit",
   "actCommit": "Commit",
   "actUndoDirty": "Uncommitted changes — commit or stash before undoing",
+  "actRedoDirty": "Uncommitted changes — commit or stash before redoing",
   "actUndo": "Undo",
   "actRedo": "Redo",
   "actUndoFailed": "Undo failed",

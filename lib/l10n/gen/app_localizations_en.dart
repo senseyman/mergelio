@@ -5066,6 +5066,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Uncommitted changes — commit or stash before undoing';
 
   @override
+  String get actRedoDirty =>
+      'Uncommitted changes — commit or stash before redoing';
+
+  @override
   String get actUndo => 'Undo';
 
   @override

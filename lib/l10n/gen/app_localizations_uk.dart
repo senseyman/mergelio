@@ -5154,6 +5154,10 @@ class AppLocalizationsUk extends AppLocalizations {
       'Незакомічені зміни — закомітьте або сховайте їх перед скасуванням';
 
   @override
+  String get actRedoDirty =>
+      'Незакомічені зміни — закомітьте або сховайте їх перед повторенням';
+
+  @override
   String get actUndo => 'Скасування';
 
   @override
