@@ -3424,11 +3424,15 @@ class RepoActions {
     final sign =
         steps.any((s) => s.sign && s.action != RebaseAction.drop) &&
         await _canSign();
-    final todo = buildRebaseTodo(
-      steps,
-      updateRefs: updateRefs ? await rebaseStackedBranches(base) : const {},
-    );
+    final stacked = updateRefs
+        ? await rebaseStackedBranches(base)
+        : const <String, List<String>>{};
+    final todo = buildRebaseTodo(steps, updateRefs: stacked);
     await _runRebase(
+      stackedBranches: {
+        for (final MapEntry(key: sha, value: names) in stacked.entries)
+          for (final name in names) name: sha,
+      },
       (cancel) => _writer.rebase(
         base,
         todo,
@@ -3931,10 +3935,14 @@ class RepoActions {
   ///
   /// [cancellable] puts Cancel on the busy bar; [op] is handed the handle it
   /// cancels, or null.
+  ///
+  /// [stackedBranches] names the branches the rebase moves along, each with
+  /// the commit it pointed at before, so an undo can put them back too.
   Future<void> _runRebase(
     Future<void> Function(GitCancel? cancel) op, {
     String? note,
     bool cancellable = false,
+    Map<String, String> stackedBranches = const {},
   }) async {
     if (_blockedByRepoOp) return;
     if (await isRebaseInProgress()) {
@@ -3957,6 +3965,9 @@ class RepoActions {
     }
     final prev = await _headSha();
     _ref.read(rebaseExecOutputProvider(path).notifier).state = null;
+    // Replaces whatever an earlier rebase left: kept until this one finishes,
+    // which may be several continues away.
+    _ref.read(_opStackedProvider(path).notifier).state = stackedBranches;
     final cancel = cancellable ? GitCancel() : null;
     _ref.read(busyProvider.notifier).state = BusyState(
       _l.actRebase,
@@ -3971,22 +3982,7 @@ class RepoActions {
         _pausedAt(await _rebaseStop() ?? const RebaseStop.breakpoint(), prev);
         return;
       }
-      _ref
-          .read(undoProvider(path).notifier)
-          .record(
-            UndoEntry(
-              _l.actRebase,
-              undo: () async {
-                await _undoReset(prev);
-                _refresh();
-              },
-              // Re-run the same rebase op to redo it.
-              redo: () async {
-                await op(null);
-                _refresh();
-              },
-            ),
-          );
+      await _recordFinishUndo(prev, _l.actRebase);
       _refresh();
       _ref
           .read(toastProvider.notifier)
@@ -4956,6 +4952,11 @@ class RepoActions {
   /// survives in the reflog).
   Future<void> _recordFinishUndo(String prev, String label) async {
     final after = await _headSha();
+    // Only a rebase moves other branches, and only the one that just finished
+    // may claim them.
+    final before = _ref.read(_opStackedProvider(path));
+    _ref.read(_opStackedProvider(path).notifier).state = const {};
+    final moved = await _branchTips(before.keys);
     _ref
         .read(undoProvider(path).notifier)
         .record(
@@ -4963,14 +4964,49 @@ class RepoActions {
             label,
             undo: () async {
               await _undoReset(prev);
+              await _moveBranchesBack(moved, before);
               _refresh();
             },
             redo: () async {
               await _writer.resetHard(after);
+              await _moveBranchesBack(before, moved);
               _refresh();
             },
           ),
         );
+  }
+
+  /// Where each local branch in [names] points now; a branch that no longer
+  /// exists is left out.
+  Future<Map<String, String>> _branchTips(Iterable<String> names) async {
+    final wanted = names.toSet();
+    if (wanted.isEmpty) return const {};
+    final out = <String, String>{};
+    for (final line in (await _out([
+      'for-each-ref',
+      '--format=%(objectname)%00%(refname)',
+      'refs/heads',
+    ])).split('\n')) {
+      final parts = line.split('\x00');
+      if (parts.length != 2) continue;
+      final name = parts[1].replaceFirst('refs/heads/', '');
+      if (wanted.contains(name)) out[name] = parts[0];
+    }
+    return out;
+  }
+
+  /// Moves each branch still at its [from] commit to its [to] commit. One the
+  /// user has moved or deleted since is theirs now and stays where it is.
+  Future<void> _moveBranchesBack(
+    Map<String, String> from,
+    Map<String, String> to,
+  ) async {
+    final now = await _branchTips(from.keys);
+    await _writer.moveBranches({
+      for (final MapEntry(key: name, value: sha) in from.entries)
+        if (now[name] == sha && to[name] != null && to[name] != sha)
+          name: (from: sha, to: to[name]!),
+    });
   }
 
   /// Opens a conflict-resolution session for any conflicted files already in
@@ -5185,6 +5221,12 @@ class RepoActions {
 /// records no undo entry.
 final _opBaseProvider = StateProvider.family<String?, String>(
   (ref, path) => null,
+);
+
+/// The branches a rebase in progress moves along, each with the commit it
+/// pointed at before the rebase started, for its undo to put back.
+final _opStackedProvider = StateProvider.family<Map<String, String>, String>(
+  (ref, path) => const {},
 );
 
 /// What the exec step a rebase stopped on printed, kept until the rebase is

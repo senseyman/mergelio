@@ -1046,6 +1046,28 @@ class GitWriter {
     );
   }
 
+  /// Moves each local branch in [moves] from `from` to `to` in one
+  /// transaction. A branch no longer at its `from` fails the whole of it, so
+  /// either every branch moves or none does.
+  Future<void> moveBranches(Map<String, ({String from, String to})> moves) {
+    if (moves.isEmpty) return Future.value();
+    final lines = StringBuffer();
+    for (final MapEntry(key: name, value: m) in moves.entries) {
+      // One stdin command per line; see [moveRef].
+      for (final v in [name, m.from, m.to]) {
+        if (v.isEmpty || v.contains(RegExp(r'\s'))) {
+          throw ArgumentError.value(v, 'ref', 'empty or contains whitespace');
+        }
+      }
+      lines.write('update refs/heads/$name ${m.to} ${m.from}\n');
+    }
+    return _ok(
+      ['update-ref', '--stdin'],
+      'git update-ref',
+      stdin: lines.toString(),
+    );
+  }
+
   /// Whether [name] is a valid tag name by git's own rules. `git tag` adds a
   /// rule `check-ref-format` lacks: no leading dash, which `git tag -d` would
   /// read as an option, leaving the tag impossible to delete.

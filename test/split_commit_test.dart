@@ -178,6 +178,46 @@ void main() {
       },
     );
 
+    test('undo puts stacked branches back, redo moves them again', () async {
+      final c = container();
+      final actions = c.read(repoActionsProvider(dir.path));
+      final middle = await buildHistory();
+      final top = await out(['rev-parse', 'HEAD']);
+      await commit('more.txt', 'more\n', 'more');
+      await g(['branch', 'on-middle', middle]);
+      await g(['branch', 'on-top', top]);
+
+      await splitInTwo(actions, middle);
+      final splitMiddle = await out(['rev-parse', 'on-middle']);
+      final splitTop = await out(['rev-parse', 'on-top']);
+      await c.read(undoProvider(dir.path).notifier).undo();
+
+      expect(await out(['rev-parse', 'on-middle']), middle);
+      expect(await out(['rev-parse', 'on-top']), top);
+
+      await c.read(undoProvider(dir.path).notifier).redo();
+
+      expect(await out(['rev-parse', 'on-middle']), splitMiddle);
+      expect(await out(['rev-parse', 'on-top']), splitTop);
+    });
+
+    test('undo leaves a stacked branch the user has moved since', () async {
+      final c = container();
+      final actions = c.read(repoActionsProvider(dir.path));
+      final middle = await buildHistory();
+      await g(['branch', 'on-middle', middle]);
+      await g(['branch', 'on-top', 'HEAD']);
+
+      await splitInTwo(actions, middle);
+      final base = await out(['rev-parse', 'HEAD~3']);
+      await g(['branch', '-f', 'on-middle', base]);
+      await c.read(undoProvider(dir.path).notifier).undo();
+
+      expect(await out(['rev-parse', 'on-middle']), base);
+      expect(await out(['log', '-1', '--format=%s', 'on-top']), 'top');
+      expect(await out(['log', '-1', '--format=%s', 'on-top~1']), 'two files');
+    });
+
     test('aborting leaves stacked branches where they were', () async {
       final c = container();
       final actions = c.read(repoActionsProvider(dir.path));
