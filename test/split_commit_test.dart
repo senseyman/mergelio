@@ -133,6 +133,64 @@ void main() {
     expect(c.read(composerPrefillProvider(dir.path)), isNull);
   });
 
+  group('stacked branches', () {
+    Future<void> splitInTwo(RepoActions actions, String sha) async {
+      await actions.splitCommit(sha);
+      await g(['add', 'a.txt']);
+      await g(['commit', '-q', '-m', 'part a']);
+      await g(['add', 'b.txt']);
+      await g(['commit', '-q', '-m', 'part b']);
+      await actions.continueOp();
+    }
+
+    test('a branch on the split commit lands on its last part', () async {
+      final c = container();
+      final actions = c.read(repoActionsProvider(dir.path));
+      final middle = await buildHistory();
+      await g(['branch', 'on-middle', middle]);
+
+      await splitInTwo(actions, middle);
+
+      expect(await out(['log', '-1', '--format=%s', 'on-middle']), 'part b');
+      expect(
+        await out(['rev-parse', 'on-middle']),
+        await out(['rev-parse', 'HEAD~1']),
+      );
+    });
+
+    test(
+      'a branch above the split commit follows its replayed commit',
+      () async {
+        final c = container();
+        final actions = c.read(repoActionsProvider(dir.path));
+        final middle = await buildHistory();
+        await commit('more.txt', 'more\n', 'more');
+        await g(['branch', 'on-top', 'HEAD~1']);
+
+        await splitInTwo(actions, middle);
+
+        expect(
+          await out(['rev-parse', 'on-top']),
+          await out(['rev-parse', 'HEAD~1']),
+        );
+        expect(await out(['log', '-1', '--format=%s', 'on-top']), 'top');
+        expect(await out(['log', '-1', '--format=%s', 'on-top~1']), 'part b');
+      },
+    );
+
+    test('aborting leaves stacked branches where they were', () async {
+      final c = container();
+      final actions = c.read(repoActionsProvider(dir.path));
+      final middle = await buildHistory();
+      await g(['branch', 'on-middle', middle]);
+
+      await actions.splitCommit(middle);
+      await actions.abortMerge();
+
+      expect(await out(['rev-parse', 'on-middle']), middle);
+    });
+  });
+
   test('a finished split is undoable back to the original commit', () async {
     final c = container();
     final actions = c.read(repoActionsProvider(dir.path));

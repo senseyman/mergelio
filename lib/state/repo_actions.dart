@@ -3866,7 +3866,8 @@ class RepoActions {
   /// it and its changes go back to the working tree, unstaged, with its
   /// message offered to the composer. Nothing is committed here: the user
   /// stages and commits each part, then continues, and the commits above are
-  /// replayed on top. Aborting puts the branch back as it was.
+  /// replayed on top, branches stacked on them included. Aborting puts the
+  /// branch back as it was.
   ///
   /// The root commit has no parent to step back to, and a merge — the commit
   /// itself or one above it — cannot be replayed by a linear plan, so both
@@ -3900,7 +3901,9 @@ class RepoActions {
     // A rebase already open is refused below, but it may sit on an edit of its
     // own — started in a terminal, say — whose commit must not be taken apart.
     final alreadyRebasing = await isRebaseInProgress();
-    await rebase(parent, steps);
+    // Branches stacked on the commit or above it move with the rewrite; one on
+    // the split commit itself ends up on its last part.
+    await rebase(parent, steps, updateRefs: true);
     if (alreadyRebasing) return;
     // git records the commit an edit stopped on. Without that record the
     // rebase was refused or hit a conflict before reaching the commit; with
