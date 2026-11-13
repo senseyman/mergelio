@@ -1289,13 +1289,17 @@ class _ComposerState extends ConsumerState<_Composer> {
     });
   }
 
-  /// Puts [message] in the summary field and clears the request, so a rebuild
-  /// does not apply it twice. Asked for explicitly, so it replaces what is
-  /// typed rather than waiting for an empty field.
+  /// Puts [message] in the fields and clears the request, so a rebuild does
+  /// not apply it twice. Asked for explicitly, so it replaces what is typed
+  /// rather than waiting for an empty field.
   void _takePrefill(String? message) {
     if (message == null) return;
-    // Only the subject is prepared; a description already typed stays.
-    _putMessage(joinCommitMessage(message, _description.text));
+    // A prepared subject alone (a fixup) keeps the description already typed;
+    // a whole message (a commit being split) brings its own.
+    final hasBody = splitCommitMessage(message).description.isNotEmpty;
+    _putMessage(
+      hasBody ? message : joinCommitMessage(message, _description.text),
+    );
     // Not inside the notification itself: a provider cannot be written while
     // it is still telling its listeners about the last write.
     Future.microtask(() {

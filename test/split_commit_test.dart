@@ -106,6 +106,33 @@ void main() {
     },
   );
 
+  test('the composer is offered the original message, body included', () async {
+    final c = container();
+    final actions = c.read(repoActionsProvider(dir.path));
+    await commit('base.txt', 'base\n', 'base');
+    await File('${dir.path}/a.txt').writeAsString('a\n');
+    await File('${dir.path}/b.txt').writeAsString('b\n');
+    await g(['add', '.']);
+    await g(['commit', '-q', '-m', 'two files', '-m', 'why both']);
+    final middle = await out(['rev-parse', 'HEAD']);
+    await commit('top.txt', 'top\n', 'top');
+
+    await actions.splitCommit(middle);
+
+    expect(c.read(composerPrefillProvider(dir.path)), 'two files\n\nwhy both');
+  });
+
+  test('a refused split leaves the composer alone', () async {
+    final c = container();
+    final actions = c.read(repoActionsProvider(dir.path));
+    final root = await commit('base.txt', 'base\n', 'root');
+    await commit('f.txt', 'f\n', 'second');
+
+    await actions.splitCommit(root);
+
+    expect(c.read(composerPrefillProvider(dir.path)), isNull);
+  });
+
   test('a finished split is undoable back to the original commit', () async {
     final c = container();
     final actions = c.read(repoActionsProvider(dir.path));

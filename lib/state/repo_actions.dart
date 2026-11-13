@@ -3854,8 +3854,8 @@ class RepoActions {
   ], repoPath: path)).ok;
 
   /// Splits [sha] into commits the user makes. An interactive rebase stops on
-  /// it and its changes go back to the working tree, unstaged. Nothing is
-  /// committed here: the user stages and commits each part, then continues,
+  /// it and its changes go back to the working tree, unstaged, with its
+  /// message offered to the composer. Nothing is committed here: the user stages and commits each part, then continues,
   /// and the commits above are replayed on top. Aborting puts the branch back
   /// as it was.
   ///
@@ -3883,6 +3883,7 @@ class RepoActions {
     if (await rebaseCrossesMerge(parent)) {
       return refuse(_l.actRewordWouldFlatten);
     }
+    final message = (await _out(['log', '-1', '--format=%B', target])).trim();
     final steps = [
       for (final s in await rebaseStepsFrom(parent))
         s.sha == target ? s.withAction(RebaseAction.edit) : s,
@@ -3900,7 +3901,12 @@ class RepoActions {
       await _writer.resetMixed('HEAD^', intentToAdd: true);
     } on GitException catch (e) {
       _toastErr(_l.actCannotSplit, e);
+      _refresh();
+      return;
     }
+    // The first part usually keeps most of the original intent, so its
+    // message is the place to start from.
+    _ref.read(composerPrefillProvider(path).notifier).state = message;
     _refresh();
   }
 
