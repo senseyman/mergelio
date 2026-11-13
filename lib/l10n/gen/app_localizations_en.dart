@@ -352,6 +352,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get rewordPushedConfirm => 'Rewrite anyway';
 
   @override
+  String splitPushedBody(String branches) {
+    return 'This commit is already on $branches. Splitting it rewrites history, so the branch will need a force push and anyone who pulled it will have to reset.';
+  }
+
+  @override
   String get mergeResolveConflicts => 'Resolve conflicts';
 
   @override

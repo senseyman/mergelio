@@ -122,6 +122,14 @@
     }
   },
   "rewordPushedConfirm": "Все одно переписати",
+  "splitPushedBody": "Цей коміт уже є в {branches}. Розділення переписує історію, тож гілку доведеться відправити примусово, а всі, хто її отримав, муситимуть зробити reset.",
+  "@splitPushedBody": {
+    "placeholders": {
+      "branches": {
+        "type": "String"
+      }
+    }
+  },
   "mergeResolveConflicts": "Вирішити конфлікти",
   "mergeRebase": "Перебазувати",
   "mergeCherryPick": "Cherry-pick {sha}",

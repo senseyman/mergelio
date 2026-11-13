@@ -2,12 +2,47 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mergelio/domain/git/conflict.dart';
+import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/domain/git/rebase_plan.dart';
 import 'package:mergelio/state/feedback.dart';
 import 'package:mergelio/state/merge_session.dart';
 import 'package:mergelio/state/repo_actions.dart';
 import 'package:mergelio/state/undo_stack.dart';
+
+/// Real git, except that `diff --quiet` fails the way a broken repository
+/// would.
+class _DiffFails implements GitService {
+  final GitService inner;
+  const _DiffFails(this.inner);
+  @override
+  Future<GitResult> run(
+    List<String> args, {
+    String? repoPath,
+    Duration? timeout,
+    Map<String, String>? environment,
+    GitCancel? cancel,
+    String? stdin,
+  }) async {
+    if (args.length > 1 && args[0] == 'diff' && args[1] == '--quiet') {
+      return const GitResult(128, '', 'fatal: bad index file');
+    }
+    return inner.run(
+      args,
+      repoPath: repoPath,
+      timeout: timeout,
+      environment: environment,
+      cancel: cancel,
+      stdin: stdin,
+    );
+  }
+
+  @override
+  Future<String> version() => inner.version();
+  @override
+  Future<bool> isRepository(String path) => inner.isRepository(path);
+}
 
 void main() {
   late Directory dir;
@@ -218,6 +253,75 @@ void main() {
       expect(await out(['log', '-1', '--format=%s', 'on-top~1']), 'two files');
     });
 
+    test(
+      'several branches on the split commit all land on its last part',
+      () async {
+        final c = container();
+        final actions = c.read(repoActionsProvider(dir.path));
+        final middle = await buildHistory();
+        await g(['branch', 'one', middle]);
+        await g(['branch', 'two', middle]);
+
+        await splitInTwo(actions, middle);
+
+        final last = await out(['rev-parse', 'HEAD~1']);
+        expect(await out(['rev-parse', 'one']), last);
+        expect(await out(['rev-parse', 'two']), last);
+        await c.read(undoProvider(dir.path).notifier).undo();
+        expect(await out(['rev-parse', 'one']), middle);
+        expect(await out(['rev-parse', 'two']), middle);
+      },
+    );
+
+    test('undo skips a stacked branch deleted since, moves the rest', () async {
+      final c = container();
+      final actions = c.read(repoActionsProvider(dir.path));
+      final middle = await buildHistory();
+      await g(['branch', 'gone', middle]);
+      await g(['branch', 'kept', middle]);
+
+      await splitInTwo(actions, middle);
+      await g(['branch', '-D', 'gone']);
+      await c.read(undoProvider(dir.path).notifier).undo();
+
+      expect(await out(['rev-parse', 'kept']), middle);
+      expect(await out(['branch', '--list', 'gone']), '');
+    });
+
+    test('an aborted split lends its branches to no later undo', () async {
+      final c = container();
+      final actions = c.read(repoActionsProvider(dir.path));
+      final middle = await buildHistory();
+      await g(['branch', 'on-middle', middle]);
+      await actions.splitCommit(middle);
+      await actions.abortMerge();
+      final base = await out(['rev-parse', 'HEAD~2']);
+      await g(['branch', '-f', 'on-middle', base]);
+
+      // A conflicted cherry-pick, finished through Continue.
+      await g(['checkout', '-q', '-b', 'side']);
+      final pick = await commit('top.txt', 'side\n', 'side top');
+      await g(['checkout', '-q', 'main']);
+      await commit('top.txt', 'main\n', 'main top');
+      await actions.cherryPick(pick);
+      var session = c.read(mergeSessionProvider(dir.path))!;
+      for (var i = 0; i < session.files.length; i++) {
+        var file = session.files[i];
+        for (final h in file.hunkIndices) {
+          file = file.withResolution(h, Resolution.theirs);
+        }
+        session = session.replaceFile(i, file);
+      }
+      await actions.resolveConflicts(session);
+      await actions.continueOp();
+      expect(await out(['log', '-1', '--format=%s']), 'side top');
+
+      await c.read(undoProvider(dir.path).notifier).undo();
+
+      expect(await out(['log', '-1', '--format=%s']), 'main top');
+      expect(await out(['rev-parse', 'on-middle']), base);
+    });
+
     test('aborting leaves stacked branches where they were', () async {
       final c = container();
       final actions = c.read(repoActionsProvider(dir.path));
@@ -229,6 +333,52 @@ void main() {
 
       expect(await out(['rev-parse', 'on-middle']), middle);
     });
+  });
+
+  test('redo refuses over uncommitted changes, keeping them', () async {
+    final c = container();
+    final actions = c.read(repoActionsProvider(dir.path));
+    final middle = await buildHistory();
+
+    await actions.splitCommit(middle);
+    await g(['add', 'a.txt']);
+    await g(['commit', '-q', '-m', 'part a']);
+    await g(['add', 'b.txt']);
+    await g(['commit', '-q', '-m', 'part b']);
+    await actions.continueOp();
+    await actions.undo();
+    final undone = await out(['rev-parse', 'HEAD']);
+    await File('${dir.path}/top.txt').writeAsString('edited\n');
+
+    await actions.redo();
+
+    expect(await out(['rev-parse', 'HEAD']), undone);
+    expect(File('${dir.path}/top.txt').readAsStringSync(), 'edited\n');
+  });
+
+  test('the repository stays busy until the commit is taken apart', () async {
+    final c = container();
+    final actions = c.read(repoActionsProvider(dir.path));
+    final middle = await buildHistory();
+    final parent = await out(['rev-parse', '$middle^']);
+    final headWhenFree = <String>[];
+    c.listen(busyProvider, (prev, next) {
+      if (prev != null && next == null) {
+        // Synchronous on purpose: anything the UI can do next starts here.
+        headWhenFree.add(
+          (Process.runSync('git', [
+                    'rev-parse',
+                    'HEAD',
+                  ], workingDirectory: dir.path).stdout
+                  as String)
+              .trim(),
+        );
+      }
+    });
+
+    await actions.splitCommit(middle);
+
+    expect(headWhenFree, [parent]);
   });
 
   test('a finished split is undoable back to the original commit', () async {
@@ -312,6 +462,30 @@ void main() {
       expect(await rebasing(), isFalse);
       expect(await out(['show', 'HEAD~1:a.txt']), 'amended');
       expect(await out(['log', '-1', '--format=%s', 'HEAD~1']), 'two files');
+    },
+  );
+
+  test(
+    'a failing leftover check is reported as an error, not leftovers',
+    () async {
+      final c = container();
+      final middle = await buildHistory();
+      await c.read(repoActionsProvider(dir.path)).splitCommit(middle);
+      await g(['add', 'a.txt']);
+      await g(['commit', '-q', '-m', 'part a']);
+      final broken = ProviderContainer(
+        overrides: [
+          gitServiceProvider.overrideWithValue(const _DiffFails(svc)),
+        ],
+      );
+      addTearDown(broken.dispose);
+
+      await broken.read(repoActionsProvider(dir.path)).continueOp();
+
+      expect(await rebasing(), isTrue);
+      final toasts = broken.read(toastProvider);
+      expect(toasts.map((t) => t.kind), contains(ToastKind.error));
+      expect(toasts.map((t) => t.title), isNot(contains('Changes left over')));
     },
   );
 

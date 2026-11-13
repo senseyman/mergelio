@@ -354,6 +354,11 @@ class AppLocalizationsUk extends AppLocalizations {
   String get rewordPushedConfirm => 'Все одно переписати';
 
   @override
+  String splitPushedBody(String branches) {
+    return 'Цей коміт уже є в $branches. Розділення переписує історію, тож гілку доведеться відправити примусово, а всі, хто її отримав, муситимуть зробити reset.';
+  }
+
+  @override
   String get mergeResolveConflicts => 'Вирішити конфлікти';
 
   @override

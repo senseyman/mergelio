@@ -746,6 +746,12 @@ abstract class AppLocalizations {
   /// **'Rewrite anyway'**
   String get rewordPushedConfirm;
 
+  /// No description provided for @splitPushedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This commit is already on {branches}. Splitting it rewrites history, so the branch will need a force push and anyone who pulled it will have to reset.'**
+  String splitPushedBody(String branches);
+
   /// No description provided for @mergeResolveConflicts.
   ///
   /// In en, this message translates to:

@@ -143,6 +143,14 @@
     }
   },
   "rewordPushedConfirm": "Rewrite anyway",
+  "splitPushedBody": "This commit is already on {branches}. Splitting it rewrites history, so the branch will need a force push and anyone who pulled it will have to reset.",
+  "@splitPushedBody": {
+    "placeholders": {
+      "branches": {
+        "type": "String"
+      }
+    }
+  },
   "mergeResolveConflicts": "Resolve conflicts",
   "mergeRebase": "Rebase",
   "mergeCherryPick": "Cherry-pick {sha}",
