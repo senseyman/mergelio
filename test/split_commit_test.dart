@@ -167,6 +167,80 @@ void main() {
     expect(await out(['diff', '--cached', '--name-only']), 'b.txt');
   });
 
+  test(
+    'continuing with an unstaged part left says what is in the way',
+    () async {
+      final c = container();
+      final actions = c.read(repoActionsProvider(dir.path));
+      final middle = await buildHistory();
+
+      await actions.splitCommit(middle);
+      await g(['add', 'a.txt']);
+      await g(['commit', '-q', '-m', 'part a']);
+      await actions.continueOp();
+
+      expect(await rebasing(), isTrue);
+      // Not git's "edit all merge conflicts": nothing is conflicted.
+      expect(
+        c.read(toastProvider).map((t) => t.description),
+        contains(
+          'Commit the remaining changes as another part, or discard them, '
+          'then continue.',
+        ),
+      );
+    },
+  );
+
+  test(
+    'continuing an untouched edit folds staged changes in, as git does',
+    () async {
+      final c = container();
+      final actions = c.read(repoActionsProvider(dir.path));
+      final middle = await buildHistory();
+      final r = await svc.run(
+        ['rebase', '-i', '$middle^'],
+        repoPath: dir.path,
+        environment: {
+          'GIT_SEQUENCE_EDITOR': "sed -i.bak '1s/^pick/edit/'",
+          'GIT_EDITOR': 'true',
+        },
+      );
+      expect(r.ok, isTrue, reason: r.err);
+      await File('${dir.path}/a.txt').writeAsString('amended\n');
+      await g(['add', 'a.txt']);
+
+      await actions.continueOp();
+
+      expect(await rebasing(), isFalse);
+      expect(await out(['show', 'HEAD~1:a.txt']), 'amended');
+      expect(await out(['log', '-1', '--format=%s', 'HEAD~1']), 'two files');
+    },
+  );
+
+  test('a rebase already paused on an edit is left alone', () async {
+    final c = container();
+    final actions = c.read(repoActionsProvider(dir.path));
+    final middle = await buildHistory();
+    // Started in a terminal: stopped on the commit, nothing taken apart.
+    final r = await svc.run(
+      ['rebase', '-i', '$middle^'],
+      repoPath: dir.path,
+      environment: {
+        'GIT_SEQUENCE_EDITOR': "sed -i.bak '1s/^pick/edit/'",
+        'GIT_EDITOR': 'true',
+      },
+    );
+    expect(r.ok, isTrue, reason: r.err);
+    final head = await out(['rev-parse', 'HEAD']);
+    expect(head, middle);
+
+    await actions.splitCommit(middle);
+
+    expect(await out(['rev-parse', 'HEAD']), head);
+    expect(await out(['status', '--porcelain', '--untracked-files=no']), '');
+    expect(c.read(composerPrefillProvider(dir.path)), isNull);
+  });
+
   test('aborting puts the branch back exactly as it was', () async {
     final c = container();
     final actions = c.read(repoActionsProvider(dir.path));

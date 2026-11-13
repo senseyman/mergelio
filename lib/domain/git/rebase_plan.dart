@@ -479,8 +479,8 @@ String? interruptedPick(String done, String rewrittenList) {
   return landed ? null : lines.last;
 }
 
-/// An `edit` step. The app writes one only to split a commit, so stopping on
-/// it means the split is waiting on the user.
+/// An `edit` step. The app writes one only to split a commit; one written in a
+/// terminal stops the same way, to amend the commit or split it by hand.
 final _editLine = RegExp(r'^(?:edit|e)\s+[0-9a-f]{4,64}\b');
 
 RebaseStop? parseRebaseStop(String done) {

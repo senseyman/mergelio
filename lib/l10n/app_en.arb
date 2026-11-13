@@ -1111,7 +1111,7 @@
   "wtpMergeOpenBody": "A merge is open. Review the staged files, then commit it.",
   "wtpBreakPausedBody": "The rebase is paused at a break. Look around, commit or amend if you like, then continue it.",
   "wtpRewordRejectedBody": "The rebase is paused: the new message for a commit was rejected, usually by a commit hook. Amend the message yourself, or continue to keep the old one.",
-  "wtpSplitPausedBody": "The rebase is paused to split a commit: its changes are back in the working tree, unstaged. Stage and commit them in as many parts as you like, then continue.",
+  "wtpSplitPausedBody": "The rebase is paused on a commit to edit. When splitting it, its changes are back in the working tree, unstaged: stage and commit them in as many parts as you like, then continue.",
   "wtpExecFailedBody": "The exec step `{command}` failed. Fix the problem and commit the fix, then continue — the command is not run again.",
   "@wtpExecFailedBody": {
     "placeholders": {
@@ -3011,6 +3011,8 @@
   "actCannotSplit": "Cannot split this commit",
   "actSplitRootCommit": "The first commit of the history has no parent to split it against.",
   "actSplitMergeCommit": "A merge commit cannot be split.",
+  "actSplitUnfinished": "Changes left over",
+  "actSplitUnfinishedHint": "Commit the remaining changes as another part, or discard them, then continue.",
   "actRebaseInProgress": "A rebase is already in progress",
   "actRebaseFinishFirst": "Finish or abort it before starting another one.",
   "actAbortRebase": "Abort rebase",

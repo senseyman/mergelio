@@ -101,7 +101,7 @@ void main() {
   ) async {
     await pumpStop(tester, const RebaseStop.split());
 
-    expect(find.textContaining('Stage and commit'), findsOneWidget);
+    expect(find.textContaining('stage and commit them'), findsOneWidget);
     expect(find.textContaining('paused at a break'), findsNothing);
     expect(find.text('Show output'), findsNothing);
     expect(find.text('Continue rebase'), findsOneWidget);

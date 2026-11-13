@@ -1501,7 +1501,7 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get wtpSplitPausedBody =>
-      'Перебазування призупинено, щоб розділити коміт: його зміни повернуто в робоче дерево, не проіндексованими. Проіндексуйте й закомітьте їх стількома частинами, скільки потрібно, потім продовжте.';
+      'Перебазування призупинено на коміті для редагування. Під час розділення його зміни повернуто в робоче дерево, не проіндексованими: проіндексуйте й закомітьте їх стількома частинами, скільки потрібно, потім продовжте.';
 
   @override
   String wtpExecFailedBody(String command) {
@@ -5571,6 +5571,13 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get actSplitMergeCommit => 'Коміт злиття не можна розділити.';
+
+  @override
+  String get actSplitUnfinished => 'Залишилися зміни';
+
+  @override
+  String get actSplitUnfinishedHint =>
+      'Закомітьте решту змін як ще одну частину або скасуйте їх, а потім продовжте.';
 
   @override
   String get actRebaseInProgress => 'Перебазування вже триває';

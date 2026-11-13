@@ -1490,7 +1490,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get wtpSplitPausedBody =>
-      'The rebase is paused to split a commit: its changes are back in the working tree, unstaged. Stage and commit them in as many parts as you like, then continue.';
+      'The rebase is paused on a commit to edit. When splitting it, its changes are back in the working tree, unstaged: stage and commit them in as many parts as you like, then continue.';
 
   @override
   String wtpExecFailedBody(String command) {
@@ -5469,6 +5469,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get actSplitMergeCommit => 'A merge commit cannot be split.';
+
+  @override
+  String get actSplitUnfinished => 'Changes left over';
+
+  @override
+  String get actSplitUnfinishedHint =>
+      'Commit the remaining changes as another part, or discard them, then continue.';
 
   @override
   String get actRebaseInProgress => 'A rebase is already in progress';

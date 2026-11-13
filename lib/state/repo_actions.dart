@@ -3853,11 +3853,20 @@ class RepoActions {
     'HEAD',
   ], repoPath: path)).ok;
 
+  /// Whether a commit being split still has changes no part has taken. git
+  /// refuses to continue over them with a message about merge conflicts,
+  /// which there are none of. Left alone while HEAD is still the commit
+  /// itself: continuing there folds staged changes into it, as git intends.
+  Future<bool> _splitLeftovers() async {
+    if ((await _rebaseFile('amend')).trim() == await _headSha()) return false;
+    return !(await _git.run(['diff', '--quiet', 'HEAD'], repoPath: path)).ok;
+  }
+
   /// Splits [sha] into commits the user makes. An interactive rebase stops on
   /// it and its changes go back to the working tree, unstaged, with its
-  /// message offered to the composer. Nothing is committed here: the user stages and commits each part, then continues,
-  /// and the commits above are replayed on top. Aborting puts the branch back
-  /// as it was.
+  /// message offered to the composer. Nothing is committed here: the user
+  /// stages and commits each part, then continues, and the commits above are
+  /// replayed on top. Aborting puts the branch back as it was.
   ///
   /// The root commit has no parent to step back to, and a merge — the commit
   /// itself or one above it — cannot be replayed by a linear plan, so both
@@ -3888,7 +3897,11 @@ class RepoActions {
       for (final s in await rebaseStepsFrom(parent))
         s.sha == target ? s.withAction(RebaseAction.edit) : s,
     ];
+    // A rebase already open is refused below, but it may sit on an edit of its
+    // own — started in a terminal, say — whose commit must not be taken apart.
+    final alreadyRebasing = await isRebaseInProgress();
     await rebase(parent, steps);
+    if (alreadyRebasing) return;
     // git records the commit an edit stopped on. Without that record the
     // rebase was refused or hit a conflict before reaching the commit; with
     // HEAD anywhere else the commit has already been taken apart. Either way
@@ -4414,6 +4427,16 @@ class RepoActions {
     final pending = await pendingOp();
     if (pending == null || !pending.continues) return;
     if (_blockedByRepoOp) return;
+    if (pending.stop?.kind == RebaseStopKind.split && await _splitLeftovers()) {
+      _ref
+          .read(toastProvider.notifier)
+          .show(
+            _l.actSplitUnfinished,
+            description: _l.actSplitUnfinishedHint,
+            kind: ToastKind.warning,
+          );
+      return;
+    }
     final label = switch (pending.kind) {
       MergeKind.rebase => _l.actContinueRebase,
       MergeKind.cherryPick => _l.actContinueCherryPick(pending.branch),

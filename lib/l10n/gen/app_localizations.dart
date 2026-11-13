@@ -2597,7 +2597,7 @@ abstract class AppLocalizations {
   /// No description provided for @wtpSplitPausedBody.
   ///
   /// In en, this message translates to:
-  /// **'The rebase is paused to split a commit: its changes are back in the working tree, unstaged. Stage and commit them in as many parts as you like, then continue.'**
+  /// **'The rebase is paused on a commit to edit. When splitting it, its changes are back in the working tree, unstaged: stage and commit them in as many parts as you like, then continue.'**
   String get wtpSplitPausedBody;
 
   /// No description provided for @wtpExecFailedBody.
@@ -8881,6 +8881,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'A merge commit cannot be split.'**
   String get actSplitMergeCommit;
+
+  /// No description provided for @actSplitUnfinished.
+  ///
+  /// In en, this message translates to:
+  /// **'Changes left over'**
+  String get actSplitUnfinished;
+
+  /// No description provided for @actSplitUnfinishedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Commit the remaining changes as another part, or discard them, then continue.'**
+  String get actSplitUnfinishedHint;
 
   /// No description provided for @actRebaseInProgress.
   ///
