@@ -10,6 +10,7 @@ import 'package:mergelio/domain/forge/pull_request_ref.dart';
 import 'package:mergelio/domain/git/models.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/state/forge.dart';
+import 'package:mergelio/state/open_review.dart';
 import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
@@ -43,6 +44,7 @@ PullRequest _pr(int n) => PullRequest(
 class _Calls {
   final checkouts = <(String, ForgeKind, int, bool)>[];
   final opened = <Uri>[];
+  final reviews = <int>[];
 }
 
 /// The section with a forge row for request 7. Checkout and the browser are
@@ -78,6 +80,15 @@ Future<_Calls> _pump(
         forgeLaunchUrlProvider.overrideWithValue((url) async {
           calls.opened.add(url);
           return true;
+        }),
+        forgeFetchPullRequestForReviewProvider.overrideWithValue((
+          repoPath,
+          kind,
+          number,
+          targetBranch,
+        ) async {
+          calls.reviews.add(number);
+          return null;
         }),
         forgeCheckoutPullRequestProvider.overrideWithValue((
           repoPath,
@@ -139,9 +150,7 @@ void main() {
     expect(calls.checkouts, [('/repo', ForgeKind.gitlab, 7, false)]);
   });
 
-  testWidgets('the menu still opens the request in the browser', (
-    tester,
-  ) async {
+  testWidgets('the menu opens the request in the browser', (tester) async {
     final calls = await _pump(tester, _github);
 
     await _menu(tester);
@@ -163,13 +172,16 @@ void main() {
     expect(calls.opened, isEmpty);
   });
 
-  testWidgets('a plain click still opens the browser', (tester) async {
+  testWidgets('a plain click reviews, without checking out or opening', (
+    tester,
+  ) async {
     final calls = await _pump(tester, _github);
 
     await tester.tap(find.text('request 7'));
     await tester.pumpAndSettle();
 
-    expect(calls.opened, hasLength(1));
+    expect(calls.reviews, [7]);
+    expect(calls.opened, isEmpty);
     expect(calls.checkouts, isEmpty);
   });
 

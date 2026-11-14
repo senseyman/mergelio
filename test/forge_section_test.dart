@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,6 +16,8 @@ import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/state/feedback.dart';
 import 'package:mergelio/state/forge.dart';
 import 'package:mergelio/state/forge_refresh.dart';
+import 'package:mergelio/state/open_review.dart';
+import 'package:mergelio/state/repo_data.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
 import 'package:mergelio/ui/workspace/forge_section.dart';
@@ -73,6 +76,9 @@ Future<void> _pump(
         forgeHttpClientProvider.overrideWithValue(
           MockClient((_) async => http.Response('', 404)),
         ),
+        // The row menu asks which branch is checked out; answering it here
+        // keeps git off the host.
+        repoDataProvider('/repo').overrideWith((ref) async => const RepoData()),
         ...overrides,
       ],
       child: MaterialApp(
@@ -84,6 +90,13 @@ Future<void> _pump(
     ),
   );
   await tester.pump();
+}
+
+/// A plain click reviews in the app; the browser sits behind the menu.
+Future<void> _openInBrowser(WidgetTester tester, String title) async {
+  await tester.tap(find.text(title), buttons: kSecondaryButton);
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Open in browser'));
 }
 
 void main() {
@@ -525,7 +538,7 @@ void main() {
     );
     await t.pumpAndSettle();
 
-    await t.tap(find.text('request 7'));
+    await _openInBrowser(t, 'request 7');
     await t.pump();
 
     expect(opened, hasLength(1));
@@ -667,8 +680,9 @@ void main() {
     expect(find.text('build'), findsNothing);
   });
 
-  testWidgets('opening the checks does not also open the browser', (t) async {
+  testWidgets('opening the checks does not also open the request', (t) async {
     final opened = <Uri>[];
+    final reviews = <int>[];
     await _pump(
       t,
       overrides: [
@@ -681,6 +695,15 @@ void main() {
           opened.add(url);
           return true;
         }),
+        forgeFetchPullRequestForReviewProvider.overrideWithValue((
+          repoPath,
+          kind,
+          number,
+          targetBranch,
+        ) async {
+          reviews.add(number);
+          return null;
+        }),
       ],
     );
     await t.pumpAndSettle();
@@ -689,8 +712,9 @@ void main() {
     await t.pumpAndSettle();
 
     // The badge sits inside the row's tap target, so without its own
-    // handler swallowing the press this would navigate away instead.
+    // handler swallowing the press this would open the request instead.
     expect(opened, isEmpty);
+    expect(reviews, isEmpty);
     expect(find.text('unit tests'), findsOneWidget);
   });
 
@@ -737,7 +761,7 @@ void main() {
       t.element(find.byType(ForgePullRequestSection)),
     );
 
-    await t.tap(find.text('request 7'));
+    await _openInBrowser(t, 'request 7');
     await t.pump();
 
     expect(container.read(toastProvider), hasLength(1));
@@ -830,7 +854,7 @@ void main() {
     final l = AppLocalizations.of(element);
     final container = ProviderScope.containerOf(element);
 
-    await t.tap(find.text('request 7'));
+    await _openInBrowser(t, 'request 7');
     await t.pump();
 
     expect(container.read(toastProvider).single.title, l.forgeCouldNotOpenMr);
