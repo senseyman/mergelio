@@ -32,6 +32,7 @@ import '../shell/resize_handle.dart';
 import '../workspace/branch_switch.dart';
 import '../workspace/edit_commit_message.dart';
 import '../workspace/edit_note.dart';
+import '../workspace/split_commit.dart';
 import '../../l10n/gen/app_localizations.dart';
 import 'bisect_bar.dart';
 import 'commit_columns.dart';
@@ -1782,6 +1783,14 @@ class _CommitContextMenu extends ConsumerWidget {
           l.menuEditMessage,
           () => editCommitMessage(context, ref, repoPath: path, commit: commit),
         ),
+        // A root commit has no parent to step back to, and a merge cannot be
+        // taken apart into a line of commits. A split acts on one commit, so
+        // it is not offered where the menu speaks for several picked rows.
+        if (commit.parents.length == 1 && picked <= 1)
+          item(
+            l.menuSplitCommit,
+            () => splitCommit(context, ref, repoPath: path, sha: sha),
+          ),
         item(
           hasNote ? l.menuEditNote : l.menuAddNote,
           () => editCommitNote(context, ref, repoPath: path, sha: sha),

@@ -674,6 +674,12 @@ abstract class AppLocalizations {
   /// **'Edit message…'**
   String get menuEditMessage;
 
+  /// No description provided for @menuSplitCommit.
+  ///
+  /// In en, this message translates to:
+  /// **'Split commit…'**
+  String get menuSplitCommit;
+
   /// No description provided for @menuCopySummary.
   ///
   /// In en, this message translates to:
@@ -739,6 +745,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Rewrite anyway'**
   String get rewordPushedConfirm;
+
+  /// No description provided for @splitPushedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This commit is already on {branches}. Splitting it rewrites history, so the branch will need a force push and anyone who pulled it will have to reset.'**
+  String splitPushedBody(String branches);
 
   /// No description provided for @mergeResolveConflicts.
   ///
@@ -2588,6 +2600,12 @@ abstract class AppLocalizations {
   /// **'The rebase is paused: the new message for a commit was rejected, usually by a commit hook. Amend the message yourself, or continue to keep the old one.'**
   String get wtpRewordRejectedBody;
 
+  /// No description provided for @wtpSplitPausedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The rebase is paused on a commit to edit. When splitting it, its changes are back in the working tree, unstaged: stage and commit them in as many parts as you like, then continue.'**
+  String get wtpSplitPausedBody;
+
   /// No description provided for @wtpExecFailedBody.
   ///
   /// In en, this message translates to:
@@ -4423,6 +4441,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'pause here so you can look around or amend, then continue'**
   String get rbBreak;
+
+  /// No description provided for @rbEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'stop on this commit so it can be split into several'**
+  String get rbEdit;
 
   /// No description provided for @rbPresetAsIs.
   ///
@@ -8288,6 +8312,12 @@ abstract class AppLocalizations {
   /// **'Uncommitted changes — commit or stash before undoing'**
   String get actUndoDirty;
 
+  /// No description provided for @actRedoDirty.
+  ///
+  /// In en, this message translates to:
+  /// **'Uncommitted changes — commit or stash before redoing'**
+  String get actRedoDirty;
+
   /// No description provided for @actUndo.
   ///
   /// In en, this message translates to:
@@ -8804,6 +8834,18 @@ abstract class AppLocalizations {
   /// **'Look around or amend, then continue from the Changes panel.'**
   String get actBreakHint;
 
+  /// No description provided for @actSplitReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Commit ready to split'**
+  String get actSplitReady;
+
+  /// No description provided for @actSplitHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Stage and commit its changes in parts, then continue from the Changes panel.'**
+  String get actSplitHint;
+
   /// No description provided for @actCommitMessageEmpty.
   ///
   /// In en, this message translates to:
@@ -8833,6 +8875,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Rewriting it would replay a merge commit, which would flatten the history above it.'**
   String get actRewordWouldFlatten;
+
+  /// No description provided for @actCannotSplit.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot split this commit'**
+  String get actCannotSplit;
+
+  /// No description provided for @actSplitRootCommit.
+  ///
+  /// In en, this message translates to:
+  /// **'The first commit of the history has no parent to split it against.'**
+  String get actSplitRootCommit;
+
+  /// No description provided for @actSplitMergeCommit.
+  ///
+  /// In en, this message translates to:
+  /// **'A merge commit cannot be split.'**
+  String get actSplitMergeCommit;
+
+  /// No description provided for @actSplitUnfinished.
+  ///
+  /// In en, this message translates to:
+  /// **'Changes left over'**
+  String get actSplitUnfinished;
+
+  /// No description provided for @actSplitUnfinishedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Commit the remaining changes as another part, or discard them, then continue.'**
+  String get actSplitUnfinishedHint;
 
   /// No description provided for @actRebaseInProgress.
   ///

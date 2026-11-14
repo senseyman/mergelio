@@ -117,6 +117,7 @@
   "menuResetMixed": "Reset here (--mixed)",
   "menuResetHard": "Reset here (--hard)",
   "menuEditMessage": "Edit message…",
+  "menuSplitCommit": "Split commit…",
   "menuCopySummary": "Copy summary",
   "menuCopyDescription": "Copy description",
   "menuCopyMessage": "Copy message",
@@ -142,6 +143,14 @@
     }
   },
   "rewordPushedConfirm": "Rewrite anyway",
+  "splitPushedBody": "This commit is already on {branches}. Splitting it rewrites history, so the branch will need a force push and anyone who pulled it will have to reset.",
+  "@splitPushedBody": {
+    "placeholders": {
+      "branches": {
+        "type": "String"
+      }
+    }
+  },
   "mergeResolveConflicts": "Resolve conflicts",
   "mergeRebase": "Rebase",
   "mergeCherryPick": "Cherry-pick {sha}",
@@ -1110,6 +1119,7 @@
   "wtpMergeOpenBody": "A merge is open. Review the staged files, then commit it.",
   "wtpBreakPausedBody": "The rebase is paused at a break. Look around, commit or amend if you like, then continue it.",
   "wtpRewordRejectedBody": "The rebase is paused: the new message for a commit was rejected, usually by a commit hook. Amend the message yourself, or continue to keep the old one.",
+  "wtpSplitPausedBody": "The rebase is paused on a commit to edit. When splitting it, its changes are back in the working tree, unstaged: stage and commit them in as many parts as you like, then continue.",
   "wtpExecFailedBody": "The exec step `{command}` failed. Fix the problem and commit the fix, then continue — the command is not run again.",
   "@wtpExecFailedBody": {
     "placeholders": {
@@ -1729,6 +1739,7 @@
   "rbDrop": "remove this commit entirely",
   "rbExec": "run a shell command here; if it fails, the rebase pauses",
   "rbBreak": "pause here so you can look around or amend, then continue",
+  "rbEdit": "stop on this commit so it can be split into several",
   "rbPresetAsIs": "Move commits as-is",
   "rbPresetSquashAll": "Squash into one commit",
   "rbPresetSquashKeepFirst": "Squash, keep first message",
@@ -2873,6 +2884,7 @@
   "actMergeCommit": "Merge commit",
   "actCommit": "Commit",
   "actUndoDirty": "Uncommitted changes — commit or stash before undoing",
+  "actRedoDirty": "Uncommitted changes — commit or stash before redoing",
   "actUndo": "Undo",
   "actRedo": "Redo",
   "actUndoFailed": "Undo failed",
@@ -2998,11 +3010,18 @@
   "@actExecFailedHint": {"placeholders": {"command": {"type": "String"}}},
   "actRewordRejectedHint": "git refused it — usually a commit hook. Amend the message yourself, or continue to keep the old one.",
   "actBreakHint": "Look around or amend, then continue from the Changes panel.",
+  "actSplitReady": "Commit ready to split",
+  "actSplitHint": "Stage and commit its changes in parts, then continue from the Changes panel.",
   "actCommitMessageEmpty": "Commit message is empty",
   "actReword": "Reword commit",
   "actNotOnBranch": "Commit is not on the current branch",
   "actCannotEditMessage": "Cannot edit this message",
   "actRewordWouldFlatten": "Rewriting it would replay a merge commit, which would flatten the history above it.",
+  "actCannotSplit": "Cannot split this commit",
+  "actSplitRootCommit": "The first commit of the history has no parent to split it against.",
+  "actSplitMergeCommit": "A merge commit cannot be split.",
+  "actSplitUnfinished": "Changes left over",
+  "actSplitUnfinishedHint": "Commit the remaining changes as another part, or discard them, then continue.",
   "actRebaseInProgress": "A rebase is already in progress",
   "actRebaseFinishFirst": "Finish or abort it before starting another one.",
   "actAbortRebase": "Abort rebase",

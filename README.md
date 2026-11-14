@@ -315,6 +315,8 @@ change never needs a second window.*
   **break** steps pause it for you; **stacked branches** sitting on the rebased
   commits can move with them (`update-ref`). "Prepare fixup for this commit" in
   the graph menu pre-fills a `fixup! …` message — you stage and commit it.
+  **Split commit…** stops a rebase on a commit with its changes unstaged and
+  its message in the composer; you commit the parts, then continue.
 - Cherry-pick, revert, reset (soft / hard), and reset-to-remote.
 - Cherry-pick several commits at once: ⌘-click (Ctrl-click) or Shift-click rows
   in the graph, then pick them from the bar above it or the row's menu. They

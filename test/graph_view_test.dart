@@ -205,6 +205,29 @@ void main() {
       });
     }
 
+    testWidgets('split is not offered on one of several picked rows', (
+      tester,
+    ) async {
+      final c = await pumpOpen(tester);
+      await c.read(repoDataProvider('/r').future);
+      c.read(commitPicksProvider('/r').notifier).state = CommitPicks.none
+          .toggle('fff')
+          .toggle('aaa');
+      await tester.pump();
+
+      await tester.tap(find.text('msg fff'), buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+      expect(find.text('Split commit…'), findsNothing);
+      await tester.tapAt(Offset.zero);
+      await tester.pumpAndSettle();
+
+      c.read(commitPicksProvider('/r').notifier).state = CommitPicks.none;
+      await tester.pump();
+      await tester.tap(find.text('msg fff'), buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+      expect(find.text('Split commit…'), findsOneWidget);
+    });
+
     testWidgets('right-clicking a picked row offers to pick them all; '
         'any other row does not', (tester) async {
       final c = await pumpOpen(tester);

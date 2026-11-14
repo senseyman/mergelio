@@ -524,6 +524,21 @@ void main() {
     expect(_text(tester, 'Description'), 'why it changed');
   });
 
+  testWidgets('a prepared message with a body replaces the description', (
+    tester,
+  ) async {
+    await _pump(tester, _harness(_FakeActions(), InMemoryKeyValueStore()));
+    await tester.enterText(_field('Description'), 'typed earlier');
+    final c = ProviderScope.containerOf(
+      tester.element(find.byType(WorkingTreePanel)),
+    );
+    c.read(composerPrefillProvider('/r').notifier).state =
+        'Original subject\n\nOriginal body';
+    await tester.pumpAndSettle();
+    expect(_text(tester, 'Summary'), 'Original subject');
+    expect(_text(tester, 'Description'), 'Original body');
+  });
+
   testWidgets('the fields wait for the stored draft before taking input', (
     tester,
   ) async {

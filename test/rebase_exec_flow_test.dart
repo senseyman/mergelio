@@ -269,6 +269,36 @@ void main() {
       );
     });
 
+    test('undo puts a moved stacked branch back', () async {
+      await g(['branch', 'part1', c1]);
+      await actions.rebase(base, [
+        RebaseStep(c2, RebaseAction.pick),
+        RebaseStep(c1, RebaseAction.pick),
+      ], updateRefs: true);
+      await c.read(undoProvider(dir.path).notifier).undo();
+
+      expect(await out(['rev-parse', 'part1']), c1);
+      expect(await out(['rev-parse', 'HEAD']), c2);
+    });
+
+    test('undo after a break puts a moved stacked branch back', () async {
+      await g(['branch', 'part1', c1]);
+      await actions.rebase(base, [
+        RebaseStep(c2, RebaseAction.pick),
+        const RebaseStep.breakpoint(id: 'b'),
+        RebaseStep(c1, RebaseAction.pick),
+      ], updateRefs: true);
+      await actions.continueOp();
+      expect(
+        await out(['rev-parse', 'part1']),
+        await out(['rev-parse', 'HEAD']),
+      );
+      await c.read(undoProvider(dir.path).notifier).undo();
+
+      expect(await out(['rev-parse', 'part1']), c1);
+      expect(await out(['rev-parse', 'HEAD']), c2);
+    });
+
     test('without updateRefs a stacked branch stays behind', () async {
       await g(['branch', 'part1', c1]);
       await actions.rebase(base, [

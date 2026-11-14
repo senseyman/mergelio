@@ -314,6 +314,9 @@ class AppLocalizationsUk extends AppLocalizations {
   String get menuEditMessage => 'Редагувати повідомлення…';
 
   @override
+  String get menuSplitCommit => 'Розділити коміт…';
+
+  @override
   String get menuCopySummary => 'Копіювати заголовок';
 
   @override
@@ -349,6 +352,11 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get rewordPushedConfirm => 'Все одно переписати';
+
+  @override
+  String splitPushedBody(String branches) {
+    return 'Цей коміт уже є в $branches. Розділення переписує історію, тож гілку доведеться відправити примусово, а всі, хто її отримав, муситимуть зробити reset.';
+  }
 
   @override
   String get mergeResolveConflicts => 'Вирішити конфлікти';
@@ -1497,6 +1505,10 @@ class AppLocalizationsUk extends AppLocalizations {
       'Перебазування призупинено: нове повідомлення коміту відхилено, зазвичай хуком. Виправте повідомлення самостійно або продовжте, щоб залишити старе.';
 
   @override
+  String get wtpSplitPausedBody =>
+      'Перебазування призупинено на коміті для редагування. Під час розділення його зміни повернуто в робоче дерево, не проіндексованими: проіндексуйте й закомітьте їх стількома частинами, скільки потрібно, потім продовжте.';
+
+  @override
   String wtpExecFailedBody(String command) {
     return 'Крок exec `$command` завершився з помилкою. Виправте проблему й закомітьте виправлення, потім продовжте — команда повторно не виконується.';
   }
@@ -2574,6 +2586,10 @@ class AppLocalizationsUk extends AppLocalizations {
   @override
   String get rbBreak =>
       'зупинитися тут, щоб роззирнутися чи виправити коміт, потім продовжити';
+
+  @override
+  String get rbEdit =>
+      'зупинитися на цьому коміті, щоб розділити його на кілька';
 
   @override
   String get rbPresetAsIs => 'Перемістити коміти як є';
@@ -5138,6 +5154,10 @@ class AppLocalizationsUk extends AppLocalizations {
       'Незакомічені зміни — закомітьте або сховайте їх перед скасуванням';
 
   @override
+  String get actRedoDirty =>
+      'Незакомічені зміни — закомітьте або сховайте їх перед повторенням';
+
+  @override
   String get actUndo => 'Скасування';
 
   @override
@@ -5529,6 +5549,13 @@ class AppLocalizationsUk extends AppLocalizations {
       'Огляньтеся або виправте коміт, а потім продовжте з панелі змін.';
 
   @override
+  String get actSplitReady => 'Коміт готовий до розділення';
+
+  @override
+  String get actSplitHint =>
+      'Проіндексуйте й закомітьте його зміни частинами, а потім продовжте з панелі змін.';
+
+  @override
   String get actCommitMessageEmpty => 'Повідомлення коміту порожнє';
 
   @override
@@ -5543,6 +5570,23 @@ class AppLocalizationsUk extends AppLocalizations {
   @override
   String get actRewordWouldFlatten =>
       'Переписування відтворить коміт злиття, і це випрямить історію над ним.';
+
+  @override
+  String get actCannotSplit => 'Неможливо розділити цей коміт';
+
+  @override
+  String get actSplitRootCommit =>
+      'Перший коміт історії не має батьківського, відносно якого його можна розділити.';
+
+  @override
+  String get actSplitMergeCommit => 'Коміт злиття не можна розділити.';
+
+  @override
+  String get actSplitUnfinished => 'Залишилися зміни';
+
+  @override
+  String get actSplitUnfinishedHint =>
+      'Закомітьте решту змін як ще одну частину або скасуйте їх, а потім продовжте.';
 
   @override
   String get actRebaseInProgress => 'Перебазування вже триває';

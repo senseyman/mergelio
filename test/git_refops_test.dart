@@ -163,4 +163,44 @@ void main() {
     await writer().stashStore(dropped);
     expect(await reader().stashes(), isNotEmpty);
   });
+
+  group('moveBranches', () {
+    test('moves every branch still where it was expected', () async {
+      final first = await out(['rev-parse', 'HEAD']);
+      await commit('b.txt', 'B');
+      final second = await out(['rev-parse', 'HEAD']);
+      await g(['branch', 'x', first]);
+      await g(['branch', 'y', first]);
+
+      await writer().moveBranches({
+        'x': (from: first, to: second),
+        'y': (from: first, to: second),
+      });
+
+      expect(await out(['rev-parse', 'x']), second);
+      expect(await out(['rev-parse', 'y']), second);
+    });
+
+    test('one branch that moved meanwhile leaves all of them alone', () async {
+      final first = await out(['rev-parse', 'HEAD']);
+      await commit('b.txt', 'B');
+      final second = await out(['rev-parse', 'HEAD']);
+      await g(['branch', 'x', first]);
+      await g(['branch', 'y', second]);
+
+      await expectLater(
+        writer().moveBranches({
+          'x': (from: first, to: second),
+          'y': (from: first, to: second),
+        }),
+        throwsA(isA<GitException>()),
+      );
+      expect(await out(['rev-parse', 'x']), first);
+      expect(await out(['rev-parse', 'y']), second);
+    });
+
+    test('nothing to move runs nothing', () async {
+      await writer().moveBranches(const {});
+    });
+  });
 }

@@ -1565,10 +1565,10 @@ class RepoActions {
 
   /// Resets to [prev] as part of an undo, but refuses when the working tree is
   /// dirty so an undo never silently discards uncommitted work.
-  Future<void> _undoReset(String prev) async {
+  Future<void> _undoReset(String prev, {bool redo = false}) async {
     final dirty = (await _out(['status', '--porcelain'])).isNotEmpty;
     if (dirty) {
-      throw GitException(_l.actUndoDirty);
+      throw GitException(redo ? _l.actRedoDirty : _l.actUndoDirty);
     }
     await _writer.resetHard(prev);
   }
@@ -3412,10 +3412,14 @@ class RepoActions {
   /// Runs an interactive rebase of the plan [steps] onto [base]. [updateRefs]
   /// moves every branch stacked on a replayed commit along with it (see
   /// [rebaseStackedBranches]).
+  ///
+  /// [onPaused] runs once the rebase has stopped on a step of the plan — not
+  /// on a conflict — while the repository is still marked busy.
   Future<void> rebase(
     String base,
     List<RebaseStep> steps, {
     bool updateRefs = false,
+    Future<void> Function()? onPaused,
   }) async {
     // Replaying a signed commit without -S would quietly drop its signature.
     // Signing needs a configured key, though, and a rebase that dies on its
@@ -3424,11 +3428,15 @@ class RepoActions {
     final sign =
         steps.any((s) => s.sign && s.action != RebaseAction.drop) &&
         await _canSign();
-    final todo = buildRebaseTodo(
-      steps,
-      updateRefs: updateRefs ? await rebaseStackedBranches(base) : const {},
-    );
+    final stacked = updateRefs
+        ? await rebaseStackedBranches(base)
+        : const <String, List<String>>{};
+    final todo = buildRebaseTodo(steps, updateRefs: stacked);
     await _runRebase(
+      stackedBranches: {
+        for (final MapEntry(key: sha, value: names) in stacked.entries)
+          for (final name in names) name: sha,
+      },
       (cancel) => _writer.rebase(
         base,
         todo,
@@ -3441,6 +3449,7 @@ class RepoActions {
       // waits on a passphrase prompt per commit; a rebase of unsigned picks
       // alone is quick, and stopping one mid-pick gains nothing.
       cancellable: sign || todoRunsUserExec(todo),
+      onPaused: onPaused,
     );
   }
 
@@ -3617,13 +3626,18 @@ class RepoActions {
             RebaseStopKind.exec => _l.actExecFailed,
             RebaseStopKind.reword => _l.actRewordRejected,
             RebaseStopKind.breakpoint => _l.actRebaseBreak,
+            RebaseStopKind.split => _l.actSplitReady,
           },
           description: switch (stop.kind) {
             RebaseStopKind.exec => _l.actExecFailedHint(stop.command ?? ''),
             RebaseStopKind.reword => _l.actRewordRejectedHint,
             RebaseStopKind.breakpoint => _l.actBreakHint,
+            RebaseStopKind.split => _l.actSplitHint,
           },
-          kind: ToastKind.warning,
+          // A split stops where the user asked it to; nothing went wrong.
+          kind: stop.kind == RebaseStopKind.split
+              ? ToastKind.info
+              : ToastKind.warning,
         );
   }
 
@@ -3848,15 +3862,103 @@ class RepoActions {
     'HEAD',
   ], repoPath: path)).ok;
 
+  /// Whether a commit being split still has changes no part has taken. git
+  /// refuses to continue over them with a message about merge conflicts,
+  /// which there are none of. Left alone while HEAD is still the commit
+  /// itself: continuing there folds staged changes into it, as git intends.
+  Future<bool> _splitLeftovers() async {
+    if ((await _rebaseFile('amend')).trim() == await _headSha()) return false;
+    final r = await _git.run(['diff', '--quiet', 'HEAD'], repoPath: path);
+    // `--quiet` exits 1 for a difference. Anything else is git failing, which
+    // says nothing about leftovers: the continue then reports git's own error.
+    return r.exitCode == 1;
+  }
+
+  /// Splits [sha] into commits the user makes. An interactive rebase stops on
+  /// it and its changes go back to the working tree, unstaged, with its
+  /// message offered to the composer. Nothing is committed here: the user
+  /// stages and commits each part, then continues, and the commits above are
+  /// replayed on top, branches stacked on them included. Aborting puts the
+  /// branch back as it was.
+  ///
+  /// The root commit has no parent to step back to, and a merge — the commit
+  /// itself or one above it — cannot be replayed by a linear plan, so both
+  /// are refused before anything starts.
+  Future<void> splitCommit(String sha) async {
+    final toasts = _ref.read(toastProvider.notifier);
+    void refuse(String why) => toasts.show(
+      _l.actCannotSplit,
+      description: why,
+      kind: ToastKind.warning,
+    );
+    final target = await _out(['rev-parse', sha]);
+    if (!await _isAncestorOfHead(target)) {
+      toasts.show(_l.actNotOnBranch, kind: ToastKind.warning);
+      return;
+    }
+    final parent = await _out(['rev-parse', '--verify', '--quiet', '$target^']);
+    if (parent.isEmpty) return refuse(_l.actSplitRootCommit);
+    if ((await _out(['rev-parse', '--verify', '--quiet', '$target^2']))
+        .isNotEmpty) {
+      return refuse(_l.actSplitMergeCommit);
+    }
+    if (await rebaseCrossesMerge(parent)) {
+      return refuse(_l.actRewordWouldFlatten);
+    }
+    final message = (await _out(['log', '-1', '--format=%B', target])).trim();
+    final steps = [
+      for (final s in await rebaseStepsFrom(parent))
+        s.sha == target ? s.withAction(RebaseAction.edit) : s,
+    ];
+    // Branches stacked on the commit or above it move with the rewrite; one on
+    // the split commit itself ends up on its last part. The commit is taken
+    // apart while the repository is still busy, so nothing can continue the
+    // rebase past it first. A rebase already open — one sitting on an edit of
+    // its own, say — is refused and never gets this far.
+    await rebase(
+      parent,
+      steps,
+      updateRefs: true,
+      onPaused: () => _unpackSplit(message),
+    );
+  }
+
+  /// Steps a rebase stopped on a split back to the commit's parent, and offers
+  /// [message] to the composer.
+  Future<void> _unpackSplit(String message) async {
+    // git records the commit an edit stopped on; HEAD anywhere else means the
+    // stop is not that edit, and there is nothing to reset.
+    if ((await _rebaseFile('amend')).trim() != await _headSha()) return;
+    // Files the commit added stay tracked (intent-to-add). As untracked files
+    // they would block an abort: git will not overwrite untracked files when
+    // it puts the branch back.
+    try {
+      await _writer.resetMixed('HEAD^', intentToAdd: true);
+    } on GitException catch (e) {
+      _toastErr(_l.actCannotSplit, e);
+      _refresh();
+      return;
+    }
+    // The first part usually keeps most of the original intent, so its
+    // message is the place to start from.
+    _ref.read(composerPrefillProvider(path).notifier).state = message;
+    _refresh();
+  }
+
   /// Runs [op] as a rebase, with [note] added to the success toast when the
   /// result needs explaining.
   ///
   /// [cancellable] puts Cancel on the busy bar; [op] is handed the handle it
   /// cancels, or null.
+  ///
+  /// [stackedBranches] names the branches the rebase moves along, each with
+  /// the commit it pointed at before, so an undo can put them back too.
   Future<void> _runRebase(
     Future<void> Function(GitCancel? cancel) op, {
     String? note,
     bool cancellable = false,
+    Map<String, String> stackedBranches = const {},
+    Future<void> Function()? onPaused,
   }) async {
     if (_blockedByRepoOp) return;
     if (await isRebaseInProgress()) {
@@ -3879,6 +3981,12 @@ class RepoActions {
     }
     final prev = await _headSha();
     _ref.read(rebaseExecOutputProvider(path).notifier).state = null;
+    // Replaces whatever an earlier rebase left: kept until this one finishes,
+    // which may be several continues away, or is aborted.
+    _ref.read(_opStackedProvider(path).notifier).state = (
+      prev: prev,
+      branches: stackedBranches,
+    );
     final cancel = cancellable ? GitCancel() : null;
     _ref.read(busyProvider.notifier).state = BusyState(
       _l.actRebase,
@@ -3891,24 +3999,10 @@ class RepoActions {
       // for half a rebase.
       if (await isRebaseInProgress()) {
         _pausedAt(await _rebaseStop() ?? const RebaseStop.breakpoint(), prev);
+        await onPaused?.call();
         return;
       }
-      _ref
-          .read(undoProvider(path).notifier)
-          .record(
-            UndoEntry(
-              _l.actRebase,
-              undo: () async {
-                await _undoReset(prev);
-                _refresh();
-              },
-              // Re-run the same rebase op to redo it.
-              redo: () async {
-                await op(null);
-                _refresh();
-              },
-            ),
-          );
+      await _recordFinishUndo(prev, _l.actRebase, rebase: true);
       _refresh();
       _ref
           .read(toastProvider.notifier)
@@ -3944,6 +4038,7 @@ class RepoActions {
         // started) undoes the rebase: the branch goes back exactly as it was.
         if (e is GitCancelledException && !requeued) {
           if (await isRebaseInProgress()) await _writer.rebaseAbort();
+          _ref.read(_opStackedProvider(path).notifier).state = null;
           _refresh();
           _ref
               .read(toastProvider.notifier)
@@ -3975,6 +4070,7 @@ class RepoActions {
         // failure. Clear any state directory git left, which would otherwise
         // poison every later rebase.
         if (await isRebaseInProgress()) await _writer.rebaseAbort();
+        _ref.read(_opStackedProvider(path).notifier).state = null;
         _toastErr(_l.actRebase, e);
         return;
       }
@@ -4352,6 +4448,16 @@ class RepoActions {
     final pending = await pendingOp();
     if (pending == null || !pending.continues) return;
     if (_blockedByRepoOp) return;
+    if (pending.stop?.kind == RebaseStopKind.split && await _splitLeftovers()) {
+      _ref
+          .read(toastProvider.notifier)
+          .show(
+            _l.actSplitUnfinished,
+            description: _l.actSplitUnfinishedHint,
+            kind: ToastKind.warning,
+          );
+      return;
+    }
     final label = switch (pending.kind) {
       MergeKind.rebase => _l.actContinueRebase,
       MergeKind.cherryPick => _l.actContinueCherryPick(pending.branch),
@@ -4479,11 +4585,15 @@ class RepoActions {
         pending.kind == MergeKind.rebase ||
         (base != null && await _headSha() != base);
     if (base != null && moved) {
-      await _recordFinishUndo(base, switch (pending.kind) {
-        MergeKind.rebase => _l.actRebase,
-        MergeKind.cherryPick => _l.actCherryPick(pending.branch),
-        _ => _l.actRevert(pending.branch),
-      });
+      await _recordFinishUndo(
+        base,
+        rebase: pending.kind == MergeKind.rebase,
+        switch (pending.kind) {
+          MergeKind.rebase => _l.actRebase,
+          MergeKind.cherryPick => _l.actCherryPick(pending.branch),
+          _ => _l.actRevert(pending.branch),
+        },
+      );
     }
     _ref.read(_opBaseProvider(path).notifier).state = null;
     _refresh();
@@ -4866,8 +4976,20 @@ class RepoActions {
   /// Records the undo/redo entry for a completed merge/rebase: undo resets the
   /// branch back to [prev]; redo fast-forwards to the finished result (which
   /// survives in the reflog).
-  Future<void> _recordFinishUndo(String prev, String label) async {
+  /// [rebase] when a rebase is what finished: only that can have moved
+  /// stacked branches, and only the one started from [prev] may claim them.
+  Future<void> _recordFinishUndo(
+    String prev,
+    String label, {
+    bool rebase = false,
+  }) async {
     final after = await _headSha();
+    final stacked = _ref.read(_opStackedProvider(path));
+    final before = rebase && stacked != null && stacked.prev == prev
+        ? stacked.branches
+        : const <String, String>{};
+    final moved = await _branchTips(before.keys);
+    _ref.read(_opStackedProvider(path).notifier).state = null;
     _ref
         .read(undoProvider(path).notifier)
         .record(
@@ -4875,14 +4997,51 @@ class RepoActions {
             label,
             undo: () async {
               await _undoReset(prev);
+              await _moveBranchesBack(moved, before);
               _refresh();
             },
+            // Guarded like undo: the hard reset would otherwise throw away
+            // whatever the user changed after undoing.
             redo: () async {
-              await _writer.resetHard(after);
+              await _undoReset(after, redo: true);
+              await _moveBranchesBack(before, moved);
               _refresh();
             },
           ),
         );
+  }
+
+  /// Where each local branch in [names] points now; a branch that no longer
+  /// exists is left out.
+  Future<Map<String, String>> _branchTips(Iterable<String> names) async {
+    final wanted = names.toSet();
+    if (wanted.isEmpty) return const {};
+    final out = <String, String>{};
+    for (final line in (await _out([
+      'for-each-ref',
+      '--format=%(objectname)%00%(refname)',
+      'refs/heads',
+    ])).split('\n')) {
+      final parts = line.split('\x00');
+      if (parts.length != 2) continue;
+      final name = parts[1].replaceFirst('refs/heads/', '');
+      if (wanted.contains(name)) out[name] = parts[0];
+    }
+    return out;
+  }
+
+  /// Moves each branch still at its [from] commit to its [to] commit. One the
+  /// user has moved or deleted since is theirs now and stays where it is.
+  Future<void> _moveBranchesBack(
+    Map<String, String> from,
+    Map<String, String> to,
+  ) async {
+    final now = await _branchTips(from.keys);
+    await _writer.moveBranches({
+      for (final MapEntry(key: name, value: sha) in from.entries)
+        if (now[name] == sha && to[name] != null && to[name] != sha)
+          name: (from: sha, to: to[name]!),
+    });
   }
 
   /// Opens a conflict-resolution session for any conflicted files already in
@@ -4951,6 +5110,7 @@ class RepoActions {
     }
     _ref.read(mergeSessionProvider(path).notifier).state = null;
     _ref.read(_opBaseProvider(path).notifier).state = null;
+    _ref.read(_opStackedProvider(path).notifier).state = null;
     _ref.read(rebaseExecOutputProvider(path).notifier).state = null;
     _refresh();
   }
@@ -5098,6 +5258,16 @@ class RepoActions {
 final _opBaseProvider = StateProvider.family<String?, String>(
   (ref, path) => null,
 );
+
+/// The branches a rebase in progress moves along, each with the commit it
+/// pointed at before the rebase started, for its undo to put back. [prev] is
+/// HEAD when that rebase started, so a finish can tell it is the same one.
+/// Null when no rebase started here is open.
+final _opStackedProvider =
+    StateProvider.family<
+      ({String prev, Map<String, String> branches})?,
+      String
+    >((ref, path) => null);
 
 /// What the exec step a rebase stopped on printed, kept until the rebase is
 /// continued or aborted so the user can read why it failed. Null when the

@@ -312,6 +312,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get menuEditMessage => 'Edit message…';
 
   @override
+  String get menuSplitCommit => 'Split commit…';
+
+  @override
   String get menuCopySummary => 'Copy summary';
 
   @override
@@ -347,6 +350,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get rewordPushedConfirm => 'Rewrite anyway';
+
+  @override
+  String splitPushedBody(String branches) {
+    return 'This commit is already on $branches. Splitting it rewrites history, so the branch will need a force push and anyone who pulled it will have to reset.';
+  }
 
   @override
   String get mergeResolveConflicts => 'Resolve conflicts';
@@ -1486,6 +1494,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'The rebase is paused: the new message for a commit was rejected, usually by a commit hook. Amend the message yourself, or continue to keep the old one.';
 
   @override
+  String get wtpSplitPausedBody =>
+      'The rebase is paused on a commit to edit. When splitting it, its changes are back in the working tree, unstaged: stage and commit them in as many parts as you like, then continue.';
+
+  @override
   String wtpExecFailedBody(String command) {
     return 'The exec step `$command` failed. Fix the problem and commit the fix, then continue — the command is not run again.';
   }
@@ -2556,6 +2568,9 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get rbBreak =>
       'pause here so you can look around or amend, then continue';
+
+  @override
+  String get rbEdit => 'stop on this commit so it can be split into several';
 
   @override
   String get rbPresetAsIs => 'Move commits as-is';
@@ -5051,6 +5066,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Uncommitted changes — commit or stash before undoing';
 
   @override
+  String get actRedoDirty =>
+      'Uncommitted changes — commit or stash before redoing';
+
+  @override
   String get actUndo => 'Undo';
 
   @override
@@ -5428,6 +5447,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Look around or amend, then continue from the Changes panel.';
 
   @override
+  String get actSplitReady => 'Commit ready to split';
+
+  @override
+  String get actSplitHint =>
+      'Stage and commit its changes in parts, then continue from the Changes panel.';
+
+  @override
   String get actCommitMessageEmpty => 'Commit message is empty';
 
   @override
@@ -5442,6 +5468,23 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get actRewordWouldFlatten =>
       'Rewriting it would replay a merge commit, which would flatten the history above it.';
+
+  @override
+  String get actCannotSplit => 'Cannot split this commit';
+
+  @override
+  String get actSplitRootCommit =>
+      'The first commit of the history has no parent to split it against.';
+
+  @override
+  String get actSplitMergeCommit => 'A merge commit cannot be split.';
+
+  @override
+  String get actSplitUnfinished => 'Changes left over';
+
+  @override
+  String get actSplitUnfinishedHint =>
+      'Commit the remaining changes as another part, or discard them, then continue.';
 
   @override
   String get actRebaseInProgress => 'A rebase is already in progress';
