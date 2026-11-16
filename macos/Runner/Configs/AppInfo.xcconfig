@@ -11,7 +11,7 @@ PRODUCT_NAME = Mergelio
 PRODUCT_BUNDLE_IDENTIFIER = com.mergelio.mergelio
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 com.mergelio. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 Serhii Kotenko
 
 // Code signing. SigningDefaults.xcconfig ships ad-hoc values so that a fresh
 // clone builds without an Apple Developer account. Signing.xcconfig is written

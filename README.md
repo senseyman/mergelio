@@ -8,6 +8,8 @@
 
 [mergelio.com](https://mergelio.com/) · [Download](https://github.com/senseyman/mergelio/releases/latest)
 
+Created and maintained by **Serhii Kotenko** ([@senseyman](https://github.com/senseyman)).
+
 
 [![License: BSD-3-Clause](https://img.shields.io/badge/license-BSD--3--Clause-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey.svg)](#installation)
@@ -849,4 +851,4 @@ Conventions worth knowing before your first PR:
 
 ## License
 
-[BSD-3-Clause](LICENSE) © 2026 Neo.
+[BSD-3-Clause](LICENSE) © 2026 Serhii Kotenko ([@senseyman](https://github.com/senseyman)).

@@ -24,7 +24,7 @@
   #define AppName "Mergelio"
 #endif
 #define AppExe "Mergelio.exe"
-#define AppPublisher "Neo"
+#define AppPublisher "Serhii Kotenko"
 #define AppUrl "https://github.com/senseyman/mergelio"
 
 [Setup]
