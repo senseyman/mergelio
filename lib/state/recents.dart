@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import '../data/app_database.dart';
+import '../domain/path_key.dart';
 
 part 'recents.freezed.dart';
 part 'recents.g.dart';
@@ -45,6 +46,17 @@ class RecentsRepository {
   Future<void> save(List<RecentRepo> items) =>
       db.putValue(_key, jsonEncode(items.map((e) => e.toJson()).toList()));
 }
+
+/// The recent repositories worth offering to reopen, in their stored order:
+/// every one not already open in a tab. An open one is a click away in the tab
+/// strip, and "reopening" it would only switch to that tab.
+List<RecentRepo> recentsToOffer(
+  List<RecentRepo> recents,
+  Iterable<String> openPaths,
+) => [
+  for (final r in recents)
+    if (!openPaths.any((open) => samePath(open, r.path))) r,
+];
 
 class RecentsController extends StateNotifier<List<RecentRepo>> {
   final RecentsRepository repo;
