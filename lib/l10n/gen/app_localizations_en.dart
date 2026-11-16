@@ -1999,9 +1999,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get forgeOpenInBrowser => 'Open in browser';
 
   @override
-  String get forgeReviewInApp => 'Review in Mergelio';
-
-  @override
   String forgeCheckoutLocally(String branch) {
     return 'Check out locally as $branch';
   }

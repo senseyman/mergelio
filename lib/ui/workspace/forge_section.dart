@@ -343,7 +343,6 @@ class _PullRequestRowState extends State<_PullRequestRow> {
       context: context,
       position: at,
       items: [
-        item(l.forgeReviewInApp, widget.onReview),
         item(l.forgeOpenInBrowser, widget.onOpen),
         item(
           // Already on it, the same action brings the branch up to date.

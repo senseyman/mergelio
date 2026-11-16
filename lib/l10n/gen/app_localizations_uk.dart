@@ -2011,9 +2011,6 @@ class AppLocalizationsUk extends AppLocalizations {
   String get forgeOpenInBrowser => 'Відкрити у браузері';
 
   @override
-  String get forgeReviewInApp => 'Переглянути в Mergelio';
-
-  @override
   String forgeCheckoutLocally(String branch) {
     return 'Переключитися локально на $branch';
   }

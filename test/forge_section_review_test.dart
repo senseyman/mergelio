@@ -173,16 +173,15 @@ void main() {
     expect(c.read(reviewTargetProvider)?.head, 'H');
   });
 
-  testWidgets('the menu still reviews the request in the app', (tester) async {
-    final (c, fetches, opened) = await _pump(tester, _github);
+  testWidgets('the menu does not repeat what a click already does', (
+    tester,
+  ) async {
+    await _pump(tester, _github);
 
     await _menu(tester);
-    await tester.tap(find.text('Review in Mergelio'));
-    await tester.pumpAndSettle();
 
-    expect(fetches, hasLength(1));
-    expect(c.read(reviewTargetProvider)?.head, 'H');
-    expect(opened, isEmpty);
+    expect(find.text('Open in browser'), findsOneWidget);
+    expect(find.text('Review in Mergelio'), findsNothing);
   });
 
   testWidgets('the menu opens the request in the browser instead', (

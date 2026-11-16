@@ -645,7 +645,6 @@
   "forgeCouldNotOpenMr": "Не вдалося відкрити запит на злиття у браузері",
   "forgeCouldNotOpenIssue": "Не вдалося відкрити тікет у браузері",
   "forgeOpenInBrowser": "Відкрити у браузері",
-  "forgeReviewInApp": "Переглянути в Mergelio",
   "forgeCheckoutLocally": "Переключитися локально на {branch}",
   "forgeUpdateLocal": "Оновити {branch}",
   "forgeReplaceLocalTitle": "Замінити {branch}?",

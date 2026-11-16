@@ -1368,7 +1368,6 @@
   "forgeCouldNotOpenMr": "Could not open the merge request in your browser",
   "forgeCouldNotOpenIssue": "Could not open issue in browser",
   "forgeOpenInBrowser": "Open in browser",
-  "forgeReviewInApp": "Review in Mergelio",
   "forgeCheckoutLocally": "Check out locally as {branch}",
   "@forgeCheckoutLocally": {"placeholders": {"branch": {"type": "String"}}},
   "forgeUpdateLocal": "Update {branch}",
