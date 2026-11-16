@@ -420,6 +420,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shellCreateRepoMenu => 'Create…';
 
   @override
+  String get shellOpenRecentMenu => 'Open recent';
+
+  @override
   String get shellRepoGroup => 'Repo group';
 
   @override

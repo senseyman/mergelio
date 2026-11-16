@@ -201,6 +201,7 @@
   "shellOpenRepoMenu": "Відкрити…",
   "shellCloneRepoMenu": "Клонувати…",
   "shellCreateRepoMenu": "Створити…",
+  "shellOpenRecentMenu": "Відкрити нещодавні",
   "shellRepoGroup": "Група репозиторіїв",
   "shellAllGroups": "Усі",
   "shellNewGroup": "Нова група",

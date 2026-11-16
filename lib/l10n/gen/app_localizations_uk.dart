@@ -422,6 +422,9 @@ class AppLocalizationsUk extends AppLocalizations {
   String get shellCreateRepoMenu => 'Створити…';
 
   @override
+  String get shellOpenRecentMenu => 'Відкрити нещодавні';
+
+  @override
   String get shellRepoGroup => 'Група репозиторіїв';
 
   @override

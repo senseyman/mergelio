@@ -222,6 +222,7 @@
   "shellOpenRepoMenu": "Open…",
   "shellCloneRepoMenu": "Clone…",
   "shellCreateRepoMenu": "Create…",
+  "shellOpenRecentMenu": "Open recent",
   "shellRepoGroup": "Repo group",
   "shellAllGroups": "All",
   "shellNewGroup": "New group",

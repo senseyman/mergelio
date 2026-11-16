@@ -2,6 +2,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mergelio/data/app_database.dart';
+import 'package:mergelio/state/recents.dart';
 import 'package:mergelio/core/tokens.dart';
 import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
@@ -9,6 +11,15 @@ import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
 import 'package:mergelio/state/workspace.dart';
 import 'package:mergelio/ui/shell/app_tab_bar.dart';
+
+class _MemoryRecents implements RecentsRepository {
+  @override
+  AppDatabase get db => throw UnimplementedError();
+  @override
+  Future<List<RecentRepo>> load() async => const [];
+  @override
+  Future<void> save(List<RecentRepo> items) async {}
+}
 
 void main() {
   late ProviderContainer container;
@@ -21,6 +32,10 @@ void main() {
   }) async {
     container = ProviderContainer(
       overrides: [
+        // The + menu lists recent repositories; none are needed here.
+        recentsProvider.overrideWith(
+          (ref) => RecentsController(_MemoryRecents(), const []),
+        ),
         settingsProvider.overrideWith(
           (ref) => SettingsController(
             InMemorySettingsRepository(),
