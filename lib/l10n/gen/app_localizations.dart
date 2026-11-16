@@ -6584,6 +6584,12 @@ abstract class AppLocalizations {
   /// **'Mergelio could not read this request: origin is no longer on a forge it recognises.'**
   String get rvPrNoForge;
 
+  /// No description provided for @issueViewNoForge.
+  ///
+  /// In en, this message translates to:
+  /// **'Mergelio could not read this issue: origin is no longer on a forge it recognises.'**
+  String get issueViewNoForge;
+
   /// No description provided for @rvPrStateOpen.
   ///
   /// In en, this message translates to:
