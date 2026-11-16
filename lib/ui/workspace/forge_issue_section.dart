@@ -7,8 +7,10 @@ import '../../l10n/gen/app_localizations.dart';
 import '../../state/feedback.dart';
 import '../../state/forge.dart';
 import '../../state/forge_refresh.dart';
+import '../../state/issue_view.dart';
 import '../../state/settings.dart';
 import '../../state/settings_controller.dart';
+import '../common/dialogs.dart';
 import 'forge_presentation.dart';
 import 'sidebar_section.dart';
 
@@ -88,6 +90,11 @@ class ForgeIssueSection extends ConsumerWidget {
                   for (final issue in issues)
                     _IssueRow(
                       issue: issue,
+                      onView: () =>
+                          ref.read(issueTargetProvider.notifier).state = (
+                            repoPath: repoPath,
+                            number: issue.number,
+                          ),
                       // Built from the locally-resolved [host] and a plain
                       // int, never from a string the forge sent back —
                       // nothing here can redirect this tap anywhere the
@@ -119,9 +126,18 @@ class ForgeIssueSection extends ConsumerWidget {
 
 class _IssueRow extends StatelessWidget {
   final Issue issue;
+
+  /// Opens the issue in the centre column, inside the app.
+  final VoidCallback onView;
+
+  /// Opens the issue on the forge, in the browser.
   final VoidCallback onOpen;
 
-  const _IssueRow({required this.issue, required this.onOpen});
+  const _IssueRow({
+    required this.issue,
+    required this.onView,
+    required this.onOpen,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -131,45 +147,68 @@ class _IssueRow extends StatelessWidget {
       forgeAgo(AppLocalizations.of(context), issue.updatedAt),
       ...issue.labels,
     ]);
-    return InkWell(
-      onTap: onOpen,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(
-                  '#${issue.number}',
-                  style: TextStyle(color: t.textMuted, fontSize: 12),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
+    // A click reads the issue here in the app; the browser waits behind a
+    // right-click.
+    return GestureDetector(
+      onSecondaryTapUp: (d) => _menu(context, d.globalPosition),
+      child: InkWell(
+        onTap: onView,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    '#${issue.number}',
+                    style: TextStyle(color: t.textMuted, fontSize: 12),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      issue.title,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: t.textPrimary, fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+              // One line beneath the title carrying everything secondary, with
+              // the labels last: they are the longest and the most expendable,
+              // so an overlong list ellipsises instead of pushing the author
+              // and the age out of view.
+              if (meta.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
                   child: Text(
-                    issue.title,
+                    meta,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: t.textPrimary, fontSize: 13),
+                    style: TextStyle(color: t.textFaint, fontSize: 11),
                   ),
                 ),
-              ],
-            ),
-            // One line beneath the title carrying everything secondary, with
-            // the labels last: they are the longest and the most expendable,
-            // so an overlong list ellipsises instead of pushing the author
-            // and the age out of view.
-            if (meta.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Text(
-                  meta,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: t.textFaint, fontSize: 11),
-                ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  Future<void> _menu(BuildContext context, Offset at) {
+    final l = AppLocalizations.of(context);
+    return showContextMenu<void>(
+      context: context,
+      position: at,
+      items: [
+        PopupMenuItem(
+          height: 34,
+          onTap: onOpen,
+          child: Text(
+            l.forgeOpenInBrowser,
+            style: const TextStyle(fontSize: 13),
+          ),
+        ),
+      ],
     );
   }
 }
