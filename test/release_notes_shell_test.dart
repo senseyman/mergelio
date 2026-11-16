@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/core/tokens.dart';
-import 'package:mergelio/data/app_database.dart';
 import 'package:mergelio/data/kv_store.dart';
 import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
@@ -21,14 +20,7 @@ import 'package:pub_semver/pub_semver.dart';
 
 import 'helpers/update_fakes.dart';
 
-class _MemoryRecents implements RecentsRepository {
-  @override
-  AppDatabase get db => throw UnimplementedError();
-  @override
-  Future<List<RecentRepo>> load() async => const [];
-  @override
-  Future<void> save(List<RecentRepo> items) async {}
-}
+import 'support/memory_recents.dart';
 
 class _FakeGit implements GitService {
   @override
@@ -87,7 +79,7 @@ void main() {
           (ref) => fakeUpdateController(const UpdateIdle()),
         ),
         recentsProvider.overrideWith(
-          (ref) => RecentsController(_MemoryRecents(), const []),
+          (ref) => RecentsController(MemoryRecents(), const []),
         ),
         releaseNotesLaunchProvider.overrideWith((ref) async {
           runs++;
