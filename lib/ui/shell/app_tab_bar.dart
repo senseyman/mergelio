@@ -278,15 +278,20 @@ class AddRepositoryMenu extends ConsumerWidget {
           child: Text(l.shellOpenRecentMenu),
         ),
       ],
+      // An icon-only control: without the button role a screen reader hears
+      // only the tooltip, not that it can be pressed.
       builder: (context, controller, _) => Tooltip(
         message: l.shellAddRepository,
-        child: InkWell(
-          onTap: () =>
-              controller.isOpen ? controller.close() : controller.open(),
-          child: const SizedBox(
-            width: 28,
-            height: 28,
-            child: Icon(Icons.add, size: 16),
+        child: Semantics(
+          button: true,
+          child: InkWell(
+            onTap: () =>
+                controller.isOpen ? controller.close() : controller.open(),
+            child: const SizedBox(
+              width: 28,
+              height: 28,
+              child: Icon(Icons.add, size: 16),
+            ),
           ),
         ),
       ),

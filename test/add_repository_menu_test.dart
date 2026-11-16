@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/core/tokens.dart';
-import 'package:mergelio/data/app_database.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/domain/git/git_service.dart';
 import 'package:mergelio/l10n/gen/app_localizations.dart';
@@ -10,6 +9,8 @@ import 'package:mergelio/state/feedback.dart';
 import 'package:mergelio/state/recents.dart';
 import 'package:mergelio/state/workspace.dart';
 import 'package:mergelio/ui/shell/app_tab_bar.dart';
+
+import 'support/memory_recents.dart';
 
 /// Every folder is a repository except one whose path says it is gone.
 class _FakeGit implements GitService {
@@ -30,15 +31,6 @@ class _FakeGit implements GitService {
   Future<bool> isRepository(String path) async => !path.contains('gone');
 }
 
-class _MemoryRecents implements RecentsRepository {
-  @override
-  AppDatabase get db => throw UnimplementedError();
-  @override
-  Future<List<RecentRepo>> load() async => const [];
-  @override
-  Future<void> save(List<RecentRepo> items) async {}
-}
-
 const _alpha = RecentRepo(name: 'alpha', path: '/r/alpha');
 const _beta = RecentRepo(name: 'beta', path: '/r/beta');
 
@@ -54,7 +46,7 @@ Future<ProviderContainer> _pump(
     overrides: [
       gitServiceProvider.overrideWithValue(_FakeGit()),
       recentsProvider.overrideWith(
-        (ref) => RecentsController(_MemoryRecents(), recents),
+        (ref) => RecentsController(MemoryRecents(), recents),
       ),
     ],
   );
@@ -187,5 +179,27 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text(long), findsOneWidget);
+  });
+
+  testWidgets('the menu opens below the + rather than over it', (tester) async {
+    await _pump(tester);
+    final button = tester.getRect(find.byTooltip('Add repository'));
+
+    await tester.tap(find.byTooltip('Add repository'));
+    await tester.pumpAndSettle();
+
+    final first = tester.getRect(find.text('Open…'));
+    expect(first.top, greaterThanOrEqualTo(button.bottom));
+  });
+
+  testWidgets('the + reads as a button to assistive tech', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await _pump(tester);
+
+    expect(
+      tester.getSemantics(find.byTooltip('Add repository')),
+      isSemantics(isButton: true, tooltip: 'Add repository'),
+    );
+    semantics.dispose();
   });
 }

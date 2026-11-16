@@ -33,4 +33,18 @@ void main() {
   test('nothing recent offers nothing', () {
     expect(recentsToOffer(const [], const ['/r/a']), isEmpty);
   });
+
+  test('normalises each path once, not once per pair', () {
+    // Normalising resolves symlinks on disk, and this runs while the tab bar
+    // builds; a pairwise compare would do recents × tabs filesystem calls.
+    var calls = 0;
+    String key(String path) {
+      calls++;
+      return path;
+    }
+
+    recentsToOffer([_a, _b, _c], const ['/x', '/y', '/z', '/w'], key: key);
+
+    expect(calls, 3 + 4);
+  });
 }
