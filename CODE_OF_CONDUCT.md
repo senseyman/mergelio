@@ -63,7 +63,7 @@ the maintainer designates.
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported to the maintainer, [@senseyman](https://github.com/senseyman), at
+reported to the maintainer, Serhii Kotenko ([@senseyman](https://github.com/senseyman)), at
 regentguy.developer@gmail.com. All complaints will be reviewed and investigated
 promptly and fairly.
 

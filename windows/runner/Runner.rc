@@ -89,11 +89,11 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.mergelio" "\0"
+            VALUE "CompanyName", "Serhii Kotenko" "\0"
             VALUE "FileDescription", "Mergelio" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "Mergelio" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.mergelio. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Serhii Kotenko" "\0"
             VALUE "OriginalFilename", "Mergelio.exe" "\0"
             VALUE "ProductName", "Mergelio" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"

@@ -26,7 +26,7 @@ DIST_DIR=${DIST_DIR:-dist}
 APP_ID=${APP_ID:-com.mergelio.mergelio}
 PKG_NAME=${PKG_NAME:-mergelio}
 INSTALL_ROOT=${INSTALL_ROOT:-/opt/${PKG_NAME}}
-MAINTAINER=${MAINTAINER:-Neo <noreply@github.com>}
+MAINTAINER=${MAINTAINER:-Serhii Kotenko <regentguy.developer@gmail.com>}
 HOMEPAGE=${HOMEPAGE:-https://github.com/senseyman/mergelio}
 
 # ─── Preflight ───────────────────────────────────────────────────────────────
