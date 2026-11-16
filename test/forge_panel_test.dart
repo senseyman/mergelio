@@ -30,6 +30,9 @@ class _FakeForge implements Forge {
   Future<PullRequestDetail> pullRequest(int number) =>
       throw UnimplementedError();
 
+  @override
+  Future<IssueDetail> issue(int number) => throw UnimplementedError();
+
   String? trunk;
 
   @override

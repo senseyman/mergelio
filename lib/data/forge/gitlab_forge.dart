@@ -236,4 +236,29 @@ class GitlabForge implements Forge {
     }
     return parseGitlabIssues(items).take(limit).toList(growable: false);
   }
+
+  @override
+  Future<IssueDetail> issue(int number) {
+    // Checked before anything goes out, and thrown rather than returned as a
+    // failed future, so a bad number is a caller's bug and never a request.
+    if (number < 1) {
+      throw ArgumentError.value(number, 'number', 'must be positive');
+    }
+    return _readIssue(number);
+  }
+
+  Future<IssueDetail> _readIssue(int number) async {
+    // Addressed by iid, the number a person sees; the global id would name a
+    // different issue.
+    final url = Uri.parse(
+      '${host.server.apiBase}/projects'
+      '/${Uri.encodeComponent(host.projectPath)}/issues/$number',
+    );
+    final body = await fetchWithCache(_http, _cache, url);
+    final detail = parseGitlabIssueDetail(_decode(body));
+    if (detail == null || detail.issue.number != number) {
+      throw const ForgeMalformed('response did not describe the issue');
+    }
+    return detail;
+  }
 }

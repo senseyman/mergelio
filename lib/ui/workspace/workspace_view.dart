@@ -16,7 +16,9 @@ import '../graph/graph_view.dart';
 import '../shell/collapsed_rail.dart';
 import '../shell/resize_handle.dart';
 import '../../state/compare_target.dart';
+import '../../state/issue_view.dart';
 import '../../state/review.dart';
+import '../issue/issue_view.dart';
 import '../review/review_view.dart';
 import 'commit_details.dart';
 import 'lfs_locks_section.dart';
@@ -130,17 +132,61 @@ class DiffSheetSlot extends ConsumerWidget {
   }
 }
 
-/// What the centre column shows under the diff sheet: an open review of this
-/// repository, else the graph. A review left open in another tab stays there.
+/// What the centre column can show under the diff sheet.
+enum CenterPane { graph, review, issue }
+
+/// Which pane the centre column shows for the repository at [path]: an open
+/// issue of that repository, else an open review of it, else the graph. One
+/// left open by another repository stays with that repository's tab.
+CenterPane centerPaneFor({
+  required String? path,
+  required ReviewTarget? review,
+  required IssueTarget? issue,
+}) {
+  if (issue != null && issue.repoPath == path) return CenterPane.issue;
+  if (review != null && review.repoPath == path) return CenterPane.review;
+  return CenterPane.graph;
+}
+
+/// Keeps one thing open in the centre column at a time: opening an issue puts
+/// an open review away, and opening a review puts an open issue away.
+///
+/// Lives here, around the centre column, rather than in each opener, so every
+/// way of opening a review — a pull request click, the picker, the palette, a
+/// notification — gets the same rule without knowing issues exist.
+class LastOpenedWins extends ConsumerWidget {
+  final Widget child;
+  const LastOpenedWins({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.listen(issueTargetProvider, (_, next) {
+      if (next != null) ref.read(reviewTargetProvider.notifier).state = null;
+    });
+    ref.listen(reviewTargetProvider, (_, next) {
+      if (next != null) ref.read(issueTargetProvider.notifier).state = null;
+    });
+    return child;
+  }
+}
+
 class _CenterContent extends ConsumerWidget {
   const _CenterContent();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final path = ref.watch(workspaceProvider).activeTab?.path;
-    final review = ref.watch(reviewTargetProvider);
-    if (review != null && review.repoPath == path) return const ReviewView();
-    return const GraphView();
+    final pane = centerPaneFor(
+      path: ref.watch(workspaceProvider).activeTab?.path,
+      review: ref.watch(reviewTargetProvider),
+      issue: ref.watch(issueTargetProvider),
+    );
+    return LastOpenedWins(
+      child: switch (pane) {
+        CenterPane.issue => const IssueView(),
+        CenterPane.review => const ReviewView(),
+        CenterPane.graph => const GraphView(),
+      },
+    );
   }
 }
 

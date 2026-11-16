@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,6 +15,7 @@ import 'package:mergelio/l10n/gen/app_localizations.dart';
 import 'package:mergelio/state/feedback.dart';
 import 'package:mergelio/state/forge.dart';
 import 'package:mergelio/state/forge_refresh.dart';
+import 'package:mergelio/state/issue_view.dart';
 import 'package:mergelio/state/settings.dart';
 import 'package:mergelio/state/settings_controller.dart';
 import 'package:mergelio/ui/workspace/forge_issue_section.dart';
@@ -72,8 +74,16 @@ Future<void> _pump(
   await tester.pump();
 }
 
+/// A plain click opens the issue in the app; the browser sits behind the
+/// right-click menu.
+Future<void> _openInBrowser(WidgetTester tester, String title) async {
+  await tester.tap(find.text(title), buttons: kSecondaryButton);
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Open in browser'));
+}
+
 void main() {
-  testWidgets('tapping a row opens that issue on the web', (t) async {
+  testWidgets('the menu opens that issue on the web', (t) async {
     final opened = <Uri>[];
     await _pump(
       t,
@@ -88,7 +98,7 @@ void main() {
     );
     await t.pumpAndSettle();
 
-    await t.tap(find.text('issue 12'));
+    await _openInBrowser(t, 'issue 12');
     await t.pumpAndSettle();
 
     expect(
@@ -100,7 +110,7 @@ void main() {
     );
   });
 
-  testWidgets('a tap nothing can handle says so', (t) async {
+  testWidgets('a browser launch nothing can handle says so', (t) async {
     await _pump(
       t,
       overrides: [
@@ -115,7 +125,7 @@ void main() {
       t.element(find.byType(ForgeIssueSection)),
     );
 
-    await t.tap(find.text('issue 12'));
+    await _openInBrowser(t, 'issue 12');
     await t.pump();
 
     // Without this the tap looks like it simply did nothing.
@@ -124,6 +134,60 @@ void main() {
     // Naming issues, not pull requests: this section began as a copy of
     // that one, and the borrowed string would still read plausibly here.
     expect(container.read(toastProvider).single.title, contains('issue'));
+  });
+
+  testWidgets('a plain click opens the issue in the app', (t) async {
+    final opened = <Uri>[];
+    await _pump(
+      t,
+      overrides: [
+        forgeHostProvider.overrideWith((ref, path) async => _host),
+        issuePanelProvider.overrideWith((ref, path) async => [_issue(12)]),
+        forgeLaunchUrlProvider.overrideWithValue((url) async {
+          opened.add(url);
+          return true;
+        }),
+      ],
+    );
+    await t.pumpAndSettle();
+    final container = ProviderScope.containerOf(
+      t.element(find.byType(ForgeIssueSection)),
+    );
+
+    await t.tap(find.text('issue 12'));
+    await t.pumpAndSettle();
+
+    expect(container.read(issueTargetProvider), (
+      repoPath: '/repo',
+      number: 12,
+    ));
+    expect(opened, isEmpty);
+  });
+
+  testWidgets('a right-click alone opens nothing', (t) async {
+    final opened = <Uri>[];
+    await _pump(
+      t,
+      overrides: [
+        forgeHostProvider.overrideWith((ref, path) async => _host),
+        issuePanelProvider.overrideWith((ref, path) async => [_issue(12)]),
+        forgeLaunchUrlProvider.overrideWithValue((url) async {
+          opened.add(url);
+          return true;
+        }),
+      ],
+    );
+    await t.pumpAndSettle();
+    final container = ProviderScope.containerOf(
+      t.element(find.byType(ForgeIssueSection)),
+    );
+
+    await t.tap(find.text('issue 12'), buttons: kSecondaryButton);
+    await t.pumpAndSettle();
+
+    expect(find.text('Open in browser'), findsOneWidget);
+    expect(container.read(issueTargetProvider), isNull);
+    expect(opened, isEmpty);
   });
 
   testWidgets('a row says who filed it and how long ago', (t) async {

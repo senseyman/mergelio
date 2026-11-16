@@ -2462,6 +2462,7 @@
   "rvPrRetargeted": "The request now targets {now}; this review reads it against {was}. Open it again to compare with {now}.",
   "@rvPrRetargeted": {"placeholders": {"now": {"type": "String"}, "was": {"type": "String"}}},
   "rvPrNoForge": "Mergelio could not read this request: origin is no longer on a forge it recognises.",
+  "issueViewNoForge": "Mergelio could not read this issue: origin is no longer on a forge it recognises.",
   "rvPrStateOpen": "Open",
   "rvPrStateDraft": "Draft",
   "rvPrStateMerged": "Merged",

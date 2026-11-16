@@ -3984,6 +3984,10 @@ class AppLocalizationsUk extends AppLocalizations {
       'Mergelio не вдалося прочитати цей запит: origin більше не на платформі, яку він розпізнає.';
 
   @override
+  String get issueViewNoForge =>
+      'Mergelio не вдалося прочитати цей тікет: origin більше не на платформі, яку він розпізнає.';
+
+  @override
   String get rvPrStateOpen => 'Відкритий';
 
   @override

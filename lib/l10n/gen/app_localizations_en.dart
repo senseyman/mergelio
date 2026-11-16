@@ -3930,6 +3930,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Mergelio could not read this request: origin is no longer on a forge it recognises.';
 
   @override
+  String get issueViewNoForge =>
+      'Mergelio could not read this issue: origin is no longer on a forge it recognises.';
+
+  @override
   String get rvPrStateOpen => 'Open';
 
   @override

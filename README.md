@@ -337,9 +337,13 @@ change never needs a second window.*
   Server** or **self-managed GitLab** is recognised once you add it as an
   account (below); any other remote shows no section at all.
 - An issues section alongside it, and a refresh control for both.
-- An issue row opens the real issue in your browser. A pull/merge request
-  row opens in Mergelio (below); right-click it → **Open in browser** for the
-  forge's own page.
+- Rows open inside Mergelio; right-click one → **Open in browser** for the
+  forge's own page. A pull/merge request opens in the branch review (below).
+- Click an issue row to read the issue in the centre column, in place of the
+  graph: its number, title, open/closed state, author, age and labels, and
+  the description rendered as Markdown. One request per issue opened, and a
+  refresh control to read it again. Opening a review puts an open issue away,
+  and the other way round. Read-only; comments are not shown.
 - **Create pull request…** (**Create merge request…** on GitLab) on a branch's
   right-click menu opens the forge's own new-request page for it, in your
   browser — no token needed, nothing is created until you submit it there.

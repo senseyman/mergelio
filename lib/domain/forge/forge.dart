@@ -39,6 +39,12 @@ abstract class Forge {
   /// Open issues, most recently updated first, capped at [limit].
   Future<List<Issue>> issues({int limit = 50});
 
+  /// Issue [number] with its description, whatever its state. Throws
+  /// [ArgumentError] for a number no forge hands out, and [ForgeError] when
+  /// the issue cannot be read — including when it is not visible, or when the
+  /// number names a pull request rather than an issue.
+  Future<IssueDetail> issue(int number);
+
   /// The branch this repository treats as its trunk, or null when the forge
   /// did not say — because the repository is not visible, or answered
   /// without naming one.
