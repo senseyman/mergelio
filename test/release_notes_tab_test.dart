@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mergelio/state/recents.dart';
 import 'package:mergelio/core/tokens.dart';
 import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
@@ -12,6 +13,8 @@ import 'package:mergelio/state/workspace.dart';
 import 'package:mergelio/ui/shell/app_status_bar.dart';
 import 'package:mergelio/ui/shell/app_tab_bar.dart';
 import 'package:pub_semver/pub_semver.dart';
+
+import 'support/memory_recents.dart';
 
 class _FakeGit implements GitService {
   @override
@@ -45,6 +48,10 @@ void main() {
     c = ProviderContainer(
       overrides: [
         gitServiceProvider.overrideWithValue(_FakeGit()),
+        // The + menu lists recent repositories; none are needed here.
+        recentsProvider.overrideWith(
+          (ref) => RecentsController(MemoryRecents(), const []),
+        ),
         settingsProvider.overrideWith(
           (ref) => SettingsController(
             InMemorySettingsRepository(),

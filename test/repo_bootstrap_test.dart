@@ -4,12 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mergelio/domain/git/clone_options.dart';
 import 'package:mergelio/domain/git/git_service.dart';
-import 'package:mergelio/data/app_database.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
 import 'package:mergelio/state/recents.dart';
 import 'package:mergelio/state/repo_bootstrap.dart';
 import 'package:mergelio/state/workspace.dart';
 import 'package:path/path.dart' as p;
+
+import 'support/memory_recents.dart';
 
 /// Records every git call and runs none.
 class _RecordingGit implements GitService {
@@ -35,21 +36,12 @@ class _RecordingGit implements GitService {
 }
 
 /// Keeps recents in memory; the real repository writes to the app database.
-class _MemoryRecents implements RecentsRepository {
-  @override
-  AppDatabase get db => throw UnimplementedError();
-  @override
-  Future<List<RecentRepo>> load() async => const [];
-  @override
-  Future<void> save(List<RecentRepo> items) async {}
-}
-
 /// A container whose recents list works, so opening a repo records it.
 ProviderContainer _container() {
   final c = ProviderContainer(
     overrides: [
       recentsProvider.overrideWith(
-        (ref) => RecentsController(_MemoryRecents(), const []),
+        (ref) => RecentsController(MemoryRecents(), const []),
       ),
     ],
   );

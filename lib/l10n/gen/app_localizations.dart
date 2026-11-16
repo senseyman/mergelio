@@ -854,6 +854,12 @@ abstract class AppLocalizations {
   /// **'Create…'**
   String get shellCreateRepoMenu;
 
+  /// No description provided for @shellOpenRecentMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Open recent'**
+  String get shellOpenRecentMenu;
+
   /// No description provided for @shellRepoGroup.
   ///
   /// In en, this message translates to:

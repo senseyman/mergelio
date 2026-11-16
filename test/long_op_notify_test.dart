@@ -4,7 +4,6 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mergelio/data/app_database.dart';
 import 'package:mergelio/data/kv_store.dart';
 import 'package:mergelio/data/settings_repository.dart';
 import 'package:mergelio/domain/git/git_providers.dart';
@@ -22,17 +21,9 @@ import 'package:mergelio/state/settings_controller.dart';
 import 'package:mergelio/state/window_focus.dart';
 
 import 'support/fake_desktop_notifier.dart';
+import 'support/memory_recents.dart';
 
 const _repo = '/work/widgets';
-
-class _MemoryRecents implements RecentsRepository {
-  @override
-  AppDatabase get db => throw UnimplementedError();
-  @override
-  Future<List<RecentRepo>> load() async => const [];
-  @override
-  Future<void> save(List<RecentRepo> items) async {}
-}
 
 class _FakeGit implements GitService {
   _FakeGit(this.now);
@@ -99,7 +90,7 @@ void main() {
       overrides: [
         gitServiceProvider.overrideWithValue(git),
         recentsProvider.overrideWith(
-          (ref) => RecentsController(_MemoryRecents(), const []),
+          (ref) => RecentsController(MemoryRecents(), const []),
         ),
         desktopNotifierProvider.overrideWithValue(fake),
         if (brokenGate)

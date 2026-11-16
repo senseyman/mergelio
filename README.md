@@ -83,6 +83,8 @@ change never needs a second window.*
 ### Repositories & workspace
 
 - Open, clone and create repositories, with progress and a recents list.
+  The **+** beside the tabs has **Open recent ▸** to reopen one without going
+  back to the welcome screen.
 - **Clone options**: shallow (`--depth N`), blobless partial clone
   (`--filter=blob:none`), a chosen branch with or without `--single-branch`,
   and submodules on or off. A shallow repository shows a **Shallow** pill in

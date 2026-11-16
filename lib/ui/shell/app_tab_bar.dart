@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme.dart';
 import '../../core/tokens.dart';
 import '../../l10n/gen/app_localizations.dart';
+import '../../state/recents.dart';
 import '../../state/settings_controller.dart';
 import '../../state/unsaved_guard.dart';
 import '../../state/workspace.dart';
@@ -130,7 +132,6 @@ class AppTabBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l = AppLocalizations.of(context);
     final t = context.tokens;
     final ws = ref.watch(workspaceProvider);
     final style = ref.watch(settingsProvider.select((s) => s.groupStyle));
@@ -181,70 +182,118 @@ class AppTabBar extends ConsumerWidget {
               ),
             ),
           ),
-          PopupMenuButton<String>(
-            tooltip: l.shellAddRepository,
-            position: PopupMenuPosition.under,
-            onSelected: (v) {
-              switch (v) {
-                case 'open':
-                  openRepositoryFlow(context, ref);
-                case 'clone':
-                  showCloneDialog(context);
-                case 'create':
-                  showCreateDialog(context);
-              }
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: 'open',
-                height: 36,
-                child: Row(
-                  children: [
-                    const Icon(Icons.folder_open_outlined, size: 16),
-                    const SizedBox(width: 10),
-                    Text(
-                      l.shellOpenRepoMenu,
-                      style: const TextStyle(fontSize: 13),
+          const AddRepositoryMenu(),
+        ],
+      ),
+    );
+  }
+}
+
+/// The + beside the tabs: open, clone or create a repository, or reopen a
+/// recent one from the Open recent submenu.
+class AddRepositoryMenu extends ConsumerWidget {
+  const AddRepositoryMenu({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
+    final t = context.tokens;
+    final offered = recentsToOffer(ref.watch(recentsProvider), [
+      for (final tab in ref.watch(workspaceProvider).tabs) tab.path,
+    ]);
+    const itemStyle = ButtonStyle(
+      minimumSize: WidgetStatePropertyAll(Size(0, 36)),
+      textStyle: WidgetStatePropertyAll(TextStyle(fontSize: 13)),
+    );
+
+    Widget item(IconData icon, String label, VoidCallback onPressed) =>
+        MenuItemButton(
+          style: itemStyle,
+          leadingIcon: Icon(icon, size: 16),
+          onPressed: onPressed,
+          child: Text(label),
+        );
+
+    return MenuAnchor(
+      menuChildren: [
+        item(
+          Icons.folder_open_outlined,
+          l.shellOpenRepoMenu,
+          () => openRepositoryFlow(context, ref),
+        ),
+        item(
+          Icons.cloud_download_outlined,
+          l.shellCloneRepoMenu,
+          () => showCloneDialog(context),
+        ),
+        item(
+          Icons.add_box_outlined,
+          l.shellCreateRepoMenu,
+          () => showCreateDialog(context),
+        ),
+        // Shown even with nothing in it: a submenu with no children is
+        // disabled, which says there is nothing to reopen rather than leaving
+        // the reader to wonder where the entry went.
+        SubmenuButton(
+          style: itemStyle,
+          leadingIcon: const Icon(Icons.history, size: 16),
+          menuChildren: [
+            for (final repo in offered)
+              Tooltip(
+                message: repo.path,
+                waitDuration: const Duration(milliseconds: 600),
+                child: MenuItemButton(
+                  style: itemStyle,
+                  onPressed: () => openRepositoryPath(ref, repo.path, l),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 360),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            repo.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: t.textPrimary,
+                              fontSize: 13,
+                            ),
+                          ),
+                          Text(
+                            repo.path,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppFonts.mns(size: 11, color: t.textFaint),
+                          ),
+                        ],
+                      ),
                     ),
-                  ],
+                  ),
                 ),
               ),
-              PopupMenuItem(
-                value: 'clone',
-                height: 36,
-                child: Row(
-                  children: [
-                    const Icon(Icons.cloud_download_outlined, size: 16),
-                    const SizedBox(width: 10),
-                    Text(
-                      l.shellCloneRepoMenu,
-                      style: const TextStyle(fontSize: 13),
-                    ),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: 'create',
-                height: 36,
-                child: Row(
-                  children: [
-                    const Icon(Icons.add_box_outlined, size: 16),
-                    const SizedBox(width: 10),
-                    Text(
-                      l.shellCreateRepoMenu,
-                      style: const TextStyle(fontSize: 13),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          ],
+          child: Text(l.shellOpenRecentMenu),
+        ),
+      ],
+      // An icon-only control: without the button role a screen reader hears
+      // only the tooltip, not that it can be pressed.
+      builder: (context, controller, _) => Tooltip(
+        message: l.shellAddRepository,
+        child: Semantics(
+          button: true,
+          child: InkWell(
+            onTap: () =>
+                controller.isOpen ? controller.close() : controller.open(),
             child: const SizedBox(
               width: 28,
               height: 28,
               child: Icon(Icons.add, size: 16),
             ),
           ),
-        ],
+        ),
       ),
     );
   }
