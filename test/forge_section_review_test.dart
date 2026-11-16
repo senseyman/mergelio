@@ -109,13 +109,12 @@ Future<void> _menu(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('reviewing a request opens it in the review view', (
+  testWidgets('a plain click opens the request in the review view', (
     tester,
   ) async {
     final (c, fetches, opened) = await _pump(tester, _github);
 
-    await _menu(tester);
-    await tester.tap(find.text('Review in Mergelio'));
+    await tester.tap(find.text('request 7'));
     await tester.pumpAndSettle();
 
     expect(fetches, [('/repo', ForgeKind.github, 7, 'release/1.x')]);
@@ -138,8 +137,7 @@ void main() {
   testWidgets('a merge request is reviewed the same way', (tester) async {
     final (c, fetches, _) = await _pump(tester, _gitlab);
 
-    await _menu(tester);
-    await tester.tap(find.text('Review in Mergelio'));
+    await tester.tap(find.text('request 7'));
     await tester.pumpAndSettle();
 
     expect(fetches.single.$2, ForgeKind.gitlab);
@@ -149,8 +147,7 @@ void main() {
   testWidgets('a failed fetch leaves the centre column alone', (tester) async {
     final (c, fetches, _) = await _pump(tester, _github, result: null);
 
-    await _menu(tester);
-    await tester.tap(find.text('Review in Mergelio'));
+    await tester.tap(find.text('request 7'));
     await tester.pumpAndSettle();
 
     expect(fetches, hasLength(1));
@@ -163,8 +160,7 @@ void main() {
     final done = Completer<({String base, String head})?>();
     final (c, _, _) = await _pump(tester, _github, pending: done.future);
 
-    await _menu(tester);
-    await tester.tap(find.text('Review in Mergelio'));
+    await tester.tap(find.text('request 7'));
     await tester.pump();
     // The section is gone before the fetch answers.
     await tester.pumpWidget(
@@ -177,10 +173,24 @@ void main() {
     expect(c.read(reviewTargetProvider)?.head, 'H');
   });
 
-  testWidgets('a plain click still opens the browser', (tester) async {
+  testWidgets('the menu does not repeat what a click already does', (
+    tester,
+  ) async {
+    await _pump(tester, _github);
+
+    await _menu(tester);
+
+    expect(find.text('Open in browser'), findsOneWidget);
+    expect(find.text('Review in Mergelio'), findsNothing);
+  });
+
+  testWidgets('the menu opens the request in the browser instead', (
+    tester,
+  ) async {
     final (c, fetches, opened) = await _pump(tester, _github);
 
-    await tester.tap(find.text('request 7'));
+    await _menu(tester);
+    await tester.tap(find.text('Open in browser'));
     await tester.pumpAndSettle();
 
     expect(opened, hasLength(1));

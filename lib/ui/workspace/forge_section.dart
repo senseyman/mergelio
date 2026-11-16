@@ -221,6 +221,8 @@ class _PullRequestRow extends StatefulWidget {
   final CheckBadge badge;
   final String? defaultBranch;
   final List<CheckRun> failedRuns;
+
+  /// Opens the request on the forge, in the browser.
   final VoidCallback onOpen;
 
   /// The branch [onCheckout] puts the request on, for the menu to name.
@@ -263,13 +265,12 @@ class _PullRequestRowState extends State<_PullRequestRow> {
       forgeAgo(AppLocalizations.of(context), pr.updatedAt),
       forgeBranchLabel(pr, widget.defaultBranch),
     ]);
-    // A click keeps opening the browser, as it always has; reviewing in the
-    // app and checking out spend git and forge calls, so they wait behind a
-    // right-click.
+    // A click reviews the request here in the app; the browser and a local
+    // checkout wait behind a right-click.
     return GestureDetector(
       onSecondaryTapUp: (d) => _menu(context, d.globalPosition),
       child: InkWell(
-        onTap: widget.onOpen,
+        onTap: widget.onReview,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           child: Column(
@@ -292,7 +293,7 @@ class _PullRequestRowState extends State<_PullRequestRow> {
                   const SizedBox(width: 8),
                   // The badge answers a different question from the row, so it
                   // takes the press itself rather than letting it reach the
-                  // row's tap target and navigate away. Only when there is
+                  // row's tap target and open the request. Only when there is
                   // something to read: a green badge opens onto nothing.
                   if (failed.isEmpty)
                     _Badge(badge: widget.badge)
@@ -342,7 +343,6 @@ class _PullRequestRowState extends State<_PullRequestRow> {
       context: context,
       position: at,
       items: [
-        item(l.forgeReviewInApp, widget.onReview),
         item(l.forgeOpenInBrowser, widget.onOpen),
         item(
           // Already on it, the same action brings the branch up to date.

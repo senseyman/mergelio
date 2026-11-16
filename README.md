@@ -337,7 +337,9 @@ change never needs a second window.*
   Server** or **self-managed GitLab** is recognised once you add it as an
   account (below); any other remote shows no section at all.
 - An issues section alongside it, and a refresh control for both.
-- Every row opens the real pull/merge request or issue in your browser.
+- An issue row opens the real issue in your browser. A pull/merge request
+  row opens in Mergelio (below); right-click it → **Open in browser** for the
+  forge's own page.
 - **Create pull request…** (**Create merge request…** on GitLab) on a branch's
   right-click menu opens the forge's own new-request page for it, in your
   browser — no token needed, nothing is created until you submit it there.
@@ -349,11 +351,10 @@ change never needs a second window.*
   forward. If the request was force-pushed and your copy has commits it no
   longer has, it asks before replacing the branch, and Undo puts it back.
   No commit is ever made.
-- Right-click a pull/merge request row → **Review in Mergelio** opens the
-  request in the branch review, without checking anything out: its head and
-  its target branch's tip are fetched from origin as objects only — no local
-  branch or remote-tracking ref moves — and read the way the forge shows
-  them, since the branch point. Above the commits and files it shows the
+- Click a pull/merge request row to open the request in the branch review,
+  without checking anything out: its head and its target branch's tip are
+  fetched from origin as objects only — no local branch or remote-tracking
+  ref moves — and read the way the forge shows them, since the branch point. Above the commits and files it shows the
   request's state, title and branches, the CI jobs the forge reports for the
   commit on screen, and the description rendered as Markdown, with a note
   when the request has been pushed to or retargeted since you opened it.

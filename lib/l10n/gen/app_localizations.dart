@@ -3518,12 +3518,6 @@ abstract class AppLocalizations {
   /// **'Open in browser'**
   String get forgeOpenInBrowser;
 
-  /// No description provided for @forgeReviewInApp.
-  ///
-  /// In en, this message translates to:
-  /// **'Review in Mergelio'**
-  String get forgeReviewInApp;
-
   /// No description provided for @forgeCheckoutLocally.
   ///
   /// In en, this message translates to:
