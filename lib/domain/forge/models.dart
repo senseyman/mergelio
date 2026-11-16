@@ -84,6 +84,14 @@ abstract class Issue with _$Issue {
   }) = _Issue;
 }
 
+/// One issue read on its own, with the description the list endpoint leaves
+/// out. [body] is the author's Markdown as written, empty when there is none.
+@freezed
+abstract class IssueDetail with _$IssueDetail {
+  const factory IssueDetail({required Issue issue, @Default('') String body}) =
+      _IssueDetail;
+}
+
 /// One CI job. [detailsHint] is whatever short explanation the forge offered,
 /// and may be empty.
 @freezed

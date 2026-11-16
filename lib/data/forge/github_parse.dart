@@ -97,6 +97,17 @@ PullRequestDetail? parsePullRequestDetail(Object? json) {
   return PullRequestDetail(request: request, body: body is String ? body : '');
 }
 
+/// One issue from a single-issue response, with its description, or null when
+/// the body lacks what an issue needs — or describes a pull request, which
+/// GitHub also serves from the issues endpoint. A missing or null description
+/// reads as empty.
+IssueDetail? parseIssueDetail(Object? json) {
+  final issue = parseIssues([json]).firstOrNull;
+  if (issue == null) return null;
+  final body = _obj(json)?['body'];
+  return IssueDetail(issue: issue, body: body is String ? body : '');
+}
+
 /// What is left of the hourly budget, from a `/rate_limit` response.
 ///
 /// Null when the shape cannot be read. A missing budget is shown as nothing

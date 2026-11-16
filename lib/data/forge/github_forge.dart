@@ -238,4 +238,29 @@ class GitHubForge implements Forge {
     }
     return parseIssues(items).take(limit).toList(growable: false);
   }
+
+  @override
+  Future<IssueDetail> issue(int number) {
+    // Checked before anything goes out, and thrown rather than returned as a
+    // failed future, so a bad number is a caller's bug and never a request.
+    if (number < 1) {
+      throw ArgumentError.value(number, 'number', 'must be positive');
+    }
+    return _readIssue(number);
+  }
+
+  Future<IssueDetail> _readIssue(int number) async {
+    final body = await fetchWithCache(
+      _http,
+      _cache,
+      host.server.api('/repos/${host.owner}/${host.repo}/issues/$number'),
+    );
+    // A pull request answered from this endpoint parses as nothing, so it
+    // lands here too rather than being shown as an issue.
+    final detail = parseIssueDetail(_decode(body));
+    if (detail == null || detail.issue.number != number) {
+      throw const ForgeMalformed('response did not describe the issue');
+    }
+    return detail;
+  }
 }

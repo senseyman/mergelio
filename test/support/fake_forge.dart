@@ -30,6 +30,14 @@ class FakeForge implements Forge {
   /// the way a forge answers for a request it does not have.
   final Map<int, PullRequestDetail> details;
 
+  /// Issue details by number. A number with no entry answers
+  /// [ForgeNotVisible].
+  final Map<int, IssueDetail> issueDetails;
+
+  /// Not final, so a test can make one issue read fail and the next succeed.
+  ForgeError? issueError;
+  int issueCalls = 0;
+
   /// Not final, so a test can make one list read fail and the next succeed.
   ForgeError? pullRequestsError;
   final ForgeError? pullRequestsForBranchError;
@@ -60,6 +68,8 @@ class FakeForge implements Forge {
     this.checksError,
     this.pullRequestError,
     this.details = const {},
+    this.issueDetails = const {},
+    this.issueError,
     Map<String, ChecksSummary>? checksBySha,
   }) : checksBySha = checksBySha ?? {},
        pullRequestsResult = pullRequests,
@@ -107,6 +117,16 @@ class FakeForge implements Forge {
     final error = pullRequestError;
     if (error != null) throw error;
     final detail = details[number];
+    if (detail == null) throw const ForgeNotVisible();
+    return detail;
+  }
+
+  @override
+  Future<IssueDetail> issue(int number) async {
+    issueCalls++;
+    final error = issueError;
+    if (error != null) throw error;
+    final detail = issueDetails[number];
     if (detail == null) throw const ForgeNotVisible();
     return detail;
   }

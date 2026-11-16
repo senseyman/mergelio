@@ -108,6 +108,16 @@ PullRequestDetail? parseMergeRequestDetail(Object? json) {
   return PullRequestDetail(request: request, body: body is String ? body : '');
 }
 
+/// One issue from a single-issue response, with its description, or null when
+/// the body lacks what an issue needs. A missing or null description reads as
+/// empty.
+IssueDetail? parseGitlabIssueDetail(Object? json) {
+  final issue = parseGitlabIssues([json]).firstOrNull;
+  if (issue == null) return null;
+  final body = _obj(json)?['description'];
+  return IssueDetail(issue: issue, body: body is String ? body : '');
+}
+
 /// One job's state, or null when the job carries no outcome to report. An
 /// unrecognised value lands on [CheckState.unknown] so a status version this
 /// client has never seen is never reported passing.
