@@ -256,6 +256,10 @@ if ($SignSha1) {
             '  Is SimplySign Desktop running and logged in?')
     }
     Write-Ok "Signing as: $($Cert.Subject) (valid to $($Cert.NotAfter.ToString('yyyy-MM-dd')))"
+} elseif ($env:SKIP_PACKAGE) {
+    # A build-only pass leaves signing to a later SKIP_BUILD run, which is how
+    # the release pipeline keeps the signing session short; nothing to warn of.
+    Write-Ok 'Build only - signing, if any, happens when this build is packaged'
 } else {
     Write-Warn 'WINDOWS_SIGN_SHA1 is empty - building unsigned'
 }
