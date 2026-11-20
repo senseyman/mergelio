@@ -71,6 +71,14 @@ ArchitecturesAllowed=x64
 ArchitecturesInstallIn64BitMode=x64
 #endif
 
+; Defined only for a signed build, together with an ISCC /S switch that gives
+; the tool its command line. Inno Setup then signs setup.exe and the uninstaller
+; it embeds; left undefined, both stay unsigned.
+#ifdef SignToolName
+SignTool={#SignToolName}
+SignedUninstaller=yes
+#endif
+
 ; Offer to close a running copy rather than failing on a locked Mergelio.exe.
 CloseApplications=yes
 ; Restart Manager must not bring the app back: it would relaunch it from this
