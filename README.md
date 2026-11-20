@@ -500,10 +500,13 @@ Both Linux packages put the app in `/opt/mergelio`, link `/usr/bin/mergelio`
 onto your `PATH`, and register a launcher entry with its icon. Remove them with
 `sudo apt remove mergelio` or `sudo dnf remove mergelio`.
 
-The installer is not yet signed on Windows, so SmartScreen shows a warning on
-first run: **More info → Run anyway**. Check the download against
-[SHA256SUMS.txt](#verifying-a-download) first — that is what the checksum file
-is for.
+From 1.16.1 on, the Windows installer, the app and the uninstaller are signed
+with a Certum code signing certificate issued to **Serhii Kotenko**. Right-click
+`setup.exe` → **Properties → Digital Signatures** to see it. SmartScreen weighs
+how often a signed file has been downloaded as well as the signature, so a new
+release can still show a warning for a while: **More info** names the publisher
+and **Run anyway** goes ahead. Releases before 1.16.1 are unsigned. Either way,
+check the download against [SHA256SUMS.txt](#verifying-a-download) first.
 
 ### Staying up to date
 
@@ -688,8 +691,8 @@ and take an explicit version as the first argument. Switches:
 
 In PowerShell, set them as `$env:CLEAN = 1` before the call.
 
-None of this needs a signing certificate. Builds are unsigned on Windows and
-Linux, and ad-hoc signed on macOS — enough to run on the machine that built
+None of this needs a signing certificate. Local builds are unsigned on Windows
+and Linux, and ad-hoc signed on macOS — enough to run on the machine that built
 them.
 
 > **macOS note** — the debug build fails with `window_manager` under Swift
@@ -735,7 +738,9 @@ cp .env.example .env
 the notarization password stay in the macOS keychain. See
 [RELEASING.md](RELEASING.md) for the full list of variables.
 
-Windows and Linux builds need no signing configuration.
+Windows and Linux builds need no signing configuration. Release builds for
+Windows are signed in CI through Certum SimplySign; set `WINDOWS_SIGN_SHA1` to
+sign a local build the same way — see [RELEASING.md](RELEASING.md#signing-windows).
 
 Generated sources (`*.g.dart`, `*.freezed.dart`) are **not** committed — run
 `make gen` after cloning and whenever you touch a model. `make gen-watch`

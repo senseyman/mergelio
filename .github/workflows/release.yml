@@ -233,64 +233,103 @@ jobs:
         run: choco install innosetup -y --no-progress
 
       # A step's if: cannot read the secrets context, so the decision is turned
-      # into an output here and the build steps branch on that.
+      # into an output here and the signing steps branch on that.
       - name: Look for a signing credential
         id: signing
         shell: bash
         env:
-          WINDOWS_SIGN_TOKEN: ${{ secrets.WINDOWS_SIGN_TOKEN }}
+          CERTUM_USERNAME: ${{ secrets.CERTUM_USERNAME }}
+          CERTUM_TOTP_SECRET: ${{ secrets.CERTUM_TOTP_SECRET }}
+          CERTUM_CERT_SHA1: ${{ secrets.CERTUM_CERT_SHA1 }}
         run: |
-          if [ -n "$WINDOWS_SIGN_TOKEN" ]; then
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-            echo "Signing credential present - building the signed way."
-          else
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "No signing credential - building an unsigned installer."
-          fi
+          count=0
+          for v in "$CERTUM_USERNAME" "$CERTUM_TOTP_SECRET" "$CERTUM_CERT_SHA1"; do
+            [ -n "$v" ] && count=$((count + 1))
+          done
+          case $count in
+            3)
+              echo "enabled=true" >> "$GITHUB_OUTPUT"
+              echo "Certum credentials present - building a signed installer."
+              ;;
+            0)
+              echo "enabled=false" >> "$GITHUB_OUTPUT"
+              echo "::warning::No Certum credentials - publishing an unsigned installer."
+              ;;
+            *)
+              # Half a configuration is a mistake, not a choice to ship unsigned.
+              echo "::error::CERTUM_USERNAME, CERTUM_TOTP_SECRET and CERTUM_CERT_SHA1 must be set together."
+              exit 1
+              ;;
+          esac
 
-      # Only the installer is published, so the zip is not worth building.
-      - name: Build setup.exe
-        if: steps.signing.outputs.enabled != 'true'
-        shell: pwsh
-        env:
-          SKIP_ARCHIVE: 1
-        run: .\scripts\build-windows-installer.ps1 "${{ needs.gate.outputs.version }}"
-
-      # Signing takes two passes. Inno Setup packs mergelio.exe inside
-      # setup.exe, so the app has to be signed before the installer is built
-      # and the installer signed after it - one pass would leave an unsigned
-      # binary inside a signed wrapper.
+      # Build first and sign afterwards, so the SimplySign session is opened
+      # only for the minute signing takes rather than across a 15 minute
+      # build it could time out in.
       - name: Build the app
-        if: steps.signing.outputs.enabled == 'true'
         shell: pwsh
         env:
           SKIP_PACKAGE: 1
         run: .\scripts\build-windows-installer.ps1 "${{ needs.gate.outputs.version }}"
 
-      - name: Sign the app
+      # Installs SimplySign Desktop and logs it in with a one-time code derived
+      # from the TOTP seed; the certificate then appears in the user's store
+      # while the private key stays in Certum's cloud. Pinned to a commit, not
+      # a tag: this step holds the seed, so what runs here must not be able to
+      # change under us. Review the action's source before moving the pin.
+      - name: Log in to Certum SimplySign
+        id: certum
         if: steps.signing.outputs.enabled == 'true'
-        shell: bash
-        run: |
-          echo "::error::WINDOWS_SIGN_TOKEN is set, but the signing steps are still"
-          echo "::error::placeholders: no certificate has been chosen yet."
-          echo "::error::Fill these two steps in, or unset the secret to publish"
-          echo "::error::an unsigned installer as before."
-          exit 1
+        uses: jay0lee/certum-cloud-code-sign@a3324503499c49090869856eeeecfe95fb613d87 # v1
+        with:
+          username: ${{ secrets.CERTUM_USERNAME }}
+          totp_secret: ${{ secrets.CERTUM_TOTP_SECRET }}
+          cert_sha1: ${{ secrets.CERTUM_CERT_SHA1 }}
 
-      - name: Build setup.exe around the signed app
-        if: steps.signing.outputs.enabled == 'true'
+      # With WINDOWS_SIGN_SHA1 set the script signs every unsigned .exe and .dll
+      # in the build before packing them, then has Inno Setup sign setup.exe and
+      # the uninstaller, and fails unless the installer verifies. Left empty it
+      # packages unsigned. Only the installer is published, so no zip is built.
+      - name: Build setup.exe
         shell: pwsh
         env:
           SKIP_BUILD: 1
           SKIP_ARCHIVE: 1
+          WINDOWS_SIGN_SHA1: ${{ steps.certum.outputs.cert-thumbprint }}
+          SIGNTOOL: ${{ steps.certum.outputs.signtool-path }}
         run: .\scripts\build-windows-installer.ps1 "${{ needs.gate.outputs.version }}"
 
-      - name: Sign setup.exe
+      # /pa checks against the default Authenticode policy, the one Windows
+      # applies when a user runs the installer, independently of the script.
+      # /tw turns a missing timestamp into exit code 2, which fails here: an
+      # untimestamped signature stops validating the day the certificate expires.
+      - name: Verify the installer signature
         if: steps.signing.outputs.enabled == 'true'
-        shell: bash
+        shell: pwsh
+        env:
+          SIGNTOOL: ${{ steps.certum.outputs.signtool-path }}
         run: |
-          echo "::error::Signing setup.exe is not implemented yet."
-          exit 1
+          $installers = @(Get-ChildItem dist\*-setup.exe)
+          if ($installers.Count -ne 1) {
+            Write-Error "Expected one setup.exe in dist, found $($installers.Count)."
+            exit 1
+          }
+          & $env:SIGNTOOL verify /pa /tw /v $installers[0].FullName
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      # Ends the SimplySign session and drops the certificate from the
+      # runner's store, failure or not. Done inline rather than through the
+      # action's own teardown script, whose path is an output a failed login
+      # step may never have set.
+      - name: Log out of Certum SimplySign
+        if: always() && steps.signing.outputs.enabled == 'true'
+        shell: pwsh
+        run: |
+          Get-Process | Where-Object { $_.ProcessName -like '*SimplySign*' } |
+            Stop-Process -Force -ErrorAction SilentlyContinue
+          Get-ChildItem Cert:\CurrentUser\My -ErrorAction SilentlyContinue |
+            Where-Object { $_.Issuer -like '*Certum*' } |
+            Remove-Item -Force -ErrorAction SilentlyContinue
+          Write-Host 'SimplySign session closed.'
 
       - uses: actions/upload-artifact@v4
         with:

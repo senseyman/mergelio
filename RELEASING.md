@@ -61,7 +61,9 @@ PowerShell environment variables:
 $env:CLEAN = 1; .\scripts\build-windows-installer.ps1
 ```
 
-Linux and Windows builds are unsigned and need no configuration.
+Linux builds are unsigned and need no configuration. Windows builds are
+unsigned unless `WINDOWS_SIGN_SHA1` is set — see [Signing
+(Windows)](#signing-windows).
 
 ### Installers
 
@@ -83,6 +85,37 @@ the package carries a `%{dist}` tag and resolves its dependencies against the
 distribution it was built on. Set `RPM_SIGN_KEY` to a key in the local keyring
 to sign the result; left empty the package is unsigned, which is all a local
 install needs.
+
+## Signing (Windows)
+
+Windows binaries are signed with a Certum code signing certificate held in
+**SimplySign**, Certum's cloud HSM. The private key never leaves Certum: while
+SimplySign Desktop is logged in, the certificate appears in
+`Cert:\CurrentUser\My` and `signtool` signs through it.
+
+`scripts/build-windows-installer.ps1` signs when `WINDOWS_SIGN_SHA1` holds the
+certificate's SHA-1 thumbprint:
+
+1. after the build, every `.exe` and `.dll` without a valid signature (vendor
+   signed files keep theirs), retrying what a dropped request left unsigned;
+2. through Inno Setup, `setup.exe` and the uninstaller it embeds.
+
+It refuses to start if the certificate is not in the store, and fails if the
+installer does not verify at the end. `signtool.exe` is found on `PATH` or in
+the newest Windows SDK; `SIGNTOOL` overrides it, `WINDOWS_TIMESTAMP_URL` the
+timestamp server (default `http://time.certum.pl`).
+
+To sign locally: install SimplySign Desktop, log in with the code from the
+SimplySign mobile app, then
+
+```powershell
+$env:WINDOWS_SIGN_SHA1 = '<thumbprint>'; .\scripts\build-windows-installer.ps1
+```
+
+Read the thumbprint from the logged-in store:
+`Get-ChildItem Cert:\CurrentUser\My | Where-Object Issuer -like '*Certum*' | Format-List Subject, Thumbprint`.
+
+In CI the login is automated from the TOTP seed — see [Secrets](#secrets).
 
 ## Signing & notarization (macOS)
 
@@ -184,11 +217,23 @@ macOS job fails and no release is produced.
 | `MACOS_CERT_P12`, `MACOS_CERT_PASSWORD` | the macOS job fails; a release is never signed ad-hoc |
 | `MACOS_APPLE_ID`, `MACOS_APP_PASSWORD`, `MACOS_TEAM_ID`, `MACOS_SIGN_IDENTITY` | needed alongside the certificate for notarization |
 | `LINUX_GPG_PRIVATE_KEY`, `LINUX_GPG_PASSPHRASE` | an unsigned `.rpm` and unsigned checksums |
-| `WINDOWS_SIGN_TOKEN` | an unsigned `setup.exe` — SmartScreen warns on first run |
+| `CERTUM_USERNAME`, `CERTUM_TOTP_SECRET`, `CERTUM_CERT_SHA1` | an unsigned `setup.exe` — SmartScreen warns on first run |
 
-`WINDOWS_SIGN_TOKEN` is a switch, not yet an implementation: setting it turns
-on a two-pass signing branch whose signing steps are still placeholders and
-fail on purpose. Leave it unset until a certificate has been chosen.
+The three Certum secrets go together; setting only some of them fails the
+Windows job rather than quietly shipping unsigned.
+
+- `CERTUM_USERNAME` — the SimplySign account e-mail.
+- `CERTUM_TOTP_SECRET` — the base32 seed behind the SimplySign one-time codes,
+  the `secret=` parameter of the `otpauth://` link in the activation QR code.
+- `CERTUM_CERT_SHA1` — the certificate thumbprint, 40 hex characters.
+
+The TOTP seed is a long-lived master credential: whoever holds it, together
+with the e-mail, can sign as the project. If it may have leaked, re-provision
+SimplySign access in the Certum portal, which revokes the old seed, and update
+the secret. The login runs through
+[`jay0lee/certum-cloud-code-sign`](https://github.com/jay0lee/certum-cloud-code-sign),
+pinned to a commit because that step handles the seed; read its source before
+moving the pin.
 
 ## Distribution
 

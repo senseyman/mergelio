@@ -24,6 +24,7 @@
     $env:SKIP_INSTALLER = 1; .\scripts\build-windows-installer.ps1 # zip only, no setup.exe
     $env:SKIP_ARCHIVE = 1;   .\scripts\build-windows-installer.ps1 # setup.exe only, no zip
     $env:SKIP_BUILD = 1;     .\scripts\build-windows-installer.ps1   # package an existing build
+    $env:WINDOWS_SIGN_SHA1 = '<thumbprint>'; .\scripts\build-windows-installer.ps1  # sign everything
 #>
 
 [CmdletBinding()]
@@ -85,6 +86,39 @@ function Find-Iscc {
     }
 
     return $null
+}
+
+# Locates signtool.exe. It ships with the Windows SDK, which never puts it on
+# PATH, and a machine can carry several SDK versions side by side - the newest
+# x64 build is the one to use: the SimplySign virtual card driver is 64-bit.
+function Find-SignTool {
+    if ($env:SIGNTOOL -and (Test-Path -LiteralPath $env:SIGNTOOL)) { return $env:SIGNTOOL }
+
+    $onPath = (Get-Command 'signtool.exe' -ErrorAction SilentlyContinue).Source
+    if ($onPath) { return $onPath }
+
+    $kits = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\bin'
+    if (Test-Path -LiteralPath $kits) {
+        $hit = Get-ChildItem -LiteralPath $kits -Directory -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -match '^\d+(\.\d+)+$' } |
+            Sort-Object { [version]$_.Name } -Descending |
+            ForEach-Object { Join-Path $_.FullName 'x64\signtool.exe' } |
+            Where-Object { Test-Path -LiteralPath $_ } |
+            Select-Object -First 1
+        if ($hit) { return $hit }
+    }
+
+    return $null
+}
+
+# Files under $Dir that carry no valid Authenticode signature. Binaries already
+# signed by their own vendor keep that signature rather than gaining ours.
+function Get-UnsignedBinaries {
+    param([string]$Dir)
+    Get-ChildItem -LiteralPath $Dir -Recurse -File |
+        Where-Object { $_.Extension -in '.exe', '.dll' } |
+        Where-Object { (Get-AuthenticodeSignature -LiteralPath $_.FullName).Status -ne 'Valid' } |
+        ForEach-Object { $_.FullName }
 }
 
 # ─── Environment ─────────────────────────────────────────────────────────────
@@ -195,6 +229,41 @@ Write-Ok "Version: $Version"
 $Arch = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'arm64' } else { 'x64' }
 Write-Ok "Architecture: $Arch"
 
+# Signing is switched on by naming the certificate. The private key never sits
+# on this machine: with Certum SimplySign the certificate shows up in the user's
+# store only while SimplySign Desktop is logged in, and every signature is made
+# in Certum's cloud. Checking for it here fails in seconds instead of after a
+# full build.
+$SignSha1 = (Get-EnvOrDefault 'WINDOWS_SIGN_SHA1' '') -replace '\s', ''
+$SignSha1 = $SignSha1.ToUpperInvariant()
+$TimestampUrl = Get-EnvOrDefault 'WINDOWS_TIMESTAMP_URL' 'http://time.certum.pl'
+$SignTool = $null
+
+if ($SignSha1) {
+    $SignTool = Find-SignTool
+    if (-not $SignTool) {
+        Stop-WithError ("signtool.exe not found.`n" +
+            "  It comes with the Windows SDK. Point at it directly with:`n" +
+            "    `$env:SIGNTOOL = 'C:\Path\To\signtool.exe'")
+    }
+    Write-Ok "signtool: $SignTool"
+
+    $Cert = Get-ChildItem -Path 'Cert:\CurrentUser\My' -ErrorAction SilentlyContinue |
+        Where-Object { $_.Thumbprint -eq $SignSha1 } |
+        Select-Object -First 1
+    if (-not $Cert) {
+        Stop-WithError ("No certificate with thumbprint $SignSha1 in Cert:\CurrentUser\My.`n" +
+            '  Is SimplySign Desktop running and logged in?')
+    }
+    Write-Ok "Signing as: $($Cert.Subject) (valid to $($Cert.NotAfter.ToString('yyyy-MM-dd')))"
+} elseif ($env:SKIP_PACKAGE) {
+    # A build-only pass leaves signing to a later SKIP_BUILD run, which is how
+    # the release pipeline keeps the signing session short; nothing to warn of.
+    Write-Ok 'Build only - signing, if any, happens when this build is packaged'
+} else {
+    Write-Warn 'WINDOWS_SIGN_SHA1 is empty - building unsigned'
+}
+
 # ─── Build ───────────────────────────────────────────────────────────────────
 
 if ($env:SKIP_BUILD) {
@@ -266,6 +335,37 @@ if (-not (Test-Path -LiteralPath $ReleaseDir)) {
 }
 Write-Ok "Built: $ReleaseDir"
 
+# ─── Sign ────────────────────────────────────────────────────────────────────
+
+# Inno Setup packs these files into setup.exe, so they are signed before it is
+# built: a signed installer around unsigned binaries still trips SmartScreen
+# and antivirus heuristics once installed.
+if ($SignSha1) {
+    Write-Step 'Signing binaries'
+
+    # A timestamp server or the cloud key can drop a request now and then.
+    # Each retry signs only what is still unsigned, so nothing gets signed twice.
+    $Attempts = 3
+    for ($attempt = 1; $attempt -le $Attempts; $attempt++) {
+        $Pending = @(Get-UnsignedBinaries $ReleaseDir)
+        if ($Pending.Count -eq 0) { break }
+        Write-Ok "$($Pending.Count) file(s) to sign (attempt $attempt of $Attempts)"
+
+        & $SignTool sign /sha1 $SignSha1 /fd SHA256 /tr $TimestampUrl /td SHA256 /d $AppName @Pending
+        if ($LASTEXITCODE -eq 0) { break }
+        if ($attempt -lt $Attempts) {
+            Write-Warn "signtool exited with $LASTEXITCODE - retrying"
+            Start-Sleep -Seconds (5 * $attempt)
+        }
+    }
+
+    $Left = @(Get-UnsignedBinaries $ReleaseDir)
+    if ($Left.Count -gt 0) {
+        Stop-WithError ("These binaries are still unsigned:`n  " + ($Left -join "`n  "))
+    }
+    Write-Ok 'Every .exe and .dll carries a valid signature'
+}
+
 # ─── Package ─────────────────────────────────────────────────────────────────
 
 if ($env:SKIP_PACKAGE) {
@@ -317,13 +417,24 @@ if ($env:SKIP_INSTALLER) {
     $SourceAbs   = (Resolve-Path $ReleaseDir).Path
     $OutputAbs   = (Resolve-Path $DistDir).Path
 
-    & $Iscc `
-        "/DAppName=$AppName" `
-        "/DAppVersion=$Version" `
-        "/DAppArch=$Arch" `
-        "/DSourceDir=$SourceAbs" `
-        "/DOutputDir=$OutputAbs" `
-        $IssFile
+    $IsccArgs = @(
+        "/DAppName=$AppName",
+        "/DAppVersion=$Version",
+        "/DAppArch=$Arch",
+        "/DSourceDir=$SourceAbs",
+        "/DOutputDir=$OutputAbs"
+    )
+    # Handing Inno Setup a sign tool makes it sign both setup.exe and the
+    # uninstaller it writes into Program Files, which no later step could
+    # reach: the uninstaller only exists inside the compressed installer.
+    # Inno expands $q to a quote and $f to the quoted path of the file.
+    if ($SignSha1) {
+        $IsccArgs += '/DSignToolName=mergelio'
+        $IsccArgs += ('/Smergelio=$q' + $SignTool + '$q sign /sha1 ' + $SignSha1 +
+            ' /fd SHA256 /tr ' + $TimestampUrl + ' /td SHA256 /d $q' + $AppName + '$q $f')
+    }
+
+    & $Iscc @IsccArgs $IssFile
     if ($LASTEXITCODE -ne 0) { Stop-WithError 'Inno Setup failed to build the installer.' }
 
     $Installer = Join-Path $DistDir "$AppName-$Version-windows-$Arch-setup.exe"
@@ -348,6 +459,8 @@ if ($Installer) {
     $Signature = Get-AuthenticodeSignature -LiteralPath $Installer
     if ($Signature.Status -eq 'Valid') {
         Write-Host "`n  Signed by: $($Signature.SignerCertificate.Subject)`n" -ForegroundColor Green
+    } elseif ($SignSha1) {
+        Stop-WithError "Signing was requested, but $Installer is $($Signature.Status): $($Signature.StatusMessage)"
     } else {
         Write-Host "`n  Unsigned: SmartScreen will warn on other machines.`n" -ForegroundColor Yellow
     }
