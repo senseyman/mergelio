@@ -46,10 +46,13 @@ BUILD=$(sed -n 's/^version: .*+\([0-9]*\)$/\1/p' pubspec.yaml)
 # Maps an artifact filename to the platform key the client looks up.
 platform_key() {
   case $1 in
-    *-macos-arm64-update.zip) echo macos-arm64 ;;
-    *-windows-x64-setup.exe)  echo windows-x64 ;;
-    *_amd64.deb)              echo linux-x64-deb ;;
-    *.x86_64.rpm)             echo linux-x64-rpm ;;
+    *-macos-arm64-update.zip)  echo macos-arm64 ;;
+    *-windows-x64-setup.exe)   echo windows-x64 ;;
+    *-windows-arm64-setup.exe) echo windows-arm64 ;;
+    *_amd64.deb)               echo linux-x64-deb ;;
+    *_arm64.deb)               echo linux-arm64-deb ;;
+    *.x86_64.rpm)              echo linux-x64-rpm ;;
+    *.aarch64.rpm)             echo linux-arm64-rpm ;;
     *)                        echo '' ;;
   esac
 }

@@ -24,6 +24,7 @@
     $env:SKIP_INSTALLER = 1; .\scripts\build-windows-installer.ps1 # zip only, no setup.exe
     $env:SKIP_ARCHIVE = 1;   .\scripts\build-windows-installer.ps1 # setup.exe only, no zip
     $env:SKIP_BUILD = 1;     .\scripts\build-windows-installer.ps1   # package an existing build
+    $env:SKIP_BUILD = 1; $env:TARGET_ARCH = 'arm64'; .\scripts\build-windows-installer.ps1  # package an arm64 build made elsewhere
     $env:WINDOWS_SIGN_SHA1 = '<thumbprint>'; .\scripts\build-windows-installer.ps1  # sign everything
 #>
 
@@ -167,53 +168,82 @@ if (-not $IsWindows -and $PSVersionTable.PSVersion.Major -ge 6) {
     Stop-WithError 'Windows builds require a Windows host.'
 }
 
-foreach ($tool in @('flutter', 'dart')) {
-    if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) {
-        Stop-WithError "$tool not found in PATH."
-    }
+# Flutter builds for the machine it runs on and has no switch to target the
+# other Windows architecture. TARGET_ARCH therefore only says which existing
+# build to package: an arm64 build made on an Arm machine can be signed and
+# packed on an x64 one, where the signing tools are known to work.
+# An x64 shell running under emulation on an Arm machine reports AMD64 in
+# PROCESSOR_ARCHITECTURE and the real architecture in PROCESSOR_ARCHITEW6432.
+$HostArch = if ($env:PROCESSOR_ARCHITEW6432 -eq 'ARM64' -or
+    $env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'arm64' } else { 'x64' }
+$Arch = Get-EnvOrDefault 'TARGET_ARCH' $HostArch
+if ($Arch -notin @('x64', 'arm64')) {
+    Stop-WithError "TARGET_ARCH must be x64 or arm64, not '$Arch'."
 }
-Write-Ok 'flutter and dart are in PATH'
+if ($Arch -ne $HostArch -and -not $env:SKIP_BUILD) {
+    Stop-WithError ("Cannot build for $Arch on an $HostArch machine.`n" +
+        "  Build on $Arch, then package here with `$env:SKIP_BUILD = 1.")
+}
+Write-Ok "Architecture: $Arch"
 
-# A newer Flutter than the pinned one fails deep inside build_runner with an
-# analyzer stack trace that says nothing about versions, so name the mismatch
-# here while the output is still readable.
-if (Test-Path '.fvmrc') {
-    $pinned = $null
-    $match = Select-String -Path '.fvmrc' -Pattern '"flutter"\s*:\s*"([^"]+)"' |
-        Select-Object -First 1
-    if ($match) { $pinned = $match.Matches[0].Groups[1].Value }
+# Packaging an existing build needs neither Flutter nor a compiler.
+if ($env:SKIP_BUILD) {
+    Write-Ok 'SKIP_BUILD is set - not checking the build toolchain'
+} else {
+    $VcComponent = if ($HostArch -eq 'arm64') {
+        'Microsoft.VisualStudio.Component.VC.Tools.ARM64'
+    } else {
+        'Microsoft.VisualStudio.Component.VC.Tools.x86.x64'
+    }
 
-    if ($pinned) {
-        $current = $null
-        $line = (flutter --version 2>$null | Select-Object -First 1)
-        if ($line -match '^Flutter (\d+\.\d+\.\d+)') { $current = $Matches[1] }
-
-        if (-not $current) {
-            Write-Warn "Could not read the Flutter version; this project expects $pinned."
-        } elseif ($current -eq $pinned) {
-            Write-Ok "Flutter $current (pinned in .fvmrc)"
-        } else {
-            Write-Warn "Flutter $current, but this project is pinned to $pinned (.fvmrc)."
-            Write-Warn "Code generation may fail. Switch with 'fvm use' or 'flutter downgrade $pinned'."
+    foreach ($tool in @('flutter', 'dart')) {
+        if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) {
+            Stop-WithError "$tool not found in PATH."
         }
     }
-}
+    Write-Ok 'flutter and dart are in PATH'
 
-# Flutter needs the Visual Studio C++ desktop workload. Its absence surfaces as
-# an obscure CMake failure, so look for it up front.
-$vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
-if (Test-Path -LiteralPath $vswhere) {
-    $vs = & $vswhere -latest -products '*' `
-        -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
-        -property displayName 2>$null
-    if ($vs) {
-        Write-Ok "Visual Studio: $vs"
-    } else {
-        Write-Warn 'Visual Studio "Desktop development with C++" workload not found.'
-        Write-Warn 'Install it, or run: flutter doctor'
+    # A newer Flutter than the pinned one fails deep inside build_runner with an
+    # analyzer stack trace that says nothing about versions, so name the mismatch
+    # here while the output is still readable.
+    if (Test-Path '.fvmrc') {
+        $pinned = $null
+        $match = Select-String -Path '.fvmrc' -Pattern '"flutter"\s*:\s*"([^"]+)"' |
+            Select-Object -First 1
+        if ($match) { $pinned = $match.Matches[0].Groups[1].Value }
+
+        if ($pinned) {
+            $current = $null
+            $line = (flutter --version 2>$null | Select-Object -First 1)
+            if ($line -match '^Flutter (\d+\.\d+\.\d+)') { $current = $Matches[1] }
+
+            if (-not $current) {
+                Write-Warn "Could not read the Flutter version; this project expects $pinned."
+            } elseif ($current -eq $pinned) {
+                Write-Ok "Flutter $current (pinned in .fvmrc)"
+            } else {
+                Write-Warn "Flutter $current, but this project is pinned to $pinned (.fvmrc)."
+                Write-Warn "Code generation may fail. Switch with 'fvm use' or 'flutter downgrade $pinned'."
+            }
+        }
     }
-} else {
-    Write-Warn 'vswhere.exe not found; cannot verify the Visual Studio C++ workload.'
+
+    # Flutter needs the Visual Studio C++ desktop workload. Its absence surfaces as
+    # an obscure CMake failure, so look for it up front.
+    $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+    if (Test-Path -LiteralPath $vswhere) {
+        $vs = & $vswhere -latest -products '*' `
+            -requires $VcComponent `
+            -property displayName 2>$null
+        if ($vs) {
+            Write-Ok "Visual Studio: $vs"
+        } else {
+            Write-Warn 'Visual Studio "Desktop development with C++" workload not found.'
+            Write-Warn 'Install it, or run: flutter doctor'
+        }
+    } else {
+        Write-Warn 'vswhere.exe not found; cannot verify the Visual Studio C++ workload.'
+    }
 }
 
 if (-not $Version) {
@@ -225,9 +255,6 @@ if (-not $Version) {
 }
 if (-not $Version) { Stop-WithError 'Could not determine the version.' }
 Write-Ok "Version: $Version"
-
-$Arch = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'arm64' } else { 'x64' }
-Write-Ok "Architecture: $Arch"
 
 # Signing is switched on by naming the certificate. The private key never sits
 # on this machine: with Certum SimplySign the certificate shows up in the user's
@@ -322,18 +349,39 @@ if ($env:SKIP_BUILD) {
 }
 
 $ReleaseDir = Join-Path 'build' "windows\$Arch\runner\Release"
-if (-not (Test-Path -LiteralPath $ReleaseDir)) {
+# With an explicit TARGET_ARCH the first Release directory found could belong
+# to the other architecture, so only the exact path counts.
+if (-not (Test-Path -LiteralPath $ReleaseDir) -and -not $env:TARGET_ARCH) {
     $found = Get-ChildItem -Path 'build\windows' -Recurse -Directory -Filter 'Release' `
         -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($found) { $ReleaseDir = $found.FullName }
 }
 if (-not (Test-Path -LiteralPath $ReleaseDir)) {
     if ($env:SKIP_BUILD) {
-        Stop-WithError 'SKIP_BUILD is set, but there is no build under build\windows to package.'
+        Stop-WithError "SKIP_BUILD is set, but there is no $Arch build under build\windows to package."
     }
     Stop-WithError 'No release output was produced under build\windows'
 }
 Write-Ok "Built: $ReleaseDir"
+
+# An installer named for one architecture around an exe built for the other
+# installs fine and then fails to start, so read the machine type out of the
+# PE header rather than trust the directory name.
+$MainExe = Join-Path $ReleaseDir "$AppName.exe"
+if (-not (Test-Path -LiteralPath $MainExe)) {
+    $MainExe = Get-ChildItem -LiteralPath $ReleaseDir -Filter '*.exe' -File |
+        Select-Object -First 1 -ExpandProperty FullName
+}
+if (-not $MainExe) { Stop-WithError "No .exe in $ReleaseDir" }
+$PeBytes = [System.IO.File]::ReadAllBytes($MainExe)
+$PeOffset = [System.BitConverter]::ToInt32($PeBytes, 0x3C)
+$PeMachine = [System.BitConverter]::ToUInt16($PeBytes, $PeOffset + 4)
+$ExpectedMachine = @{ 'x64' = 0x8664; 'arm64' = 0xAA64 }[$Arch]
+if ($PeMachine -ne $ExpectedMachine) {
+    Stop-WithError ("$MainExe is machine type 0x{0:X4}, not the {1} type 0x{2:X4}." -f
+        $PeMachine, $Arch, $ExpectedMachine)
+}
+Write-Ok "$(Split-Path -Leaf $MainExe) is an $Arch binary"
 
 # ─── Sign ────────────────────────────────────────────────────────────────────
 

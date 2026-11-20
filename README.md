@@ -493,8 +493,11 @@ app can tell you about new releases if you let it — see
 | --- | --- | --- |
 | macOS (Apple silicon) | `Mergelio-<version>-macos-arm64.dmg` | Open it and drag Mergelio to Applications |
 | Windows (x64) | `Mergelio-<version>-windows-x64-setup.exe` | Run it |
+| Windows (Arm) | `Mergelio-<version>-windows-arm64-setup.exe` | Run it |
 | Debian, Ubuntu (x64) | `mergelio_<version>_amd64.deb` | `sudo apt install ./mergelio_<version>_amd64.deb` |
+| Debian, Ubuntu (Arm) | `mergelio_<version>_arm64.deb` | `sudo apt install ./mergelio_<version>_arm64.deb` |
 | Fedora (x64) | `mergelio-<version>-1.fc41.x86_64.rpm` | `sudo dnf install ./mergelio-<version>-1.fc41.x86_64.rpm` |
+| Fedora (Arm) | `mergelio-<version>-1.fc41.aarch64.rpm` | `sudo dnf install ./mergelio-<version>-1.fc41.aarch64.rpm` |
 
 Both Linux packages put the app in `/opt/mergelio`, link `/usr/bin/mergelio`
 onto your `PATH`, and register a launcher entry with its icon. Remove them with

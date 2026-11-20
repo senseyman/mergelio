@@ -11,14 +11,18 @@ String? platformKey({
     case 'macos':
       return arch == 'arm64' ? 'macos-arm64' : null;
     case 'windows':
-      return arch == 'x64' ? 'windows-x64' : null;
+      return _linuxAndWindowsArches.contains(arch) ? 'windows-$arch' : null;
     case 'linux':
-      if (arch != 'x64') return null;
-      return _isRpmFamily(osRelease) ? 'linux-x64-rpm' : 'linux-x64-deb';
+      if (!_linuxAndWindowsArches.contains(arch)) return null;
+      return _isRpmFamily(osRelease) ? 'linux-$arch-rpm' : 'linux-$arch-deb';
     default:
       return null;
   }
 }
+
+/// Windows and Linux builds are published for both of these; macOS only for
+/// Apple silicon.
+const _linuxAndWindowsArches = {'x64', 'arm64'};
 
 /// Which package manager owns the install. Neither format self-updates, but the
 /// distinction decides which download the user is pointed at.
