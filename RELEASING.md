@@ -175,7 +175,7 @@ release is drafted in that case — a GitHub release needs a tag to hang off).
 | Gate | ubuntu-latest | version check, formatting, `flutter analyze`, tests |
 | macOS (arm64) | macos-15 | signed, notarized `.dmg` and `-update.zip` |
 | Windows build (x64, arm64) | windows-2022, windows-11-arm | unsigned app, passed on to the next job |
-| Windows (x64, arm64) | windows-2022 | signed `…-setup.exe` per architecture |
+| Windows (x64, arm64) | windows-2022 | signed `…-setup.exe` per architecture, one job |
 | Linux (x64, arm64) | ubuntu-22.04, ubuntu-22.04-arm | `.deb` |
 | Fedora (x64, arm64) | `fedora:41` container on the same two | signed `.rpm` |
 | Draft release | ubuntu-latest | `SHA256SUMS.txt`, its signature, the draft |
@@ -185,8 +185,9 @@ usable on Debian 12 and older Ubuntu. Building on 24.04 would not.
 
 Windows is built per architecture and signed only on x64: SimplySign Desktop
 installs a 64-bit virtual card driver, which does not load on Windows on Arm.
-The two packaging runs go one after the other so that two SimplySign logins
-never present the same one-time code. The Arm runners install Flutter from a
+Both installers are packaged in one job under a single SimplySign login: every
+login spends a one-time code from the same seed, and two logins inside one
+30 second window would present the same code. The Arm runners install Flutter from a
 git checkout of the pinned tag, because the SDK archives Flutter publishes
 carry an x64 Dart.
 

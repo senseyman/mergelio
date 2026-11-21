@@ -373,7 +373,9 @@ if (-not (Test-Path -LiteralPath $MainExe)) {
         Select-Object -First 1 -ExpandProperty FullName
 }
 if (-not $MainExe) { Stop-WithError "No .exe in $ReleaseDir" }
-$PeBytes = [System.IO.File]::ReadAllBytes($MainExe)
+# .NET resolves relative paths against the process directory, which
+# Set-Location above does not move, so hand it an absolute one.
+$PeBytes = [System.IO.File]::ReadAllBytes((Resolve-Path -LiteralPath $MainExe).ProviderPath)
 $PeOffset = [System.BitConverter]::ToInt32($PeBytes, 0x3C)
 $PeMachine = [System.BitConverter]::ToUInt16($PeBytes, $PeOffset + 4)
 $ExpectedMachine = @{ 'x64' = 0x8664; 'arm64' = 0xAA64 }[$Arch]

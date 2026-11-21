@@ -270,18 +270,15 @@ jobs:
           retention-days: 1
           if-no-files-found: error
 
+  # Both architectures are packaged in one job so they share a single
+  # SimplySign login. Each login spends a one-time code from the same TOTP
+  # seed, and a second login inside the same 30 second window would present
+  # a code that was already used.
   windows:
-    name: Windows (${{ matrix.arch }})
+    name: Windows (x64, arm64)
     needs: [gate, windows-build]
     runs-on: windows-2022
     timeout-minutes: 30
-    strategy:
-      # Every entry logs in to SimplySign with a one-time code from the same
-      # seed. Running them one after the other keeps two logins from presenting
-      # the same code, which the second would be refused for.
-      max-parallel: 1
-      matrix:
-        arch: [x64, arm64]
     steps:
       - uses: actions/checkout@v4
 
@@ -290,8 +287,13 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: build-windows-${{ matrix.arch }}
-          path: build/windows/${{ matrix.arch }}/runner/Release
+          name: build-windows-x64
+          path: build/windows/x64/runner/Release
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-windows-arm64
+          path: build/windows/arm64/runner/Release
 
       # A step's if: cannot read the secrets context, so the decision is turned
       # into an output here and the signing steps branch on that.
@@ -343,12 +345,22 @@ jobs:
       # packages unsigned. Only the installer is published, so no zip is built.
       # TARGET_ARCH names the downloaded build, which need not match this
       # runner; the script checks the exe's machine type against it.
-      - name: Build setup.exe
+      - name: Build setup.exe (x64)
         shell: pwsh
         env:
           SKIP_BUILD: 1
           SKIP_ARCHIVE: 1
-          TARGET_ARCH: ${{ matrix.arch }}
+          TARGET_ARCH: x64
+          WINDOWS_SIGN_SHA1: ${{ steps.certum.outputs.cert-thumbprint }}
+          SIGNTOOL: ${{ steps.certum.outputs.signtool-path }}
+        run: .\scripts\build-windows-installer.ps1 "${{ needs.gate.outputs.version }}"
+
+      - name: Build setup.exe (arm64)
+        shell: pwsh
+        env:
+          SKIP_BUILD: 1
+          SKIP_ARCHIVE: 1
+          TARGET_ARCH: arm64
           WINDOWS_SIGN_SHA1: ${{ steps.certum.outputs.cert-thumbprint }}
           SIGNTOOL: ${{ steps.certum.outputs.signtool-path }}
         run: .\scripts\build-windows-installer.ps1 "${{ needs.gate.outputs.version }}"
@@ -363,13 +375,15 @@ jobs:
         env:
           SIGNTOOL: ${{ steps.certum.outputs.signtool-path }}
         run: |
-          $installers = @(Get-ChildItem dist\*-setup.exe)
-          if ($installers.Count -ne 1) {
-            Write-Error "Expected one setup.exe in dist, found $($installers.Count)."
-            exit 1
+          foreach ($arch in 'x64', 'arm64') {
+            $installers = @(Get-ChildItem "dist\*-windows-$arch-setup.exe")
+            if ($installers.Count -ne 1) {
+              Write-Error "Expected one $arch setup.exe in dist, found $($installers.Count)."
+              exit 1
+            }
+            & $env:SIGNTOOL verify /pa /tw /v $installers[0].FullName
+            if ($LASTEXITCODE -ne 0) { exit 1 }
           }
-          & $env:SIGNTOOL verify /pa /tw /v $installers[0].FullName
-          if ($LASTEXITCODE -ne 0) { exit 1 }
 
       # Ends the SimplySign session and drops the certificate from the
       # runner's store, failure or not. Done inline rather than through the
@@ -388,8 +402,15 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: windows-${{ matrix.arch }}
-          path: dist/*-windows-${{ matrix.arch }}-setup.exe
+          name: windows-x64
+          path: dist/*-windows-x64-setup.exe
+          retention-days: 7
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-arm64
+          path: dist/*-windows-arm64-setup.exe
           retention-days: 7
           if-no-files-found: error
 
