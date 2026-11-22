@@ -209,19 +209,47 @@ jobs:
         if: always()
         run: security delete-keychain "$KEYCHAIN_PATH" || true
 
-  windows-x64:
-    name: Windows (x64)
+  # Flutter builds Windows only for the machine it runs on, so each architecture
+  # is built on its own runner. Signing and packaging happen afterwards on x64
+  # in the windows job: SimplySign Desktop installs a 64-bit virtual card driver,
+  # and an x64 driver does not load on Windows on Arm.
+  windows-build:
+    name: Windows build (${{ matrix.arch }})
     needs: gate
-    runs-on: windows-2022
+    strategy:
+      # One architecture failing should not cancel the other and lose its log.
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: windows-2022
+          - arch: arm64
+            runner: windows-11-arm
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
       - uses: subosito/flutter-action@v2
+        if: matrix.arch == 'x64'
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
+
+      # The SDK archives Flutter publishes carry an x64 Dart. A git checkout
+      # instead fetches the Dart SDK for the machine it first runs on.
+      - name: Install Flutter SDK (git)
+        if: matrix.arch == 'arm64'
+        shell: pwsh
+        run: |
+          $sdk = Join-Path $env:RUNNER_TEMP 'flutter'
+          git clone --depth 1 --branch $env:FLUTTER_VERSION `
+            https://github.com/flutter/flutter.git $sdk
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          Join-Path $sdk 'bin' | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+          & (Join-Path $sdk 'bin\flutter.bat') --version
+          if ($LASTEXITCODE -ne 0) { exit 1 }
 
       - uses: actions/cache@v4
         with:
@@ -229,8 +257,49 @@ jobs:
           key: pub-windows-${{ hashFiles('pubspec.lock') }}
           restore-keys: pub-windows-
 
+      # TARGET_ARCH pins the output path, so a build that lands somewhere
+      # unexpected fails as missing rather than picking up another Release
+      # directory and failing later on its machine type.
+      - name: Build the app
+        shell: pwsh
+        env:
+          SKIP_PACKAGE: 1
+          TARGET_ARCH: ${{ matrix.arch }}
+        run: .\scripts\build-windows-installer.ps1 "${{ needs.gate.outputs.version }}"
+
+      # Intermediate only: the release job downloads by platform name and never
+      # picks these up.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build-windows-${{ matrix.arch }}
+          path: build/windows/${{ matrix.arch }}/runner/Release
+          retention-days: 1
+          if-no-files-found: error
+
+  # Both architectures are packaged in one job so they share a single
+  # SimplySign login. Each login spends a one-time code from the same TOTP
+  # seed, and a second login inside the same 30 second window would present
+  # a code that was already used.
+  windows:
+    name: Windows (x64, arm64)
+    needs: [gate, windows-build]
+    runs-on: windows-2022
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
       - name: Install Inno Setup
         run: choco install innosetup -y --no-progress
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-windows-x64
+          path: build/windows/x64/runner/Release
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-windows-arm64
+          path: build/windows/arm64/runner/Release
 
       # A step's if: cannot read the secrets context, so the decision is turned
       # into an output here and the signing steps branch on that.
@@ -262,15 +331,6 @@ jobs:
               ;;
           esac
 
-      # Build first and sign afterwards, so the SimplySign session is opened
-      # only for the minute signing takes rather than across a 15 minute
-      # build it could time out in.
-      - name: Build the app
-        shell: pwsh
-        env:
-          SKIP_PACKAGE: 1
-        run: .\scripts\build-windows-installer.ps1 "${{ needs.gate.outputs.version }}"
-
       # Installs SimplySign Desktop and logs it in with a one-time code derived
       # from the TOTP seed; the certificate then appears in the user's store
       # while the private key stays in Certum's cloud. Pinned to a commit, not
@@ -289,11 +349,24 @@ jobs:
       # in the build before packing them, then has Inno Setup sign setup.exe and
       # the uninstaller, and fails unless the installer verifies. Left empty it
       # packages unsigned. Only the installer is published, so no zip is built.
-      - name: Build setup.exe
+      # TARGET_ARCH names the downloaded build, which need not match this
+      # runner; the script checks the exe's machine type against it.
+      - name: Build setup.exe (x64)
         shell: pwsh
         env:
           SKIP_BUILD: 1
           SKIP_ARCHIVE: 1
+          TARGET_ARCH: x64
+          WINDOWS_SIGN_SHA1: ${{ steps.certum.outputs.cert-thumbprint }}
+          SIGNTOOL: ${{ steps.certum.outputs.signtool-path }}
+        run: .\scripts\build-windows-installer.ps1 "${{ needs.gate.outputs.version }}"
+
+      - name: Build setup.exe (arm64)
+        shell: pwsh
+        env:
+          SKIP_BUILD: 1
+          SKIP_ARCHIVE: 1
+          TARGET_ARCH: arm64
           WINDOWS_SIGN_SHA1: ${{ steps.certum.outputs.cert-thumbprint }}
           SIGNTOOL: ${{ steps.certum.outputs.signtool-path }}
         run: .\scripts\build-windows-installer.ps1 "${{ needs.gate.outputs.version }}"
@@ -308,13 +381,15 @@ jobs:
         env:
           SIGNTOOL: ${{ steps.certum.outputs.signtool-path }}
         run: |
-          $installers = @(Get-ChildItem dist\*-setup.exe)
-          if ($installers.Count -ne 1) {
-            Write-Error "Expected one setup.exe in dist, found $($installers.Count)."
-            exit 1
+          foreach ($arch in 'x64', 'arm64') {
+            $installers = @(Get-ChildItem "dist\*-windows-$arch-setup.exe")
+            if ($installers.Count -ne 1) {
+              Write-Error "Expected one $arch setup.exe in dist, found $($installers.Count)."
+              exit 1
+            }
+            & $env:SIGNTOOL verify /pa /tw /v $installers[0].FullName
+            if ($LASTEXITCODE -ne 0) { exit 1 }
           }
-          & $env:SIGNTOOL verify /pa /tw /v $installers[0].FullName
-          if ($LASTEXITCODE -ne 0) { exit 1 }
 
       # Ends the SimplySign session and drops the certificate from the
       # runner's store, failure or not. Done inline rather than through the
@@ -334,16 +409,33 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: windows-x64
-          path: dist/*-setup.exe
+          path: dist/*-windows-x64-setup.exe
           retention-days: 7
           if-no-files-found: error
 
-  linux-x64:
-    name: Linux (x64, .deb)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-arm64
+          path: dist/*-windows-arm64-setup.exe
+          retention-days: 7
+          if-no-files-found: error
+
+  linux:
+    name: Linux (${{ matrix.arch }}, .deb)
     needs: gate
-    # Not ubuntu-latest on purpose: 22.04 ships glibc 2.35, so the binary also
-    # runs on Debian 12 and older Ubuntu. Built on 24.04 it would not.
-    runs-on: ubuntu-22.04
+    strategy:
+      # One architecture failing should not cancel the other and lose its log.
+      fail-fast: false
+      matrix:
+        # Not the -latest images on purpose: 22.04 ships glibc 2.35, so the
+        # binary also runs on Debian 12 and older Ubuntu. Built on 24.04 it
+        # would not.
+        include:
+          - arch: x64
+            runner: ubuntu-22.04
+          - arch: arm64
+            runner: ubuntu-22.04-arm
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
@@ -355,10 +447,21 @@ jobs:
             clang cmake ninja-build pkg-config libgtk-3-dev libnotify-dev dpkg-dev
 
       - uses: subosito/flutter-action@v2
+        if: matrix.arch == 'x64'
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
+
+      # The SDK archives Flutter publishes carry an x64 Dart. A git checkout
+      # instead fetches the Dart SDK for the machine it first runs on.
+      - name: Install Flutter SDK (git)
+        if: matrix.arch == 'arm64'
+        run: |
+          git clone --depth 1 --branch "$FLUTTER_VERSION" \
+            https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
+          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/flutter/bin/flutter" --version
 
       - uses: actions/cache@v4
         with:
@@ -371,17 +474,27 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: linux-x64
+          name: linux-${{ matrix.arch }}
           path: dist/*.deb
           retention-days: 7
           if-no-files-found: error
 
-  fedora-x64:
-    name: Fedora (x64, .rpm)
+  fedora:
+    name: Fedora (${{ matrix.arch }}, .rpm)
     needs: gate
+    strategy:
+      # One architecture failing should not cancel the other and lose its log.
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: ubuntu-22.04
+          - arch: arm64
+            runner: ubuntu-22.04-arm
     # An RPM built on Ubuntu resolves against the wrong libraries and its
     # %{dist} tag would lie, so the build runs in the distribution it targets.
-    runs-on: ubuntu-22.04
+    # The image is multi-arch; the runner decides which one is pulled.
+    runs-on: ${{ matrix.runner }}
     container: fedora:41
     timeout-minutes: 45
     steps:
@@ -402,13 +515,20 @@ jobs:
         run: git config --global --add safe.directory '*'
 
       # subosito/flutter-action expects an apt-based image, so the SDK is
-      # unpacked by hand here.
+      # installed by hand here: unpacked from the release archive on x64, and
+      # checked out from git on arm64, where the archive's x64 Dart cannot run.
       - name: Install Flutter SDK
         run: |
-          curl -fsSL -o /tmp/flutter.tar.xz \
-            "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz"
-          tar -xf /tmp/flutter.tar.xz -C /opt
-          rm -f /tmp/flutter.tar.xz
+          if [ "${{ matrix.arch }}" = x64 ]; then
+            curl -fsSL -o /tmp/flutter.tar.xz \
+              "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz"
+            tar -xf /tmp/flutter.tar.xz -C /opt
+            rm -f /tmp/flutter.tar.xz
+          else
+            git clone --depth 1 --branch "$FLUTTER_VERSION" \
+              https://github.com/flutter/flutter.git /opt/flutter
+            /opt/flutter/bin/flutter --version
+          fi
           echo "/opt/flutter/bin" >> "$GITHUB_PATH"
 
       - uses: actions/cache@v4
@@ -466,23 +586,26 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: fedora-x64
+          name: fedora-${{ matrix.arch }}
           path: dist/*.rpm
           retention-days: 7
           if-no-files-found: error
 
   release:
     name: Draft release
-    needs: [macos-arm64, windows-x64, linux-x64, fedora-x64]
+    needs: [macos-arm64, windows, linux, fedora]
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: write
     steps:
+      # By platform name only, which leaves out the intermediate Windows
+      # builds the packaging jobs were fed from.
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
+          pattern: '{macos,windows,linux,fedora}-*'
           merge-multiple: true
 
       - name: Checksums

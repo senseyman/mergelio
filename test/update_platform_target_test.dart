@@ -5,6 +5,7 @@ void main() {
   test('maps the shipped desktop targets', () {
     expect(platformKey(os: 'macos', arch: 'arm64'), 'macos-arm64');
     expect(platformKey(os: 'windows', arch: 'x64'), 'windows-x64');
+    expect(platformKey(os: 'windows', arch: 'arm64'), 'windows-arm64');
   });
 
   test('picks the Linux package format from os-release', () {
@@ -20,13 +21,29 @@ void main() {
     );
   });
 
+  test('keeps the package format apart per architecture on Linux', () {
+    const fedora = 'ID=fedora\nID_LIKE=rhel fedora\n';
+    const ubuntu = 'ID=ubuntu\nID_LIKE=debian\n';
+    expect(
+      platformKey(os: 'linux', arch: 'arm64', osRelease: fedora),
+      'linux-arm64-rpm',
+    );
+    expect(
+      platformKey(os: 'linux', arch: 'arm64', osRelease: ubuntu),
+      'linux-arm64-deb',
+    );
+  });
+
   test('falls back to deb when os-release says nothing useful', () {
     expect(platformKey(os: 'linux', arch: 'x64'), 'linux-x64-deb');
+    expect(platformKey(os: 'linux', arch: 'arm64'), 'linux-arm64-deb');
   });
 
   test('returns null for a target that has no build', () {
     expect(platformKey(os: 'macos', arch: 'x64'), isNull);
-    expect(platformKey(os: 'windows', arch: 'arm64'), isNull);
+    expect(platformKey(os: 'windows', arch: 'ia32'), isNull);
+    expect(platformKey(os: 'linux', arch: 'riscv64'), isNull);
+    expect(platformKey(os: 'linux', arch: ''), isNull);
     expect(platformKey(os: 'fuchsia', arch: 'x64'), isNull);
   });
 }

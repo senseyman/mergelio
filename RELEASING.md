@@ -38,7 +38,9 @@ built on a host of the matching platform.
 ## Artifacts
 
 `APP_NAME` and `DIST_DIR` come from `.env` (defaults `Mergelio` and `dist`).
-`<arch>` is `arm64` or `x64`, taken from the build host.
+`<arch>` is `arm64` or `x64`, taken from the build host. Flutter cannot
+cross-compile desktop builds, so each architecture is built on a machine of
+that architecture.
 
 | Platform | Command | Output |
 | --- | --- | --- |
@@ -49,8 +51,14 @@ built on a host of the matching platform.
 | Fedora | `make installer-fedora` | `dist/mergelio-<version>-<release>.<dist>.<rpmarch>.rpm` |
 | Windows | `make build-windows` | `dist/<APP_NAME>-<version>-windows-<arch>.zip` and `-setup.exe` |
 
-The package formats name their own files: `_` separated with `amd64` for Debian,
-`-` separated with `x86_64` for RPM. Both are canonical for their tooling.
+The package formats name their own files: `_` separated with `amd64` / `arm64`
+for Debian, `-` separated with `x86_64` / `aarch64` for RPM. Both are canonical
+for their tooling.
+
+A Windows build made on one machine can be packaged and signed on another:
+`$env:SKIP_BUILD = 1; $env:TARGET_ARCH = 'arm64'` packages the arm64 build
+under `build\windows\arm64`, and the script refuses to wrap an exe whose
+machine type is not the one named.
 
 The `build-*` scripts accept `CLEAN=1` (`flutter clean` first),
 `SKIP_GEN=1` (skip code generation when the generated sources are current) and
@@ -166,13 +174,22 @@ release is drafted in that case — a GitHub release needs a tag to hang off).
 | --- | --- | --- |
 | Gate | ubuntu-latest | version check, formatting, `flutter analyze`, tests |
 | macOS (arm64) | macos-15 | signed, notarized `.dmg` and `-update.zip` |
-| Windows (x64) | windows-2022 | `…-setup.exe` |
-| Linux (x64) | ubuntu-22.04 | `.deb` |
-| Fedora (x64) | `fedora:41` container | signed `.rpm` |
+| Windows build (x64, arm64) | windows-2022, windows-11-arm | unsigned app, passed on to the next job |
+| Windows (x64, arm64) | windows-2022 | signed `…-setup.exe` per architecture, one job |
+| Linux (x64, arm64) | ubuntu-22.04, ubuntu-22.04-arm | `.deb` |
+| Fedora (x64, arm64) | `fedora:41` container on the same two | signed `.rpm` |
 | Draft release | ubuntu-latest | `SHA256SUMS.txt`, its signature, the draft |
 
 Ubuntu 22.04 rather than latest on purpose: its glibc 2.35 keeps the binary
 usable on Debian 12 and older Ubuntu. Building on 24.04 would not.
+
+Windows is built per architecture and signed only on x64: SimplySign Desktop
+installs a 64-bit virtual card driver, which does not load on Windows on Arm.
+Both installers are packaged in one job under a single SimplySign login: every
+login spends a one-time code from the same seed, and two logins inside one
+30 second window would present the same code. The Arm runners install Flutter from a
+git checkout of the pinned tag, because the SDK archives Flutter publishes
+carry an x64 Dart.
 
 The gate refuses a tag whose version disagrees with `pubspec.yaml`, since the
 artifacts are named after `pubspec.yaml` while the release hangs off the tag.
