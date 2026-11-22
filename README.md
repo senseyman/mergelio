@@ -812,9 +812,8 @@ new language is described in [CONTRIBUTING.md](CONTRIBUTING.md#localization).
 
 Mergelio has no accounts and phones home to nothing by default.
 
-- **Telemetry is opt-in** and off until you enable it in Preferences. When
-  enabled, values are scrubbed of file paths, e-mail addresses, remote names
-  and URLs before leaving the machine.
+- **No telemetry.** Mergelio collects no usage data, analytics or crash
+  reports, and has no setting for them.
 - **Update checks are opt-in** and asked about once, on first launch. Until you
   answer, nothing is requested. With them on, Mergelio fetches a small manifest
   from this repository's releases once a day — no account, no identifiers, and

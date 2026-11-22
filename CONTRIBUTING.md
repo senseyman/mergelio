@@ -156,8 +156,8 @@ lib/l10n/     ARB translations and their generated bindings
   interrupted run is reported on the next launch.
 - **Do not reimplement git.** Shell out. Matching the user's own config, hooks
   and credential helpers is the point.
-- **Nothing leaves the machine** without an explicit opt-in, and telemetry values
-  are scrubbed of paths, e-mail addresses, remote names and URLs first.
+- **Nothing leaves the machine** without an explicit opt-in. There is no
+  telemetry; do not add usage reporting or analytics.
 - **Accessibility is enforced, not reviewed.** Colours must hold WCAG 2.1 AA
   contrast (3:1 for UI colours) in both themes; a test asserts it. Add semantics
   labels and keep keyboard focus visible.
@@ -226,7 +226,7 @@ to include.
 Mergelio executes `git` and a system shell, reads and writes files inside the
 opened repository, and handles SSH key material through the OS tooling. Findings
 in those paths — path escapes outside the opened repository, argument injection
-into a git invocation, credential leakage into logs or telemetry — are exactly
+into a git invocation, credential leakage into logs or network requests — are exactly
 what to look for.
 
 ## License

@@ -267,8 +267,5 @@ xattr -dr com.apple.quarantine /Applications/Mergelio.app
 
 ## Telemetry
 
-Telemetry and crash reporting are **opt-in** (Preferences → General, off by
-default) and no backend is wired up: `TelemetryReporter` writes to a sink
-interface that has no HTTP implementation, so nothing leaves the machine today.
-Should one ever be added, property values are already scrubbed of file paths,
-emails, URLs and long tokens before they reach the sink.
+There is none. Mergelio sends no usage data, analytics or crash reports, and a
+release must not add any.

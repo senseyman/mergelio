@@ -130,7 +130,6 @@ class _GeneralTab extends ConsumerWidget {
           c.setConfirmDestructive,
         ),
         SwitchRow(l.prefsRestoreTabs, s.restoreTabs, c.setRestoreTabs),
-        SwitchRow(l.prefsTelemetry, s.telemetryEnabled, c.setTelemetryEnabled),
         _ZoomRow(label: l.prefsZoom, scale: s.uiScale, controller: c),
         _ChoiceRow(
           l.prefsPullStrategy,
