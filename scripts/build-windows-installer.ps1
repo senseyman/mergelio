@@ -122,6 +122,19 @@ function Get-UnsignedBinaries {
         ForEach-Object { $_.FullName }
 }
 
+# Machine type from a PE header, or $null when the file is not a PE image.
+# .NET resolves relative paths against the process directory, which
+# Set-Location does not move, so callers pass absolute paths.
+function Get-PeMachine {
+    param([string]$Path)
+    $bytes = [System.IO.File]::ReadAllBytes($Path)
+    if ($bytes.Length -lt 0x40 -or $bytes[0] -ne 0x4D -or $bytes[1] -ne 0x5A) { return $null }
+    $offset = [System.BitConverter]::ToInt32($bytes, 0x3C)
+    if ($offset -lt 0 -or $offset + 6 -gt $bytes.Length) { return $null }
+    if ([System.BitConverter]::ToUInt32($bytes, $offset) -ne 0x00004550) { return $null }
+    return [System.BitConverter]::ToUInt16($bytes, $offset + 4)
+}
+
 # ─── Environment ─────────────────────────────────────────────────────────────
 
 # Reads KEY=VALUE pairs from .env without executing anything. Values already
@@ -364,26 +377,33 @@ if (-not (Test-Path -LiteralPath $ReleaseDir)) {
 }
 Write-Ok "Built: $ReleaseDir"
 
-# An installer named for one architecture around an exe built for the other
-# installs fine and then fails to start, so read the machine type out of the
-# PE header rather than trust the directory name.
-$MainExe = Join-Path $ReleaseDir "$AppName.exe"
-if (-not (Test-Path -LiteralPath $MainExe)) {
-    $MainExe = Get-ChildItem -LiteralPath $ReleaseDir -Filter '*.exe' -File |
-        Select-Object -First 1 -ExpandProperty FullName
-}
-if (-not $MainExe) { Stop-WithError "No .exe in $ReleaseDir" }
-# .NET resolves relative paths against the process directory, which
-# Set-Location above does not move, so hand it an absolute one.
-$PeBytes = [System.IO.File]::ReadAllBytes((Resolve-Path -LiteralPath $MainExe).ProviderPath)
-$PeOffset = [System.BitConverter]::ToInt32($PeBytes, 0x3C)
-$PeMachine = [System.BitConverter]::ToUInt16($PeBytes, $PeOffset + 4)
+# An installer named for one architecture around binaries built for the other
+# installs fine and then fails to start with a bad-image error, so read the
+# machine type out of every PE header rather than trust the directory name. A
+# plugin shipping a prebuilt DLL for the wrong architecture is caught here too,
+# not only a mislabelled exe.
 $ExpectedMachine = @{ 'x64' = 0x8664; 'arm64' = 0xAA64 }[$Arch]
-if ($PeMachine -ne $ExpectedMachine) {
-    Stop-WithError ("$MainExe is machine type 0x{0:X4}, not the {1} type 0x{2:X4}." -f
-        $PeMachine, $Arch, $ExpectedMachine)
+$Binaries = @(Get-ChildItem -LiteralPath $ReleaseDir -Recurse -File |
+    Where-Object { $_.Extension -in '.exe', '.dll' })
+if (-not ($Binaries | Where-Object { $_.Extension -eq '.exe' })) {
+    Stop-WithError "No .exe in $ReleaseDir"
 }
-Write-Ok "$(Split-Path -Leaf $MainExe) is an $Arch binary"
+$Mismatched = @()
+foreach ($binary in $Binaries) {
+    $machine = Get-PeMachine $binary.FullName
+    if ($machine -ne $ExpectedMachine) {
+        $Mismatched += if ($null -eq $machine) {
+            "$($binary.Name): not a PE image"
+        } else {
+            "$($binary.Name): machine type 0x{0:X4}" -f $machine
+        }
+    }
+}
+if ($Mismatched.Count -gt 0) {
+    Stop-WithError (("Not built for $Arch (expected machine type 0x{0:X4}):`n  " -f
+        $ExpectedMachine) + ($Mismatched -join "`n  "))
+}
+Write-Ok "$($Binaries.Count) .exe/.dll files are $Arch binaries"
 
 # ─── Sign ────────────────────────────────────────────────────────────────────
 

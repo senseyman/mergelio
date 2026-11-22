@@ -217,6 +217,8 @@ jobs:
     name: Windows build (${{ matrix.arch }})
     needs: gate
     strategy:
+      # One architecture failing should not cancel the other and lose its log.
+      fail-fast: false
       matrix:
         include:
           - arch: x64
@@ -255,10 +257,14 @@ jobs:
           key: pub-windows-${{ hashFiles('pubspec.lock') }}
           restore-keys: pub-windows-
 
+      # TARGET_ARCH pins the output path, so a build that lands somewhere
+      # unexpected fails as missing rather than picking up another Release
+      # directory and failing later on its machine type.
       - name: Build the app
         shell: pwsh
         env:
           SKIP_PACKAGE: 1
+          TARGET_ARCH: ${{ matrix.arch }}
         run: .\scripts\build-windows-installer.ps1 "${{ needs.gate.outputs.version }}"
 
       # Intermediate only: the release job downloads by platform name and never
@@ -418,6 +424,8 @@ jobs:
     name: Linux (${{ matrix.arch }}, .deb)
     needs: gate
     strategy:
+      # One architecture failing should not cancel the other and lose its log.
+      fail-fast: false
       matrix:
         # Not the -latest images on purpose: 22.04 ships glibc 2.35, so the
         # binary also runs on Debian 12 and older Ubuntu. Built on 24.04 it
@@ -475,6 +483,8 @@ jobs:
     name: Fedora (${{ matrix.arch }}, .rpm)
     needs: gate
     strategy:
+      # One architecture failing should not cancel the other and lose its log.
+      fail-fast: false
       matrix:
         include:
           - arch: x64
