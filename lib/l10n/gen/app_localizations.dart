@@ -308,12 +308,6 @@ abstract class AppLocalizations {
   /// **'Restore tabs on launch'**
   String get prefsRestoreTabs;
 
-  /// No description provided for @prefsTelemetry.
-  ///
-  /// In en, this message translates to:
-  /// **'Share anonymous usage data'**
-  String get prefsTelemetry;
-
   /// No description provided for @prefsZoom.
   ///
   /// In en, this message translates to:

@@ -98,9 +98,6 @@ class SettingsController extends StateNotifier<AppSettings> {
   /// UI language: '' (system), 'en' or 'uk'.
   void setLocaleCode(String code) => _update(state.copyWith(localeCode: code));
 
-  void setTelemetryEnabled(bool v) =>
-      _update(state.copyWith(telemetryEnabled: v));
-
   void setUpdateConsent(String value) =>
       _update(state.copyWith(updateConsent: value));
 

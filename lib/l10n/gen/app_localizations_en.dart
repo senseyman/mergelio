@@ -115,9 +115,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get prefsRestoreTabs => 'Restore tabs on launch';
 
   @override
-  String get prefsTelemetry => 'Share anonymous usage data';
-
-  @override
   String get prefsZoom => 'Zoom';
 
   @override

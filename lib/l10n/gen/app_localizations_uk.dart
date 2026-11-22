@@ -116,9 +116,6 @@ class AppLocalizationsUk extends AppLocalizations {
   String get prefsRestoreTabs => 'Відновлювати вкладки при запуску';
 
   @override
-  String get prefsTelemetry => 'Надсилати анонімні дані про використання';
-
-  @override
   String get prefsZoom => 'Масштаб';
 
   @override

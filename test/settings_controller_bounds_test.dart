@@ -180,7 +180,6 @@ void main() {
         ..setDateFormat('iso')
         ..setClockFormat('24h')
         ..setLocaleCode('uk')
-        ..setTelemetryEnabled(true)
         ..setUpdateConsent('yes')
         ..setUpdateSkippedVersion('9.9.9')
         ..setGroupStyle('rail')
@@ -193,7 +192,6 @@ void main() {
       expect(s.dateFormat, 'iso');
       expect(s.clockFormat, '24h');
       expect(s.localeCode, 'uk');
-      expect(s.telemetryEnabled, isTrue);
       expect(s.updateConsent, 'yes');
       expect(s.updateSkippedVersion, '9.9.9');
       expect(s.groupStyle, 'rail');

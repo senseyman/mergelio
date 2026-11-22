@@ -113,8 +113,6 @@ abstract class AppSettings with _$AppSettings {
     @Default({}) Map<String, String> forgeServers,
     // UI language: '' follows the system locale, else 'en' / 'uk'.
     @Default('') String localeCode,
-    // Opt-in anonymised telemetry + crash reporting. Off by default.
-    @Default(false) bool telemetryEnabled,
     // Update checks. '' means the question has not been put to the user yet;
     // 'on' and 'off' are their answer. Checking is a network call out of a Git
     // client, so it never starts on its own.
