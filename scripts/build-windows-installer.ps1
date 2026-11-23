@@ -12,6 +12,10 @@
     optional desktop shortcuts, and registers an uninstall entry. Building it
     needs Inno Setup 6: winget install -e --id JRSoftware.InnoSetup
 
+    With BUILD_MSI set it also builds an MSI from the same files with WiX 5:
+      dotnet tool install --global wix --version 5.0.2
+      wix extension add --global WixToolset.UI.wixext/5.0.2
+
 .PARAMETER Version
     Version used in the archive name. Defaults to the version in pubspec.yaml.
 
@@ -26,6 +30,8 @@
     $env:SKIP_BUILD = 1;     .\scripts\build-windows-installer.ps1   # package an existing build
     $env:SKIP_BUILD = 1; $env:TARGET_ARCH = 'arm64'; .\scripts\build-windows-installer.ps1  # package an arm64 build made elsewhere
     $env:WINDOWS_SIGN_SHA1 = '<thumbprint>'; .\scripts\build-windows-installer.ps1  # sign everything
+    $env:BUILD_MSI = 1;      .\scripts\build-windows-installer.ps1   # an .msi as well
+    $env:BUILD_MSI = 1; $env:SKIP_INSTALLER = 1; $env:SKIP_ARCHIVE = 1; .\scripts\build-windows-installer.ps1  # .msi only
 #>
 
 [CmdletBinding()]
@@ -110,6 +116,32 @@ function Find-SignTool {
     }
 
     return $null
+}
+
+# Locates the WiX 5 command-line tool. `dotnet tool install --global` puts it in
+# ~\.dotnet\tools, which a shell opened before the install does not have on
+# PATH yet.
+function Find-Wix {
+    if ($env:WIX -and (Test-Path -LiteralPath $env:WIX -PathType Leaf)) { return $env:WIX }
+
+    $onPath = (Get-Command 'wix.exe' -ErrorAction SilentlyContinue).Source
+    if ($onPath) { return $onPath }
+
+    $dotnetTools = Join-Path $env:USERPROFILE '.dotnet\tools\wix.exe'
+    if (Test-Path -LiteralPath $dotnetTools) { return $dotnetTools }
+
+    return $null
+}
+
+# The MSI wizard shows the licence as RTF. LICENSE is plain ASCII, so escaping
+# RTF's three control characters and turning line breaks into \par is enough.
+function ConvertTo-LicenseRtf {
+    param([string]$Source, [string]$Destination)
+    $text = Get-Content -LiteralPath $Source -Raw
+    $text = $text -replace '\\', '\\' -replace '\{', '\{' -replace '\}', '\}'
+    $text = $text -replace "`r?`n", "\par`r`n"
+    $rtf = "{\rtf1\ansi\deff0{\fonttbl{\f0 Segoe UI;}}\fs18`r`n" + $text + "}"
+    [System.IO.File]::WriteAllText($Destination, $rtf, [System.Text.Encoding]::ASCII)
 }
 
 # Files under $Dir that carry no valid Authenticode signature. Binaries already
@@ -302,6 +334,24 @@ if ($SignSha1) {
     Write-Ok 'Build only - signing, if any, happens when this build is packaged'
 } else {
     Write-Warn 'WINDOWS_SIGN_SHA1 is empty - building unsigned'
+}
+
+# WiX is checked now rather than after a full build.
+$Wix = $null
+if ($env:BUILD_MSI -and -not $env:SKIP_PACKAGE) {
+    $Wix = Find-Wix
+    if (-not $Wix) {
+        Stop-WithError ("WiX not found (wix.exe). Install it:`n" +
+            "    dotnet tool install --global wix --version 5.0.2`n" +
+            "    wix extension add --global WixToolset.UI.wixext/5.0.2`n" +
+            "  Or point at it directly:  `$env:WIX = 'C:\Path\To\wix.exe'")
+    }
+    $WixExtensions = (& $Wix extension list --global 2>$null) -join "`n"
+    if ($WixExtensions -notmatch 'WixToolset\.UI\.wixext') {
+        Stop-WithError ("The WiX UI extension is missing. Add it:`n" +
+            "    wix extension add --global WixToolset.UI.wixext/5.0.2")
+    }
+    Write-Ok "WiX: $Wix"
 }
 
 # ─── Build ───────────────────────────────────────────────────────────────────
@@ -514,6 +564,57 @@ if ($env:SKIP_INSTALLER) {
     Write-Ok "Installer: $Installer"
 }
 
+# ─── MSI ─────────────────────────────────────────────────────────────────────
+
+$Msi = $null
+
+if ($env:BUILD_MSI) {
+    Write-Step 'Building the MSI'
+
+    $ObjDir = Join-Path 'build' "windows\msi-$Arch"
+    New-Item -ItemType Directory -Force -Path $ObjDir | Out-Null
+    $LicenseRtf = Join-Path (Resolve-Path $ObjDir).Path 'license.rtf'
+    ConvertTo-LicenseRtf -Source (Resolve-Path 'LICENSE').Path -Destination $LicenseRtf
+
+    $Msi = Join-Path (Resolve-Path $DistDir).Path "$AppName-$Version-windows-$Arch.msi"
+    if (Test-Path -LiteralPath $Msi) { Remove-Item -LiteralPath $Msi -Force }
+
+    # Every path goes in absolute: WiX does not resolve relative ones against
+    # the .wxs file.
+    & $Wix build (Resolve-Path 'windows\packaging\mergelio.wxs').Path `
+        -arch $Arch `
+        -ext WixToolset.UI.wixext `
+        -d "AppName=$AppName" `
+        -d "AppVersion=$Version" `
+        -d "LicenseRtf=$LicenseRtf" `
+        -d "IconFile=$((Resolve-Path 'windows\runner\resources\app_icon.ico').Path)" `
+        -bindpath "App=$((Resolve-Path $ReleaseDir).Path)" `
+        -intermediatefolder (Resolve-Path $ObjDir).Path `
+        -o $Msi
+    if ($LASTEXITCODE -ne 0) { Stop-WithError 'WiX failed to build the MSI.' }
+    if (-not (Test-Path -LiteralPath $Msi)) {
+        Stop-WithError "WiX reported success but $Msi is missing."
+    }
+
+    # The files inside were signed above; the MSI itself is signed last, since
+    # any change to it afterwards would break the signature.
+    if ($SignSha1) {
+        $Attempts = 3
+        for ($attempt = 1; $attempt -le $Attempts; $attempt++) {
+            & $SignTool sign /sha1 $SignSha1 /fd SHA256 /tr $TimestampUrl /td SHA256 /d $AppName $Msi
+            if ($LASTEXITCODE -eq 0) { break }
+            if ($attempt -lt $Attempts) {
+                Write-Warn "signtool exited with $LASTEXITCODE - retrying"
+                Start-Sleep -Seconds (5 * $attempt)
+            }
+        }
+        if ((Get-AuthenticodeSignature -LiteralPath $Msi).Status -ne 'Valid') {
+            Stop-WithError "Signing was requested, but $Msi carries no valid signature."
+        }
+    }
+    Write-Ok "MSI: $Msi"
+}
+
 Write-Host "`n[ok] Done" -ForegroundColor Green
 Write-Host "  build:   $ReleaseDir"
 if ($Archive) {
@@ -522,6 +623,11 @@ if ($Archive) {
 if ($Installer) {
     $InstallerMb = [math]::Round((Get-Item -LiteralPath $Installer).Length / 1MB, 1)
     Write-Host "  setup:   $Installer ($InstallerMb MB)"
+}
+if ($Msi) {
+    $MsiMb = [math]::Round((Get-Item -LiteralPath $Msi).Length / 1MB, 1)
+    $MsiSigned = if ((Get-AuthenticodeSignature -LiteralPath $Msi).Status -eq 'Valid') { 'signed' } else { 'unsigned' }
+    Write-Host "  msi:     $Msi ($MsiMb MB, $MsiSigned)"
 }
 # Whether the installer ends up signed is decided by the pipeline that calls
 # this script, so report what the file actually carries rather than assuming.

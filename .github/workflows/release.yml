@@ -291,6 +291,18 @@ jobs:
       - name: Install Inno Setup
         run: choco install innosetup -y --no-progress
 
+      # The MSI is built alongside setup.exe from the same signed files. Pinned:
+      # WiX changes its source schema between major versions.
+      - name: Install WiX
+        shell: pwsh
+        run: |
+          dotnet tool install --global wix --version 5.0.2
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          $tools = Join-Path $env:USERPROFILE '.dotnet\tools'
+          $tools | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+          & (Join-Path $tools 'wix.exe') extension add --global WixToolset.UI.wixext/5.0.2
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
       - uses: actions/download-artifact@v4
         with:
           name: build-windows-x64
@@ -348,24 +360,27 @@ jobs:
       # With WINDOWS_SIGN_SHA1 set the script signs every unsigned .exe and .dll
       # in the build before packing them, then has Inno Setup sign setup.exe and
       # the uninstaller, and fails unless the installer verifies. Left empty it
-      # packages unsigned. Only the installer is published, so no zip is built.
+      # packages unsigned. BUILD_MSI adds an .msi of the same files, signed last.
+      # Only the installers are published, so no zip is built.
       # TARGET_ARCH names the downloaded build, which need not match this
       # runner; the script checks the exe's machine type against it.
-      - name: Build setup.exe (x64)
+      - name: Build setup.exe and .msi (x64)
         shell: pwsh
         env:
           SKIP_BUILD: 1
           SKIP_ARCHIVE: 1
+          BUILD_MSI: 1
           TARGET_ARCH: x64
           WINDOWS_SIGN_SHA1: ${{ steps.certum.outputs.cert-thumbprint }}
           SIGNTOOL: ${{ steps.certum.outputs.signtool-path }}
         run: .\scripts\build-windows-installer.ps1 "${{ needs.gate.outputs.version }}"
 
-      - name: Build setup.exe (arm64)
+      - name: Build setup.exe and .msi (arm64)
         shell: pwsh
         env:
           SKIP_BUILD: 1
           SKIP_ARCHIVE: 1
+          BUILD_MSI: 1
           TARGET_ARCH: arm64
           WINDOWS_SIGN_SHA1: ${{ steps.certum.outputs.cert-thumbprint }}
           SIGNTOOL: ${{ steps.certum.outputs.signtool-path }}
@@ -375,20 +390,22 @@ jobs:
       # applies when a user runs the installer, independently of the script.
       # /tw turns a missing timestamp into exit code 2, which fails here: an
       # untimestamped signature stops validating the day the certificate expires.
-      - name: Verify the installer signature
+      - name: Verify the installer signatures
         if: steps.signing.outputs.enabled == 'true'
         shell: pwsh
         env:
           SIGNTOOL: ${{ steps.certum.outputs.signtool-path }}
         run: |
           foreach ($arch in 'x64', 'arm64') {
-            $installers = @(Get-ChildItem "dist\*-windows-$arch-setup.exe")
-            if ($installers.Count -ne 1) {
-              Write-Error "Expected one $arch setup.exe in dist, found $($installers.Count)."
-              exit 1
+            foreach ($pattern in "*-windows-$arch-setup.exe", "*-windows-$arch.msi") {
+              $installers = @(Get-ChildItem "dist\$pattern")
+              if ($installers.Count -ne 1) {
+                Write-Error "Expected one $pattern in dist, found $($installers.Count)."
+                exit 1
+              }
+              & $env:SIGNTOOL verify /pa /tw /v $installers[0].FullName
+              if ($LASTEXITCODE -ne 0) { exit 1 }
             }
-            & $env:SIGNTOOL verify /pa /tw /v $installers[0].FullName
-            if ($LASTEXITCODE -ne 0) { exit 1 }
           }
 
       # Ends the SimplySign session and drops the certificate from the
@@ -409,14 +426,18 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: windows-x64
-          path: dist/*-windows-x64-setup.exe
+          path: |
+            dist/*-windows-x64-setup.exe
+            dist/*-windows-x64.msi
           retention-days: 7
           if-no-files-found: error
 
       - uses: actions/upload-artifact@v4
         with:
           name: windows-arm64
-          path: dist/*-windows-arm64-setup.exe
+          path: |
+            dist/*-windows-arm64-setup.exe
+            dist/*-windows-arm64.msi
           retention-days: 7
           if-no-files-found: error
 

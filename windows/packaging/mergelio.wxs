@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  WiX (v5) source for the Mergelio MSI.
+
+  Not built by hand: scripts/build-windows-installer.ps1 runs `wix build` with
+  BUILD_MSI=1 and supplies everything below. A manual smoke build:
+
+    wix build windows\packaging\mergelio.wxs -arch x64 -ext WixToolset.UI.wixext ^
+        -d AppVersion=1.16.1 -d LicenseRtf=C:\path\license.rtf ^
+        -d IconFile=C:\path\windows\runner\resources\app_icon.ico ^
+        -bindpath App=C:\path\build\windows\x64\runner\Release -o dist\Mergelio.msi
+
+  Unlike the Inno Setup setup.exe, an MSI has no bootstrapper of its own:
+  Windows Installer (msiexec) reads it as a database and copies the files out
+  of the embedded cabinet. Nothing unpacks itself to %TEMP%, runs from there
+  and deletes itself afterwards.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+
+  <?ifndef AppName ?>
+    <?define AppName = "Mergelio" ?>
+  <?endif?>
+
+  <!--
+    Never change UpgradeCode: it is how Windows Installer recognises an older
+    Mergelio MSI and replaces it instead of installing a second copy.
+  -->
+  <Package Name="$(var.AppName)"
+           Manufacturer="Serhii Kotenko"
+           Version="$(var.AppVersion)"
+           UpgradeCode="{91C7CA50-23A0-42F0-AA07-5C630404EA6B}"
+           Scope="perMachine"
+           Compressed="yes">
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+
+    <!-- One cabinet, embedded, so the MSI is a single file to download and sign. -->
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <Icon Id="AppIcon.ico" SourceFile="$(var.IconFile)" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon.ico" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/senseyman/mergelio" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/senseyman/mergelio/issues" />
+    <Property Id="ARPURLUPDATEINFO" Value="https://github.com/senseyman/mergelio/releases" />
+
+    <StandardDirectory Id="ProgramMenuFolder" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="$(var.AppName)">
+
+        <!--
+          The exe is declared by hand so the Start-menu shortcut can hang off it;
+          the rest of the Flutter release directory (flutter_windows.dll, plugin
+          DLLs, data\) is picked up by the wildcard below. Missing any of them
+          and the app will not start.
+        -->
+        <Component Id="MainExecutable">
+          <File Id="MainExecutable" Source="!(bindpath.App)\Mergelio.exe" KeyPath="yes">
+            <Shortcut Id="StartMenuShortcut"
+                      Directory="ProgramMenuFolder"
+                      Name="$(var.AppName)"
+                      WorkingDirectory="INSTALLFOLDER"
+                      Icon="AppIcon.ico" />
+          </File>
+        </Component>
+
+        <Files Include="!(bindpath.App)\**">
+          <Exclude Files="!(bindpath.App)\Mergelio.exe" />
+        </Files>
+      </Directory>
+    </StandardDirectory>
+
+    <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.LicenseRtf)" />
+  </Package>
+</Wix>
