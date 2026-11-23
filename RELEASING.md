@@ -174,14 +174,22 @@ release is drafted in that case — a GitHub release needs a tag to hang off).
 | --- | --- | --- |
 | Gate | ubuntu-latest | version check, formatting, `flutter analyze`, tests |
 | macOS (arm64) | macos-15 | signed, notarized `.dmg` and `-update.zip` |
-| Windows build (x64, arm64) | windows-2022, windows-11-arm | unsigned app, passed on to the next job |
-| Windows (x64, arm64) | windows-2022 | signed `…-setup.exe` per architecture, one job |
+| ~~Windows build (x64, arm64)~~ | windows-2022, windows-11-arm | paused — commented out in `release.yml` |
+| ~~Windows (x64, arm64)~~ | windows-2022 | paused — commented out in `release.yml` |
 | Linux (x64, arm64) | ubuntu-22.04, ubuntu-22.04-arm | `.deb` |
 | Fedora (x64, arm64) | `fedora:41` container on the same two | signed `.rpm` |
 | Draft release | ubuntu-latest | `SHA256SUMS.txt`, its signature, the draft |
 
 Ubuntu 22.04 rather than latest on purpose: its glibc 2.35 keeps the binary
 usable on Debian 12 and older Ubuntu. Building on 24.04 would not.
+
+**Windows release builds are paused.** Both Windows jobs are commented out in
+`release.yml` and the release job does not wait on them, so a release ships
+macOS and Linux only; `make-appcast.sh` then writes no Windows entry and
+installed Windows copies are pointed at the release notes. The Windows build
+scripts still work locally. To resume, uncomment the jobs and put `windows`
+back into the release job's `needs`. The notes below describe the jobs as they
+ran.
 
 Windows is built per architecture and signed only on x64: SimplySign Desktop
 installs a 64-bit virtual card driver, which does not load on Windows on Arm.
@@ -234,7 +242,7 @@ macOS job fails and no release is produced.
 | `MACOS_CERT_P12`, `MACOS_CERT_PASSWORD` | the macOS job fails; a release is never signed ad-hoc |
 | `MACOS_APPLE_ID`, `MACOS_APP_PASSWORD`, `MACOS_TEAM_ID`, `MACOS_SIGN_IDENTITY` | needed alongside the certificate for notarization |
 | `LINUX_GPG_PRIVATE_KEY`, `LINUX_GPG_PASSPHRASE` | an unsigned `.rpm` and unsigned checksums |
-| `CERTUM_USERNAME`, `CERTUM_TOTP_SECRET`, `CERTUM_CERT_SHA1` | an unsigned `setup.exe` — SmartScreen warns on first run |
+| `CERTUM_USERNAME`, `CERTUM_TOTP_SECRET`, `CERTUM_CERT_SHA1` | unused while Windows release builds are paused; otherwise an unsigned `setup.exe` |
 
 The three Certum secrets go together; setting only some of them fails the
 Windows job rather than quietly shipping unsigned.

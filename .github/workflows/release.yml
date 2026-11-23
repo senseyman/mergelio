@@ -209,216 +209,220 @@ jobs:
         if: always()
         run: security delete-keychain "$KEYCHAIN_PATH" || true
 
-  # Flutter builds Windows only for the machine it runs on, so each architecture
-  # is built on its own runner. Signing and packaging happen afterwards on x64
-  # in the windows job: SimplySign Desktop installs a 64-bit virtual card driver,
-  # and an x64 driver does not load on Windows on Arm.
-  windows-build:
-    name: Windows build (${{ matrix.arch }})
-    needs: gate
-    strategy:
-      # One architecture failing should not cancel the other and lose its log.
-      fail-fast: false
-      matrix:
-        include:
-          - arch: x64
-            runner: windows-2022
-          - arch: arm64
-            runner: windows-11-arm
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: subosito/flutter-action@v2
-        if: matrix.arch == 'x64'
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
-          cache: true
-
-      # The SDK archives Flutter publishes carry an x64 Dart. A git checkout
-      # instead fetches the Dart SDK for the machine it first runs on.
-      - name: Install Flutter SDK (git)
-        if: matrix.arch == 'arm64'
-        shell: pwsh
-        run: |
-          $sdk = Join-Path $env:RUNNER_TEMP 'flutter'
-          git clone --depth 1 --branch $env:FLUTTER_VERSION `
-            https://github.com/flutter/flutter.git $sdk
-          if ($LASTEXITCODE -ne 0) { exit 1 }
-          Join-Path $sdk 'bin' | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
-          & (Join-Path $sdk 'bin\flutter.bat') --version
-          if ($LASTEXITCODE -ne 0) { exit 1 }
-
-      - uses: actions/cache@v4
-        with:
-          path: ~\AppData\Local\Pub\Cache
-          key: pub-windows-${{ hashFiles('pubspec.lock') }}
-          restore-keys: pub-windows-
-
-      # TARGET_ARCH pins the output path, so a build that lands somewhere
-      # unexpected fails as missing rather than picking up another Release
-      # directory and failing later on its machine type.
-      - name: Build the app
-        shell: pwsh
-        env:
-          SKIP_PACKAGE: 1
-          TARGET_ARCH: ${{ matrix.arch }}
-        run: .\scripts\build-windows-installer.ps1 "${{ needs.gate.outputs.version }}"
-
-      # Intermediate only: the release job downloads by platform name and never
-      # picks these up.
-      - uses: actions/upload-artifact@v4
-        with:
-          name: build-windows-${{ matrix.arch }}
-          path: build/windows/${{ matrix.arch }}/runner/Release
-          retention-days: 1
-          if-no-files-found: error
-
-  # Both architectures are packaged in one job so they share a single
-  # SimplySign login. Each login spends a one-time code from the same TOTP
-  # seed, and a second login inside the same 30 second window would present
-  # a code that was already used.
-  windows:
-    name: Windows (x64, arm64)
-    needs: [gate, windows-build]
-    runs-on: windows-2022
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Inno Setup
-        run: choco install innosetup -y --no-progress
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: build-windows-x64
-          path: build/windows/x64/runner/Release
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: build-windows-arm64
-          path: build/windows/arm64/runner/Release
-
-      # A step's if: cannot read the secrets context, so the decision is turned
-      # into an output here and the signing steps branch on that.
-      - name: Look for a signing credential
-        id: signing
-        shell: bash
-        env:
-          CERTUM_USERNAME: ${{ secrets.CERTUM_USERNAME }}
-          CERTUM_TOTP_SECRET: ${{ secrets.CERTUM_TOTP_SECRET }}
-          CERTUM_CERT_SHA1: ${{ secrets.CERTUM_CERT_SHA1 }}
-        run: |
-          count=0
-          for v in "$CERTUM_USERNAME" "$CERTUM_TOTP_SECRET" "$CERTUM_CERT_SHA1"; do
-            [ -n "$v" ] && count=$((count + 1))
-          done
-          case $count in
-            3)
-              echo "enabled=true" >> "$GITHUB_OUTPUT"
-              echo "Certum credentials present - building a signed installer."
-              ;;
-            0)
-              echo "enabled=false" >> "$GITHUB_OUTPUT"
-              echo "::warning::No Certum credentials - publishing an unsigned installer."
-              ;;
-            *)
-              # Half a configuration is a mistake, not a choice to ship unsigned.
-              echo "::error::CERTUM_USERNAME, CERTUM_TOTP_SECRET and CERTUM_CERT_SHA1 must be set together."
-              exit 1
-              ;;
-          esac
-
-      # Installs SimplySign Desktop and logs it in with a one-time code derived
-      # from the TOTP seed; the certificate then appears in the user's store
-      # while the private key stays in Certum's cloud. Pinned to a commit, not
-      # a tag: this step holds the seed, so what runs here must not be able to
-      # change under us. Review the action's source before moving the pin.
-      - name: Log in to Certum SimplySign
-        id: certum
-        if: steps.signing.outputs.enabled == 'true'
-        uses: jay0lee/certum-cloud-code-sign@a3324503499c49090869856eeeecfe95fb613d87 # v1
-        with:
-          username: ${{ secrets.CERTUM_USERNAME }}
-          totp_secret: ${{ secrets.CERTUM_TOTP_SECRET }}
-          cert_sha1: ${{ secrets.CERTUM_CERT_SHA1 }}
-
-      # With WINDOWS_SIGN_SHA1 set the script signs every unsigned .exe and .dll
-      # in the build before packing them, then has Inno Setup sign setup.exe and
-      # the uninstaller, and fails unless the installer verifies. Left empty it
-      # packages unsigned. Only the installer is published, so no zip is built.
-      # TARGET_ARCH names the downloaded build, which need not match this
-      # runner; the script checks the exe's machine type against it.
-      - name: Build setup.exe (x64)
-        shell: pwsh
-        env:
-          SKIP_BUILD: 1
-          SKIP_ARCHIVE: 1
-          TARGET_ARCH: x64
-          WINDOWS_SIGN_SHA1: ${{ steps.certum.outputs.cert-thumbprint }}
-          SIGNTOOL: ${{ steps.certum.outputs.signtool-path }}
-        run: .\scripts\build-windows-installer.ps1 "${{ needs.gate.outputs.version }}"
-
-      - name: Build setup.exe (arm64)
-        shell: pwsh
-        env:
-          SKIP_BUILD: 1
-          SKIP_ARCHIVE: 1
-          TARGET_ARCH: arm64
-          WINDOWS_SIGN_SHA1: ${{ steps.certum.outputs.cert-thumbprint }}
-          SIGNTOOL: ${{ steps.certum.outputs.signtool-path }}
-        run: .\scripts\build-windows-installer.ps1 "${{ needs.gate.outputs.version }}"
-
-      # /pa checks against the default Authenticode policy, the one Windows
-      # applies when a user runs the installer, independently of the script.
-      # /tw turns a missing timestamp into exit code 2, which fails here: an
-      # untimestamped signature stops validating the day the certificate expires.
-      - name: Verify the installer signature
-        if: steps.signing.outputs.enabled == 'true'
-        shell: pwsh
-        env:
-          SIGNTOOL: ${{ steps.certum.outputs.signtool-path }}
-        run: |
-          foreach ($arch in 'x64', 'arm64') {
-            $installers = @(Get-ChildItem "dist\*-windows-$arch-setup.exe")
-            if ($installers.Count -ne 1) {
-              Write-Error "Expected one $arch setup.exe in dist, found $($installers.Count)."
-              exit 1
-            }
-            & $env:SIGNTOOL verify /pa /tw /v $installers[0].FullName
-            if ($LASTEXITCODE -ne 0) { exit 1 }
-          }
-
-      # Ends the SimplySign session and drops the certificate from the
-      # runner's store, failure or not. Done inline rather than through the
-      # action's own teardown script, whose path is an output a failed login
-      # step may never have set.
-      - name: Log out of Certum SimplySign
-        if: always() && steps.signing.outputs.enabled == 'true'
-        shell: pwsh
-        run: |
-          Get-Process | Where-Object { $_.ProcessName -like '*SimplySign*' } |
-            Stop-Process -Force -ErrorAction SilentlyContinue
-          Get-ChildItem Cert:\CurrentUser\My -ErrorAction SilentlyContinue |
-            Where-Object { $_.Issuer -like '*Certum*' } |
-            Remove-Item -Force -ErrorAction SilentlyContinue
-          Write-Host 'SimplySign session closed.'
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: windows-x64
-          path: dist/*-windows-x64-setup.exe
-          retention-days: 7
-          if-no-files-found: error
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: windows-arm64
-          path: dist/*-windows-arm64-setup.exe
-          retention-days: 7
-          if-no-files-found: error
+  # Windows release builds are paused: no Windows installer is published until
+  # the installer format is replaced. The jobs are kept below, commented out,
+  # to be restored as they were. The release job no longer waits on them.
+  #
+#   # Flutter builds Windows only for the machine it runs on, so each architecture
+#   # is built on its own runner. Signing and packaging happen afterwards on x64
+#   # in the windows job: SimplySign Desktop installs a 64-bit virtual card driver,
+#   # and an x64 driver does not load on Windows on Arm.
+#   windows-build:
+#     name: Windows build (${{ matrix.arch }})
+#     needs: gate
+#     strategy:
+#       # One architecture failing should not cancel the other and lose its log.
+#       fail-fast: false
+#       matrix:
+#         include:
+#           - arch: x64
+#             runner: windows-2022
+#           - arch: arm64
+#             runner: windows-11-arm
+#     runs-on: ${{ matrix.runner }}
+#     timeout-minutes: 45
+#     steps:
+#       - uses: actions/checkout@v4
+#
+#       - uses: subosito/flutter-action@v2
+#         if: matrix.arch == 'x64'
+#         with:
+#           flutter-version: ${{ env.FLUTTER_VERSION }}
+#           channel: stable
+#           cache: true
+#
+#       # The SDK archives Flutter publishes carry an x64 Dart. A git checkout
+#       # instead fetches the Dart SDK for the machine it first runs on.
+#       - name: Install Flutter SDK (git)
+#         if: matrix.arch == 'arm64'
+#         shell: pwsh
+#         run: |
+#           $sdk = Join-Path $env:RUNNER_TEMP 'flutter'
+#           git clone --depth 1 --branch $env:FLUTTER_VERSION `
+#             https://github.com/flutter/flutter.git $sdk
+#           if ($LASTEXITCODE -ne 0) { exit 1 }
+#           Join-Path $sdk 'bin' | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+#           & (Join-Path $sdk 'bin\flutter.bat') --version
+#           if ($LASTEXITCODE -ne 0) { exit 1 }
+#
+#       - uses: actions/cache@v4
+#         with:
+#           path: ~\AppData\Local\Pub\Cache
+#           key: pub-windows-${{ hashFiles('pubspec.lock') }}
+#           restore-keys: pub-windows-
+#
+#       # TARGET_ARCH pins the output path, so a build that lands somewhere
+#       # unexpected fails as missing rather than picking up another Release
+#       # directory and failing later on its machine type.
+#       - name: Build the app
+#         shell: pwsh
+#         env:
+#           SKIP_PACKAGE: 1
+#           TARGET_ARCH: ${{ matrix.arch }}
+#         run: .\scripts\build-windows-installer.ps1 "${{ needs.gate.outputs.version }}"
+#
+#       # Intermediate only: the release job downloads by platform name and never
+#       # picks these up.
+#       - uses: actions/upload-artifact@v4
+#         with:
+#           name: build-windows-${{ matrix.arch }}
+#           path: build/windows/${{ matrix.arch }}/runner/Release
+#           retention-days: 1
+#           if-no-files-found: error
+#
+#   # Both architectures are packaged in one job so they share a single
+#   # SimplySign login. Each login spends a one-time code from the same TOTP
+#   # seed, and a second login inside the same 30 second window would present
+#   # a code that was already used.
+#   windows:
+#     name: Windows (x64, arm64)
+#     needs: [gate, windows-build]
+#     runs-on: windows-2022
+#     timeout-minutes: 30
+#     steps:
+#       - uses: actions/checkout@v4
+#
+#       - name: Install Inno Setup
+#         run: choco install innosetup -y --no-progress
+#
+#       - uses: actions/download-artifact@v4
+#         with:
+#           name: build-windows-x64
+#           path: build/windows/x64/runner/Release
+#
+#       - uses: actions/download-artifact@v4
+#         with:
+#           name: build-windows-arm64
+#           path: build/windows/arm64/runner/Release
+#
+#       # A step's if: cannot read the secrets context, so the decision is turned
+#       # into an output here and the signing steps branch on that.
+#       - name: Look for a signing credential
+#         id: signing
+#         shell: bash
+#         env:
+#           CERTUM_USERNAME: ${{ secrets.CERTUM_USERNAME }}
+#           CERTUM_TOTP_SECRET: ${{ secrets.CERTUM_TOTP_SECRET }}
+#           CERTUM_CERT_SHA1: ${{ secrets.CERTUM_CERT_SHA1 }}
+#         run: |
+#           count=0
+#           for v in "$CERTUM_USERNAME" "$CERTUM_TOTP_SECRET" "$CERTUM_CERT_SHA1"; do
+#             [ -n "$v" ] && count=$((count + 1))
+#           done
+#           case $count in
+#             3)
+#               echo "enabled=true" >> "$GITHUB_OUTPUT"
+#               echo "Certum credentials present - building a signed installer."
+#               ;;
+#             0)
+#               echo "enabled=false" >> "$GITHUB_OUTPUT"
+#               echo "::warning::No Certum credentials - publishing an unsigned installer."
+#               ;;
+#             *)
+#               # Half a configuration is a mistake, not a choice to ship unsigned.
+#               echo "::error::CERTUM_USERNAME, CERTUM_TOTP_SECRET and CERTUM_CERT_SHA1 must be set together."
+#               exit 1
+#               ;;
+#           esac
+#
+#       # Installs SimplySign Desktop and logs it in with a one-time code derived
+#       # from the TOTP seed; the certificate then appears in the user's store
+#       # while the private key stays in Certum's cloud. Pinned to a commit, not
+#       # a tag: this step holds the seed, so what runs here must not be able to
+#       # change under us. Review the action's source before moving the pin.
+#       - name: Log in to Certum SimplySign
+#         id: certum
+#         if: steps.signing.outputs.enabled == 'true'
+#         uses: jay0lee/certum-cloud-code-sign@a3324503499c49090869856eeeecfe95fb613d87 # v1
+#         with:
+#           username: ${{ secrets.CERTUM_USERNAME }}
+#           totp_secret: ${{ secrets.CERTUM_TOTP_SECRET }}
+#           cert_sha1: ${{ secrets.CERTUM_CERT_SHA1 }}
+#
+#       # With WINDOWS_SIGN_SHA1 set the script signs every unsigned .exe and .dll
+#       # in the build before packing them, then has Inno Setup sign setup.exe and
+#       # the uninstaller, and fails unless the installer verifies. Left empty it
+#       # packages unsigned. Only the installer is published, so no zip is built.
+#       # TARGET_ARCH names the downloaded build, which need not match this
+#       # runner; the script checks the exe's machine type against it.
+#       - name: Build setup.exe (x64)
+#         shell: pwsh
+#         env:
+#           SKIP_BUILD: 1
+#           SKIP_ARCHIVE: 1
+#           TARGET_ARCH: x64
+#           WINDOWS_SIGN_SHA1: ${{ steps.certum.outputs.cert-thumbprint }}
+#           SIGNTOOL: ${{ steps.certum.outputs.signtool-path }}
+#         run: .\scripts\build-windows-installer.ps1 "${{ needs.gate.outputs.version }}"
+#
+#       - name: Build setup.exe (arm64)
+#         shell: pwsh
+#         env:
+#           SKIP_BUILD: 1
+#           SKIP_ARCHIVE: 1
+#           TARGET_ARCH: arm64
+#           WINDOWS_SIGN_SHA1: ${{ steps.certum.outputs.cert-thumbprint }}
+#           SIGNTOOL: ${{ steps.certum.outputs.signtool-path }}
+#         run: .\scripts\build-windows-installer.ps1 "${{ needs.gate.outputs.version }}"
+#
+#       # /pa checks against the default Authenticode policy, the one Windows
+#       # applies when a user runs the installer, independently of the script.
+#       # /tw turns a missing timestamp into exit code 2, which fails here: an
+#       # untimestamped signature stops validating the day the certificate expires.
+#       - name: Verify the installer signature
+#         if: steps.signing.outputs.enabled == 'true'
+#         shell: pwsh
+#         env:
+#           SIGNTOOL: ${{ steps.certum.outputs.signtool-path }}
+#         run: |
+#           foreach ($arch in 'x64', 'arm64') {
+#             $installers = @(Get-ChildItem "dist\*-windows-$arch-setup.exe")
+#             if ($installers.Count -ne 1) {
+#               Write-Error "Expected one $arch setup.exe in dist, found $($installers.Count)."
+#               exit 1
+#             }
+#             & $env:SIGNTOOL verify /pa /tw /v $installers[0].FullName
+#             if ($LASTEXITCODE -ne 0) { exit 1 }
+#           }
+#
+#       # Ends the SimplySign session and drops the certificate from the
+#       # runner's store, failure or not. Done inline rather than through the
+#       # action's own teardown script, whose path is an output a failed login
+#       # step may never have set.
+#       - name: Log out of Certum SimplySign
+#         if: always() && steps.signing.outputs.enabled == 'true'
+#         shell: pwsh
+#         run: |
+#           Get-Process | Where-Object { $_.ProcessName -like '*SimplySign*' } |
+#             Stop-Process -Force -ErrorAction SilentlyContinue
+#           Get-ChildItem Cert:\CurrentUser\My -ErrorAction SilentlyContinue |
+#             Where-Object { $_.Issuer -like '*Certum*' } |
+#             Remove-Item -Force -ErrorAction SilentlyContinue
+#           Write-Host 'SimplySign session closed.'
+#
+#       - uses: actions/upload-artifact@v4
+#         with:
+#           name: windows-x64
+#           path: dist/*-windows-x64-setup.exe
+#           retention-days: 7
+#           if-no-files-found: error
+#
+#       - uses: actions/upload-artifact@v4
+#         with:
+#           name: windows-arm64
+#           path: dist/*-windows-arm64-setup.exe
+#           retention-days: 7
+#           if-no-files-found: error
 
   linux:
     name: Linux (${{ matrix.arch }}, .deb)
@@ -593,7 +597,7 @@ jobs:
 
   release:
     name: Draft release
-    needs: [macos-arm64, windows, linux, fedora]
+    needs: [macos-arm64, linux, fedora]
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     timeout-minutes: 15

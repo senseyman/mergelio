@@ -492,8 +492,7 @@ app can tell you about new releases if you let it — see
 | Platform | File | Install |
 | --- | --- | --- |
 | macOS (Apple silicon) | `Mergelio-<version>-macos-arm64.dmg` | Open it and drag Mergelio to Applications |
-| Windows (x64) | `Mergelio-<version>-windows-x64-setup.exe` | Run it |
-| Windows (Arm) | `Mergelio-<version>-windows-arm64-setup.exe` | Run it |
+| Windows (x64, Arm) | — | Coming later — see below |
 | Debian, Ubuntu (x64) | `mergelio_<version>_amd64.deb` | `sudo apt install ./mergelio_<version>_amd64.deb` |
 | Debian, Ubuntu (Arm) | `mergelio_<version>_arm64.deb` | `sudo apt install ./mergelio_<version>_arm64.deb` |
 | Fedora (x64) | `mergelio-<version>-1.fc41.x86_64.rpm` | `sudo dnf install ./mergelio-<version>-1.fc41.x86_64.rpm` |
@@ -503,22 +502,22 @@ Both Linux packages put the app in `/opt/mergelio`, link `/usr/bin/mergelio`
 onto your `PATH`, and register a launcher entry with its icon. Remove them with
 `sudo apt remove mergelio` or `sudo dnf remove mergelio`.
 
-From 1.16.1 on, the Windows installer, the app and the uninstaller are signed
-with a Certum code signing certificate issued to **Serhii Kotenko**. Right-click
-`setup.exe` → **Properties → Digital Signatures** to see it. SmartScreen weighs
-how often a signed file has been downloaded as well as the signature, so a new
-release can still show a warning for a while: **More info** names the publisher
-and **Run anyway** goes ahead. Releases before 1.16.1 are unsigned. Either way,
-check the download against [SHA256SUMS.txt](#verifying-a-download) first.
+**Windows builds will be published again later.** The Windows installer is
+being replaced with a new one, and until it ships no Windows download is
+attached to any release. Mergelio itself still runs on Windows: to use it now,
+[build it from source](#building-from-source). A Windows install you already
+have keeps working; it will show new releases but cannot install them until the
+new installer is out.
 
 ### Staying up to date
 
 Mergelio asks once, on first launch, whether it may check GitHub for new
 releases; until you answer, it makes no network requests of its own. With
 checking on it looks once a day and shows a strip above the status bar when a
-release is out. On macOS and Windows it can download and install the update
-itself — the download is checked against a signed manifest, and on macOS against
-Gatekeeper too, before anything is replaced. An install never interrupts a
+release is out. On macOS it can download and install the update itself — the
+download is checked against a signed manifest and against Gatekeeper before
+anything is replaced. Windows builds are not published for now, so on Windows
+the strip links the release notes instead of installing anything. An install never interrupts a
 running Git operation.
 
 Linux packages are updated through your package manager, not by the app: `.deb`
@@ -741,9 +740,10 @@ cp .env.example .env
 the notarization password stay in the macOS keychain. See
 [RELEASING.md](RELEASING.md) for the full list of variables.
 
-Windows and Linux builds need no signing configuration. Release builds for
-Windows are signed in CI through Certum SimplySign; set `WINDOWS_SIGN_SHA1` to
-sign a local build the same way — see [RELEASING.md](RELEASING.md#signing-windows).
+Windows and Linux builds need no signing configuration. Windows release builds
+are paused for now (see [Downloads](#downloads)); when they ran, CI signed them
+through Certum SimplySign. Set `WINDOWS_SIGN_SHA1` to sign a local build the
+same way — see [RELEASING.md](RELEASING.md#signing-windows).
 
 Generated sources (`*.g.dart`, `*.freezed.dart`) are **not** committed — run
 `make gen` after cloning and whenever you touch a model. `make gen-watch`
